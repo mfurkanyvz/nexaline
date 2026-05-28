@@ -124,6 +124,57 @@
             background: var(--panel-3);
         }
 
+        .auth-progress {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .auth-progress span {
+            height: 4px;
+            border-radius: 99px;
+            background: var(--panel-3);
+        }
+
+        .auth-progress span.active {
+            background: linear-gradient(135deg, var(--red), var(--blue));
+        }
+
+        .auth-fields {
+            min-height: 54px;
+        }
+
+        .auth-fields.step-next {
+            animation: authStepNext 220ms ease;
+        }
+
+        .auth-fields.step-back {
+            animation: authStepBack 220ms ease;
+        }
+
+        @keyframes authStepNext {
+            from {
+                opacity: 0;
+                transform: translateX(18px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes authStepBack {
+            from {
+                opacity: 0;
+                transform: translateX(-18px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
         .field {
             width: 100%;
             margin-bottom: 12px;
@@ -146,6 +197,26 @@
             color: #fff;
             font-weight: 700;
             background: linear-gradient(135deg, var(--red), var(--blue));
+        }
+
+        .secondary {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 8px;
+            color: var(--text);
+            font-weight: 700;
+            border: 1px solid var(--line);
+            background: var(--panel-2);
+        }
+
+        .auth-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .auth-actions.with-back {
+            grid-template-columns: 0.42fr 1fr;
         }
 
         .text-btn {
@@ -910,11 +981,25 @@
                 <button id="registerTab" class="auth-tab" type="button">Kayıt</button>
             </div>
 
-            <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
-            <input id="email" class="field hidden" autocomplete="email" placeholder="Gmail adresi">
-            <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Güçlü şifre">
-            <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
-            <button id="authButton" class="primary" type="button">Giriş Yap</button>
+            <div id="registerProgress" class="auth-progress hidden" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <div id="authFields" class="auth-fields">
+                <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
+                <input id="email" class="field hidden" autocomplete="email" placeholder="Gmail adresi">
+                <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
+                <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
+                <input id="confirmPassword" class="field hidden" autocomplete="new-password" type="password" placeholder="Şifreyi tekrar yaz">
+            </div>
+
+            <div id="authActions" class="auth-actions">
+                <button id="authBackButton" class="secondary hidden" type="button">Geri</button>
+                <button id="authButton" class="primary" type="button">Giriş Yap</button>
+            </div>
             <button id="forgotButton" class="text-btn" type="button">Şifremi unuttum</button>
             <div id="authStatus" class="status-line"></div>
         </section>
@@ -1063,6 +1148,8 @@
         let rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
         const state = {
             mode: "login",
+            registerStep: 0,
+            registerVerifiedCode: "",
             awaitingRegisterVerification: false,
             pendingRegister: null,
             me: null,
@@ -1111,38 +1198,97 @@
 
         function setAuthMode(mode) {
             state.mode = mode;
+            state.registerStep = 0;
+            state.registerVerifiedCode = "";
             state.awaitingRegisterVerification = false;
             state.pendingRegister = null;
-            $("loginTab").classList.toggle("active", mode === "login");
-            $("registerTab").classList.toggle("active", mode === "register");
-            $("email").classList.toggle("hidden", mode === "login");
-            $("verificationCode").classList.add("hidden");
-            $("forgotButton").classList.toggle("hidden", mode !== "login");
-            $("password").autocomplete = mode === "login" ? "current-password" : "new-password";
-            $("authButton").textContent = mode === "login" ? "Giriş Yap" : "Kayıt Kodu Gönder";
-            $("authStatus").textContent = mode === "register"
-                ? "Gmail doğrulanmadan hesap açılmaz. Aynı Gmail ile ikinci hesap oluşturulamaz."
-                : "";
+            $("verificationCode").value = "";
+            $("confirmPassword").value = "";
+            $("authStatus").textContent = "";
+            updateAuthView();
+        }
+
+        function updateAuthView(direction = "next") {
+            const isRegister = state.mode === "register";
+            const step = state.registerStep;
+            const show = (id, visible) => $(id).classList.toggle("hidden", !visible);
+
+            $("loginTab").classList.toggle("active", !isRegister);
+            $("registerTab").classList.toggle("active", isRegister);
+            show("registerProgress", isRegister);
+            show("username", !isRegister || step === 0);
+            show("email", isRegister && step === 1);
+            show("verificationCode", isRegister && step === 2);
+            show("password", !isRegister || step === 3);
+            show("confirmPassword", isRegister && step === 3);
+            show("forgotButton", !isRegister);
+            show("authBackButton", isRegister && step > 0);
+
+            $("authActions").classList.toggle("with-back", isRegister && step > 0);
+            $("password").autocomplete = isRegister ? "new-password" : "current-password";
+            $("password").placeholder = isRegister ? "Güçlü şifre" : "Şifre";
+            $("authButton").textContent = !isRegister
+                ? "Giriş Yap"
+                : step === 3
+                    ? "Hesabı Oluştur"
+                    : "Devam";
+
+            document.querySelectorAll("#registerProgress span").forEach((item, index) => {
+                item.classList.toggle("active", isRegister && index <= step);
+            });
+
+            if (isRegister && !$("authStatus").textContent) {
+                const hints = [
+                    "Önce benzersiz kullanıcı adını yaz.",
+                    "Gmail adresine doğrulama kodu göndereceğiz.",
+                    "Gmail'e gelen 6 haneli kodu yaz.",
+                    "Güçlü şifreni iki kez yaz."
+                ];
+                $("authStatus").textContent = hints[step];
+            }
+
+            animateAuthFields(direction);
+            setTimeout(() => {
+                if (isRegister) {
+                    const focusIds = ["username", "email", "verificationCode", "password"];
+                    $(focusIds[step])?.focus();
+                } else {
+                    $("username").focus();
+                }
+            }, 80);
+        }
+
+        function animateAuthFields(direction) {
+            const fields = $("authFields");
+            fields.classList.remove("step-next", "step-back");
+            void fields.offsetWidth;
+            fields.classList.add(direction === "back" ? "step-back" : "step-next");
+        }
+
+        function setRegisterStep(step, direction = "next") {
+            state.registerStep = Math.max(0, Math.min(3, step));
+            $("authStatus").textContent = "";
+            updateAuthView(direction);
+        }
+
+        function goBackAuthStep() {
+            if (state.mode === "register" && state.registerStep > 0) {
+                setRegisterStep(state.registerStep - 1, "back");
+            }
         }
 
         async function submitAuth() {
-            const username = $("username").value.trim();
-            const password = $("password").value;
-            const email = $("email").value.trim();
-            const code = $("verificationCode").value.trim();
-
-            if (state.mode === "register" && state.awaitingRegisterVerification) {
-                await verifyRegisterCode(code);
+            if (state.mode === "register") {
+                await submitRegisterStep();
                 return;
             }
 
-            const endpoint = state.mode === "login" ? "/login" : "/register";
-            const payload = state.mode === "login" ? { username, password } : { username, password, email };
-
-            const response = await fetch(endpoint, {
+            const username = $("username").value.trim();
+            const password = $("password").value;
+            const response = await fetch("/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ username, password })
             });
             const data = await response.json();
 
@@ -1151,25 +1297,84 @@
                 return;
             }
 
-            if (data.requiresVerification) {
-                state.awaitingRegisterVerification = true;
-                state.pendingRegister = { username, email };
-                $("verificationCode").classList.remove("hidden");
-                $("authButton").textContent = "Kodu Doğrula";
-                $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
-                return;
-            }
-
             state.me = data.user;
             localStorage.setItem("nexalineUser", username.toLowerCase());
             openApp();
         }
 
-        async function verifyRegisterCode(code) {
+        async function submitRegisterStep() {
+            const username = $("username").value.trim().toLowerCase();
+            const email = $("email").value.trim();
+            const code = $("verificationCode").value.trim();
+            const password = $("password").value;
+            const confirmPassword = $("confirmPassword").value;
+
+            if (state.registerStep === 0) {
+                const response = await fetch("/register/check-username", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("authStatus").textContent = data.message;
+                    return;
+                }
+                state.pendingRegister = { username, email: "" };
+                setRegisterStep(1);
+                return;
+            }
+
+            if (state.registerStep === 1) {
+                const payload = { username: state.pendingRegister?.username || username, email };
+                const response = await fetch("/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("authStatus").textContent = data.message;
+                    return;
+                }
+                state.awaitingRegisterVerification = true;
+                state.pendingRegister = payload;
+                setRegisterStep(2);
+                $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
+                return;
+            }
+
+            if (state.registerStep === 2) {
+                const response = await fetch("/register/verify", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...state.pendingRegister, code })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("authStatus").textContent = data.message;
+                    return;
+                }
+                state.registerVerifiedCode = code;
+                setRegisterStep(3);
+                $("authStatus").textContent = data.message;
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                $("authStatus").textContent = "Yazdığın iki şifre aynı değil.";
+                return;
+            }
+
             const response = await fetch("/register/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...state.pendingRegister, code })
+                body: JSON.stringify({
+                    ...state.pendingRegister,
+                    code: state.registerVerifiedCode,
+                    password,
+                    confirmPassword
+                })
             });
             const data = await response.json();
             if (!data.ok) {
@@ -2385,7 +2590,16 @@
 
         $("loginTab").onclick = () => setAuthMode("login");
         $("registerTab").onclick = () => setAuthMode("register");
+        $("authBackButton").onclick = goBackAuthStep;
         $("authButton").onclick = submitAuth;
+        ["username", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
+            $(id).addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    submitAuth();
+                }
+            });
+        });
         $("sendButton").onclick = sendMessage;
         $("searchInput").oninput = () => {
             renderChats();

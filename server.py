@@ -701,10 +701,6 @@ def register():
         if username_problem:
             return jsonify({"ok": False, "message": username_problem}), 400
 
-        password_problem = password_error(username, password)
-        if password_problem:
-            return jsonify({"ok": False, "message": password_problem}), 400
-
         email_problem = email_error(email)
         if email_problem:
             return jsonify({"ok": False, "message": email_problem}), 400
@@ -717,18 +713,39 @@ def register():
         if email_exists(email_normalized):
             return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
 
+        password_hash = None
+        if password:
+            password_problem = password_error(username, password)
+            if password_problem:
+                return jsonify({"ok": False, "message": password_problem}), 400
+            password_hash = generate_password_hash(password)
+
         _, code, sent = create_email_verification(
             purpose="register",
             username=username,
             email=email,
             email_normalized=email_normalized,
-            password_hash=generate_password_hash(password),
+            password_hash=password_hash,
         )
         return verification_response("Gmail adresine doğrulama kodu gönderdik.", code, sent)
     except Exception:
         db.session.rollback()
         app.logger.exception("Register failed")
         return jsonify({"ok": False, "message": "Sunucuda kayıt hatası oluştu. Render kayıtlarını kontrol et."}), 500
+
+@app.route("/register/check-username", methods=["POST"])
+def register_check_username():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+
+    username_problem = username_error(username)
+    if username_problem:
+        return jsonify({"ok": False, "message": username_problem}), 400
+
+    if db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Bu kullanici adi zaten kayitli. Farkli bir kullanici adi dene."}), 409
+
+    return jsonify({"ok": True, "message": "Kullanici adi uygun."})
 
 
 @app.route("/register/verify", methods=["POST"])
@@ -738,6 +755,13 @@ def register_verify():
         username = (data.get("username") or "").strip().lower()
         email = (data.get("email") or "").strip()
         code = (data.get("code") or "").strip()
+        password = data.get("password") or ""
+        confirm_password = data.get("confirmPassword")
+
+        email_problem = email_error(email)
+        if email_problem:
+            return jsonify({"ok": False, "message": email_problem}), 400
+
         email, email_normalized = normalize_email(email)
         verification = EmailVerification.query.filter_by(
             purpose="register",
@@ -765,10 +789,26 @@ def register_verify():
         if email_exists(email_normalized):
             return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
 
+        if not password and not verification.password_hash:
+            return jsonify({"ok": True, "message": "Kod dogrulandi. Simdi guclu sifreni olustur.", "requiresPassword": True})
+
+        if password:
+            if confirm_password is not None and password != confirm_password:
+                return jsonify({"ok": False, "message": "Yazdigin iki sifre ayni degil."}), 400
+            password_problem = password_error(username, password)
+            if password_problem:
+                return jsonify({"ok": False, "message": password_problem}), 400
+            password_hash = generate_password_hash(password)
+        else:
+            password_hash = verification.password_hash
+
+        if not password_hash:
+            return jsonify({"ok": False, "message": "Sifre olusturulmadan kayit tamamlanamaz."}), 400
+
         db.session.add(
             User(
                 username=username,
-                password_hash=verification.password_hash,
+                password_hash=password_hash,
                 display_name=username,
                 email=verification.email,
                 email_normalized=verification.email_normalized,
