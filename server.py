@@ -13,8 +13,12 @@ os.makedirs(app.instance_path, exist_ok=True)
 
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:
-    fallback_db = os.environ.get("SQLITE_PATH", "/tmp/nexaline.db" if os.environ.get("RENDER") else os.path.join(app.instance_path, "nexaline.db"))
+    fallback_db = os.environ.get(
+        "SQLITE_PATH",
+        "/tmp/nexaline.db" if os.environ.get("RENDER") else os.path.join(app.instance_path, "nexaline.db"),
+    )
     database_url = "sqlite:///" + fallback_db.replace("\\", "/")
+
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
@@ -134,11 +138,22 @@ def ensure_direct_chat(first_username, second_username):
     return chat
 
 
+def chat_has_explicit_members(chat):
+    return len(chat.members) > 0
+
+
 def chat_member_names(chat):
-    if chat.type == "group":
+    if chat.type == "group" and not chat_has_explicit_members(chat):
         return [user.username for user in User.query.order_by(User.display_name).all()]
 
     return sorted(member.username for member in chat.members)
+
+
+def user_can_see_chat(chat, username):
+    if chat.type == "group" and not chat_has_explicit_members(chat):
+        return True
+
+    return any(member.username == username for member in chat.members)
 
 
 def chat_for_user(chat, username):
@@ -161,22 +176,19 @@ def chat_for_user(chat, username):
     }
 
 
-def user_can_see_chat(chat, username):
-    if chat.type == "group":
-        return True
-
-    return any(member.username == username for member in chat.members)
-
-
 def visible_chats(username):
     ensure_lobby()
     result = []
 
-    for chat in Chat.query.all():
+    for chat in Chat.query.order_by(Chat.created_at).all():
         if user_can_see_chat(chat, username):
             result.append(chat_for_user(chat, username))
 
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
+
+
+def connected_sids_for(username):
+    return [sid for sid, connected_user in connections.items() if connected_user == username]
 
 
 def broadcast_presence():
@@ -198,9 +210,7 @@ def client():
 def health():
     try:
         ensure_lobby()
-        user_count = User.query.count()
-        chat_count = Chat.query.count()
-        return jsonify({"ok": True, "users": user_count, "chats": chat_count})
+        return jsonify({"ok": True, "users": User.query.count(), "chats": Chat.query.count()})
     except Exception as error:
         app.logger.exception("Health check failed")
         return jsonify({"ok": False, "message": str(error)}), 500
@@ -220,14 +230,15 @@ def register():
         if db.session.get(User, username):
             return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
 
-        user = User(
-            username=username,
-            password_hash=generate_password_hash(password),
-            display_name=display_name or username,
-            avatar=username[:2].upper(),
-            about="NexaLine kullanıyorum.",
+        db.session.add(
+            User(
+                username=username,
+                password_hash=generate_password_hash(password),
+                display_name=display_name or username,
+                avatar=username[:2].upper(),
+                about="NexaLine kullanıyorum.",
+            )
         )
-        db.session.add(user)
         ensure_lobby()
         db.session.commit()
 
@@ -281,10 +292,9 @@ def handle_user_join(data):
         return
 
     connections[request.sid] = username
-    join_room("lobby")
 
     for chat in Chat.query.all():
-        if chat.type == "direct" and user_can_see_chat(chat, username):
+        if user_can_see_chat(chat, username):
             join_room(chat.id)
 
     emit(
@@ -304,26 +314,61 @@ def handle_chat_create(data):
     target = (data or {}).get("target", "").strip().lower()
 
     if not username or not db.session.get(User, target) or target == username:
+        emit("notice", {"message": "Kullanıcı bulunamadı."})
         return
 
     chat = ensure_direct_chat(username, target)
     join_room(chat.id)
     emit("chat:upsert", chat_for_user(chat, username), room=request.sid)
 
-    for sid, connected_user in connections.items():
-        if connected_user == target:
+    for sid in connected_sids_for(target):
+        join_room(chat.id, sid=sid)
+        emit("chat:upsert", chat_for_user(chat, target), room=sid)
+
+
+@socketio.on("chat:group:create")
+def handle_group_create(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    title = (data.get("title") or "").strip()
+    requested_members = {(member or "").strip().lower() for member in data.get("members", [])}
+    requested_members.discard("")
+
+    if not username or len(title) < 2:
+        emit("notice", {"message": "Grup adı en az 2 karakter olmalı."})
+        return
+
+    member_names = {username}
+    for member in requested_members:
+        if db.session.get(User, member):
+            member_names.add(member)
+
+    if len(member_names) < 2:
+        emit("notice", {"message": "Grup için en az bir kayıtlı kişi eklemelisin."})
+        return
+
+    chat = Chat(id="group:" + uuid4().hex, type="group", title=title)
+    db.session.add(chat)
+    db.session.flush()
+
+    for member in sorted(member_names):
+        db.session.add(ChatMember(chat_id=chat.id, username=member))
+
+    db.session.commit()
+
+    for member in member_names:
+        for sid in connected_sids_for(member):
             join_room(chat.id, sid=sid)
-            emit("chat:upsert", chat_for_user(chat, target), room=sid)
+            emit("chat:upsert", chat_for_user(chat, member), room=sid)
 
 
 @socketio.on("message:send")
 def handle_message_send(data):
     username = connections.get(request.sid)
     data = data or {}
-    chat_id = data.get("chatId")
+    chat = db.session.get(Chat, data.get("chatId"))
     body = (data.get("body") or "").strip()
     attachment = data.get("attachment")
-    chat = db.session.get(Chat, chat_id)
 
     if not username or not chat or not user_can_see_chat(chat, username):
         return
@@ -362,10 +407,7 @@ def handle_typing(data):
 
     emit(
         "typing:update",
-        {
-            "chatId": chat_id,
-            "users": sorted(typing_users.get(chat_id, set())),
-        },
+        {"chatId": chat_id, "users": sorted(typing_users.get(chat_id, set()))},
         room=chat_id,
         include_self=False,
     )
@@ -390,11 +432,41 @@ def handle_message_read(data):
 
     if updated_ids:
         db.session.commit()
-        emit(
-            "message:read",
-            {"chatId": chat_id, "reader": username, "messageIds": updated_ids},
-            room=chat_id,
-        )
+        emit("message:read", {"chatId": chat_id, "reader": username, "messageIds": updated_ids}, room=chat_id)
+
+
+def forward_call_event(event_name, data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+
+    if not username or not chat or not user_can_see_chat(chat, username):
+        return
+
+    payload = dict(data)
+    payload["from"] = username
+    payload["fromName"] = public_user(username)["displayName"]
+    emit(event_name, payload, room=chat.id, include_self=False)
+
+
+@socketio.on("call:offer")
+def handle_call_offer(data):
+    forward_call_event("call:offer", data)
+
+
+@socketio.on("call:answer")
+def handle_call_answer(data):
+    forward_call_event("call:answer", data)
+
+
+@socketio.on("call:ice")
+def handle_call_ice(data):
+    forward_call_event("call:ice", data)
+
+
+@socketio.on("call:end")
+def handle_call_end(data):
+    forward_call_event("call:end", data)
 
 
 @socketio.on("disconnect")
@@ -405,11 +477,7 @@ def handle_disconnect():
         for chat_id, users_typing in typing_users.items():
             if username in users_typing:
                 users_typing.discard(username)
-                emit(
-                    "typing:update",
-                    {"chatId": chat_id, "users": sorted(users_typing)},
-                    room=chat_id,
-                )
+                emit("typing:update", {"chatId": chat_id, "users": sorted(users_typing)}, room=chat_id)
 
     broadcast_presence()
 

@@ -82,19 +82,10 @@
             font-weight: 800;
         }
 
-        .brand h1,
-        .brand p {
-            margin: 0;
-        }
-
         .brand h1 {
+            margin: 0;
             font-size: 30px;
             letter-spacing: 0;
-        }
-
-        .brand p,
-        .muted {
-            color: var(--muted);
         }
 
         .auth-tabs {
@@ -152,7 +143,7 @@
 
         .app {
             display: grid;
-            grid-template-columns: 360px minmax(0, 1fr);
+            grid-template-columns: 380px minmax(0, 1fr);
             height: 100vh;
             background: rgba(3, 5, 9, 0.42);
         }
@@ -199,7 +190,6 @@
         }
 
         .identity strong,
-        .chat-name,
         .chat-title {
             display: block;
             overflow: hidden;
@@ -208,8 +198,8 @@
         }
 
         .identity small,
-        .chat-meta,
-        .last-message {
+        .last-message,
+        .section-label {
             color: var(--muted);
             font-size: 12px;
         }
@@ -229,16 +219,14 @@
             background: var(--panel-3);
         }
 
-        .search-box,
-        .new-chat {
+        .search-box {
             display: flex;
             gap: 8px;
             padding: 12px;
             border-bottom: 1px solid var(--line);
         }
 
-        .search-box input,
-        .new-chat input {
+        .search-box input {
             min-width: 0;
             flex: 1;
             padding: 12px;
@@ -249,18 +237,29 @@
             background: #090c13;
         }
 
-        .new-chat button {
-            width: 44px;
-            border-radius: 8px;
-            color: #fff;
-            background: var(--blue);
+        .section-label {
+            padding: 12px 16px 6px;
+            text-transform: uppercase;
+            letter-spacing: 0;
         }
 
-        .chat-list {
+        .scroll-area {
+            min-height: 0;
             overflow: auto;
         }
 
-        .chat-item {
+        .chat-list {
+            max-height: 42vh;
+            overflow: auto;
+        }
+
+        .contact-list {
+            overflow: auto;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-item,
+        .contact-item {
             display: grid;
             grid-template-columns: 48px minmax(0, 1fr) auto;
             gap: 12px;
@@ -276,13 +275,26 @@
             background: rgba(47, 140, 255, 0.16);
         }
 
-        .chat-item:hover {
+        .chat-item:hover,
+        .contact-item:hover {
             background: rgba(255, 255, 255, 0.04);
         }
 
         .chat-time {
             color: var(--muted);
             font-size: 12px;
+        }
+
+        .online-dot {
+            width: 9px;
+            height: 9px;
+            align-self: center;
+            border-radius: 50%;
+            background: #596173;
+        }
+
+        .online-dot.online {
+            background: var(--green);
         }
 
         .chat-pane {
@@ -300,12 +312,6 @@
             flex-direction: column;
             gap: 8px;
             padding: 22px;
-        }
-
-        .empty {
-            margin: auto;
-            color: var(--muted);
-            text-align: center;
         }
 
         .bubble {
@@ -394,6 +400,74 @@
             background: var(--red);
         }
 
+        .call-panel {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.72);
+        }
+
+        .call-box {
+            width: min(820px, 100%);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .video-stage {
+            position: relative;
+            aspect-ratio: 16 / 9;
+            background: #05070c;
+        }
+
+        .video-stage video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #05070c;
+        }
+
+        #localVideo {
+            position: absolute;
+            right: 14px;
+            bottom: 14px;
+            width: min(180px, 32%);
+            height: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+
+        .call-info,
+        .call-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .call-info {
+            justify-content: space-between;
+            border-top: 1px solid var(--line);
+        }
+
+        .call-actions {
+            justify-content: center;
+        }
+
+        .danger {
+            background: var(--red);
+        }
+
+        .accept {
+            background: var(--green);
+            color: #07100b;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -418,10 +492,7 @@
         <section class="auth-card">
             <div class="brand">
                 <div class="brand-mark">NL</div>
-                <div>
-                    <h1>NexaLine</h1>
-                    <p>Profesyonel mesajlaşma</p>
-                </div>
+                <h1>NexaLine</h1>
             </div>
 
             <div class="auth-tabs">
@@ -446,21 +517,20 @@
                     <small id="meStatus">çevrimiçi</small>
                 </div>
                 <div class="icon-row">
-                    <button class="icon-btn" id="newGroupButton" title="Grup">＋</button>
+                    <button class="icon-btn" id="newGroupButton" title="Grup oluştur">＋</button>
                     <button class="icon-btn" id="logoutButton" title="Çıkış">⏻</button>
                 </div>
             </header>
 
             <div class="search-box">
-                <input id="searchInput" placeholder="Sohbetlerde ara">
+                <input id="searchInput" placeholder="Sohbetlerde ve kişilerde ara">
             </div>
 
-            <div class="new-chat">
-                <input id="newChatInput" placeholder="Kullanıcı adı ile sohbet">
-                <button id="newChatButton" title="Sohbet başlat">→</button>
-            </div>
-
+            <div class="section-label">Sohbetler</div>
             <nav id="chatList" class="chat-list"></nav>
+
+            <div class="section-label">Kişiler</div>
+            <nav id="contactList" class="contact-list scroll-area"></nav>
         </aside>
 
         <section class="chat-pane">
@@ -477,9 +547,7 @@
                 </div>
             </header>
 
-            <div id="messages" class="messages">
-                <div class="empty">NexaLine</div>
-            </div>
+            <div id="messages" class="messages"></div>
 
             <footer class="composer">
                 <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
@@ -490,8 +558,28 @@
         </section>
     </main>
 
+    <section id="callPanel" class="call-panel hidden">
+        <div class="call-box">
+            <div class="video-stage">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <video id="localVideo" autoplay playsinline muted></video>
+            </div>
+            <div class="call-info">
+                <strong id="callTitle">Arama</strong>
+                <span id="callStatus">bağlanıyor</span>
+            </div>
+            <div class="call-actions">
+                <button id="acceptCallButton" class="icon-btn accept hidden" title="Kabul et">✓</button>
+                <button id="muteButton" class="icon-btn" title="Mikrofon">♫</button>
+                <button id="cameraButton" class="icon-btn" title="Kamera">▣</button>
+                <button id="endCallButton" class="icon-btn danger" title="Bitir">×</button>
+            </div>
+        </div>
+    </section>
+
     <script>
         const socket = io();
+        const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
         const state = {
             mode: "login",
             me: null,
@@ -499,7 +587,15 @@
             chats: [],
             activeChatId: "lobby",
             typing: {},
-            attachment: null
+            attachment: null,
+            call: {
+                pc: null,
+                localStream: null,
+                remoteStream: null,
+                chatId: null,
+                audioOnly: false,
+                incomingOffer: null
+            }
         };
 
         const $ = (id) => document.getElementById(id);
@@ -563,6 +659,7 @@
         function render() {
             renderProfile();
             renderChats();
+            renderContacts();
             renderActiveChat();
         }
 
@@ -598,7 +695,7 @@
                     title.textContent = chat.title;
                     const last = document.createElement("div");
                     last.className = "last-message";
-                    last.textContent = latestText(chat) || "Henüz mesaj yok";
+                    last.textContent = latestText(chat);
                     body.append(title, last);
 
                     const time = document.createElement("span");
@@ -610,12 +707,46 @@
                 });
         }
 
+        function renderContacts() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            const contactList = $("contactList");
+            contactList.innerHTML = "";
+
+            state.users
+                .filter(user => user.username !== state.me.username)
+                .filter(user => user.displayName.toLowerCase().includes(filter) || user.username.toLowerCase().includes(filter))
+                .forEach(user => {
+                    const button = document.createElement("button");
+                    button.className = "contact-item";
+                    button.onclick = () => socket.emit("chat:create", { target: user.username });
+
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (user.online ? " online" : "");
+                    avatar.textContent = initials(user.displayName);
+
+                    const body = document.createElement("div");
+                    const title = document.createElement("strong");
+                    title.className = "chat-title";
+                    title.textContent = user.displayName;
+                    const meta = document.createElement("div");
+                    meta.className = "last-message";
+                    meta.textContent = user.online ? "çevrimiçi" : "çevrimdışı";
+                    body.append(title, meta);
+
+                    const dot = document.createElement("span");
+                    dot.className = "online-dot" + (user.online ? " online" : "");
+
+                    button.append(avatar, body, dot);
+                    contactList.appendChild(button);
+                });
+        }
+
         function renderActiveChat() {
             const chat = activeChat();
             const messageBox = $("messages");
 
             if (!chat) {
-                messageBox.innerHTML = '<div class="empty">NexaLine</div>';
+                messageBox.innerHTML = "";
                 return;
             }
 
@@ -624,10 +755,6 @@
             $("activeAvatar").classList.toggle("online", isChatOnline(chat));
             $("activeStatus").textContent = statusText(chat);
             messageBox.innerHTML = "";
-
-            if (!chat.messages.length) {
-                messageBox.innerHTML = '<div class="empty">NexaLine</div>';
-            }
 
             chat.messages.forEach(message => {
                 const mine = message.sender === state.me.username;
@@ -673,7 +800,7 @@
             link.className = "file-pill";
             link.href = attachment.dataUrl;
             link.download = attachment.name;
-            link.textContent = `📎 ${attachment.name}`;
+            link.textContent = `Dosya: ${attachment.name}`;
             return link;
         }
 
@@ -686,25 +813,28 @@
                 return;
             }
 
-            socket.emit("message:send", {
-                chatId: chat.id,
-                body,
-                attachment: state.attachment
-            });
+            socket.emit("message:send", { chatId: chat.id, body, attachment: state.attachment });
             socket.emit("typing", { chatId: chat.id, typing: false });
             input.value = "";
+            input.placeholder = "Mesaj";
             state.attachment = null;
         }
 
-        function startChat() {
-            const target = $("newChatInput").value.trim().toLowerCase();
-
-            if (!target) {
+        function createGroup() {
+            const title = prompt("Grup adı");
+            if (!title || title.trim().length < 2) {
                 return;
             }
 
-            socket.emit("chat:create", { target });
-            $("newChatInput").value = "";
+            const members = prompt("Gruba eklenecek kullanıcı adları, virgülle ayır");
+            if (!members) {
+                return;
+            }
+
+            socket.emit("chat:group:create", {
+                title: title.trim(),
+                members: members.split(",").map(item => item.trim().toLowerCase()).filter(Boolean)
+            });
         }
 
         function activeChat() {
@@ -743,7 +873,7 @@
                 return `${chat.members.length || state.users.length} kişi`;
             }
 
-            return isChatOnline(chat) ? "çevrimiçi" : "son görülme bilinmiyor";
+            return isChatOnline(chat) ? "çevrimiçi" : "çevrimdışı";
         }
 
         function initials(text) {
@@ -779,26 +909,161 @@
                     type: file.type || "application/octet-stream",
                     dataUrl: reader.result
                 };
-                $("messageInput").placeholder = `${file.name}`;
+                $("messageInput").placeholder = file.name;
             };
             reader.readAsDataURL(file);
+        }
+
+        function ensureDirectCallChat() {
+            const chat = activeChat();
+            if (!chat || chat.type !== "direct") {
+                alert("Sesli ve görüntülü arama şu an bire bir sohbetlerde kullanılabilir.");
+                return null;
+            }
+
+            return chat;
+        }
+
+        async function getCallStream(audioOnly) {
+            return navigator.mediaDevices.getUserMedia({ audio: true, video: !audioOnly });
+        }
+
+        async function createPeer(chatId, audioOnly) {
+            const pc = new RTCPeerConnection(rtcConfig);
+            const localStream = await getCallStream(audioOnly);
+            const remoteStream = new MediaStream();
+
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            pc.onicecandidate = event => {
+                if (event.candidate) {
+                    socket.emit("call:ice", { chatId, candidate: event.candidate });
+                }
+            };
+            pc.ontrack = event => {
+                event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+            };
+
+            state.call.pc = pc;
+            state.call.localStream = localStream;
+            state.call.remoteStream = remoteStream;
+            state.call.chatId = chatId;
+            state.call.audioOnly = audioOnly;
+            $("localVideo").srcObject = localStream;
+            $("remoteVideo").srcObject = remoteStream;
+            $("localVideo").classList.toggle("hidden", audioOnly);
+            return pc;
+        }
+
+        async function startCall(audioOnly) {
+            const chat = ensureDirectCallChat();
+            if (!chat || state.call.pc) {
+                return;
+            }
+
+            openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "aranıyor", false, audioOnly);
+            const pc = await createPeer(chat.id, audioOnly);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit("call:offer", { chatId: chat.id, offer, audioOnly });
+        }
+
+        function openCallPanel(title, status, incoming, audioOnly) {
+            $("callTitle").textContent = title;
+            $("callStatus").textContent = status;
+            $("acceptCallButton").classList.toggle("hidden", !incoming);
+            $("cameraButton").classList.toggle("hidden", audioOnly);
+            $("callPanel").classList.remove("hidden");
+        }
+
+        async function acceptCall() {
+            const incoming = state.call.incomingOffer;
+            if (!incoming) {
+                return;
+            }
+
+            openCallPanel(incoming.audioOnly ? "Sesli arama" : "Görüntülü arama", "bağlanıyor", false, incoming.audioOnly);
+            const pc = await createPeer(incoming.chatId, incoming.audioOnly);
+            await pc.setRemoteDescription(new RTCSessionDescription(incoming.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit("call:answer", { chatId: incoming.chatId, answer });
+            state.call.incomingOffer = null;
+        }
+
+        async function handleRemoteAnswer(data) {
+            if (state.call.pc && data.answer) {
+                await state.call.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                $("callStatus").textContent = "bağlandı";
+            }
+        }
+
+        async function handleRemoteIce(data) {
+            if (state.call.pc && data.candidate) {
+                await state.call.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        }
+
+        function endCall(notify = true) {
+            if (notify && state.call.chatId) {
+                socket.emit("call:end", { chatId: state.call.chatId });
+            }
+
+            if (state.call.pc) {
+                state.call.pc.close();
+            }
+            if (state.call.localStream) {
+                state.call.localStream.getTracks().forEach(track => track.stop());
+            }
+
+            state.call = { pc: null, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null };
+            $("localVideo").srcObject = null;
+            $("remoteVideo").srcObject = null;
+            $("callPanel").classList.add("hidden");
+        }
+
+        function toggleMute() {
+            if (!state.call.localStream) {
+                return;
+            }
+
+            state.call.localStream.getAudioTracks().forEach(track => {
+                track.enabled = !track.enabled;
+                $("muteButton").textContent = track.enabled ? "♫" : "×";
+            });
+        }
+
+        function toggleCamera() {
+            if (!state.call.localStream) {
+                return;
+            }
+
+            state.call.localStream.getVideoTracks().forEach(track => {
+                track.enabled = !track.enabled;
+                $("cameraButton").textContent = track.enabled ? "▣" : "□";
+            });
         }
 
         $("loginTab").onclick = () => setAuthMode("login");
         $("registerTab").onclick = () => setAuthMode("register");
         $("authButton").onclick = submitAuth;
         $("sendButton").onclick = sendMessage;
-        $("newChatButton").onclick = startChat;
-        $("searchInput").oninput = renderChats;
+        $("searchInput").oninput = () => {
+            renderChats();
+            renderContacts();
+        };
         $("attachButton").onclick = () => $("fileInput").click();
         $("fileInput").onchange = handleFile;
         $("logoutButton").onclick = () => {
             localStorage.removeItem("nexalineUser");
             location.reload();
         };
-        $("newGroupButton").onclick = () => alert("Grup sohbeti için NexaLine Genel kanalını kullanabilirsin.");
-        $("callButton").onclick = () => alert("Sesli arama için yayın sunucusunda WebRTC kurulumu gerekir.");
-        $("videoButton").onclick = () => alert("Görüntülü arama için yayın sunucusunda WebRTC kurulumu gerekir.");
+        $("newGroupButton").onclick = createGroup;
+        $("callButton").onclick = () => startCall(true);
+        $("videoButton").onclick = () => startCall(false);
+        $("acceptCallButton").onclick = acceptCall;
+        $("endCallButton").onclick = () => endCall(true);
+        $("muteButton").onclick = toggleMute;
+        $("cameraButton").onclick = toggleCamera;
         $("messageInput").addEventListener("input", () => {
             const chat = activeChat();
             if (chat) {
@@ -809,11 +1074,6 @@
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
-            }
-        });
-        $("newChatInput").addEventListener("keydown", event => {
-            if (event.key === "Enter") {
-                startChat();
             }
         });
 
@@ -871,6 +1131,20 @@
             });
             renderActiveChat();
         });
+
+        socket.on("notice", data => alert(data.message));
+        socket.on("call:offer", data => {
+            if (state.call.pc || state.call.incomingOffer) {
+                socket.emit("call:end", { chatId: data.chatId });
+                return;
+            }
+
+            state.call.incomingOffer = data;
+            openCallPanel(`${data.fromName} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly);
+        });
+        socket.on("call:answer", handleRemoteAnswer);
+        socket.on("call:ice", handleRemoteIce);
+        socket.on("call:end", () => endCall(false));
 
         const rememberedUser = localStorage.getItem("nexalineUser");
         if (rememberedUser) {
