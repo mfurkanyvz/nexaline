@@ -43,6 +43,18 @@ Render'da kalici mesajlar icin:
 
 Tablolar uygulama acilirken otomatik olusturulur.
 
+## Gmail dogrulama maili
+
+Kayit, Gmail degistirme ve sifremi unuttum kodlari icin Render web servisinde su ortam degiskenleri gerekir:
+
+- `SMTP_HOST`: Ornek `smtp.gmail.com`
+- `SMTP_PORT`: Genelde `587`
+- `SMTP_USERNAME`: Mail gonderecek Gmail adresi
+- `SMTP_PASSWORD`: Gmail uygulama sifresi
+- `MAIL_FROM`: Gonderici olarak gorunecek adres
+
+Gmail kullanirken normal hesap sifresi degil, Google hesabindan uretilen uygulama sifresi kullanilmalidir.
+
 ## Onemli not
 
 Bu surum baslangic surumudur. PostgreSQL baglanmazsa Render'daki dosya sistemi kalici olmadigi icin veriler sifirlanabilir. Gercek kullanim icin Render'da `DATABASE_URL` mutlaka PostgreSQL'e baglanmalidir.

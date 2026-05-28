@@ -2,7 +2,10 @@ import os
 import ipaddress
 import re
 import socket
+import secrets
+import smtplib
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -41,6 +44,10 @@ class User(db.Model):
     username = db.Column(db.String(80), primary_key=True)
     password_hash = db.Column(db.String(255), nullable=False)
     display_name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(255), nullable=True)
+    email_normalized = db.Column(db.String(255), nullable=True, index=True)
+    email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    profile_image = db.Column(db.Text, nullable=True)
     avatar = db.Column(db.String(8), nullable=False)
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -104,6 +111,19 @@ class CallLog(db.Model):
     caller_user = db.relationship("User")
 
 
+class EmailVerification(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    purpose = db.Column(db.String(40), nullable=False)
+    username = db.Column(db.String(80), nullable=True)
+    email = db.Column(db.String(255), nullable=False)
+    email_normalized = db.Column(db.String(255), nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=True)
+    code_hash = db.Column(db.String(255), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -118,15 +138,31 @@ def to_iso(value):
     return value.isoformat()
 
 
+def is_past(value):
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value < datetime.now(timezone.utc)
+
+
 def public_user(username):
     user = db.session.get(User, username)
     return {
         "username": username,
         "displayName": user.display_name if user else username,
         "avatar": user.avatar if user else username[:2].upper(),
+        "profileImage": user.profile_image if user else None,
         "about": user.about if user else "NexaLine kullanıyorum.",
         "online": any(name == username for name in connections.values()),
     }
+
+
+def private_user(username):
+    user = db.session.get(User, username)
+    data = public_user(username)
+    if user:
+        data["email"] = user.email
+        data["emailVerified"] = user.email_verified
+    return data
 
 
 def story_to_dict(story):
@@ -412,6 +448,110 @@ def username_error(username):
     return None
 
 
+def normalize_email(email):
+    email = (email or "").strip().lower()
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return None, None
+
+    local, domain = email.rsplit("@", 1)
+    if domain in {"gmail.com", "googlemail.com"}:
+        local = local.split("+", 1)[0].replace(".", "")
+        domain = "gmail.com"
+
+    return email, f"{local}@{domain}"
+
+
+def email_error(email):
+    original, normalized = normalize_email(email)
+    if not original or not normalized:
+        return "Geçerli bir Gmail adresi yazmalısın."
+
+    if not normalized.endswith("@gmail.com"):
+        return "Şimdilik sadece Gmail adresi kabul ediliyor."
+
+    return None
+
+
+def email_exists(email_normalized, except_username=None):
+    if not email_normalized:
+        return False
+    query = User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower())
+    if except_username:
+        query = query.filter(User.username != except_username)
+    return query.first() is not None
+
+
+def verification_code():
+    return f"{secrets.randbelow(900000) + 100000}"
+
+
+def create_email_verification(purpose, email, email_normalized, username=None, password_hash=None):
+    EmailVerification.query.filter_by(purpose=purpose, username=username, email_normalized=email_normalized).delete(synchronize_session=False)
+    code = verification_code()
+    verification = EmailVerification(
+        id=uuid4().hex,
+        purpose=purpose,
+        username=username,
+        email=email,
+        email_normalized=email_normalized,
+        password_hash=password_hash,
+        code_hash=generate_password_hash(code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    db.session.add(verification)
+    db.session.commit()
+    sent = send_email_code(email, code, purpose)
+    return verification, code, sent
+
+
+def send_email_code(email, code, purpose):
+    smtp_host = os.environ.get("SMTP_HOST")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_username = os.environ.get("SMTP_USERNAME")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    mail_from = os.environ.get("MAIL_FROM") or smtp_username
+
+    if not smtp_host or not smtp_username or not smtp_password or not mail_from:
+        app.logger.warning("SMTP ayarları eksik. %s doğrulama kodu: %s", email, code)
+        return False
+
+    labels = {
+        "register": "NexaLine kayıt doğrulama kodun",
+        "forgot": "NexaLine şifre sıfırlama kodun",
+        "email_change": "NexaLine Gmail değiştirme kodun",
+    }
+    message = EmailMessage()
+    message["Subject"] = labels.get(purpose, "NexaLine doğrulama kodun")
+    message["From"] = mail_from
+    message["To"] = email
+    message.set_content(
+        f"NexaLine doğrulama kodun: {code}\n\n"
+        "Bu kod 10 dakika geçerlidir. Bu işlemi sen yapmadıysan bu mesajı yok sayabilirsin."
+    )
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as smtp:
+            smtp.starttls()
+            smtp.login(smtp_username, smtp_password)
+            smtp.send_message(message)
+        return True
+    except Exception:
+        app.logger.exception("Doğrulama maili gönderilemedi")
+        return False
+
+
+def verification_response(message, code=None, sent=True):
+    if not sent and os.environ.get("RENDER"):
+        return jsonify({"ok": False, "message": "Mail gönderilemedi. Render SMTP ayarlarını kontrol et."}), 503
+
+    response = {"ok": True, "requiresVerification": True, "message": message}
+    if not sent:
+        response["message"] += " Mail ayarları eksik olduğu için kod sunucu loglarına yazıldı."
+        if not os.environ.get("RENDER"):
+            response["devCode"] = code
+    return jsonify(response)
+
+
 def rtc_servers():
     servers = [{"urls": "stun:stun.l.google.com:19302"}]
     extra_urls = [url.strip() for url in os.environ.get("RTC_ICE_URLS", "").split(",") if url.strip()]
@@ -435,6 +575,18 @@ def index():
 @app.route("/client.html")
 def client():
     return send_from_directory("static", "client.html")
+
+
+@app.route("/manifest.webmanifest")
+def manifest():
+    return send_from_directory("static", "manifest.webmanifest", mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    response = send_from_directory("static", "sw.js", mimetype="application/javascript")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/admin")
@@ -462,46 +614,97 @@ def register():
     try:
         data = request.get_json() or {}
         username = (data.get("username") or "").strip().lower()
-        display_name = (data.get("displayName") or data.get("username") or "").strip()
+        email = (data.get("email") or "").strip()
         password = data.get("password") or ""
 
         username_problem = username_error(username)
         if username_problem:
             return jsonify({"ok": False, "message": username_problem}), 400
 
-        if not display_name or len(display_name) < 2:
-            return jsonify({"ok": False, "message": "Görünen isim en az 2 karakter olmalı."}), 400
-
-        if len(display_name) > 40:
-            return jsonify({"ok": False, "message": "Görünen isim en fazla 40 karakter olmalı."}), 400
-
         password_problem = password_error(username, password)
         if password_problem:
             return jsonify({"ok": False, "message": password_problem}), 400
 
+        email_problem = email_error(email)
+        if email_problem:
+            return jsonify({"ok": False, "message": email_problem}), 400
+
+        email, email_normalized = normalize_email(email)
+
         if db.session.get(User, username):
             return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı. Farklı bir kullanıcı adı dene."}), 409
 
-        if display_name_exists(display_name):
-            return jsonify({"ok": False, "message": "Bu görünen isim zaten kayıtlı. Farklı bir isim dene."}), 409
+        if email_exists(email_normalized):
+            return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
 
-        db.session.add(
-            User(
-                username=username,
-                password_hash=generate_password_hash(password),
-                display_name=display_name or username,
-                avatar=username[:2].upper(),
-                about="NexaLine kullanıyorum.",
-            )
+        _, code, sent = create_email_verification(
+            purpose="register",
+            username=username,
+            email=email,
+            email_normalized=email_normalized,
+            password_hash=generate_password_hash(password),
         )
-        ensure_lobby()
-        db.session.commit()
-
-        return jsonify({"ok": True, "message": "Kayıt başarılı.", "user": public_user(username)})
+        return verification_response("Gmail adresine doğrulama kodu gönderdik.", code, sent)
     except Exception:
         db.session.rollback()
         app.logger.exception("Register failed")
         return jsonify({"ok": False, "message": "Sunucuda kayıt hatası oluştu. Render kayıtlarını kontrol et."}), 500
+
+
+@app.route("/register/verify", methods=["POST"])
+def register_verify():
+    try:
+        data = request.get_json() or {}
+        username = (data.get("username") or "").strip().lower()
+        email = (data.get("email") or "").strip()
+        code = (data.get("code") or "").strip()
+        email, email_normalized = normalize_email(email)
+        verification = EmailVerification.query.filter_by(
+            purpose="register",
+            username=username,
+            email_normalized=email_normalized,
+        ).order_by(EmailVerification.created_at.desc()).first()
+
+        if not verification:
+            return jsonify({"ok": False, "message": "Doğrulama kaydı bulunamadı. Kayıt işlemini yeniden başlat."}), 404
+
+        if is_past(verification.expires_at):
+            return jsonify({"ok": False, "message": "Doğrulama kodunun süresi doldu."}), 400
+
+        if verification.attempts >= 5:
+            return jsonify({"ok": False, "message": "Çok fazla yanlış deneme yaptın. Yeni kod iste."}), 429
+
+        if not check_password_hash(verification.code_hash, code):
+            verification.attempts += 1
+            db.session.commit()
+            return jsonify({"ok": False, "message": "Doğrulama kodu hatalı."}), 400
+
+        if db.session.get(User, username):
+            return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
+
+        if email_exists(email_normalized):
+            return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
+
+        db.session.add(
+            User(
+                username=username,
+                password_hash=verification.password_hash,
+                display_name=username,
+                email=verification.email,
+                email_normalized=verification.email_normalized,
+                email_verified=True,
+                avatar=username[:2].upper(),
+                about="NexaLine kullanıyorum.",
+            )
+        )
+        db.session.delete(verification)
+        ensure_lobby()
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Kayıt başarılı.", "user": private_user(username)})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Register verify failed")
+        return jsonify({"ok": False, "message": "Doğrulama tamamlanamadı."}), 500
 
 
 @app.route("/login", methods=["POST"])
@@ -514,7 +717,144 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
 
-    return jsonify({"ok": True, "message": "Giriş başarılı.", "user": public_user(username)})
+    return jsonify({"ok": True, "message": "Giriş başarılı.", "user": private_user(username)})
+
+
+@app.route("/password/forgot/start", methods=["POST"])
+def forgot_password_start():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip()
+    email_problem = email_error(email)
+    if email_problem:
+        return jsonify({"ok": False, "message": email_problem}), 400
+
+    email, email_normalized = normalize_email(email)
+    user = User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first()
+    if not user:
+        return jsonify({"ok": False, "message": "Bu Gmail ile kayıtlı hesap bulunamadı."}), 404
+
+    _, code, sent = create_email_verification("forgot", email, email_normalized, username=user.username)
+    return verification_response("Gmail adresine şifre sıfırlama kodu gönderdik.", code, sent)
+
+
+@app.route("/password/forgot/verify", methods=["POST"])
+def forgot_password_verify():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip()
+    code = (data.get("code") or "").strip()
+    new_password = data.get("password") or ""
+    email, email_normalized = normalize_email(email)
+    user = User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first() if email_normalized else None
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    password_problem = password_error(user.username, new_password)
+    if password_problem:
+        return jsonify({"ok": False, "message": password_problem}), 400
+
+    verification = EmailVerification.query.filter_by(
+        purpose="forgot",
+        username=user.username,
+        email_normalized=email_normalized,
+    ).order_by(EmailVerification.created_at.desc()).first()
+
+    if not verification or is_past(verification.expires_at):
+        return jsonify({"ok": False, "message": "Kod bulunamadı veya süresi doldu."}), 400
+
+    if verification.attempts >= 5:
+        return jsonify({"ok": False, "message": "Çok fazla yanlış deneme yaptın. Yeni kod iste."}), 429
+
+    if not check_password_hash(verification.code_hash, code):
+        verification.attempts += 1
+        db.session.commit()
+        return jsonify({"ok": False, "message": "Doğrulama kodu hatalı."}), 400
+
+    user.password_hash = generate_password_hash(new_password)
+    db.session.delete(verification)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Şifre değiştirildi."})
+
+
+@app.route("/account/<username>/password", methods=["POST"])
+def change_password(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    current_password = data.get("currentPassword") or ""
+    new_password = data.get("newPassword") or ""
+    user = db.session.get(User, username)
+
+    if not user or not check_password_hash(user.password_hash, current_password):
+        return jsonify({"ok": False, "message": "Mevcut şifre hatalı."}), 401
+
+    password_problem = password_error(username, new_password)
+    if password_problem:
+        return jsonify({"ok": False, "message": password_problem}), 400
+
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Şifre değiştirildi."})
+
+
+@app.route("/account/<username>/email/start", methods=["POST"])
+def change_email_start(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    password = data.get("password") or ""
+    email = (data.get("email") or "").strip()
+    user = db.session.get(User, username)
+
+    if not user or not check_password_hash(user.password_hash, password):
+        return jsonify({"ok": False, "message": "Şifre hatalı."}), 401
+
+    email_problem = email_error(email)
+    if email_problem:
+        return jsonify({"ok": False, "message": email_problem}), 400
+
+    email, email_normalized = normalize_email(email)
+    if email_exists(email_normalized, except_username=username):
+        return jsonify({"ok": False, "message": "Bu Gmail zaten başka bir hesapta kullanılıyor."}), 409
+
+    _, code, sent = create_email_verification("email_change", email, email_normalized, username=username)
+    return verification_response("Yeni Gmail adresine doğrulama kodu gönderdik.", code, sent)
+
+
+@app.route("/account/<username>/email/verify", methods=["POST"])
+def change_email_verify(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    email = (data.get("email") or "").strip()
+    code = (data.get("code") or "").strip()
+    email, email_normalized = normalize_email(email)
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    if email_exists(email_normalized, except_username=username):
+        return jsonify({"ok": False, "message": "Bu Gmail zaten başka bir hesapta kullanılıyor."}), 409
+
+    verification = EmailVerification.query.filter_by(
+        purpose="email_change",
+        username=username,
+        email_normalized=email_normalized,
+    ).order_by(EmailVerification.created_at.desc()).first()
+
+    if not verification or is_past(verification.expires_at):
+        return jsonify({"ok": False, "message": "Kod bulunamadı veya süresi doldu."}), 400
+
+    if verification.attempts >= 5:
+        return jsonify({"ok": False, "message": "Çok fazla yanlış deneme yaptın. Yeni kod iste."}), 429
+
+    if not check_password_hash(verification.code_hash, code):
+        verification.attempts += 1
+        db.session.commit()
+        return jsonify({"ok": False, "message": "Doğrulama kodu hatalı."}), 400
+
+    user.email = verification.email
+    user.email_normalized = verification.email_normalized
+    user.email_verified = True
+    db.session.delete(verification)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Gmail değiştirildi.", "user": private_user(username)})
 
 
 @app.route("/account/<username>", methods=["DELETE"])
@@ -608,7 +948,14 @@ def admin_state():
     if admin_error:
         return admin_error
 
-    users = [public_user(user.username) | {"createdAt": to_iso(user.created_at)} for user in User.query.order_by(User.created_at.desc()).all()]
+    users = [
+        public_user(user.username) | {
+            "createdAt": to_iso(user.created_at),
+            "email": user.email,
+            "emailVerified": user.email_verified,
+        }
+        for user in User.query.order_by(User.created_at.desc()).all()
+    ]
     chats = []
     for chat in Chat.query.order_by(Chat.created_at.desc()).all():
         chats.append(
@@ -756,7 +1103,7 @@ def bootstrap(username):
     return jsonify(
         {
             "ok": True,
-            "user": public_user(username),
+            "user": private_user(username),
             "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
@@ -788,7 +1135,7 @@ def handle_user_join(data):
     emit(
         "app:state",
         {
-            "user": public_user(username),
+            "user": private_user(username),
             "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
@@ -1192,6 +1539,17 @@ with app.app_context():
     if "reply_to" not in message_columns:
         db.session.execute(text("ALTER TABLE message ADD COLUMN reply_to JSON"))
         db.session.commit()
+    user_columns = {column["name"] for column in inspector.get_columns("user")} if inspector.has_table("user") else set()
+    user_migrations = {
+        "email": "ALTER TABLE \"user\" ADD COLUMN email VARCHAR(255)",
+        "email_normalized": "ALTER TABLE \"user\" ADD COLUMN email_normalized VARCHAR(255)",
+        "email_verified": "ALTER TABLE \"user\" ADD COLUMN email_verified BOOLEAN DEFAULT FALSE NOT NULL",
+        "profile_image": "ALTER TABLE \"user\" ADD COLUMN profile_image TEXT",
+    }
+    for column_name, statement in user_migrations.items():
+        if column_name not in user_columns:
+            db.session.execute(text(statement))
+            db.session.commit()
     ensure_lobby()
     for group_chat in Chat.query.filter_by(type="group").all():
         promote_fallback_group_admin(group_chat)

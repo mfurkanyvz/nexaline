@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111722">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="NexaLine Admin">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>NexaLine Admin</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/static/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
     <style>
         :root {
             --bg: #070a10;
@@ -255,6 +262,12 @@
     </main>
 
     <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/sw.js").catch(error => console.warn("PWA kaydı yapılamadı", error));
+            });
+        }
+
         const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "" };
         const $ = id => document.getElementById(id);
         $("tokenInput").value = state.token;
@@ -331,7 +344,7 @@
         }
 
         function renderUsers() {
-            const users = state.data.users.filter(user => matchesSearch(user.username, user.displayName, user.about));
+            const users = state.data.users.filter(user => matchesSearch(user.username, user.displayName, user.about, user.email));
             $("view").innerHTML = `<h2>Kullanıcılar (${users.length}/${state.data.users.length})</h2><div class="grid"></div>`;
             const grid = $("view").querySelector(".grid");
             if (!users.length) {
@@ -343,7 +356,7 @@
                 card.className = "card";
                 card.innerHTML = `
                     <h3>${escapeHtml(user.displayName)} (@${escapeHtml(user.username)})</h3>
-                    <p>${user.online ? "çevrimiçi" : "çevrimdışı"} • ${new Date(user.createdAt).toLocaleString("tr-TR")}</p>
+                    <p>${user.online ? "çevrimiçi" : "çevrimdışı"} • ${escapeHtml(user.email || "Gmail yok")} • ${new Date(user.createdAt).toLocaleString("tr-TR")}</p>
                     <div class="card-row">
                         <button class="ok" data-reset="${user.username}" type="button">Şifre Sıfırla</button>
                         <button class="danger" data-delete="${user.username}" type="button">Sil</button>

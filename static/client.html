@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10141d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="NexaLine">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>NexaLine</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/static/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
         :root {
@@ -139,6 +146,13 @@
             color: #fff;
             font-weight: 700;
             background: linear-gradient(135deg, var(--red), var(--blue));
+        }
+
+        .text-btn {
+            width: 100%;
+            padding: 10px;
+            color: var(--muted);
+            background: transparent;
         }
 
         .status-line {
@@ -554,6 +568,46 @@
             background: rgba(0, 0, 0, 0.72);
         }
 
+        .settings-panel {
+            position: fixed;
+            inset: 0;
+            z-index: 12;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background: rgba(0, 0, 0, 0.76);
+        }
+
+        .settings-box {
+            width: min(460px, 100%);
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .settings-head,
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .settings-row {
+            padding: 12px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .settings-row button {
+            min-width: 118px;
+            padding: 10px;
+            border-radius: 7px;
+            color: #fff;
+            background: var(--panel-3);
+        }
+
         .story-panel {
             position: fixed;
             inset: 0;
@@ -856,10 +910,12 @@
                 <button id="registerTab" class="auth-tab" type="button">Kayıt</button>
             </div>
 
-            <input id="displayName" class="field hidden" autocomplete="name" placeholder="Görünen ad">
             <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
+            <input id="email" class="field hidden" autocomplete="email" placeholder="Gmail adresi">
             <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Güçlü şifre">
+            <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
             <button id="authButton" class="primary" type="button">Giriş Yap</button>
+            <button id="forgotButton" class="text-btn" type="button">Şifremi unuttum</button>
             <div id="authStatus" class="status-line"></div>
         </section>
     </main>
@@ -875,8 +931,7 @@
                 <div class="icon-row">
                     <button class="icon-btn" id="storyButton" title="Durum ekle">◉</button>
                     <button class="icon-btn" id="newGroupButton" title="Grup oluştur">＋</button>
-                    <button class="icon-btn" id="deleteAccountButton" title="Hesabı sil">⌫</button>
-                    <button class="icon-btn" id="logoutButton" title="Çıkış">⏻</button>
+                    <button class="icon-btn" id="settingsButton" title="Ayarlar">⚙</button>
                 </div>
             </header>
 
@@ -944,6 +999,40 @@
         </div>
     </section>
 
+    <section id="settingsPanel" class="settings-panel hidden">
+        <div class="settings-box">
+            <div class="settings-head">
+                <div>
+                    <strong>Ayarlar</strong>
+                    <div id="settingsEmail" class="last-message"></div>
+                </div>
+                <button id="closeSettingsButton" class="icon-btn" type="button">×</button>
+            </div>
+            <div class="settings-row">
+                <div>
+                    <strong>Gmail</strong>
+                    <div class="last-message">Doğrulama kodu ile değişir</div>
+                </div>
+                <button id="changeEmailButton" type="button">Değiştir</button>
+            </div>
+            <div class="settings-row">
+                <div>
+                    <strong>Şifre</strong>
+                    <div class="last-message">Mevcut şifre gerekir</div>
+                </div>
+                <button id="changePasswordButton" type="button">Değiştir</button>
+            </div>
+            <div class="settings-row">
+                <div>
+                    <strong>Hesap</strong>
+                    <div class="last-message">Çıkış veya hesabı sil</div>
+                </div>
+                <button id="settingsLogoutButton" type="button">Çıkış</button>
+            </div>
+            <button id="settingsDeleteButton" class="primary" type="button">Hesabı Sil</button>
+        </div>
+    </section>
+
     <section id="callPanel" class="call-panel hidden">
         <div class="call-box">
             <div class="video-stage">
@@ -964,10 +1053,18 @@
     </section>
 
     <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/sw.js").catch(error => console.warn("PWA kaydı yapılamadı", error));
+            });
+        }
+
         const socket = io();
         let rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
         const state = {
             mode: "login",
+            awaitingRegisterVerification: false,
+            pendingRegister: null,
             me: null,
             users: [],
             chats: [],
@@ -1014,26 +1111,38 @@
 
         function setAuthMode(mode) {
             state.mode = mode;
+            state.awaitingRegisterVerification = false;
+            state.pendingRegister = null;
             $("loginTab").classList.toggle("active", mode === "login");
             $("registerTab").classList.toggle("active", mode === "register");
-            $("displayName").classList.toggle("hidden", mode === "login");
+            $("email").classList.toggle("hidden", mode === "login");
+            $("verificationCode").classList.add("hidden");
+            $("forgotButton").classList.toggle("hidden", mode !== "login");
             $("password").autocomplete = mode === "login" ? "current-password" : "new-password";
-            $("authButton").textContent = mode === "login" ? "Giriş Yap" : "Kayıt Ol";
+            $("authButton").textContent = mode === "login" ? "Giriş Yap" : "Kayıt Kodu Gönder";
             $("authStatus").textContent = mode === "register"
-                ? "Kullanıcı adı ve görünen isim benzersiz olmalı. Şifre en az 10 karakter, büyük/küçük harf, sayı ve özel karakter içermeli."
+                ? "Gmail doğrulanmadan hesap açılmaz. Aynı Gmail ile ikinci hesap oluşturulamaz."
                 : "";
         }
 
         async function submitAuth() {
             const username = $("username").value.trim();
             const password = $("password").value;
-            const displayName = $("displayName").value.trim();
+            const email = $("email").value.trim();
+            const code = $("verificationCode").value.trim();
+
+            if (state.mode === "register" && state.awaitingRegisterVerification) {
+                await verifyRegisterCode(code);
+                return;
+            }
+
             const endpoint = state.mode === "login" ? "/login" : "/register";
+            const payload = state.mode === "login" ? { username, password } : { username, password, email };
 
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password, displayName })
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
 
@@ -1042,8 +1151,34 @@
                 return;
             }
 
+            if (data.requiresVerification) {
+                state.awaitingRegisterVerification = true;
+                state.pendingRegister = { username, email };
+                $("verificationCode").classList.remove("hidden");
+                $("authButton").textContent = "Kodu Doğrula";
+                $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
+                return;
+            }
+
             state.me = data.user;
             localStorage.setItem("nexalineUser", username.toLowerCase());
+            openApp();
+        }
+
+        async function verifyRegisterCode(code) {
+            const response = await fetch("/register/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...state.pendingRegister, code })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                $("authStatus").textContent = data.message;
+                return;
+            }
+
+            state.me = data.user;
+            localStorage.setItem("nexalineUser", data.user.username);
             openApp();
         }
 
@@ -1735,6 +1870,109 @@
             location.reload();
         }
 
+        function openSettings() {
+            $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
+            $("settingsPanel").classList.remove("hidden");
+        }
+
+        function closeSettings() {
+            $("settingsPanel").classList.add("hidden");
+        }
+
+        async function changeAccountEmail() {
+            const email = prompt("Yeni Gmail adresini yaz.");
+            if (!email) {
+                return;
+            }
+            const password = prompt("Gmail değiştirmek için mevcut şifreni yaz.");
+            if (!password) {
+                return;
+            }
+
+            let response = await fetch(`/account/${state.me.username}/email/start`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+            let data = await response.json();
+            if (!data.ok) {
+                alert(data.message);
+                return;
+            }
+            const code = prompt(data.devCode ? `${data.message}\nKod: ${data.devCode}` : data.message);
+            if (!code) {
+                return;
+            }
+            response = await fetch(`/account/${state.me.username}/email/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, code })
+            });
+            data = await response.json();
+            if (!data.ok) {
+                alert(data.message);
+                return;
+            }
+            state.me = data.user;
+            openSettings();
+            alert("Gmail değiştirildi.");
+        }
+
+        async function changeAccountPassword() {
+            const currentPassword = prompt("Mevcut şifreni yaz.");
+            if (!currentPassword) {
+                return;
+            }
+            const newPassword = prompt("Yeni güçlü şifreni yaz.");
+            if (!newPassword) {
+                return;
+            }
+            const response = await fetch(`/account/${state.me.username}/password`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            const data = await response.json();
+            alert(data.message);
+        }
+
+        async function forgotPassword() {
+            const email = prompt("Hesabına bağlı Gmail adresini yaz.");
+            if (!email) {
+                return;
+            }
+            let response = await fetch("/password/forgot/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+            let data = await response.json();
+            if (!data.ok) {
+                alert(data.message);
+                return;
+            }
+            const code = prompt(data.devCode ? `${data.message}\nKod: ${data.devCode}` : data.message);
+            if (!code) {
+                return;
+            }
+            const password = prompt("Yeni güçlü şifreni yaz.");
+            if (!password) {
+                return;
+            }
+            response = await fetch("/password/forgot/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, code, password })
+            });
+            data = await response.json();
+            alert(data.message);
+        }
+
+        function logout() {
+            localStorage.removeItem("nexalineUser");
+            location.reload();
+        }
+
         function activeChat() {
             return state.chats.find(chat => chat.id === state.activeChatId) || state.chats[0];
         }
@@ -1862,6 +2100,17 @@
             } catch (error) {
                 // Ses izni olmayan tarayıcılarda sessiz geç.
             }
+        }
+
+        function playMessageSound() {
+            playTone(740, 0.08);
+            setTimeout(() => playTone(980, 0.08), 95);
+        }
+
+        function playCallSound() {
+            playTone(420, 0.22);
+            setTimeout(() => playTone(620, 0.22), 260);
+            setTimeout(() => playTone(420, 0.22), 520);
         }
 
         function handleFile(event) {
@@ -2007,7 +2256,7 @@
             }
 
             openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "aranıyor", false, audioOnly);
-            playTone(audioOnly ? 520 : 680, 0.18);
+            playCallSound();
             try {
                 await ensureLocalCallStream(audioOnly);
             } catch (error) {
@@ -2155,12 +2404,14 @@
         $("storyFileInput").onchange = handleStoryFile;
         $("closeStoryButton").onclick = closeStoryPanel;
         $("voiceButton").onclick = toggleVoiceRecording;
-        $("deleteAccountButton").onclick = deleteAccount;
+        $("settingsButton").onclick = openSettings;
+        $("closeSettingsButton").onclick = closeSettings;
+        $("changeEmailButton").onclick = changeAccountEmail;
+        $("changePasswordButton").onclick = changeAccountPassword;
+        $("settingsDeleteButton").onclick = deleteAccount;
+        $("settingsLogoutButton").onclick = logout;
+        $("forgotButton").onclick = forgotPassword;
         $("storyButton").onclick = createStory;
-        $("logoutButton").onclick = () => {
-            localStorage.removeItem("nexalineUser");
-            location.reload();
-        };
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
         $("leaveGroupButton").onclick = leaveCurrentGroup;
@@ -2257,6 +2508,9 @@
                 return;
             }
 
+            if (message.sender !== state.me.username) {
+                playMessageSound();
+            }
             chat.messages.push(message);
             chat.lastMessage = message;
             state.chats = [chat, ...state.chats.filter(item => item.id !== chat.id)];
@@ -2290,7 +2544,7 @@
             }
 
             state.call.incomingOffer = data;
-            playTone(data.audioOnly ? 420 : 760, 0.25);
+            playCallSound();
             openCallPanel(`${data.fromName} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly);
         });
         socket.on("call:answer", handleRemoteAnswer);
