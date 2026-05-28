@@ -13,7 +13,8 @@ os.makedirs(app.instance_path, exist_ok=True)
 
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:
-    database_url = "sqlite:///" + os.path.join(app.instance_path, "nexaline.db").replace("\\", "/")
+    fallback_db = os.environ.get("SQLITE_PATH", "/tmp/nexaline.db" if os.environ.get("RENDER") else os.path.join(app.instance_path, "nexaline.db"))
+    database_url = "sqlite:///" + fallback_db.replace("\\", "/")
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
@@ -193,31 +194,48 @@ def client():
     return send_from_directory("static", "client.html")
 
 
+@app.route("/health")
+def health():
+    try:
+        ensure_lobby()
+        user_count = User.query.count()
+        chat_count = Chat.query.count()
+        return jsonify({"ok": True, "users": user_count, "chats": chat_count})
+    except Exception as error:
+        app.logger.exception("Health check failed")
+        return jsonify({"ok": False, "message": str(error)}), 500
+
+
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
-    display_name = (data.get("displayName") or data.get("username") or "").strip()
-    password = data.get("password") or ""
+    try:
+        data = request.get_json() or {}
+        username = (data.get("username") or "").strip().lower()
+        display_name = (data.get("displayName") or data.get("username") or "").strip()
+        password = data.get("password") or ""
 
-    if len(username) < 3 or len(password) < 3:
-        return jsonify({"ok": False, "message": "Kullanıcı adı ve şifre en az 3 karakter olmalı."}), 400
+        if len(username) < 3 or len(password) < 3:
+            return jsonify({"ok": False, "message": "Kullanıcı adı ve şifre en az 3 karakter olmalı."}), 400
 
-    if db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
+        if db.session.get(User, username):
+            return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
 
-    user = User(
-        username=username,
-        password_hash=generate_password_hash(password),
-        display_name=display_name or username,
-        avatar=username[:2].upper(),
-        about="NexaLine kullanıyorum.",
-    )
-    db.session.add(user)
-    ensure_lobby()
-    db.session.commit()
+        user = User(
+            username=username,
+            password_hash=generate_password_hash(password),
+            display_name=display_name or username,
+            avatar=username[:2].upper(),
+            about="NexaLine kullanıyorum.",
+        )
+        db.session.add(user)
+        ensure_lobby()
+        db.session.commit()
 
-    return jsonify({"ok": True, "message": "Kayıt başarılı.", "user": public_user(username)})
+        return jsonify({"ok": True, "message": "Kayıt başarılı.", "user": public_user(username)})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Register failed")
+        return jsonify({"ok": False, "message": "Sunucuda kayıt hatası oluştu. Render kayıtlarını kontrol et."}), 500
 
 
 @app.route("/login", methods=["POST"])
