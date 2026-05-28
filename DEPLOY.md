@@ -7,7 +7,7 @@
 3. GitHub reposunu bagla.
 4. Render ayarlari:
    - Build Command: `pip install -r requirements.txt`
-   - Start Command: `gunicorn --worker-class eventlet -w 1 server:app`
+   - Start Command: `gunicorn -w 1 --threads 100 server:app`
 5. Deploy bitince Render sana `https://...onrender.com` seklinde gecici bir adres verir.
 
 ## nexaline.xyz domainini baglama
