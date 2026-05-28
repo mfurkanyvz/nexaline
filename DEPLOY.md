@@ -45,15 +45,27 @@ Tablolar uygulama acilirken otomatik olusturulur.
 
 ## Gmail dogrulama maili
 
-Kayit, Gmail degistirme ve sifremi unuttum kodlari icin Render web servisinde su ortam degiskenleri gerekir:
+Kayit, Gmail degistirme ve sifremi unuttum kodlari icin Render'da HTTPS tabanli mail servisi kullanmak daha guvenlidir. Render'in ucretsiz web servislerinde Gmail SMTP baglantisi zaman asimina dusebilir.
+
+Onerilen seceneklerden birini Render web servisinin `Environment` bolumune ekle:
+
+### Resend
+
+- `RESEND_API_KEY`: Resend API anahtari
+- `RESEND_FROM`: Resend'de dogrulanmis gonderici adresi
+
+### Brevo
+
+- `BREVO_API_KEY`: Brevo SMTP/API anahtari
+- `BREVO_FROM`: Brevo'da dogrulanmis gonderici adresi
+
+SMTP'ye izin veren bir ortamda calistiriyorsan yedek olarak su degiskenler de desteklenir:
 
 - `SMTP_HOST`: Ornek `smtp.gmail.com`
 - `SMTP_PORT`: Genelde `587`
 - `SMTP_USERNAME`: Mail gonderecek Gmail adresi
 - `SMTP_PASSWORD`: Gmail uygulama sifresi
 - `MAIL_FROM`: Gonderici olarak gorunecek adres
-
-Gmail kullanirken normal hesap sifresi degil, Google hesabindan uretilen uygulama sifresi kullanilmalidir.
 
 ## Onemli not
 

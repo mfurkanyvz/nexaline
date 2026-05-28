@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from uuid import uuid4
 
+import requests
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
@@ -507,6 +508,59 @@ def verification_code():
     return f"{secrets.randbelow(900000) + 100000}"
 
 
+def email_subject(purpose):
+    labels = {
+        "register": "NexaLine kayit dogrulama kodun",
+        "forgot": "NexaLine sifre sifirlama kodun",
+        "email_change": "NexaLine Gmail degistirme kodun",
+    }
+    return labels.get(purpose, "NexaLine dogrulama kodun")
+
+
+def email_body(code):
+    return (
+        f"NexaLine dogrulama kodun: {code}\n\n"
+        "Bu kod 10 dakika gecerlidir. Bu islemi sen yapmadiysan bu mesaji yok sayabilirsin."
+    )
+
+
+def send_email_via_resend(email, subject, body):
+    api_key = os.environ.get("RESEND_API_KEY")
+    mail_from = os.environ.get("RESEND_FROM") or os.environ.get("MAIL_FROM")
+    if not api_key or not mail_from:
+        return False
+
+    response = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json={"from": mail_from, "to": [email], "subject": subject, "text": body},
+        timeout=15,
+    )
+    response.raise_for_status()
+    return True
+
+
+def send_email_via_brevo(email, subject, body):
+    api_key = os.environ.get("BREVO_API_KEY")
+    mail_from = os.environ.get("BREVO_FROM") or os.environ.get("MAIL_FROM")
+    if not api_key or not mail_from:
+        return False
+
+    response = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        headers={"api-key": api_key, "Content-Type": "application/json", "Accept": "application/json"},
+        json={
+            "sender": {"email": mail_from},
+            "to": [{"email": email}],
+            "subject": subject,
+            "textContent": body,
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    return True
+
+
 def create_email_verification(purpose, email, email_normalized, username=None, password_hash=None):
     EmailVerification.query.filter_by(purpose=purpose, username=username, email_normalized=email_normalized).delete(synchronize_session=False)
     code = verification_code()
@@ -527,6 +581,18 @@ def create_email_verification(purpose, email, email_normalized, username=None, p
 
 
 def send_email_code(email, code, purpose):
+    subject = email_subject(purpose)
+    body = email_body(code)
+
+    try:
+        if os.environ.get("RESEND_API_KEY"):
+            return send_email_via_resend(email, subject, body)
+        if os.environ.get("BREVO_API_KEY"):
+            return send_email_via_brevo(email, subject, body)
+    except Exception:
+        app.logger.exception("Dogrulama maili HTTPS mail servisiyle gonderilemedi")
+        return False
+
     smtp_host = os.environ.get("SMTP_HOST")
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
     smtp_username = os.environ.get("SMTP_USERNAME")
@@ -537,19 +603,11 @@ def send_email_code(email, code, purpose):
         app.logger.warning("SMTP ayarları eksik. %s doğrulama kodu: %s", email, code)
         return False
 
-    labels = {
-        "register": "NexaLine kayıt doğrulama kodun",
-        "forgot": "NexaLine şifre sıfırlama kodun",
-        "email_change": "NexaLine Gmail değiştirme kodun",
-    }
     message = EmailMessage()
-    message["Subject"] = labels.get(purpose, "NexaLine doğrulama kodun")
+    message["Subject"] = subject
     message["From"] = mail_from
     message["To"] = email
-    message.set_content(
-        f"NexaLine doğrulama kodun: {code}\n\n"
-        "Bu kod 10 dakika geçerlidir. Bu işlemi sen yapmadıysan bu mesajı yok sayabilirsin."
-    )
+    message.set_content(body)
 
     try:
         with IPv4SMTP(smtp_host, smtp_port, timeout=15) as smtp:
@@ -564,7 +622,7 @@ def send_email_code(email, code, purpose):
 
 def verification_response(message, code=None, sent=True):
     if not sent and os.environ.get("RENDER"):
-        return jsonify({"ok": False, "message": "Mail gönderilemedi. Render SMTP ayarlarını kontrol et."}), 503
+        return jsonify({"ok": False, "message": "Mail gonderilemedi. Render mail servisi ayarlarini kontrol et."}), 503
 
     response = {"ok": True, "requiresVerification": True, "message": message}
     if not sent:
