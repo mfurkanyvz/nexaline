@@ -76,10 +76,17 @@
             height: 48px;
             place-items: center;
             border-radius: 8px;
-            background: linear-gradient(135deg, var(--red), var(--blue));
+            overflow: hidden;
+            background: #000;
             color: #fff;
             font-size: 22px;
             font-weight: 800;
+        }
+
+        .brand-mark img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .brand h1 {
@@ -253,12 +260,19 @@
             overflow: auto;
         }
 
+        .story-list {
+            max-height: 20vh;
+            overflow: auto;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
         .contact-list {
             overflow: auto;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .chat-item,
+        .story-item,
         .contact-item {
             display: grid;
             grid-template-columns: 48px minmax(0, 1fr) auto;
@@ -276,8 +290,28 @@
         }
 
         .chat-item:hover,
+        .story-item:hover,
         .contact-item:hover {
             background: rgba(255, 255, 255, 0.04);
+        }
+
+        .admin-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            color: #07100b;
+            background: var(--green);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .member-action {
+            display: none;
+        }
+
+        .member-action.visible {
+            display: grid;
         }
 
         .chat-time {
@@ -547,10 +581,15 @@
             }
 
             .chat-list {
-                max-height: 45dvh;
+                max-height: 34dvh;
+            }
+
+            .story-list {
+                max-height: 18dvh;
             }
 
             .chat-item,
+            .story-item,
             .contact-item {
                 grid-template-columns: 44px minmax(0, 1fr) auto;
                 padding: 11px 12px;
@@ -628,7 +667,7 @@
     <main id="authScreen" class="auth-screen">
         <section class="auth-card">
             <div class="brand">
-                <div class="brand-mark">NL</div>
+                <div class="brand-mark"><img src="/static/nexaline-logo.jpeg" alt="NexaLine"></div>
                 <h1>NexaLine</h1>
             </div>
 
@@ -639,7 +678,7 @@
 
             <input id="displayName" class="field hidden" autocomplete="name" placeholder="Görünen ad">
             <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
-            <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
+            <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Güçlü şifre">
             <button id="authButton" class="primary" type="button">Giriş Yap</button>
             <div id="authStatus" class="status-line"></div>
         </section>
@@ -654,6 +693,7 @@
                     <small id="meStatus">çevrimiçi</small>
                 </div>
                 <div class="icon-row">
+                    <button class="icon-btn" id="storyButton" title="Durum ekle">◉</button>
                     <button class="icon-btn" id="newGroupButton" title="Grup oluştur">＋</button>
                     <button class="icon-btn" id="deleteAccountButton" title="Hesabı sil">⌫</button>
                     <button class="icon-btn" id="logoutButton" title="Çıkış">⏻</button>
@@ -663,6 +703,9 @@
             <div class="search-box">
                 <input id="searchInput" placeholder="Sohbetlerde ve kişilerde ara">
             </div>
+
+            <div class="section-label">Durumlar</div>
+            <nav id="storyList" class="story-list"></nav>
 
             <div class="section-label">Sohbetler</div>
             <nav id="chatList" class="chat-list"></nav>
@@ -680,6 +723,7 @@
                     <small id="activeStatus">hazır</small>
                 </div>
                 <div class="icon-row">
+                    <button class="icon-btn member-action" id="groupMembersButton" title="Üyeleri yönet">☰</button>
                     <button class="icon-btn hidden" id="leaveGroupButton" title="Gruptan çık">⇥</button>
                     <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
                     <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
@@ -725,6 +769,7 @@
             me: null,
             users: [],
             chats: [],
+            stories: [],
             activeChatId: "lobby",
             typing: {},
             attachment: null,
@@ -763,8 +808,11 @@
             $("loginTab").classList.toggle("active", mode === "login");
             $("registerTab").classList.toggle("active", mode === "register");
             $("displayName").classList.toggle("hidden", mode === "login");
+            $("password").autocomplete = mode === "login" ? "current-password" : "new-password";
             $("authButton").textContent = mode === "login" ? "Giriş Yap" : "Kayıt Ol";
-            $("authStatus").textContent = "";
+            $("authStatus").textContent = mode === "register"
+                ? "Kullanıcı adı ve görünen isim benzersiz olmalı. Şifre en az 10 karakter, büyük/küçük harf, sayı ve özel karakter içermeli."
+                : "";
         }
 
         async function submitAuth() {
@@ -810,6 +858,7 @@
                 state.users = data.users;
                 state.chats = data.chats;
                 state.generalGroup = data.generalGroup;
+                state.stories = data.stories || [];
                 state.activeChatId = state.chats[0]?.id || "lobby";
                 render();
                 maybePromptGeneralGroup();
@@ -818,6 +867,7 @@
 
         function render() {
             renderProfile();
+            renderStories();
             renderChats();
             renderContacts();
             renderActiveChat();
@@ -827,6 +877,49 @@
             $("meAvatar").textContent = initials(state.me.displayName);
             $("meAvatar").classList.add("online");
             $("meName").textContent = state.me.displayName;
+        }
+
+        function renderStories() {
+            const storyList = $("storyList");
+            storyList.innerHTML = "";
+
+            if (!state.stories.length) {
+                const empty = document.createElement("button");
+                empty.className = "story-item";
+                empty.onclick = createStory;
+                empty.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Durum ekle</strong><div class="last-message">24 saat görünür</div></div><span class="chat-time"></span>`;
+                storyList.appendChild(empty);
+                return;
+            }
+
+            state.stories.forEach(story => {
+                const button = document.createElement("button");
+                button.className = "story-item";
+                button.onclick = () => {
+                    const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+                    alert(`${story.user.displayName} (@${story.username})\n\n${story.body || "Durum"}\n\nBitiş: ${expires}`);
+                };
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar" + (story.user.online ? " online" : "");
+                avatar.textContent = initials(story.user.displayName);
+
+                const body = document.createElement("div");
+                const title = document.createElement("strong");
+                title.className = "chat-title";
+                title.textContent = story.user.displayName;
+                const meta = document.createElement("div");
+                meta.className = "last-message";
+                meta.textContent = story.body || "Durum paylaştı";
+                body.append(title, meta);
+
+                const time = document.createElement("span");
+                time.className = "chat-time";
+                time.textContent = formatTime(story.createdAt);
+
+                button.append(avatar, body, time);
+                storyList.appendChild(button);
+            });
         }
 
         function renderChats() {
@@ -941,6 +1034,8 @@
             $("activeAvatar").classList.toggle("online", isChatOnline(chat));
             $("activeStatus").textContent = statusText(chat);
             $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
+            const me = chat.members.find(member => member.username === state.me.username);
+            $("groupMembersButton").classList.toggle("visible", chat.type === "group" && chat.id !== "lobby" && Boolean(me?.isAdmin));
             messageBox.innerHTML = "";
 
             chat.messages.forEach(message => {
@@ -1021,15 +1116,21 @@
                 return;
             }
 
-            const members = prompt("Gruba eklenecek kullanıcı adları, virgülle ayır");
-            if (!members) {
-                return;
-            }
+            const members = prompt("Gruba eklenecek kullanıcı adları, virgülle ayır. İstersen boş bırakıp sonra yönetici olarak ekleyebilirsin.") || "";
 
             socket.emit("chat:group:create", {
                 title: title.trim(),
                 members: members.split(",").map(item => item.trim().toLowerCase()).filter(Boolean)
             });
+        }
+
+        function createStory() {
+            const body = prompt("24 saat görünecek durumunu yaz.");
+            if (!body || !body.trim()) {
+                return;
+            }
+
+            socket.emit("story:create", { body: body.trim() });
         }
 
         function maybePromptGeneralGroup() {
@@ -1068,10 +1169,30 @@
                 return;
             }
 
+            const me = chat.members.find(member => member.username === state.me.username);
             const members = chat.members
-                .map(member => `${member.online ? "çevrimiçi" : "çevrimdışı"} - ${member.displayName} (@${member.username})`)
+                .map(member => `${member.online ? "çevrimiçi" : "çevrimdışı"} - ${member.displayName} (@${member.username})${member.isAdmin ? " - Yönetici" : ""}`)
                 .join("\n");
-            alert(members || "Bu grupta kişi yok.");
+
+            if (!me?.isAdmin || chat.id === "lobby") {
+                alert(members || "Bu grupta kişi yok.");
+                return;
+            }
+
+            const action = prompt(
+                `${members || "Bu grupta kişi yok."}\n\nSen bu grubun yöneticisisin.\nÜye eklemek için +kullanıcıadı yaz.\nÜye çıkarmak için -kullanıcıadı yaz.`
+            );
+
+            if (!action) {
+                return;
+            }
+
+            const trimmed = action.trim().toLowerCase();
+            if (trimmed.startsWith("+")) {
+                socket.emit("chat:group:add", { chatId: chat.id, username: trimmed.slice(1).trim() });
+            } else if (trimmed.startsWith("-")) {
+                socket.emit("chat:group:remove", { chatId: chat.id, username: trimmed.slice(1).trim() });
+            }
         }
 
         async function toggleVoiceRecording() {
@@ -1179,7 +1300,8 @@
             }
 
             if (chat.type === "group") {
-                return `${chat.members.length || state.users.length} kişi`;
+                const me = chat.members.find(member => member.username === state.me.username);
+                return `${chat.members.length || state.users.length} kişi${me?.isAdmin ? " • Yönetici" : ""}`;
             }
 
             return isChatOnline(chat) ? "çevrimiçi" : "çevrimdışı";
@@ -1378,6 +1500,7 @@
         $("fileInput").onchange = handleFile;
         $("voiceButton").onclick = toggleVoiceRecording;
         $("deleteAccountButton").onclick = deleteAccount;
+        $("storyButton").onclick = createStory;
         $("logoutButton").onclick = () => {
             localStorage.removeItem("nexalineUser");
             location.reload();
@@ -1385,6 +1508,7 @@
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
         $("leaveGroupButton").onclick = leaveCurrentGroup;
+        $("groupMembersButton").onclick = showActiveMembers;
         $("activeStatus").onclick = showActiveMembers;
         $("callButton").onclick = () => startCall(true);
         $("videoButton").onclick = () => startCall(false);
@@ -1410,6 +1534,7 @@
             state.users = data.users;
             state.chats = data.chats;
             state.generalGroup = data.generalGroup;
+            state.stories = data.stories || [];
             state.activeChatId = state.activeChatId || state.chats[0]?.id || "lobby";
             render();
             maybePromptGeneralGroup();
@@ -1448,7 +1573,17 @@
             render();
         });
 
+        socket.on("stories:update", stories => {
+            state.stories = stories;
+            renderStories();
+        });
+
         socket.on("account:deleted", () => {
+            localStorage.removeItem("nexalineUser");
+            location.reload();
+        });
+
+        socket.on("admin:reset", () => {
             localStorage.removeItem("nexalineUser");
             location.reload();
         });

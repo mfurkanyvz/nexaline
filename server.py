@@ -1,10 +1,12 @@
 import os
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -55,6 +57,7 @@ class ChatMember(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
     username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
 
     user = db.relationship("User")
     __table_args__ = (db.UniqueConstraint("chat_id", "username", name="unique_chat_member"),)
@@ -70,6 +73,17 @@ class Message(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     sender_user = db.relationship("User")
+
+
+class Story(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    body = db.Column(db.Text, nullable=False, default="")
+    attachment = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime, nullable=False)
+
+    user = db.relationship("User")
 
 
 def now_iso():
@@ -95,6 +109,26 @@ def public_user(username):
         "about": user.about if user else "NexaLine kullanıyorum.",
         "online": any(name == username for name in connections.values()),
     }
+
+
+def story_to_dict(story):
+    return {
+        "id": story.id,
+        "username": story.username,
+        "user": public_user(story.username),
+        "body": story.body,
+        "attachment": story.attachment,
+        "createdAt": to_iso(story.created_at),
+        "expiresAt": to_iso(story.expires_at),
+    }
+
+
+def active_stories():
+    now = datetime.now(timezone.utc)
+    Story.query.filter(Story.expires_at <= now).delete(synchronize_session=False)
+    db.session.commit()
+    stories = Story.query.filter(Story.expires_at > now).order_by(Story.created_at.desc()).all()
+    return [story_to_dict(story) for story in stories]
 
 
 def message_to_dict(message):
@@ -162,6 +196,26 @@ def add_chat_member(chat_id, username):
     return True
 
 
+def is_group_admin(chat, username):
+    if not chat or chat.type != "group":
+        return False
+
+    member = ChatMember.query.filter_by(chat_id=chat.id, username=username).first()
+    return bool(member and member.is_admin)
+
+
+def promote_fallback_group_admin(chat):
+    if not chat or chat.type != "group" or chat.id == "lobby":
+        return
+
+    if any(member.is_admin for member in chat.members):
+        return
+
+    first_member = next(iter(chat.members), None)
+    if first_member:
+        first_member.is_admin = True
+
+
 def general_group_state(username):
     ensure_lobby()
     lobby = db.session.get(Chat, "lobby")
@@ -190,7 +244,10 @@ def chat_for_user(chat, username):
         "id": chat.id,
         "type": chat.type,
         "title": title,
-        "members": [public_user(member) for member in member_names],
+        "members": [
+            {**public_user(member), "isAdmin": is_group_admin(chat, member)}
+            for member in member_names
+        ],
         "lastMessage": last_message,
         "messages": messages,
     }
@@ -216,9 +273,48 @@ def broadcast_presence():
     socketio.emit("presence:update", users, namespace="/")
 
 
+def broadcast_stories():
+    socketio.emit("stories:update", active_stories(), namespace="/")
+
+
 def emit_general_group_updates():
     for sid, username in connections.items():
         socketio.emit("general:update", general_group_state(username), room=sid)
+
+
+def password_error(username, password):
+    if len(password) < 10:
+        return "Şifre en az 10 karakter olmalı."
+
+    if username and username in password.lower():
+        return "Şifre kullanıcı adını içermemeli."
+
+    has_lower = any(char.islower() for char in password)
+    has_upper = any(char.isupper() for char in password)
+    has_digit = any(char.isdigit() for char in password)
+    has_symbol = any(not char.isalnum() for char in password)
+
+    if not (has_lower and has_upper and has_digit and has_symbol):
+        return "Şifre büyük harf, küçük harf, sayı ve özel karakter içermeli."
+
+    return None
+
+
+def display_name_exists(display_name):
+    return User.query.filter(db.func.lower(User.display_name) == display_name.lower()).first() is not None
+
+
+def username_error(username):
+    if len(username) < 3:
+        return "Kullanıcı adı en az 3 karakter olmalı."
+
+    if len(username) > 24:
+        return "Kullanıcı adı en fazla 24 karakter olmalı."
+
+    if not re.fullmatch(r"[a-z0-9_]+", username):
+        return "Kullanıcı adı sadece küçük harf, sayı ve alt çizgi içerebilir."
+
+    return None
 
 
 @app.route("/")
@@ -249,11 +345,25 @@ def register():
         display_name = (data.get("displayName") or data.get("username") or "").strip()
         password = data.get("password") or ""
 
-        if len(username) < 3 or len(password) < 3:
-            return jsonify({"ok": False, "message": "Kullanıcı adı ve şifre en az 3 karakter olmalı."}), 400
+        username_problem = username_error(username)
+        if username_problem:
+            return jsonify({"ok": False, "message": username_problem}), 400
+
+        if not display_name or len(display_name) < 2:
+            return jsonify({"ok": False, "message": "Görünen isim en az 2 karakter olmalı."}), 400
+
+        if len(display_name) > 40:
+            return jsonify({"ok": False, "message": "Görünen isim en fazla 40 karakter olmalı."}), 400
+
+        password_problem = password_error(username, password)
+        if password_problem:
+            return jsonify({"ok": False, "message": password_problem}), 400
 
         if db.session.get(User, username):
-            return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
+            return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı. Farklı bir kullanıcı adı dene."}), 409
+
+        if display_name_exists(display_name):
+            return jsonify({"ok": False, "message": "Bu görünen isim zaten kayıtlı. Farklı bir isim dene."}), 409
 
         db.session.add(
             User(
@@ -300,7 +410,9 @@ def delete_account(username):
 
         member_rows = ChatMember.query.filter_by(username=username).all()
         direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
+        group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
 
+        Story.query.filter_by(username=username).delete(synchronize_session=False)
         Message.query.filter_by(sender=username).delete(synchronize_session=False)
 
         for member in member_rows:
@@ -313,6 +425,9 @@ def delete_account(username):
                 db.session.delete(chat)
 
         db.session.delete(user)
+        db.session.flush()
+        for chat_id in group_chat_ids:
+            promote_fallback_group_admin(db.session.get(Chat, chat_id))
         db.session.commit()
 
         for sid, connected_user in list(connections.items()):
@@ -329,6 +444,45 @@ def delete_account(username):
         return jsonify({"ok": False, "message": "Hesap silinemedi. Render kayıtlarını kontrol et."}), 500
 
 
+@app.route("/admin/users", methods=["DELETE"])
+def delete_all_users():
+    token = request.headers.get("X-Admin-Token") or (request.get_json(silent=True) or {}).get("token")
+    expected_token = os.environ.get("ADMIN_TOKEN")
+
+    if not expected_token:
+        return jsonify({"ok": False, "message": "ADMIN_TOKEN ayarlı değil."}), 503
+
+    if token != expected_token:
+        return jsonify({"ok": False, "message": "Yönetici token hatalı."}), 401
+
+    try:
+        Story.query.delete(synchronize_session=False)
+        Message.query.delete(synchronize_session=False)
+        ChatMember.query.delete(synchronize_session=False)
+
+        for chat in Chat.query.filter(Chat.id != "lobby").all():
+            db.session.delete(chat)
+
+        User.query.delete(synchronize_session=False)
+
+        lobby = db.session.get(Chat, "lobby")
+        if lobby:
+            lobby.title = "Genel Grup"
+
+        db.session.commit()
+        connections.clear()
+        typing_users.clear()
+        socketio.emit("admin:reset", {"message": "Tüm kullanıcılar silindi."}, namespace="/")
+        broadcast_presence()
+        emit_general_group_updates()
+        broadcast_stories()
+        return jsonify({"ok": True, "message": "Tüm kullanıcılar silindi."})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Delete all users failed")
+        return jsonify({"ok": False, "message": "Kullanıcılar silinemedi."}), 500
+
+
 @app.route("/bootstrap/<username>")
 def bootstrap(username):
     username = username.strip().lower()
@@ -342,6 +496,7 @@ def bootstrap(username):
             "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
+            "stories": active_stories(),
         }
     )
 
@@ -372,6 +527,7 @@ def handle_user_join(data):
             "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
+            "stories": active_stories(),
         },
     )
     broadcast_presence()
@@ -413,16 +569,12 @@ def handle_group_create(data):
         if db.session.get(User, member):
             member_names.add(member)
 
-    if len(member_names) < 2:
-        emit("notice", {"message": "Grup için en az bir kayıtlı kişi eklemelisin."})
-        return
-
     chat = Chat(id="group:" + uuid4().hex, type="group", title=title)
     db.session.add(chat)
     db.session.flush()
 
     for member in sorted(member_names):
-        db.session.add(ChatMember(chat_id=chat.id, username=member))
+        db.session.add(ChatMember(chat_id=chat.id, username=member, is_admin=member == username))
 
     db.session.commit()
 
@@ -430,6 +582,71 @@ def handle_group_create(data):
         for sid in connected_sids_for(member):
             join_room(chat.id, sid=sid)
             emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+
+@socketio.on("chat:group:add")
+def handle_group_add(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+    target = (data.get("username") or "").strip().lower()
+
+    if not username or not chat or chat.type != "group" or not is_group_admin(chat, username):
+        emit("notice", {"message": "Sadece grup yöneticisi kişi ekleyebilir."})
+        return
+
+    if not db.session.get(User, target):
+        emit("notice", {"message": "Kullanıcı bulunamadı."})
+        return
+
+    if add_chat_member(chat.id, target):
+        db.session.commit()
+
+    for sid in connected_sids_for(target):
+        join_room(chat.id, sid=sid)
+        emit("chat:upsert", chat_for_user(chat, target), room=sid)
+
+    for member in chat_member_names(chat):
+        for sid in connected_sids_for(member):
+            emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+
+@socketio.on("chat:group:remove")
+def handle_group_remove(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+    target = (data.get("username") or "").strip().lower()
+
+    if not username or not chat or chat.type != "group" or not is_group_admin(chat, username):
+        emit("notice", {"message": "Sadece grup yöneticisi kişi çıkarabilir."})
+        return
+
+    if chat.id == "lobby":
+        emit("notice", {"message": "Genel Grup üyelerini yönetmek için katıl/çık kullanılır."})
+        return
+
+    if target == username:
+        emit("notice", {"message": "Kendini çıkarmak için gruptan çık düğmesini kullan."})
+        return
+
+    member = ChatMember.query.filter_by(chat_id=chat.id, username=target).first()
+    if not member:
+        emit("notice", {"message": "Bu kişi grupta değil."})
+        return
+
+    db.session.delete(member)
+    db.session.commit()
+    promote_fallback_group_admin(chat)
+    db.session.commit()
+
+    for sid in connected_sids_for(target):
+        leave_room(chat.id, sid=sid)
+        emit("chat:remove", {"chatId": chat.id}, room=sid)
+
+    for member_name in chat_member_names(chat):
+        for sid in connected_sids_for(member_name):
+            emit("chat:upsert", chat_for_user(chat, member_name), room=sid)
 
 
 @socketio.on("chat:lobby:join")
@@ -459,6 +676,8 @@ def handle_chat_leave(data):
     member = ChatMember.query.filter_by(chat_id=chat.id, username=username).first()
     if member:
         db.session.delete(member)
+        db.session.commit()
+        promote_fallback_group_admin(chat)
         db.session.commit()
 
     leave_room(chat.id)
@@ -545,6 +764,41 @@ def handle_message_read(data):
         emit("message:read", {"chatId": chat_id, "reader": username, "messageIds": updated_ids}, room=chat_id)
 
 
+@socketio.on("story:create")
+def handle_story_create(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    body = (data.get("body") or "").strip()
+    attachment = data.get("attachment")
+
+    if not username or (not body and not attachment):
+        return
+
+    story = Story(
+        id=uuid4().hex,
+        username=username,
+        body=body,
+        attachment=attachment,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+    )
+    db.session.add(story)
+    db.session.commit()
+    broadcast_stories()
+
+
+@socketio.on("story:delete")
+def handle_story_delete(data):
+    username = connections.get(request.sid)
+    story = db.session.get(Story, (data or {}).get("storyId"))
+
+    if not username or not story or story.username != username:
+        return
+
+    db.session.delete(story)
+    db.session.commit()
+    broadcast_stories()
+
+
 def forward_call_event(event_name, data):
     username = connections.get(request.sid)
     data = data or {}
@@ -594,7 +848,15 @@ def handle_disconnect():
 
 with app.app_context():
     db.create_all()
+    inspector = inspect(db.engine)
+    chat_member_columns = {column["name"] for column in inspector.get_columns("chat_member")} if inspector.has_table("chat_member") else set()
+    if "is_admin" not in chat_member_columns:
+        db.session.execute(text("ALTER TABLE chat_member ADD COLUMN is_admin BOOLEAN DEFAULT FALSE NOT NULL"))
+        db.session.commit()
     ensure_lobby()
+    for group_chat in Chat.query.filter_by(type="group").all():
+        promote_fallback_group_admin(group_chat)
+    db.session.commit()
 
 
 if __name__ == "__main__":
