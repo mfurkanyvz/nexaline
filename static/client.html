@@ -72,12 +72,12 @@
 
         .brand-mark {
             display: grid;
-            width: 48px;
-            height: 48px;
+            width: 42px;
+            height: 42px;
             place-items: center;
             border-radius: 8px;
             overflow: hidden;
-            background: #000;
+            background: transparent;
             color: #fff;
             font-size: 22px;
             font-weight: 800;
@@ -86,7 +86,7 @@
         .brand-mark img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         .brand h1 {
@@ -233,6 +233,30 @@
             border-bottom: 1px solid var(--line);
         }
 
+        .nav-tabs {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 4px;
+            padding: 8px;
+            border-bottom: 1px solid var(--line);
+            background: #090c13;
+        }
+
+        .nav-tab {
+            min-width: 0;
+            padding: 9px 4px;
+            border-radius: 7px;
+            color: var(--muted);
+            background: transparent;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .nav-tab.active {
+            color: #fff;
+            background: var(--panel-3);
+        }
+
         .search-box input {
             min-width: 0;
             flex: 1;
@@ -273,6 +297,7 @@
 
         .chat-item,
         .story-item,
+        .call-item,
         .contact-item {
             display: grid;
             grid-template-columns: 48px minmax(0, 1fr) auto;
@@ -291,6 +316,7 @@
 
         .chat-item:hover,
         .story-item:hover,
+        .call-item:hover,
         .contact-item:hover {
             background: rgba(255, 255, 255, 0.04);
         }
@@ -403,6 +429,40 @@
             font-size: 11px;
         }
 
+        .reply-preview,
+        .reply-context {
+            margin-bottom: 7px;
+            padding: 7px 9px;
+            border-left: 3px solid var(--blue);
+            border-radius: 6px;
+            color: #cbd8ee;
+            background: rgba(0, 0, 0, 0.22);
+            font-size: 12px;
+        }
+
+        .reply-preview {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            grid-column: 1 / -1;
+            margin: 0;
+        }
+
+        .reply-close {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .reply-action {
+            margin-left: 8px;
+            color: rgba(255, 255, 255, 0.78);
+            background: transparent;
+            font-size: 12px;
+        }
+
         .ticks.read {
             color: #75c9ff;
         }
@@ -414,6 +474,10 @@
             padding: 12px;
             border-top: 1px solid var(--line);
             background: var(--panel);
+        }
+
+        .composer.replying {
+            grid-template-rows: auto auto;
         }
 
         .composer textarea {
@@ -442,6 +506,28 @@
         .voice-message {
             width: min(260px, 100%);
             margin-top: 6px;
+        }
+
+        .voice-wave {
+            display: none;
+            grid-column: 1 / -1;
+            align-items: end;
+            height: 34px;
+            gap: 3px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(240, 61, 84, 0.14);
+        }
+
+        .voice-wave.active {
+            display: flex;
+        }
+
+        .voice-wave span {
+            width: 4px;
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, var(--red), var(--blue));
         }
 
         #activeStatus {
@@ -667,7 +753,7 @@
     <main id="authScreen" class="auth-screen">
         <section class="auth-card">
             <div class="brand">
-                <div class="brand-mark"><img src="/static/nexaline-logo.jpeg" alt="NexaLine"></div>
+                <div class="brand-mark"><img src="/static/nexaline-mark.png" alt="NexaLine"></div>
                 <h1>NexaLine</h1>
             </div>
 
@@ -704,14 +790,20 @@
                 <input id="searchInput" placeholder="Sohbetlerde ve kişilerde ara">
             </div>
 
-            <div class="section-label">Durumlar</div>
-            <nav id="storyList" class="story-list"></nav>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-section="chats" type="button">Sohbet</button>
+                <button class="nav-tab" data-section="groups" type="button">Grup</button>
+                <button class="nav-tab" data-section="stories" type="button">Durum</button>
+                <button class="nav-tab" data-section="calls" type="button">Arama</button>
+                <button class="nav-tab" data-section="contacts" type="button">Kişi</button>
+            </nav>
 
-            <div class="section-label">Sohbetler</div>
+            <div id="sectionTitle" class="section-label">Sohbetler</div>
+            <nav id="storyList" class="story-list hidden"></nav>
             <nav id="chatList" class="chat-list"></nav>
-
-            <div class="section-label">Kişiler</div>
-            <nav id="contactList" class="contact-list scroll-area"></nav>
+            <nav id="groupList" class="chat-list hidden"></nav>
+            <nav id="callList" class="chat-list hidden"></nav>
+            <nav id="contactList" class="contact-list scroll-area hidden"></nav>
         </aside>
 
         <section class="chat-pane">
@@ -733,6 +825,8 @@
             <div id="messages" class="messages"></div>
 
             <footer class="composer">
+                <div id="replyPreview" class="reply-preview hidden"></div>
+                <div id="voiceWave" class="voice-wave"></div>
                 <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
                 <button id="voiceButton" class="icon-btn" title="Sesli mesaj">●</button>
                 <input id="fileInput" class="hidden" type="file">
@@ -770,9 +864,13 @@
             users: [],
             chats: [],
             stories: [],
+            callLogs: [],
+            activeSection: "chats",
             activeChatId: "lobby",
             typing: {},
             attachment: null,
+            replyTo: null,
+            waveTimer: null,
             generalGroup: null,
             generalPromptShown: false,
             recorder: null,
@@ -783,7 +881,8 @@
                 remoteStream: null,
                 chatId: null,
                 audioOnly: false,
-                incomingOffer: null
+                incomingOffer: null,
+                startedAt: null
             }
         };
 
@@ -859,6 +958,7 @@
                 state.chats = data.chats;
                 state.generalGroup = data.generalGroup;
                 state.stories = data.stories || [];
+                state.callLogs = data.callLogs || [];
                 state.activeChatId = state.chats[0]?.id || "lobby";
                 render();
                 maybePromptGeneralGroup();
@@ -867,8 +967,11 @@
 
         function render() {
             renderProfile();
+            renderSections();
             renderStories();
             renderChats();
+            renderGroups();
+            renderCalls();
             renderContacts();
             renderActiveChat();
         }
@@ -876,7 +979,25 @@
         function renderProfile() {
             $("meAvatar").textContent = initials(state.me.displayName);
             $("meAvatar").classList.add("online");
+            $("meAvatar").onclick = () => showStoryForUser(state.me.username);
             $("meName").textContent = state.me.displayName;
+        }
+
+        function renderSections() {
+            const labels = {
+                chats: "Sohbetler",
+                groups: "Gruplar",
+                stories: "Durumlar",
+                calls: "Arama kayıtları",
+                contacts: "Kişiler"
+            };
+            document.querySelectorAll(".nav-tab").forEach(tab => {
+                tab.classList.toggle("active", tab.dataset.section === state.activeSection);
+            });
+            $("sectionTitle").textContent = labels[state.activeSection];
+            ["chatList", "groupList", "storyList", "callList", "contactList"].forEach(id => $(id).classList.add("hidden"));
+            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", contacts: "contactList" };
+            $(map[state.activeSection]).classList.remove("hidden");
         }
 
         function renderStories() {
@@ -895,10 +1016,7 @@
             state.stories.forEach(story => {
                 const button = document.createElement("button");
                 button.className = "story-item";
-                button.onclick = () => {
-                    const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-                    alert(`${story.user.displayName} (@${story.username})\n\n${story.body || "Durum"}\n\nBitiş: ${expires}`);
-                };
+                button.onclick = () => showStory(story);
 
                 const avatar = document.createElement("div");
                 avatar.className = "avatar" + (story.user.online ? " online" : "");
@@ -915,11 +1033,30 @@
 
                 const time = document.createElement("span");
                 time.className = "chat-time";
-                time.textContent = formatTime(story.createdAt);
+                time.textContent = relativeTime(story.createdAt);
 
                 button.append(avatar, body, time);
                 storyList.appendChild(button);
             });
+        }
+
+        function showStoryForUser(username) {
+            const stories = state.stories.filter(story => story.username === username);
+            if (!stories.length) {
+                if (username === state.me.username) {
+                    createStory();
+                    return;
+                }
+                alert("Bu kullanıcının aktif durumu yok.");
+                return;
+            }
+
+            showStory(stories[0]);
+        }
+
+        function showStory(story) {
+            const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+            alert(`${story.user.displayName} (@${story.username})\n\n${story.body || "Durum"}\n\n${relativeTime(story.createdAt)} paylaşıldı\nBitiş: ${expires}`);
         }
 
         function renderChats() {
@@ -953,6 +1090,7 @@
             }
 
             state.chats
+                .filter(chat => chat.type !== "group")
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
                 .forEach(chat => {
                     const button = document.createElement("button");
@@ -967,6 +1105,13 @@
                     const avatar = document.createElement("div");
                     avatar.className = "avatar" + (isChatOnline(chat) ? " online" : "");
                     avatar.textContent = initials(chat.title);
+                    avatar.onclick = event => {
+                        event.stopPropagation();
+                        const other = chat.members.find(member => member.username !== state.me.username);
+                        if (other) {
+                            showStoryForUser(other.username);
+                        }
+                    };
 
                     const body = document.createElement("div");
                     const title = document.createElement("strong");
@@ -986,6 +1131,85 @@
                 });
         }
 
+        function renderGroups() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            const groupList = $("groupList");
+            groupList.innerHTML = "";
+
+            state.chats
+                .filter(chat => chat.type === "group")
+                .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
+                .forEach(chat => {
+                    const button = document.createElement("button");
+                    button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
+                    button.onclick = () => {
+                        state.activeChatId = chat.id;
+                        socket.emit("message:read", { chatId: chat.id });
+                        render();
+                        openMobileChat();
+                    };
+
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar";
+                    avatar.textContent = initials(chat.title);
+
+                    const body = document.createElement("div");
+                    const title = document.createElement("strong");
+                    title.className = "chat-title";
+                    title.textContent = chat.title;
+                    const last = document.createElement("div");
+                    last.className = "last-message";
+                    last.textContent = latestText(chat) || `${chat.members.length} kişi`;
+                    body.append(title, last);
+
+                    const time = document.createElement("span");
+                    time.className = "chat-time";
+                    time.textContent = chat.lastMessage ? relativeTime(chat.lastMessage.createdAt) : "";
+
+                    button.append(avatar, body, time);
+                    groupList.appendChild(button);
+                });
+        }
+
+        function renderCalls() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            const callList = $("callList");
+            callList.innerHTML = "";
+
+            if (!state.callLogs.length) {
+                callList.innerHTML = `<button class="call-item"><div class="avatar">☎</div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`;
+                return;
+            }
+
+            state.callLogs
+                .filter(log => log.chatTitle.toLowerCase().includes(filter) || log.callerName.toLowerCase().includes(filter))
+                .forEach(log => {
+                    const button = document.createElement("button");
+                    button.className = "call-item";
+                    button.onclick = () => {
+                        state.activeChatId = log.chatId;
+                        render();
+                        openMobileChat();
+                    };
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar";
+                    avatar.textContent = log.kind === "video" ? "▣" : "☎";
+                    const body = document.createElement("div");
+                    const title = document.createElement("strong");
+                    title.className = "chat-title";
+                    title.textContent = log.chatTitle;
+                    const meta = document.createElement("div");
+                    meta.className = "last-message";
+                    meta.textContent = `${log.kind === "video" ? "Görüntülü" : "Sesli"} • ${log.status === "active" ? "aktif arama" : formatDuration(log.durationSeconds)}`;
+                    body.append(title, meta);
+                    const time = document.createElement("span");
+                    time.className = "chat-time";
+                    time.textContent = relativeTime(log.startedAt);
+                    button.append(avatar, body, time);
+                    callList.appendChild(button);
+                });
+        }
+
         function renderContacts() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const contactList = $("contactList");
@@ -1002,6 +1226,10 @@
                     const avatar = document.createElement("div");
                     avatar.className = "avatar" + (user.online ? " online" : "");
                     avatar.textContent = initials(user.displayName);
+                    avatar.onclick = event => {
+                        event.stopPropagation();
+                        showStoryForUser(user.username);
+                    };
 
                     const body = document.createElement("div");
                     const title = document.createElement("strong");
@@ -1048,6 +1276,13 @@
                 sender.textContent = message.senderName;
                 bubble.appendChild(sender);
 
+                if (message.replyTo) {
+                    const reply = document.createElement("div");
+                    reply.className = "reply-context";
+                    reply.textContent = `${message.replyTo.senderName}: ${message.replyTo.body || message.replyTo.attachmentName || "Mesaj"}`;
+                    bubble.appendChild(reply);
+                }
+
                 if (message.body) {
                     const text = document.createElement("div");
                     text.textContent = message.body;
@@ -1061,8 +1296,21 @@
                 const meta = document.createElement("div");
                 meta.className = "message-meta";
                 const read = chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
-                meta.innerHTML = `<span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : ""}">${mine ? (read ? "✓✓" : "✓") : ""}</span>`;
+                meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : ""}">${mine ? (read ? "✓✓" : "✓") : ""}</span>`;
+                meta.querySelector(".reply-action").onclick = event => {
+                    event.stopPropagation();
+                    setReplyTo(message);
+                };
                 bubble.appendChild(meta);
+                let touchStartX = 0;
+                bubble.addEventListener("touchstart", event => {
+                    touchStartX = event.changedTouches[0].clientX;
+                }, { passive: true });
+                bubble.addEventListener("touchend", event => {
+                    if (Math.abs(event.changedTouches[0].clientX - touchStartX) > 55) {
+                        setReplyTo(message);
+                    }
+                }, { passive: true });
                 messageBox.appendChild(bubble);
             });
 
@@ -1071,6 +1319,16 @@
         }
 
         function renderAttachment(attachment) {
+            if (attachment.type === "call") {
+                const pill = document.createElement("div");
+                pill.className = "file-pill";
+                const label = attachment.kind === "video" ? "Görüntülü arama" : "Sesli arama";
+                pill.textContent = attachment.status === "active"
+                    ? `${label} aktif`
+                    : `${label}: ${formatDuration(attachment.durationSeconds || 0)}`;
+                return pill;
+            }
+
             if (attachment.type && attachment.type.startsWith("audio/")) {
                 const audio = document.createElement("audio");
                 audio.className = "voice-message";
@@ -1103,11 +1361,40 @@
                 return;
             }
 
-            socket.emit("message:send", { chatId: chat.id, body, attachment: state.attachment });
+            socket.emit("message:send", { chatId: chat.id, body, attachment: state.attachment, replyTo: state.replyTo });
             socket.emit("typing", { chatId: chat.id, typing: false });
             input.value = "";
             input.placeholder = "Mesaj";
             state.attachment = null;
+            clearReply();
+        }
+
+        function setReplyTo(message) {
+            state.replyTo = {
+                id: message.id,
+                senderName: message.senderName,
+                body: message.body,
+                attachmentName: message.attachment?.name
+            };
+            renderReplyPreview();
+            $("messageInput").focus();
+        }
+
+        function clearReply() {
+            state.replyTo = null;
+            renderReplyPreview();
+        }
+
+        function renderReplyPreview() {
+            const preview = $("replyPreview");
+            $("replyPreview").classList.toggle("hidden", !state.replyTo);
+            document.querySelector(".composer").classList.toggle("replying", Boolean(state.replyTo));
+            if (!state.replyTo) {
+                preview.innerHTML = "";
+                return;
+            }
+            preview.innerHTML = `<span><strong>${state.replyTo.senderName}</strong>: ${state.replyTo.body || state.replyTo.attachmentName || "Mesaj"}</span><button class="reply-close" type="button">×</button>`;
+            preview.querySelector("button").onclick = clearReply;
         }
 
         function createGroup() {
@@ -1200,6 +1487,7 @@
                 state.recorder.stop();
                 $("voiceButton").classList.remove("recording");
                 $("voiceButton").textContent = "●";
+                stopVoiceWave();
                 return;
             }
 
@@ -1217,6 +1505,7 @@
             }
             state.recordedChunks = [];
             state.recorder = new MediaRecorder(stream);
+            startVoiceWave(stream);
             state.recorder.ondataavailable = event => {
                 if (event.data.size > 0) {
                     state.recordedChunks.push(event.data);
@@ -1224,6 +1513,7 @@
             };
             state.recorder.onstop = () => {
                 stream.getTracks().forEach(track => track.stop());
+                stopVoiceWave();
                 const blob = new Blob(state.recordedChunks, { type: "audio/webm" });
                 const reader = new FileReader();
                 reader.onload = () => {
@@ -1321,6 +1611,81 @@
             return new Date(value).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
         }
 
+        function relativeTime(value) {
+            const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+            if (seconds < 60) {
+                return `${seconds || 1} sn önce`;
+            }
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) {
+                return `${minutes} dk önce`;
+            }
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) {
+                return `${hours} saat önce`;
+            }
+            const days = Math.floor(hours / 24);
+            return `${days} gün önce`;
+        }
+
+        function formatDuration(seconds) {
+            seconds = Math.max(0, Number(seconds) || 0);
+            const minutes = Math.floor(seconds / 60);
+            const remaining = seconds % 60;
+            return minutes ? `${minutes} dk ${remaining} sn` : `${remaining} sn`;
+        }
+
+        function startVoiceWave(stream) {
+            const wave = $("voiceWave");
+            wave.innerHTML = Array.from({ length: 28 }, () => "<span></span>").join("");
+            wave.classList.add("active");
+            const bars = [...wave.querySelectorAll("span")];
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 64;
+            audioContext.createMediaStreamSource(stream).connect(analyser);
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            state.waveTimer = setInterval(() => {
+                analyser.getByteFrequencyData(data);
+                bars.forEach((bar, index) => {
+                    const value = data[index % data.length] || 8;
+                    bar.style.height = `${8 + Math.round((value / 255) * 25)}px`;
+                });
+            }, 80);
+            wave.dataset.audioContext = "active";
+            wave._audioContext = audioContext;
+        }
+
+        function stopVoiceWave() {
+            if (state.waveTimer) {
+                clearInterval(state.waveTimer);
+                state.waveTimer = null;
+            }
+            if ($("voiceWave")._audioContext) {
+                $("voiceWave")._audioContext.close();
+                $("voiceWave")._audioContext = null;
+            }
+            $("voiceWave").classList.remove("active");
+        }
+
+        function playTone(frequency, duration) {
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.frequency.value = frequency;
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                gain.gain.setValueAtTime(0.001, context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.08, context.currentTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+                oscillator.start();
+                oscillator.stop(context.currentTime + duration);
+            } catch (error) {
+                // Ses izni olmayan tarayıcılarda sessiz geç.
+            }
+        }
+
         function handleFile(event) {
             const file = event.target.files[0];
             if (!file) {
@@ -1345,10 +1710,10 @@
             reader.readAsDataURL(file);
         }
 
-        function ensureDirectCallChat() {
+        function ensureCallChat() {
             const chat = activeChat();
-            if (!chat || chat.type !== "direct") {
-                alert("Sesli ve görüntülü arama şu an bire bir sohbetlerde kullanılabilir.");
+            if (!chat) {
+                alert("Önce bir sohbet seçmelisin.");
                 return null;
             }
 
@@ -1386,12 +1751,13 @@
         }
 
         async function startCall(audioOnly) {
-            const chat = ensureDirectCallChat();
+            const chat = ensureCallChat();
             if (!chat || state.call.pc) {
                 return;
             }
 
             openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "aranıyor", false, audioOnly);
+            playTone(audioOnly ? 520 : 680, 0.18);
             let pc;
             try {
                 pc = await createPeer(chat.id, audioOnly);
@@ -1400,6 +1766,8 @@
                 endCall(false);
                 return;
             }
+            state.call.startedAt = Date.now();
+            socket.emit("call:log", { chatId: chat.id, kind: audioOnly ? "audio" : "video", status: "active" });
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.emit("call:offer", { chatId: chat.id, offer, audioOnly });
@@ -1432,6 +1800,7 @@
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             socket.emit("call:answer", { chatId: incoming.chatId, answer });
+            state.call.startedAt = Date.now();
             state.call.incomingOffer = null;
         }
 
@@ -1449,8 +1818,17 @@
         }
 
         function endCall(notify = true) {
+            const endedChatId = state.call.chatId;
+            const endedAudioOnly = state.call.audioOnly;
+            const durationSeconds = state.call.startedAt ? Math.max(1, Math.round((Date.now() - state.call.startedAt) / 1000)) : 0;
             if (notify && state.call.chatId) {
                 socket.emit("call:end", { chatId: state.call.chatId });
+                socket.emit("call:log", {
+                    chatId: state.call.chatId,
+                    kind: state.call.audioOnly ? "audio" : "video",
+                    status: "ended",
+                    durationSeconds
+                });
             }
 
             if (state.call.pc) {
@@ -1460,7 +1838,7 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { pc: null, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null };
+            state.call = { pc: null, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callPanel").classList.add("hidden");
@@ -1494,8 +1872,16 @@
         $("sendButton").onclick = sendMessage;
         $("searchInput").oninput = () => {
             renderChats();
+            renderGroups();
+            renderCalls();
             renderContacts();
         };
+        document.querySelectorAll(".nav-tab").forEach(tab => {
+            tab.onclick = () => {
+                state.activeSection = tab.dataset.section;
+                renderSections();
+            };
+        });
         $("attachButton").onclick = () => $("fileInput").click();
         $("fileInput").onchange = handleFile;
         $("voiceButton").onclick = toggleVoiceRecording;
@@ -1535,6 +1921,7 @@
             state.chats = data.chats;
             state.generalGroup = data.generalGroup;
             state.stories = data.stories || [];
+            state.callLogs = data.callLogs || [];
             state.activeChatId = state.activeChatId || state.chats[0]?.id || "lobby";
             render();
             maybePromptGeneralGroup();
@@ -1576,6 +1963,11 @@
         socket.on("stories:update", stories => {
             state.stories = stories;
             renderStories();
+        });
+
+        socket.on("calls:update", callLogs => {
+            state.callLogs = callLogs || [];
+            renderCalls();
         });
 
         socket.on("account:deleted", () => {
@@ -1628,6 +2020,7 @@
             }
 
             state.call.incomingOffer = data;
+            playTone(data.audioOnly ? 420 : 760, 0.25);
             openCallPanel(`${data.fromName} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly);
         });
         socket.on("call:answer", handleRemoteAnswer);

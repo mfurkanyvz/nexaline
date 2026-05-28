@@ -69,6 +69,7 @@ class Message(db.Model):
     sender = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
     body = db.Column(db.Text, nullable=False, default="")
     attachment = db.Column(db.JSON, nullable=True)
+    reply_to = db.Column(db.JSON, nullable=True)
     read_by = db.Column(db.JSON, nullable=False, default=list)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
@@ -84,6 +85,20 @@ class Story(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship("User")
+
+
+class CallLog(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
+    caller = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    kind = db.Column(db.String(20), nullable=False, default="audio")
+    status = db.Column(db.String(20), nullable=False, default="ended")
+    duration_seconds = db.Column(db.Integer, nullable=False, default=0)
+    started_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    ended_at = db.Column(db.DateTime, nullable=True)
+
+    chat = db.relationship("Chat")
+    caller_user = db.relationship("User")
 
 
 def now_iso():
@@ -139,9 +154,26 @@ def message_to_dict(message):
         "senderName": message.sender_user.display_name if message.sender_user else message.sender,
         "body": message.body,
         "attachment": message.attachment,
+        "replyTo": message.reply_to,
         "createdAt": to_iso(message.created_at),
         "status": "sent",
         "readBy": message.read_by or [],
+    }
+
+
+def call_log_to_dict(log, username):
+    chat = db.session.get(Chat, log.chat_id)
+    return {
+        "id": log.id,
+        "chatId": log.chat_id,
+        "chatTitle": chat_for_user(chat, username)["title"] if chat and user_can_see_chat(chat, username) else "Arama",
+        "caller": log.caller,
+        "callerName": log.caller_user.display_name if log.caller_user else log.caller,
+        "kind": log.kind,
+        "status": log.status,
+        "durationSeconds": log.duration_seconds,
+        "startedAt": to_iso(log.started_at),
+        "endedAt": to_iso(log.ended_at),
     }
 
 
@@ -262,6 +294,18 @@ def visible_chats(username):
             result.append(chat_for_user(chat, username))
 
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
+
+
+def visible_call_logs(username):
+    logs = (
+        CallLog.query.join(Chat, CallLog.chat_id == Chat.id)
+        .join(ChatMember, ChatMember.chat_id == Chat.id)
+        .filter(ChatMember.username == username)
+        .order_by(CallLog.started_at.desc())
+        .limit(80)
+        .all()
+    )
+    return [call_log_to_dict(log, username) for log in logs]
 
 
 def connected_sids_for(username):
@@ -413,6 +457,7 @@ def delete_account(username):
         group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
 
         Story.query.filter_by(username=username).delete(synchronize_session=False)
+        CallLog.query.filter_by(caller=username).delete(synchronize_session=False)
         Message.query.filter_by(sender=username).delete(synchronize_session=False)
 
         for member in member_rows:
@@ -457,6 +502,7 @@ def delete_all_users():
 
     try:
         Story.query.delete(synchronize_session=False)
+        CallLog.query.delete(synchronize_session=False)
         Message.query.delete(synchronize_session=False)
         ChatMember.query.delete(synchronize_session=False)
 
@@ -497,6 +543,7 @@ def bootstrap(username):
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
             "stories": active_stories(),
+            "callLogs": visible_call_logs(username),
         }
     )
 
@@ -528,6 +575,7 @@ def handle_user_join(data):
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
             "stories": active_stories(),
+            "callLogs": visible_call_logs(username),
         },
     )
     broadcast_presence()
@@ -698,6 +746,7 @@ def handle_message_send(data):
     chat = db.session.get(Chat, data.get("chatId"))
     body = (data.get("body") or "").strip()
     attachment = data.get("attachment")
+    reply_to = data.get("replyTo")
 
     if not username or not chat or not user_can_see_chat(chat, username):
         return
@@ -711,6 +760,7 @@ def handle_message_send(data):
         sender=username,
         body=body,
         attachment=attachment,
+        reply_to=reply_to if isinstance(reply_to, dict) else None,
         read_by=[username],
     )
     db.session.add(message)
@@ -813,6 +863,65 @@ def forward_call_event(event_name, data):
     emit(event_name, payload, room=chat.id, include_self=False)
 
 
+def emit_call_logs_for_chat(chat):
+    if not chat:
+        return
+
+    for member in chat_member_names(chat):
+        for sid in connected_sids_for(member):
+            socketio.emit("calls:update", visible_call_logs(member), room=sid)
+
+
+@socketio.on("call:log")
+def handle_call_log(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+
+    if not username or not chat or not user_can_see_chat(chat, username):
+        return
+
+    kind = "video" if data.get("kind") == "video" else "audio"
+    status = "active" if data.get("status") == "active" else "ended"
+    duration = max(0, int(data.get("durationSeconds") or 0))
+    started_at = datetime.now(timezone.utc)
+    ended_at = None if status == "active" else datetime.now(timezone.utc)
+    label = "Görüntülü arama" if kind == "video" else "Sesli arama"
+    body = f"{label} aktif" if status == "active" else f"{label} bitti • {format_duration(duration)}"
+
+    log = CallLog(
+        id=uuid4().hex,
+        chat_id=chat.id,
+        caller=username,
+        kind=kind,
+        status=status,
+        duration_seconds=duration,
+        started_at=started_at,
+        ended_at=ended_at,
+    )
+    message = Message(
+        id=uuid4().hex,
+        chat_id=chat.id,
+        sender=username,
+        body=body,
+        attachment={"kind": kind, "status": status, "durationSeconds": duration, "type": "call"},
+        read_by=[username],
+    )
+    db.session.add(log)
+    db.session.add(message)
+    db.session.commit()
+    emit("message:new", message_to_dict(message), room=chat.id)
+    emit_call_logs_for_chat(chat)
+
+
+def format_duration(seconds):
+    minutes = seconds // 60
+    remaining = seconds % 60
+    if minutes:
+        return f"{minutes} dk {remaining} sn"
+    return f"{remaining} sn"
+
+
 @socketio.on("call:offer")
 def handle_call_offer(data):
     forward_call_event("call:offer", data)
@@ -852,6 +961,10 @@ with app.app_context():
     chat_member_columns = {column["name"] for column in inspector.get_columns("chat_member")} if inspector.has_table("chat_member") else set()
     if "is_admin" not in chat_member_columns:
         db.session.execute(text("ALTER TABLE chat_member ADD COLUMN is_admin BOOLEAN DEFAULT FALSE NOT NULL"))
+        db.session.commit()
+    message_columns = {column["name"] for column in inspector.get_columns("message")} if inspector.has_table("message") else set()
+    if "reply_to" not in message_columns:
+        db.session.execute(text("ALTER TABLE message ADD COLUMN reply_to JSON"))
         db.session.commit()
     ensure_lobby()
     for group_chat in Chat.query.filter_by(type="group").all():
