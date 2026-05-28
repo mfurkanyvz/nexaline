@@ -40,6 +40,28 @@ typing_users = {}
 DEV_ADMIN_TOKEN = "NexaLineAdmin2026!"
 
 
+class IPv4SMTP(smtplib.SMTP):
+    def _get_socket(self, host, port, timeout):
+        addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        last_error = None
+        for family, socktype, proto, _, address in addresses:
+            try:
+                sock = socket.socket(family, socktype, proto)
+                sock.settimeout(timeout)
+                sock.connect(address)
+                return sock
+            except OSError as error:
+                last_error = error
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+
+        if last_error:
+            raise last_error
+        return super()._get_socket(host, port, timeout)
+
+
 class User(db.Model):
     username = db.Column(db.String(80), primary_key=True)
     password_hash = db.Column(db.String(255), nullable=False)
@@ -530,7 +552,7 @@ def send_email_code(email, code, purpose):
     )
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as smtp:
+        with IPv4SMTP(smtp_host, smtp_port, timeout=15) as smtp:
             smtp.starttls()
             smtp.login(smtp_username, smtp_password)
             smtp.send_message(message)
