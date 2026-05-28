@@ -9,8 +9,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "nexaline-dev-secret")
+os.makedirs(app.instance_path, exist_ok=True)
 
-database_url = os.environ.get("DATABASE_URL", "sqlite:///nexaline.db")
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    database_url = "sqlite:///" + os.path.join(app.instance_path, "nexaline.db").replace("\\", "/")
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
