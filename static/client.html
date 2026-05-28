@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexaLine</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --ink: #06080d;
+            --panel: #10141d;
+            --panel-2: #171c27;
+            --panel-3: #202633;
+            --line: #303746;
+            --text: #eef4ff;
+            --muted: #8993a7;
+            --red: #f03d54;
+            --blue: #2f8cff;
+            --green: #2bd576;
+            --shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+            background:
+                radial-gradient(circle at 15% 0%, rgba(240, 61, 84, 0.18), transparent 28%),
+                radial-gradient(circle at 85% 15%, rgba(47, 140, 255, 0.16), transparent 30%),
+                linear-gradient(145deg, #030408, #10131b 55%, #05070c);
+            overflow: hidden;
+        }
+
+        button,
+        input,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            cursor: pointer;
+        }
+
+        .auth-screen {
+            display: grid;
+            min-height: 100vh;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .auth-card {
+            width: min(440px, 100%);
+            padding: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(16, 20, 29, 0.92);
+            box-shadow: var(--shadow);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .brand-mark {
+            display: grid;
+            width: 48px;
+            height: 48px;
+            place-items: center;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--red), var(--blue));
+            color: #fff;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .brand h1,
+        .brand p {
+            margin: 0;
+        }
+
+        .brand h1 {
+            font-size: 30px;
+            letter-spacing: 0;
+        }
+
+        .brand p,
+        .muted {
+            color: var(--muted);
+        }
+
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 4px;
+            border-radius: 8px;
+            background: var(--ink);
+        }
+
+        .auth-tab {
+            padding: 10px;
+            border-radius: 6px;
+            color: var(--muted);
+            background: transparent;
+        }
+
+        .auth-tab.active {
+            color: #fff;
+            background: var(--panel-3);
+        }
+
+        .field {
+            width: 100%;
+            margin-bottom: 12px;
+            padding: 14px 15px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            outline: none;
+            color: var(--text);
+            background: #090c13;
+        }
+
+        .field:focus {
+            border-color: var(--blue);
+        }
+
+        .primary {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--red), var(--blue));
+        }
+
+        .status-line {
+            min-height: 22px;
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 360px minmax(0, 1fr);
+            height: 100vh;
+            background: rgba(3, 5, 9, 0.42);
+        }
+
+        .sidebar {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            border-right: 1px solid var(--line);
+            background: rgba(16, 20, 29, 0.96);
+        }
+
+        .topbar,
+        .chat-top {
+            display: flex;
+            min-height: 72px;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel);
+        }
+
+        .avatar {
+            display: grid;
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            place-items: center;
+            border-radius: 50%;
+            color: #fff;
+            font-weight: 800;
+            background: linear-gradient(135deg, #323949, #151923);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .avatar.online {
+            box-shadow: 0 0 0 2px var(--green);
+        }
+
+        .identity {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .identity strong,
+        .chat-name,
+        .chat-title {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .identity small,
+        .chat-meta,
+        .last-message {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .icon-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border-radius: 8px;
+            color: var(--text);
+            background: var(--panel-3);
+        }
+
+        .search-box,
+        .new-chat {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .search-box input,
+        .new-chat input {
+            min-width: 0;
+            flex: 1;
+            padding: 12px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            outline: none;
+            color: var(--text);
+            background: #090c13;
+        }
+
+        .new-chat button {
+            width: 44px;
+            border-radius: 8px;
+            color: #fff;
+            background: var(--blue);
+        }
+
+        .chat-list {
+            overflow: auto;
+        }
+
+        .chat-item {
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr) auto;
+            gap: 12px;
+            width: 100%;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            text-align: left;
+            background: transparent;
+        }
+
+        .chat-item.active {
+            background: rgba(47, 140, 255, 0.16);
+        }
+
+        .chat-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .chat-time {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .chat-pane {
+            display: grid;
+            min-width: 0;
+            grid-template-rows: 72px 1fr auto;
+            background:
+                linear-gradient(rgba(4, 6, 10, 0.82), rgba(4, 6, 10, 0.82)),
+                repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 18px);
+        }
+
+        .messages {
+            display: flex;
+            overflow: auto;
+            flex-direction: column;
+            gap: 8px;
+            padding: 22px;
+        }
+
+        .empty {
+            margin: auto;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .bubble {
+            max-width: min(72%, 680px);
+            padding: 10px 12px 8px;
+            border-radius: 8px;
+            line-height: 1.35;
+            background: var(--panel-3);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        }
+
+        .bubble.mine {
+            align-self: flex-end;
+            background: linear-gradient(135deg, rgba(240, 61, 84, 0.86), rgba(47, 140, 255, 0.86));
+        }
+
+        .sender {
+            margin-bottom: 3px;
+            color: #a8c9ff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .bubble.mine .sender {
+            display: none;
+        }
+
+        .bubble img {
+            display: block;
+            max-width: 260px;
+            max-height: 220px;
+            margin-top: 6px;
+            border-radius: 8px;
+        }
+
+        .file-pill {
+            display: inline-flex;
+            max-width: 100%;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: #fff;
+            text-decoration: none;
+            background: rgba(0, 0, 0, 0.22);
+        }
+
+        .message-meta {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+            margin-top: 4px;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 11px;
+        }
+
+        .ticks.read {
+            color: #75c9ff;
+        }
+
+        .composer {
+            display: grid;
+            grid-template-columns: 44px 1fr 44px;
+            gap: 10px;
+            padding: 12px;
+            border-top: 1px solid var(--line);
+            background: var(--panel);
+        }
+
+        .composer textarea {
+            min-height: 44px;
+            max-height: 120px;
+            resize: none;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            outline: none;
+            color: var(--text);
+            background: #090c13;
+        }
+
+        .send-btn {
+            border-radius: 8px;
+            color: #fff;
+            background: var(--red);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 760px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .sidebar.open {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main id="authScreen" class="auth-screen">
+        <section class="auth-card">
+            <div class="brand">
+                <div class="brand-mark">NL</div>
+                <div>
+                    <h1>NexaLine</h1>
+                    <p>Profesyonel mesajlaşma</p>
+                </div>
+            </div>
+
+            <div class="auth-tabs">
+                <button id="loginTab" class="auth-tab active" type="button">Giriş</button>
+                <button id="registerTab" class="auth-tab" type="button">Kayıt</button>
+            </div>
+
+            <input id="displayName" class="field hidden" autocomplete="name" placeholder="Görünen ad">
+            <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
+            <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
+            <button id="authButton" class="primary" type="button">Giriş Yap</button>
+            <div id="authStatus" class="status-line"></div>
+        </section>
+    </main>
+
+    <main id="app" class="app hidden">
+        <aside id="sidebar" class="sidebar">
+            <header class="topbar">
+                <div id="meAvatar" class="avatar">NL</div>
+                <div class="identity">
+                    <strong id="meName">NexaLine</strong>
+                    <small id="meStatus">çevrimiçi</small>
+                </div>
+                <div class="icon-row">
+                    <button class="icon-btn" id="newGroupButton" title="Grup">＋</button>
+                    <button class="icon-btn" id="logoutButton" title="Çıkış">⏻</button>
+                </div>
+            </header>
+
+            <div class="search-box">
+                <input id="searchInput" placeholder="Sohbetlerde ara">
+            </div>
+
+            <div class="new-chat">
+                <input id="newChatInput" placeholder="Kullanıcı adı ile sohbet">
+                <button id="newChatButton" title="Sohbet başlat">→</button>
+            </div>
+
+            <nav id="chatList" class="chat-list"></nav>
+        </aside>
+
+        <section class="chat-pane">
+            <header class="chat-top">
+                <button id="backButton" class="icon-btn hidden" title="Sohbetler">←</button>
+                <div id="activeAvatar" class="avatar">NL</div>
+                <div class="identity">
+                    <strong id="activeTitle">NexaLine Genel</strong>
+                    <small id="activeStatus">hazır</small>
+                </div>
+                <div class="icon-row">
+                    <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
+                    <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
+                </div>
+            </header>
+
+            <div id="messages" class="messages">
+                <div class="empty">NexaLine</div>
+            </div>
+
+            <footer class="composer">
+                <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
+                <input id="fileInput" class="hidden" type="file">
+                <textarea id="messageInput" placeholder="Mesaj"></textarea>
+                <button id="sendButton" class="send-btn" title="Gönder">➤</button>
+            </footer>
+        </section>
+    </main>
+
+    <script>
+        const socket = io();
+        const state = {
+            mode: "login",
+            me: null,
+            users: [],
+            chats: [],
+            activeChatId: "lobby",
+            typing: {},
+            attachment: null
+        };
+
+        const $ = (id) => document.getElementById(id);
+
+        function setAuthMode(mode) {
+            state.mode = mode;
+            $("loginTab").classList.toggle("active", mode === "login");
+            $("registerTab").classList.toggle("active", mode === "register");
+            $("displayName").classList.toggle("hidden", mode === "login");
+            $("authButton").textContent = mode === "login" ? "Giriş Yap" : "Kayıt Ol";
+            $("authStatus").textContent = "";
+        }
+
+        async function submitAuth() {
+            const username = $("username").value.trim();
+            const password = $("password").value;
+            const displayName = $("displayName").value.trim();
+            const endpoint = state.mode === "login" ? "/login" : "/register";
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password, displayName })
+            });
+            const data = await response.json();
+
+            if (!data.ok) {
+                $("authStatus").textContent = data.message;
+                return;
+            }
+
+            state.me = data.user;
+            localStorage.setItem("nexalineUser", username.toLowerCase());
+            openApp();
+        }
+
+        async function openApp() {
+            $("authScreen").classList.add("hidden");
+            $("app").classList.remove("hidden");
+            socket.emit("user:join", { username: state.me.username });
+            await loadBootstrap();
+        }
+
+        async function loadBootstrap() {
+            if (!state.me) {
+                return;
+            }
+
+            const response = await fetch(`/bootstrap/${state.me.username}`);
+            const data = await response.json();
+
+            if (data.ok) {
+                state.me = data.user;
+                state.users = data.users;
+                state.chats = data.chats;
+                state.activeChatId = state.chats[0]?.id || "lobby";
+                render();
+            }
+        }
+
+        function render() {
+            renderProfile();
+            renderChats();
+            renderActiveChat();
+        }
+
+        function renderProfile() {
+            $("meAvatar").textContent = initials(state.me.displayName);
+            $("meAvatar").classList.add("online");
+            $("meName").textContent = state.me.displayName;
+        }
+
+        function renderChats() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            const chatList = $("chatList");
+            chatList.innerHTML = "";
+
+            state.chats
+                .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
+                .forEach(chat => {
+                    const button = document.createElement("button");
+                    button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
+                    button.onclick = () => {
+                        state.activeChatId = chat.id;
+                        socket.emit("message:read", { chatId: chat.id });
+                        render();
+                    };
+
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (isChatOnline(chat) ? " online" : "");
+                    avatar.textContent = initials(chat.title);
+
+                    const body = document.createElement("div");
+                    const title = document.createElement("strong");
+                    title.className = "chat-title";
+                    title.textContent = chat.title;
+                    const last = document.createElement("div");
+                    last.className = "last-message";
+                    last.textContent = latestText(chat) || "Henüz mesaj yok";
+                    body.append(title, last);
+
+                    const time = document.createElement("span");
+                    time.className = "chat-time";
+                    time.textContent = chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : "";
+
+                    button.append(avatar, body, time);
+                    chatList.appendChild(button);
+                });
+        }
+
+        function renderActiveChat() {
+            const chat = activeChat();
+            const messageBox = $("messages");
+
+            if (!chat) {
+                messageBox.innerHTML = '<div class="empty">NexaLine</div>';
+                return;
+            }
+
+            $("activeTitle").textContent = chat.title;
+            $("activeAvatar").textContent = initials(chat.title);
+            $("activeAvatar").classList.toggle("online", isChatOnline(chat));
+            $("activeStatus").textContent = statusText(chat);
+            messageBox.innerHTML = "";
+
+            if (!chat.messages.length) {
+                messageBox.innerHTML = '<div class="empty">NexaLine</div>';
+            }
+
+            chat.messages.forEach(message => {
+                const mine = message.sender === state.me.username;
+                const bubble = document.createElement("article");
+                bubble.className = "bubble" + (mine ? " mine" : "");
+
+                const sender = document.createElement("div");
+                sender.className = "sender";
+                sender.textContent = message.senderName;
+                bubble.appendChild(sender);
+
+                if (message.body) {
+                    const text = document.createElement("div");
+                    text.textContent = message.body;
+                    bubble.appendChild(text);
+                }
+
+                if (message.attachment) {
+                    bubble.appendChild(renderAttachment(message.attachment));
+                }
+
+                const meta = document.createElement("div");
+                meta.className = "message-meta";
+                const read = chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
+                meta.innerHTML = `<span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : ""}">${mine ? (read ? "✓✓" : "✓") : ""}</span>`;
+                bubble.appendChild(meta);
+                messageBox.appendChild(bubble);
+            });
+
+            messageBox.scrollTop = messageBox.scrollHeight;
+            socket.emit("message:read", { chatId: chat.id });
+        }
+
+        function renderAttachment(attachment) {
+            if (attachment.type.startsWith("image/")) {
+                const image = document.createElement("img");
+                image.src = attachment.dataUrl;
+                image.alt = attachment.name;
+                return image;
+            }
+
+            const link = document.createElement("a");
+            link.className = "file-pill";
+            link.href = attachment.dataUrl;
+            link.download = attachment.name;
+            link.textContent = `📎 ${attachment.name}`;
+            return link;
+        }
+
+        function sendMessage() {
+            const input = $("messageInput");
+            const body = input.value.trim();
+            const chat = activeChat();
+
+            if (!chat || (!body && !state.attachment)) {
+                return;
+            }
+
+            socket.emit("message:send", {
+                chatId: chat.id,
+                body,
+                attachment: state.attachment
+            });
+            socket.emit("typing", { chatId: chat.id, typing: false });
+            input.value = "";
+            state.attachment = null;
+        }
+
+        function startChat() {
+            const target = $("newChatInput").value.trim().toLowerCase();
+
+            if (!target) {
+                return;
+            }
+
+            socket.emit("chat:create", { target });
+            $("newChatInput").value = "";
+        }
+
+        function activeChat() {
+            return state.chats.find(chat => chat.id === state.activeChatId) || state.chats[0];
+        }
+
+        function upsertChat(chat) {
+            const index = state.chats.findIndex(item => item.id === chat.id);
+            if (index >= 0) {
+                state.chats[index] = { ...state.chats[index], ...chat };
+            } else {
+                state.chats.unshift(chat);
+            }
+        }
+
+        function latestText(chat) {
+            const message = chat.lastMessage || chat.messages[chat.messages.length - 1];
+            if (!message) {
+                return "";
+            }
+
+            return message.body || message.attachment?.name || "Dosya";
+        }
+
+        function isChatOnline(chat) {
+            return chat.type === "direct" && chat.members.some(member => member.username !== state.me.username && member.online);
+        }
+
+        function statusText(chat) {
+            const typing = (state.typing[chat.id] || []).filter(username => username !== state.me.username);
+            if (typing.length) {
+                return "yazıyor...";
+            }
+
+            if (chat.type === "group") {
+                return `${chat.members.length || state.users.length} kişi`;
+            }
+
+            return isChatOnline(chat) ? "çevrimiçi" : "son görülme bilinmiyor";
+        }
+
+        function initials(text) {
+            return text
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map(part => part[0])
+                .join("")
+                .toUpperCase() || "NL";
+        }
+
+        function formatTime(value) {
+            return new Date(value).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+        }
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            if (file.size > 750000) {
+                alert("Dosya boyutu 750 KB altında olmalı.");
+                event.target.value = "";
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                state.attachment = {
+                    name: file.name,
+                    type: file.type || "application/octet-stream",
+                    dataUrl: reader.result
+                };
+                $("messageInput").placeholder = `${file.name}`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        $("loginTab").onclick = () => setAuthMode("login");
+        $("registerTab").onclick = () => setAuthMode("register");
+        $("authButton").onclick = submitAuth;
+        $("sendButton").onclick = sendMessage;
+        $("newChatButton").onclick = startChat;
+        $("searchInput").oninput = renderChats;
+        $("attachButton").onclick = () => $("fileInput").click();
+        $("fileInput").onchange = handleFile;
+        $("logoutButton").onclick = () => {
+            localStorage.removeItem("nexalineUser");
+            location.reload();
+        };
+        $("newGroupButton").onclick = () => alert("Grup sohbeti için NexaLine Genel kanalını kullanabilirsin.");
+        $("callButton").onclick = () => alert("Sesli arama için yayın sunucusunda WebRTC kurulumu gerekir.");
+        $("videoButton").onclick = () => alert("Görüntülü arama için yayın sunucusunda WebRTC kurulumu gerekir.");
+        $("messageInput").addEventListener("input", () => {
+            const chat = activeChat();
+            if (chat) {
+                socket.emit("typing", { chatId: chat.id, typing: $("messageInput").value.length > 0 });
+            }
+        });
+        $("messageInput").addEventListener("keydown", event => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+        $("newChatInput").addEventListener("keydown", event => {
+            if (event.key === "Enter") {
+                startChat();
+            }
+        });
+
+        socket.on("app:state", data => {
+            state.me = data.user;
+            state.users = data.users;
+            state.chats = data.chats;
+            state.activeChatId = state.activeChatId || state.chats[0]?.id || "lobby";
+            render();
+        });
+
+        socket.on("presence:update", users => {
+            state.users = users;
+            state.chats = state.chats.map(chat => ({
+                ...chat,
+                members: chat.members.map(member => users.find(user => user.username === member.username) || member)
+            }));
+            render();
+        });
+
+        socket.on("chat:upsert", chat => {
+            upsertChat(chat);
+            state.activeChatId = chat.id;
+            render();
+        });
+
+        socket.on("message:new", message => {
+            const chat = state.chats.find(item => item.id === message.chatId);
+            if (!chat) {
+                loadBootstrap();
+                return;
+            }
+
+            chat.messages.push(message);
+            chat.lastMessage = message;
+            state.chats = [chat, ...state.chats.filter(item => item.id !== chat.id)];
+            render();
+        });
+
+        socket.on("typing:update", data => {
+            state.typing[data.chatId] = data.users;
+            renderActiveChat();
+        });
+
+        socket.on("message:read", data => {
+            const chat = state.chats.find(item => item.id === data.chatId);
+            if (!chat) {
+                return;
+            }
+
+            chat.messages.forEach(message => {
+                if (data.messageIds.includes(message.id) && !message.readBy.includes(data.reader)) {
+                    message.readBy.push(data.reader);
+                }
+            });
+            renderActiveChat();
+        });
+
+        const rememberedUser = localStorage.getItem("nexalineUser");
+        if (rememberedUser) {
+            state.me = { username: rememberedUser };
+            openApp();
+        }
+    </script>
+</body>
+</html>
