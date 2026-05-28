@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_from_directory
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -112,10 +112,14 @@ def message_to_dict(message):
 
 
 def ensure_lobby():
-    if db.session.get(Chat, "lobby"):
+    lobby = db.session.get(Chat, "lobby")
+    if lobby:
+        if lobby.title != "Genel Grup":
+            lobby.title = "Genel Grup"
+            db.session.commit()
         return
 
-    db.session.add(Chat(id="lobby", type="group", title="NexaLine Genel"))
+    db.session.add(Chat(id="lobby", type="group", title="Genel Grup"))
     db.session.commit()
 
 
@@ -138,22 +142,38 @@ def ensure_direct_chat(first_username, second_username):
     return chat
 
 
-def chat_has_explicit_members(chat):
-    return len(chat.members) > 0
-
-
 def chat_member_names(chat):
-    if chat.type == "group" and not chat_has_explicit_members(chat):
-        return [user.username for user in User.query.order_by(User.display_name).all()]
-
     return sorted(member.username for member in chat.members)
 
 
 def user_can_see_chat(chat, username):
-    if chat.type == "group" and not chat_has_explicit_members(chat):
+    return any(member.username == username for member in chat.members)
+
+
+def add_chat_member(chat_id, username):
+    if not db.session.get(User, username):
+        return False
+
+    exists = ChatMember.query.filter_by(chat_id=chat_id, username=username).first()
+    if exists:
         return True
 
-    return any(member.username == username for member in chat.members)
+    db.session.add(ChatMember(chat_id=chat_id, username=username))
+    return True
+
+
+def general_group_state(username):
+    ensure_lobby()
+    lobby = db.session.get(Chat, "lobby")
+    members = [public_user(member) for member in chat_member_names(lobby)]
+    joined = any(member["username"] == username for member in members)
+
+    return {
+        "id": lobby.id,
+        "title": lobby.title,
+        "members": members,
+        "joined": joined,
+    }
 
 
 def chat_for_user(chat, username):
@@ -194,6 +214,11 @@ def connected_sids_for(username):
 def broadcast_presence():
     users = [public_user(user.username) for user in User.query.order_by(User.display_name).all()]
     socketio.emit("presence:update", users, namespace="/")
+
+
+def emit_general_group_updates():
+    for sid, username in connections.items():
+        socketio.emit("general:update", general_group_state(username), room=sid)
 
 
 @app.route("/")
@@ -262,6 +287,48 @@ def login():
     return jsonify({"ok": True, "message": "Giriş başarılı.", "user": public_user(username)})
 
 
+@app.route("/account/<username>", methods=["DELETE"])
+def delete_account(username):
+    try:
+        username = username.strip().lower()
+        data = request.get_json() or {}
+        password = data.get("password") or ""
+        user = db.session.get(User, username)
+
+        if not user or not check_password_hash(user.password_hash, password):
+            return jsonify({"ok": False, "message": "Şifre hatalı."}), 401
+
+        member_rows = ChatMember.query.filter_by(username=username).all()
+        direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
+
+        Message.query.filter_by(sender=username).delete(synchronize_session=False)
+
+        for member in member_rows:
+            if member.chat and member.chat.type == "group":
+                db.session.delete(member)
+
+        for chat_id in direct_chat_ids:
+            chat = db.session.get(Chat, chat_id)
+            if chat:
+                db.session.delete(chat)
+
+        db.session.delete(user)
+        db.session.commit()
+
+        for sid, connected_user in list(connections.items()):
+            if connected_user == username:
+                connections.pop(sid, None)
+                socketio.emit("account:deleted", {"username": username}, room=sid)
+
+        broadcast_presence()
+        emit_general_group_updates()
+        return jsonify({"ok": True, "message": "Hesap silindi."})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Delete account failed")
+        return jsonify({"ok": False, "message": "Hesap silinemedi. Render kayıtlarını kontrol et."}), 500
+
+
 @app.route("/bootstrap/<username>")
 def bootstrap(username):
     username = username.strip().lower()
@@ -274,6 +341,7 @@ def bootstrap(username):
             "user": public_user(username),
             "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
+            "generalGroup": general_group_state(username),
         }
     )
 
@@ -303,9 +371,11 @@ def handle_user_join(data):
             "user": public_user(username),
             "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
+            "generalGroup": general_group_state(username),
         },
     )
     broadcast_presence()
+    emit_general_group_updates()
 
 
 @socketio.on("chat:create")
@@ -360,6 +430,46 @@ def handle_group_create(data):
         for sid in connected_sids_for(member):
             join_room(chat.id, sid=sid)
             emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+
+@socketio.on("chat:lobby:join")
+def handle_lobby_join():
+    username = connections.get(request.sid)
+    lobby = db.session.get(Chat, "lobby")
+
+    if not username or not lobby:
+        return
+
+    add_chat_member(lobby.id, username)
+    db.session.commit()
+    join_room(lobby.id)
+    emit("chat:upsert", chat_for_user(lobby, username), room=request.sid)
+    emit_general_group_updates()
+
+
+@socketio.on("chat:leave")
+def handle_chat_leave(data):
+    username = connections.get(request.sid)
+    chat_id = (data or {}).get("chatId")
+    chat = db.session.get(Chat, chat_id)
+
+    if not username or not chat or chat.type != "group":
+        return
+
+    member = ChatMember.query.filter_by(chat_id=chat.id, username=username).first()
+    if member:
+        db.session.delete(member)
+        db.session.commit()
+
+    leave_room(chat.id)
+    emit("chat:remove", {"chatId": chat.id}, room=request.sid)
+
+    for sid, connected_user in connections.items():
+        if user_can_see_chat(chat, connected_user):
+            emit("chat:upsert", chat_for_user(chat, connected_user), room=sid)
+
+    if chat.id == "lobby":
+        emit_general_group_updates()
 
 
 @socketio.on("message:send")

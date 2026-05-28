@@ -375,7 +375,7 @@
 
         .composer {
             display: grid;
-            grid-template-columns: 44px 1fr 44px;
+            grid-template-columns: 44px 44px 1fr 44px;
             gap: 10px;
             padding: 12px;
             border-top: 1px solid var(--line);
@@ -398,6 +398,20 @@
             border-radius: 8px;
             color: #fff;
             background: var(--red);
+        }
+
+        .recording {
+            background: var(--red);
+            color: #fff;
+        }
+
+        .voice-message {
+            width: min(260px, 100%);
+            margin-top: 6px;
+        }
+
+        #activeStatus {
+            cursor: pointer;
         }
 
         .call-panel {
@@ -473,16 +487,139 @@
         }
 
         @media (max-width: 760px) {
+            body {
+                overflow: hidden;
+            }
+
             .app {
                 grid-template-columns: 1fr;
+                height: 100dvh;
             }
 
             .sidebar {
+                display: flex;
+                width: 100%;
+                height: 100dvh;
+            }
+
+            .chat-pane {
+                display: none;
+                height: 100dvh;
+                grid-template-rows: 64px minmax(0, 1fr) auto;
+            }
+
+            .app.chat-open .sidebar {
                 display: none;
             }
 
-            .sidebar.open {
-                display: flex;
+            .app.chat-open .chat-pane {
+                display: grid;
+            }
+
+            .app.chat-open #backButton {
+                display: grid !important;
+            }
+
+            .topbar,
+            .chat-top {
+                min-height: 64px;
+                padding: 10px 12px;
+            }
+
+            .avatar {
+                width: 40px;
+                height: 40px;
+                flex-basis: 40px;
+                font-size: 14px;
+            }
+
+            .icon-row {
+                gap: 6px;
+            }
+
+            .icon-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            .search-box {
+                padding: 10px;
+            }
+
+            .chat-list {
+                max-height: 45dvh;
+            }
+
+            .chat-item,
+            .contact-item {
+                grid-template-columns: 44px minmax(0, 1fr) auto;
+                padding: 11px 12px;
+            }
+
+            .messages {
+                padding: 14px 10px;
+            }
+
+            .bubble {
+                max-width: 88%;
+                font-size: 14px;
+            }
+
+            .composer {
+                grid-template-columns: 38px 38px minmax(0, 1fr) 38px;
+                gap: 7px;
+                padding: 8px;
+            }
+
+            .composer textarea {
+                min-height: 40px;
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+
+            .call-panel {
+                padding: 10px;
+            }
+
+            .call-box {
+                width: 100%;
+            }
+
+            .video-stage {
+                aspect-ratio: 9 / 14;
+            }
+
+            #localVideo {
+                right: 10px;
+                bottom: 10px;
+                width: 34%;
+            }
+
+            .call-info,
+            .call-actions {
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .brand h1 {
+                font-size: 26px;
+            }
+
+            .auth-card {
+                padding: 22px;
+            }
+
+            .identity strong,
+            .chat-title {
+                font-size: 15px;
+            }
+
+            .identity small,
+            .last-message,
+            .section-label,
+            .chat-time {
+                font-size: 11px;
             }
         }
     </style>
@@ -518,6 +655,7 @@
                 </div>
                 <div class="icon-row">
                     <button class="icon-btn" id="newGroupButton" title="Grup oluştur">＋</button>
+                    <button class="icon-btn" id="deleteAccountButton" title="Hesabı sil">⌫</button>
                     <button class="icon-btn" id="logoutButton" title="Çıkış">⏻</button>
                 </div>
             </header>
@@ -538,10 +676,11 @@
                 <button id="backButton" class="icon-btn hidden" title="Sohbetler">←</button>
                 <div id="activeAvatar" class="avatar">NL</div>
                 <div class="identity">
-                    <strong id="activeTitle">NexaLine Genel</strong>
+                    <strong id="activeTitle">Genel Grup</strong>
                     <small id="activeStatus">hazır</small>
                 </div>
                 <div class="icon-row">
+                    <button class="icon-btn hidden" id="leaveGroupButton" title="Gruptan çık">⇥</button>
                     <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
                     <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
                 </div>
@@ -551,6 +690,7 @@
 
             <footer class="composer">
                 <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
+                <button id="voiceButton" class="icon-btn" title="Sesli mesaj">●</button>
                 <input id="fileInput" class="hidden" type="file">
                 <textarea id="messageInput" placeholder="Mesaj"></textarea>
                 <button id="sendButton" class="send-btn" title="Gönder">➤</button>
@@ -588,6 +728,10 @@
             activeChatId: "lobby",
             typing: {},
             attachment: null,
+            generalGroup: null,
+            generalPromptShown: false,
+            recorder: null,
+            recordedChunks: [],
             call: {
                 pc: null,
                 localStream: null,
@@ -599,6 +743,20 @@
         };
 
         const $ = (id) => document.getElementById(id);
+
+        function isMobileView() {
+            return window.matchMedia("(max-width: 760px)").matches;
+        }
+
+        function openMobileChat() {
+            if (isMobileView()) {
+                $("app").classList.add("chat-open");
+            }
+        }
+
+        function closeMobileChat() {
+            $("app").classList.remove("chat-open");
+        }
 
         function setAuthMode(mode) {
             state.mode = mode;
@@ -651,8 +809,10 @@
                 state.me = data.user;
                 state.users = data.users;
                 state.chats = data.chats;
+                state.generalGroup = data.generalGroup;
                 state.activeChatId = state.chats[0]?.id || "lobby";
                 render();
+                maybePromptGeneralGroup();
             }
         }
 
@@ -674,6 +834,31 @@
             const chatList = $("chatList");
             chatList.innerHTML = "";
 
+            if (state.generalGroup && !state.generalGroup.joined) {
+                const button = document.createElement("button");
+                button.className = "chat-item";
+                button.onclick = () => joinGeneralGroup(true);
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar";
+                avatar.textContent = "GG";
+
+                const body = document.createElement("div");
+                const title = document.createElement("strong");
+                title.className = "chat-title";
+                title.textContent = state.generalGroup.title || "Genel Grup";
+                const last = document.createElement("div");
+                last.className = "last-message";
+                last.textContent = "Katılmak için tıkla";
+                body.append(title, last);
+
+                const count = document.createElement("span");
+                count.className = "chat-time";
+                count.textContent = `${state.generalGroup.members.length} kişi`;
+                button.append(avatar, body, count);
+                chatList.appendChild(button);
+            }
+
             state.chats
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
                 .forEach(chat => {
@@ -683,6 +868,7 @@
                         state.activeChatId = chat.id;
                         socket.emit("message:read", { chatId: chat.id });
                         render();
+                        openMobileChat();
                     };
 
                     const avatar = document.createElement("div");
@@ -754,6 +940,7 @@
             $("activeAvatar").textContent = initials(chat.title);
             $("activeAvatar").classList.toggle("online", isChatOnline(chat));
             $("activeStatus").textContent = statusText(chat);
+            $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
             messageBox.innerHTML = "";
 
             chat.messages.forEach(message => {
@@ -789,6 +976,14 @@
         }
 
         function renderAttachment(attachment) {
+            if (attachment.type && attachment.type.startsWith("audio/")) {
+                const audio = document.createElement("audio");
+                audio.className = "voice-message";
+                audio.controls = true;
+                audio.src = attachment.dataUrl;
+                return audio;
+            }
+
             if (attachment.type.startsWith("image/")) {
                 const image = document.createElement("img");
                 image.src = attachment.dataUrl;
@@ -835,6 +1030,120 @@
                 title: title.trim(),
                 members: members.split(",").map(item => item.trim().toLowerCase()).filter(Boolean)
             });
+        }
+
+        function maybePromptGeneralGroup() {
+            if (!state.generalGroup || state.generalGroup.joined || state.generalPromptShown) {
+                return;
+            }
+
+            state.generalPromptShown = true;
+            setTimeout(() => joinGeneralGroup(true), 300);
+        }
+
+        function joinGeneralGroup(confirmFirst) {
+            if (confirmFirst && !confirm("Genel Gruba katılmak ister misin?")) {
+                return;
+            }
+
+            socket.emit("chat:lobby:join");
+        }
+
+        function leaveCurrentGroup() {
+            const chat = activeChat();
+            if (!chat || chat.type !== "group") {
+                return;
+            }
+
+            if (!confirm(`${chat.title} grubundan çıkmak istiyor musun?`)) {
+                return;
+            }
+
+            socket.emit("chat:leave", { chatId: chat.id });
+        }
+
+        function showActiveMembers() {
+            const chat = activeChat();
+            if (!chat || chat.type !== "group") {
+                return;
+            }
+
+            const members = chat.members
+                .map(member => `${member.online ? "çevrimiçi" : "çevrimdışı"} - ${member.displayName} (@${member.username})`)
+                .join("\n");
+            alert(members || "Bu grupta kişi yok.");
+        }
+
+        async function toggleVoiceRecording() {
+            if (state.recorder && state.recorder.state === "recording") {
+                state.recorder.stop();
+                $("voiceButton").classList.remove("recording");
+                $("voiceButton").textContent = "●";
+                return;
+            }
+
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                alert("Bu tarayıcı sesli mesaj kaydını desteklemiyor.");
+                return;
+            }
+
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (error) {
+                alert("Mikrofon izni alınamadı.");
+                return;
+            }
+            state.recordedChunks = [];
+            state.recorder = new MediaRecorder(stream);
+            state.recorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    state.recordedChunks.push(event.data);
+                }
+            };
+            state.recorder.onstop = () => {
+                stream.getTracks().forEach(track => track.stop());
+                const blob = new Blob(state.recordedChunks, { type: "audio/webm" });
+                const reader = new FileReader();
+                reader.onload = () => {
+                    state.attachment = {
+                        name: `sesli-mesaj-${Date.now()}.webm`,
+                        type: "audio/webm",
+                        dataUrl: reader.result
+                    };
+                    $("messageInput").placeholder = "Sesli mesaj hazır";
+                };
+                reader.readAsDataURL(blob);
+            };
+            state.recorder.start();
+            $("voiceButton").classList.add("recording");
+            $("voiceButton").textContent = "■";
+        }
+
+        async function deleteAccount() {
+            const password = prompt("Hesabını silmek için şifreni yaz.");
+            if (!password) {
+                return;
+            }
+
+            if (!confirm("Hesabın ve sana ait mesajlar silinecek. Devam edilsin mi?")) {
+                return;
+            }
+
+            const response = await fetch(`/account/${state.me.username}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+            const data = await response.json();
+
+            if (!data.ok) {
+                alert(data.message);
+                return;
+            }
+
+            localStorage.removeItem("nexalineUser");
+            location.reload();
         }
 
         function activeChat() {
@@ -961,7 +1270,14 @@
             }
 
             openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "aranıyor", false, audioOnly);
-            const pc = await createPeer(chat.id, audioOnly);
+            let pc;
+            try {
+                pc = await createPeer(chat.id, audioOnly);
+            } catch (error) {
+                alert("Mikrofon veya kamera izni alınamadı.");
+                endCall(false);
+                return;
+            }
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             socket.emit("call:offer", { chatId: chat.id, offer, audioOnly });
@@ -982,7 +1298,14 @@
             }
 
             openCallPanel(incoming.audioOnly ? "Sesli arama" : "Görüntülü arama", "bağlanıyor", false, incoming.audioOnly);
-            const pc = await createPeer(incoming.chatId, incoming.audioOnly);
+            let pc;
+            try {
+                pc = await createPeer(incoming.chatId, incoming.audioOnly);
+            } catch (error) {
+                alert("Mikrofon veya kamera izni alınamadı.");
+                endCall(true);
+                return;
+            }
             await pc.setRemoteDescription(new RTCSessionDescription(incoming.offer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
@@ -1053,11 +1376,16 @@
         };
         $("attachButton").onclick = () => $("fileInput").click();
         $("fileInput").onchange = handleFile;
+        $("voiceButton").onclick = toggleVoiceRecording;
+        $("deleteAccountButton").onclick = deleteAccount;
         $("logoutButton").onclick = () => {
             localStorage.removeItem("nexalineUser");
             location.reload();
         };
         $("newGroupButton").onclick = createGroup;
+        $("backButton").onclick = closeMobileChat;
+        $("leaveGroupButton").onclick = leaveCurrentGroup;
+        $("activeStatus").onclick = showActiveMembers;
         $("callButton").onclick = () => startCall(true);
         $("videoButton").onclick = () => startCall(false);
         $("acceptCallButton").onclick = acceptCall;
@@ -1081,8 +1409,10 @@
             state.me = data.user;
             state.users = data.users;
             state.chats = data.chats;
+            state.generalGroup = data.generalGroup;
             state.activeChatId = state.activeChatId || state.chats[0]?.id || "lobby";
             render();
+            maybePromptGeneralGroup();
         });
 
         socket.on("presence:update", users => {
@@ -1098,6 +1428,29 @@
             upsertChat(chat);
             state.activeChatId = chat.id;
             render();
+            openMobileChat();
+        });
+
+        socket.on("chat:remove", data => {
+            state.chats = state.chats.filter(chat => chat.id !== data.chatId);
+            state.activeChatId = state.chats[0]?.id || null;
+            render();
+            closeMobileChat();
+        });
+
+        socket.on("general:update", data => {
+            state.generalGroup = data;
+            const lobby = state.chats.find(chat => chat.id === data.id);
+            if (lobby) {
+                lobby.title = data.title;
+                lobby.members = data.members;
+            }
+            render();
+        });
+
+        socket.on("account:deleted", () => {
+            localStorage.removeItem("nexalineUser");
+            location.reload();
         });
 
         socket.on("message:new", message => {
@@ -1151,6 +1504,12 @@
             state.me = { username: rememberedUser };
             openApp();
         }
+
+        window.addEventListener("resize", () => {
+            if (!isMobileView()) {
+                closeMobileChat();
+            }
+        });
     </script>
 </body>
 </html>
