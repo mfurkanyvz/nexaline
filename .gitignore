@@ -1,5 +1,8 @@
 __pycache__/
 *.py[cod]
+nexaline.db
+.instance/
+instance/
 .env
 .venv/
 venv/

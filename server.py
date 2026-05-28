@@ -4,42 +4,111 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "nexaline-dev-secret"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "nexaline-dev-secret")
+
+database_url = os.environ.get("DATABASE_URL", "sqlite:///nexaline.db")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-users = {}
 connections = {}
-chats = {}
 typing_users = {}
+
+
+class User(db.Model):
+    username = db.Column(db.String(80), primary_key=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    display_name = db.Column(db.String(120), nullable=False)
+    avatar = db.Column(db.String(8), nullable=False)
+    about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class Chat(db.Model):
+    id = db.Column(db.String(140), primary_key=True)
+    type = db.Column(db.String(20), nullable=False)
+    title = db.Column(db.String(160), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    members = db.relationship("ChatMember", backref="chat", cascade="all, delete-orphan")
+    messages = db.relationship("Message", backref="chat", cascade="all, delete-orphan", order_by="Message.created_at")
+
+
+class ChatMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+
+    user = db.relationship("User")
+    __table_args__ = (db.UniqueConstraint("chat_id", "username", name="unique_chat_member"),)
+
+
+class Message(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
+    sender = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    body = db.Column(db.Text, nullable=False, default="")
+    attachment = db.Column(db.JSON, nullable=True)
+    read_by = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    sender_user = db.relationship("User")
 
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+def to_iso(value):
+    if value is None:
+        return now_iso()
+
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+
+    return value.isoformat()
+
+
 def public_user(username):
-    user = users.get(username, {})
+    user = db.session.get(User, username)
     return {
         "username": username,
-        "displayName": user.get("displayName", username),
-        "avatar": user.get("avatar", username[:2].upper()),
-        "about": user.get("about", "NexaLine kullanıyorum."),
+        "displayName": user.display_name if user else username,
+        "avatar": user.avatar if user else username[:2].upper(),
+        "about": user.about if user else "NexaLine kullanıyorum.",
         "online": any(name == username for name in connections.values()),
     }
 
 
+def message_to_dict(message):
+    return {
+        "id": message.id,
+        "chatId": message.chat_id,
+        "sender": message.sender,
+        "senderName": message.sender_user.display_name if message.sender_user else message.sender,
+        "body": message.body,
+        "attachment": message.attachment,
+        "createdAt": to_iso(message.created_at),
+        "status": "sent",
+        "readBy": message.read_by or [],
+    }
+
+
 def ensure_lobby():
-    if "lobby" not in chats:
-        chats["lobby"] = {
-            "id": "lobby",
-            "type": "group",
-            "title": "NexaLine Genel",
-            "members": [],
-            "messages": [],
-            "createdAt": now_iso(),
-        }
+    if db.session.get(Chat, "lobby"):
+        return
+
+    db.session.add(Chat(id="lobby", type="group", title="NexaLine Genel"))
+    db.session.commit()
 
 
 def direct_chat_id(first_username, second_username):
@@ -48,52 +117,67 @@ def direct_chat_id(first_username, second_username):
 
 def ensure_direct_chat(first_username, second_username):
     chat_id = direct_chat_id(first_username, second_username)
-    if chat_id not in chats:
-        chats[chat_id] = {
-            "id": chat_id,
-            "type": "direct",
-            "title": second_username,
-            "members": sorted([first_username, second_username]),
-            "messages": [],
-            "createdAt": now_iso(),
-        }
-    return chats[chat_id]
+    chat = db.session.get(Chat, chat_id)
+
+    if chat:
+        return chat
+
+    chat = Chat(id=chat_id, type="direct", title=second_username)
+    db.session.add(chat)
+    db.session.add(ChatMember(chat_id=chat_id, username=first_username))
+    db.session.add(ChatMember(chat_id=chat_id, username=second_username))
+    db.session.commit()
+    return chat
+
+
+def chat_member_names(chat):
+    if chat.type == "group":
+        return [user.username for user in User.query.order_by(User.display_name).all()]
+
+    return sorted(member.username for member in chat.members)
 
 
 def chat_for_user(chat, username):
-    last_message = chat["messages"][-1] if chat["messages"] else None
-    title = chat["title"]
-    members = chat["members"]
+    messages = [message_to_dict(message) for message in chat.messages]
+    last_message = messages[-1] if messages else None
+    member_names = chat_member_names(chat)
+    title = chat.title
 
-    if chat["type"] == "direct":
-        other_users = [member for member in chat["members"] if member != username]
+    if chat.type == "direct":
+        other_users = [member for member in member_names if member != username]
         title = public_user(other_users[0])["displayName"] if other_users else "Kişisel sohbet"
-    elif chat["type"] == "group" and not members:
-        members = sorted(users.keys())
 
     return {
-        "id": chat["id"],
-        "type": chat["type"],
+        "id": chat.id,
+        "type": chat.type,
         "title": title,
-        "members": [public_user(member) for member in members],
+        "members": [public_user(member) for member in member_names],
         "lastMessage": last_message,
-        "messages": chat["messages"],
+        "messages": messages,
     }
+
+
+def user_can_see_chat(chat, username):
+    if chat.type == "group":
+        return True
+
+    return any(member.username == username for member in chat.members)
 
 
 def visible_chats(username):
     ensure_lobby()
     result = []
 
-    for chat in chats.values():
-        if chat["type"] == "group" or username in chat["members"]:
+    for chat in Chat.query.all():
+        if user_can_see_chat(chat, username):
             result.append(chat_for_user(chat, username))
 
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
 
 
 def broadcast_presence():
-    emit("presence:update", [public_user(username) for username in users], broadcast=True, namespace="/")
+    users = [public_user(user.username) for user in User.query.order_by(User.display_name).all()]
+    socketio.emit("presence:update", users, namespace="/")
 
 
 @app.route("/")
@@ -116,17 +200,19 @@ def register():
     if len(username) < 3 or len(password) < 3:
         return jsonify({"ok": False, "message": "Kullanıcı adı ve şifre en az 3 karakter olmalı."}), 400
 
-    if username in users:
+    if db.session.get(User, username):
         return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
 
-    users[username] = {
-        "password": password,
-        "displayName": display_name or username,
-        "avatar": username[:2].upper(),
-        "about": "NexaLine kullanıyorum.",
-        "createdAt": now_iso(),
-    }
+    user = User(
+        username=username,
+        password_hash=generate_password_hash(password),
+        display_name=display_name or username,
+        avatar=username[:2].upper(),
+        about="NexaLine kullanıyorum.",
+    )
+    db.session.add(user)
     ensure_lobby()
+    db.session.commit()
 
     return jsonify({"ok": True, "message": "Kayıt başarılı.", "user": public_user(username)})
 
@@ -136,8 +222,9 @@ def login():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
     password = data.get("password") or ""
+    user = db.session.get(User, username)
 
-    if users.get(username, {}).get("password") != password:
+    if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
 
     return jsonify({"ok": True, "message": "Giriş başarılı.", "user": public_user(username)})
@@ -146,14 +233,14 @@ def login():
 @app.route("/bootstrap/<username>")
 def bootstrap(username):
     username = username.strip().lower()
-    if username not in users:
+    if not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
     return jsonify(
         {
             "ok": True,
             "user": public_user(username),
-            "users": [public_user(user) for user in users],
+            "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
         }
     )
@@ -168,22 +255,22 @@ def handle_connect():
 def handle_user_join(data):
     username = (data or {}).get("username", "").strip().lower()
 
-    if username not in users:
+    if not db.session.get(User, username):
         emit("auth:error", {"message": "Önce giriş yapmalısın."})
         return
 
     connections[request.sid] = username
     join_room("lobby")
 
-    for chat in chats.values():
-        if username in chat["members"]:
-            join_room(chat["id"])
+    for chat in Chat.query.all():
+        if chat.type == "direct" and user_can_see_chat(chat, username):
+            join_room(chat.id)
 
     emit(
         "app:state",
         {
             "user": public_user(username),
-            "users": [public_user(user) for user in users],
+            "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
             "chats": visible_chats(username),
         },
     )
@@ -195,16 +282,16 @@ def handle_chat_create(data):
     username = connections.get(request.sid)
     target = (data or {}).get("target", "").strip().lower()
 
-    if not username or target not in users or target == username:
+    if not username or not db.session.get(User, target) or target == username:
         return
 
     chat = ensure_direct_chat(username, target)
-    join_room(chat["id"])
+    join_room(chat.id)
     emit("chat:upsert", chat_for_user(chat, username), room=request.sid)
 
     for sid, connected_user in connections.items():
         if connected_user == target:
-            join_room(chat["id"], sid=sid)
+            join_room(chat.id, sid=sid)
             emit("chat:upsert", chat_for_user(chat, target), room=sid)
 
 
@@ -215,30 +302,25 @@ def handle_message_send(data):
     chat_id = data.get("chatId")
     body = (data.get("body") or "").strip()
     attachment = data.get("attachment")
+    chat = db.session.get(Chat, chat_id)
 
-    if not username or chat_id not in chats:
-        return
-
-    chat = chats[chat_id]
-    if chat["type"] == "direct" and username not in chat["members"]:
+    if not username or not chat or not user_can_see_chat(chat, username):
         return
 
     if not body and not attachment:
         return
 
-    message = {
-        "id": uuid4().hex,
-        "chatId": chat_id,
-        "sender": username,
-        "senderName": public_user(username)["displayName"],
-        "body": body,
-        "attachment": attachment,
-        "createdAt": now_iso(),
-        "status": "sent",
-        "readBy": [username],
-    }
-    chat["messages"].append(message)
-    emit("message:new", message, room=chat_id)
+    message = Message(
+        id=uuid4().hex,
+        chat_id=chat.id,
+        sender=username,
+        body=body,
+        attachment=attachment,
+        read_by=[username],
+    )
+    db.session.add(message)
+    db.session.commit()
+    emit("message:new", message_to_dict(message), room=chat.id)
 
 
 @socketio.on("typing")
@@ -246,8 +328,9 @@ def handle_typing(data):
     username = connections.get(request.sid)
     data = data or {}
     chat_id = data.get("chatId")
+    chat = db.session.get(Chat, chat_id)
 
-    if not username or chat_id not in chats:
+    if not username or not chat or not user_can_see_chat(chat, username):
         return
 
     typing_users.setdefault(chat_id, set())
@@ -271,17 +354,21 @@ def handle_typing(data):
 def handle_message_read(data):
     username = connections.get(request.sid)
     chat_id = (data or {}).get("chatId")
+    chat = db.session.get(Chat, chat_id)
 
-    if not username or chat_id not in chats:
+    if not username or not chat or not user_can_see_chat(chat, username):
         return
 
     updated_ids = []
-    for message in chats[chat_id]["messages"]:
-        if username not in message["readBy"]:
-            message["readBy"].append(username)
-            updated_ids.append(message["id"])
+    for message in chat.messages:
+        read_by = list(message.read_by or [])
+        if username not in read_by:
+            read_by.append(username)
+            message.read_by = read_by
+            updated_ids.append(message.id)
 
     if updated_ids:
+        db.session.commit()
         emit(
             "message:read",
             {"chatId": chat_id, "reader": username, "messageIds": updated_ids},
@@ -306,7 +393,11 @@ def handle_disconnect():
     broadcast_presence()
 
 
-if __name__ == "__main__":
+with app.app_context():
+    db.create_all()
     ensure_lobby()
+
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, debug=os.environ.get("FLASK_DEBUG") == "1")
