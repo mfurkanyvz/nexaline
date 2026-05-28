@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexaLine Admin</title>
+    <style>
+        :root {
+            --bg: #070a10;
+            --panel: #111722;
+            --panel-2: #192131;
+            --line: #30394b;
+            --text: #eef4ff;
+            --muted: #95a0b5;
+            --red: #f03d54;
+            --blue: #2f8cff;
+            --green: #2bd576;
+            --yellow: #f5c451;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+        }
+
+        button, input { font: inherit; }
+        button {
+            border: 0;
+            border-radius: 7px;
+            cursor: pointer;
+            color: #fff;
+            background: var(--panel-2);
+            min-height: 38px;
+            padding: 9px 12px;
+            white-space: nowrap;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .shell {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            min-height: 100vh;
+        }
+
+        .side {
+            padding: 18px;
+            border-right: 1px solid var(--line);
+            background: var(--panel);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .brand img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+        }
+
+        h1, h2, h3, p { margin-top: 0; }
+        h1 { font-size: 24px; }
+        h2 { font-size: 20px; }
+        h3 { font-size: 15px; }
+        p, small { color: var(--muted); }
+
+        .token-box {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            outline: none;
+            color: var(--text);
+            background: #090d15;
+        }
+
+        .primary { background: linear-gradient(135deg, var(--red), var(--blue)); }
+        .danger { background: var(--red); }
+        .ok { background: var(--green); color: #06100a; }
+
+        .tabs {
+            display: grid;
+            gap: 8px;
+        }
+
+        .tab {
+            padding: 11px 12px;
+            text-align: left;
+        }
+
+        .tab.active {
+            background: var(--blue);
+        }
+
+        .content {
+            min-width: 0;
+            padding: 18px;
+        }
+
+        .toolbar {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .metric {
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+
+        .metric strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 22px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
+        .card {
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+        }
+
+        .card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .message {
+            padding: 10px;
+            border-left: 3px solid var(--blue);
+            border-radius: 7px;
+            background: var(--panel-2);
+        }
+
+        .media {
+            display: block;
+            max-width: 100%;
+            max-height: 260px;
+            margin-top: 8px;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .meta {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .empty {
+            padding: 18px;
+            border: 1px dashed var(--line);
+            border-radius: 8px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .status-ok { color: var(--green); }
+        .status-warn { color: var(--yellow); }
+        .status-error { color: var(--red); }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 760px) {
+            .shell {
+                grid-template-columns: 1fr;
+                min-height: 0;
+            }
+            .side { border-right: 0; border-bottom: 1px solid var(--line); }
+            .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .content { padding: 12px; }
+            .toolbar { grid-template-columns: 1fr; }
+            .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .card-row { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <aside class="side">
+            <div class="brand">
+                <img src="/static/nexaline-mark.png" alt="NexaLine">
+                <div>
+                    <h1>NexaLine Admin</h1>
+                    <small id="ipInfo">IP bilgisi yükleniyor</small>
+                </div>
+            </div>
+
+            <div class="token-box">
+                <input id="tokenInput" type="password" placeholder="ADMIN_TOKEN">
+                <button id="loadButton" class="primary" type="button">Paneli Aç</button>
+                <small id="tokenHint">Bu bilgisayardan açıyorsan token gerekmez. Dışarıdan giriş için ADMIN_TOKEN gerekir.</small>
+                <small>Şifreler güvenlik için gösterilmez. Buradan yeni şifre atayabilirsin.</small>
+            </div>
+
+            <nav class="tabs">
+                <button class="tab active" data-view="users" type="button">Kullanıcılar</button>
+                <button class="tab" data-view="chats" type="button">Sohbetler</button>
+                <button class="tab" data-view="messages" type="button">Mesajlar</button>
+                <button class="tab" data-view="stories" type="button">Durumlar</button>
+                <button class="tab" data-view="calls" type="button">Aramalar</button>
+            </nav>
+        </aside>
+
+        <section class="content">
+            <div class="toolbar">
+                <input id="adminSearch" placeholder="Kullanıcı, mesaj, sohbet ara">
+                <button id="refreshButton" type="button">Yenile</button>
+                <button id="deleteAllButton" class="danger" type="button">Tüm Verileri Sıfırla</button>
+            </div>
+            <div id="status" class="meta"></div>
+            <div id="summary" class="summary"></div>
+            <div id="view"></div>
+        </section>
+    </main>
+
+    <script>
+        const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "" };
+        const $ = id => document.getElementById(id);
+        $("tokenInput").value = state.token;
+
+        function headers() {
+            return { "Content-Type": "application/json", "X-Admin-Token": state.token };
+        }
+
+        async function api(path, options = {}) {
+            const response = await fetch(path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+            const data = await response.json().catch(() => ({ ok: false, message: "Sunucu cevabı okunamadı." }));
+            if (!data.ok) {
+                throw new Error(data.message || "İşlem başarısız.");
+            }
+            return data;
+        }
+
+        function setStatus(message, type = "ok") {
+            $("status").textContent = message;
+            $("status").className = `meta status-${type}`;
+        }
+
+        async function load() {
+            state.token = $("tokenInput").value.trim();
+            localStorage.setItem("nexalineAdminToken", state.token);
+            setStatus("Yükleniyor...", "warn");
+            try {
+                state.data = await api("/admin/state");
+                $("ipInfo").textContent = `Sen: ${state.data.yourIp} • Sunucu: ${state.data.serverIp}`;
+                $("tokenHint").textContent = state.data.localAdmin
+                    ? "Yerel bilgisayardan açıldı: token olmadan yetkili."
+                    : "Dış bağlantı: ADMIN_TOKEN gerekli.";
+                setStatus("Hazır", "ok");
+                render();
+            } catch (error) {
+                setStatus(error.message, "error");
+                $("summary").innerHTML = "";
+            }
+        }
+
+        function render() {
+            document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === state.view));
+            if (!state.data) {
+                $("view").innerHTML = "<p>Paneli açmak için token gir.</p>";
+                return;
+            }
+            state.query = $("adminSearch").value.trim().toLowerCase();
+            renderSummary();
+            if (state.view === "users") renderUsers();
+            if (state.view === "chats") renderChats();
+            if (state.view === "messages") renderMessages();
+            if (state.view === "stories") renderStories();
+            if (state.view === "calls") renderCalls();
+        }
+
+        function renderSummary() {
+            const messageCount = state.data.chats.reduce((total, chat) => total + chat.messages.length, 0);
+            $("summary").innerHTML = `
+                <div class="metric"><strong>${state.data.users.length}</strong><small>Kullanıcı</small></div>
+                <div class="metric"><strong>${state.data.chats.length}</strong><small>Sohbet</small></div>
+                <div class="metric"><strong>${messageCount}</strong><small>Mesaj</small></div>
+                <div class="metric"><strong>${state.data.stories.length}</strong><small>Durum</small></div>
+                <div class="metric"><strong>${state.data.calls.length}</strong><small>Arama</small></div>
+            `;
+        }
+
+        function matchesSearch(...values) {
+            if (!state.query) return true;
+            return values.some(value => String(value ?? "").toLowerCase().includes(state.query));
+        }
+
+        function empty(message) {
+            return `<div class="empty">${escapeHtml(message)}</div>`;
+        }
+
+        function renderUsers() {
+            const users = state.data.users.filter(user => matchesSearch(user.username, user.displayName, user.about));
+            $("view").innerHTML = `<h2>Kullanıcılar (${users.length}/${state.data.users.length})</h2><div class="grid"></div>`;
+            const grid = $("view").querySelector(".grid");
+            if (!users.length) {
+                grid.innerHTML = empty(state.data.users.length ? "Aramana uygun kullanıcı yok." : "Henüz kayıtlı kullanıcı yok. Normal giriş sayfasından kayıt olunca burada görünür.");
+                return;
+            }
+            users.forEach(user => {
+                const card = document.createElement("article");
+                card.className = "card";
+                card.innerHTML = `
+                    <h3>${escapeHtml(user.displayName)} (@${escapeHtml(user.username)})</h3>
+                    <p>${user.online ? "çevrimiçi" : "çevrimdışı"} • ${new Date(user.createdAt).toLocaleString("tr-TR")}</p>
+                    <div class="card-row">
+                        <button class="ok" data-reset="${user.username}" type="button">Şifre Sıfırla</button>
+                        <button class="danger" data-delete="${user.username}" type="button">Sil</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            grid.querySelectorAll("[data-delete]").forEach(button => button.onclick = () => deleteUser(button.dataset.delete));
+            grid.querySelectorAll("[data-reset]").forEach(button => button.onclick = () => resetPassword(button.dataset.reset));
+        }
+
+        function renderChats() {
+            const chats = state.data.chats.filter(chat => matchesSearch(
+                chat.title,
+                chat.type,
+                chat.members.map(member => `${member.username} ${member.displayName}`).join(" "),
+                chat.messages.map(message => `${message.senderName} ${message.body} ${message.attachment?.name || ""}`).join(" ")
+            ));
+            $("view").innerHTML = `<h2>Sohbetler (${chats.length}/${state.data.chats.length})</h2><div class="list"></div>`;
+            const list = $("view").querySelector(".list");
+            if (!chats.length) {
+                list.innerHTML = empty(state.data.chats.length ? "Aramana uygun sohbet yok." : "Henüz sohbet yok.");
+                return;
+            }
+            chats.forEach(chat => {
+                const item = document.createElement("article");
+                item.className = "card";
+                item.innerHTML = `
+                    <h3>${escapeHtml(chat.title)} (${chat.type})</h3>
+                    <p>${chat.members.map(member => `${escapeHtml(member.displayName)}${member.isAdmin ? " - Yönetici" : ""}`).join(", ") || "Üye yok"}</p>
+                    <div class="card-row">
+                        <small>${chat.messages.length} mesaj</small>
+                        ${chat.id === "lobby" ? "" : `<button class="danger" data-chat="${escapeAttr(chat.id)}" type="button">Sohbeti Sil</button>`}
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            list.querySelectorAll("[data-chat]").forEach(button => button.onclick = () => deleteChat(button.dataset.chat));
+        }
+
+        function renderMessages() {
+            const messages = [];
+            state.data.chats.forEach(chat => {
+                chat.messages.forEach(message => messages.push({ chat, message }));
+            });
+            const filtered = messages.filter(({ chat, message }) => matchesSearch(
+                chat.title,
+                message.sender,
+                message.senderName,
+                message.body,
+                message.attachment?.name,
+                message.attachment?.type
+            ));
+            $("view").innerHTML = `<h2>Mesajlar (${filtered.length}/${messages.length})</h2><div class="list"></div>`;
+            const list = $("view").querySelector(".list");
+            if (!filtered.length) {
+                list.innerHTML = empty(messages.length ? "Aramana uygun mesaj yok." : "Henüz mesaj yok.");
+                return;
+            }
+            filtered.forEach(({ chat, message }) => {
+                const item = document.createElement("article");
+                item.className = "message";
+                item.innerHTML = `
+                    <strong>${escapeHtml(chat.title)} • ${escapeHtml(message.senderName)}</strong>
+                    <p>${escapeHtml(message.body || message.attachment?.name || message.attachment?.type || "Dosya")}</p>
+                    ${renderAttachment(message.attachment)}
+                    <div class="card-row">
+                        <span class="meta">${new Date(message.createdAt).toLocaleString("tr-TR")}</span>
+                        <button class="danger" data-message="${message.id}" type="button">Mesajı Sil</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            list.querySelectorAll("[data-message]").forEach(button => button.onclick = () => deleteMessage(button.dataset.message));
+        }
+
+        function renderStories() {
+            const stories = state.data.stories.filter(story => matchesSearch(story.username, story.user.displayName, story.body, story.attachment?.name));
+            $("view").innerHTML = `<h2>Durumlar (${stories.length}/${state.data.stories.length})</h2><div class="grid"></div>`;
+            const grid = $("view").querySelector(".grid");
+            if (!stories.length) {
+                grid.innerHTML = empty(state.data.stories.length ? "Aramana uygun durum yok." : "Henüz durum paylaşılmadı.");
+                return;
+            }
+            stories.forEach(story => {
+                const card = document.createElement("article");
+                card.className = "card";
+                card.innerHTML = `
+                    <h3>${escapeHtml(story.user.displayName)}</h3>
+                    <p>${escapeHtml(story.body || story.attachment?.name || "Durum")}</p>
+                    ${renderAttachment(story.attachment)}
+                    <div class="card-row">
+                        <small>${new Date(story.createdAt).toLocaleString("tr-TR")} - ${new Date(story.expiresAt).toLocaleString("tr-TR")}</small>
+                        <button class="danger" data-story="${story.id}" type="button">Durumu Sil</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            grid.querySelectorAll("[data-story]").forEach(button => button.onclick = () => deleteStory(button.dataset.story));
+        }
+
+        function renderCalls() {
+            const calls = state.data.calls.filter(call => matchesSearch(call.chatTitle, call.caller, call.callerName, call.kind, call.status));
+            $("view").innerHTML = `<h2>Aramalar (${calls.length}/${state.data.calls.length})</h2><div class="list"></div>`;
+            const list = $("view").querySelector(".list");
+            if (!calls.length) {
+                list.innerHTML = empty(state.data.calls.length ? "Aramana uygun arama kaydı yok." : "Henüz arama kaydı yok.");
+                return;
+            }
+            calls.forEach(call => {
+                const item = document.createElement("article");
+                item.className = "card";
+                item.innerHTML = `
+                    <h3>${escapeHtml(call.chatTitle)} • ${call.kind === "video" ? "Görüntülü" : "Sesli"}</h3>
+                    <p>${escapeHtml(call.callerName)} • ${call.status === "active" ? "aktif" : `${call.durationSeconds} sn`}</p>
+                    <small>${new Date(call.startedAt).toLocaleString("tr-TR")}</small>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function deleteUser(username) {
+            if (!confirm(`${username} kullanıcısı silinsin mi?`)) return;
+            await api(`/admin/user/${username}`, { method: "DELETE" });
+            await load();
+        }
+
+        async function deleteMessage(id) {
+            if (!confirm("Mesaj silinsin mi?")) return;
+            await api(`/admin/message/${id}`, { method: "DELETE" });
+            await load();
+        }
+
+        async function deleteStory(id) {
+            if (!confirm("Durum silinsin mi?")) return;
+            await api(`/admin/story/${id}`, { method: "DELETE" });
+            await load();
+        }
+
+        async function deleteChat(id) {
+            if (!confirm("Sohbet ve içindeki tüm mesajlar silinsin mi?")) return;
+            await api(`/admin/chat/${encodeURIComponent(id)}`, { method: "DELETE" });
+            await load();
+        }
+
+        async function resetPassword(username) {
+            const password = prompt(`${username} için yeni güçlü şifre`);
+            if (!password) return;
+            await api(`/admin/user/${username}/password`, { method: "POST", body: JSON.stringify({ password }) });
+            alert("Şifre sıfırlandı.");
+        }
+
+        async function deleteAll() {
+            if (!confirm("Tüm kullanıcılar, sohbetler, mesajlar, durumlar ve arama kayıtları kalıcı olarak silinsin mi?")) return;
+            await api("/admin/users", { method: "DELETE", body: JSON.stringify({ token: state.token }) });
+            await load();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, char => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            }[char]));
+        }
+
+        function escapeAttr(value) {
+            return escapeHtml(value).replace(/`/g, "&#096;");
+        }
+
+        function renderAttachment(attachment) {
+            if (!attachment?.dataUrl) return "";
+            const name = escapeAttr(attachment.name || "Dosya");
+            if (attachment.type?.startsWith("image/")) {
+                return `<img class="media" src="${escapeAttr(attachment.dataUrl)}" alt="${name}">`;
+            }
+            if (attachment.type?.startsWith("video/")) {
+                return `<video class="media" src="${escapeAttr(attachment.dataUrl)}" controls playsinline></video>`;
+            }
+            if (attachment.type?.startsWith("audio/")) {
+                return `<audio class="media" src="${escapeAttr(attachment.dataUrl)}" controls></audio>`;
+            }
+            return `<a class="meta" href="${escapeAttr(attachment.dataUrl)}" download="${name}">${name}</a>`;
+        }
+
+        $("loadButton").onclick = load;
+        $("refreshButton").onclick = load;
+        $("deleteAllButton").onclick = deleteAll;
+        $("adminSearch").oninput = render;
+        document.querySelectorAll(".tab").forEach(tab => {
+            tab.onclick = () => {
+                state.view = tab.dataset.view;
+                render();
+            };
+        });
+        load();
+    </script>
+</body>
+</html>

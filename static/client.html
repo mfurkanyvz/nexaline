@@ -407,6 +407,16 @@
             border-radius: 8px;
         }
 
+        .bubble video,
+        .story-media {
+            display: block;
+            max-width: 100%;
+            max-height: 58vh;
+            margin-top: 10px;
+            border-radius: 8px;
+            background: #000;
+        }
+
         .file-pill {
             display: inline-flex;
             max-width: 100%;
@@ -544,6 +554,33 @@
             background: rgba(0, 0, 0, 0.72);
         }
 
+        .story-panel {
+            position: fixed;
+            inset: 0;
+            z-index: 11;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background: rgba(0, 0, 0, 0.78);
+        }
+
+        .story-box {
+            width: min(520px, 100%);
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .story-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
         .call-box {
             width: min(820px, 100%);
             border: 1px solid var(--line);
@@ -609,6 +646,7 @@
         @media (max-width: 760px) {
             body {
                 overflow: hidden;
+                overscroll-behavior: none;
             }
 
             .app {
@@ -646,6 +684,16 @@
                 padding: 10px 12px;
             }
 
+            .topbar .identity,
+            .chat-top .identity {
+                min-width: 0;
+            }
+
+            .topbar .icon-row,
+            .chat-top .icon-row {
+                flex: 0 0 auto;
+            }
+
             .avatar {
                 width: 40px;
                 height: 40px;
@@ -662,20 +710,32 @@
                 height: 36px;
             }
 
+            .topbar .icon-btn,
+            .chat-top .icon-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 13px;
+            }
+
             .search-box {
                 padding: 10px;
             }
 
             .chat-list {
-                max-height: 34dvh;
+                max-height: none;
+                min-height: 0;
+                flex: 1;
             }
 
             .story-list {
-                max-height: 18dvh;
+                max-height: none;
+                min-height: 0;
+                flex: 1;
             }
 
             .chat-item,
             .story-item,
+            .call-item,
             .contact-item {
                 grid-template-columns: 44px minmax(0, 1fr) auto;
                 padding: 11px 12px;
@@ -683,6 +743,7 @@
 
             .messages {
                 padding: 14px 10px;
+                padding-bottom: 18px;
             }
 
             .bubble {
@@ -690,10 +751,17 @@
                 font-size: 14px;
             }
 
+            .bubble img,
+            .bubble video {
+                max-width: min(100%, 280px);
+                max-height: 42dvh;
+            }
+
             .composer {
                 grid-template-columns: 38px 38px minmax(0, 1fr) 38px;
                 gap: 7px;
                 padding: 8px;
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
             }
 
             .composer textarea {
@@ -708,21 +776,34 @@
 
             .call-box {
                 width: 100%;
+                max-height: calc(100dvh - 20px);
             }
 
             .video-stage {
-                aspect-ratio: 9 / 14;
+                height: min(64dvh, 620px);
+                aspect-ratio: auto;
             }
 
             #localVideo {
                 right: 10px;
                 bottom: 10px;
-                width: 34%;
+                width: min(38%, 150px);
             }
 
             .call-info,
             .call-actions {
                 padding: 10px;
+            }
+
+            .nav-tabs {
+                grid-template-columns: repeat(5, max-content);
+                overflow-x: auto;
+                scrollbar-width: none;
+            }
+
+            .nav-tab {
+                min-width: 68px;
+                padding: 9px 10px;
             }
         }
 
@@ -738,6 +819,19 @@
             .identity strong,
             .chat-title {
                 font-size: 15px;
+            }
+
+            .topbar {
+                gap: 8px;
+            }
+
+            .topbar .icon-row {
+                gap: 4px;
+            }
+
+            .topbar .icon-btn {
+                width: 31px;
+                height: 31px;
             }
 
             .identity small,
@@ -829,12 +923,26 @@
                 <div id="voiceWave" class="voice-wave"></div>
                 <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
                 <button id="voiceButton" class="icon-btn" title="Sesli mesaj">●</button>
-                <input id="fileInput" class="hidden" type="file">
+                <input id="fileInput" class="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
+                <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
                 <textarea id="messageInput" placeholder="Mesaj"></textarea>
                 <button id="sendButton" class="send-btn" title="Gönder">➤</button>
             </footer>
         </section>
     </main>
+
+    <section id="storyPanel" class="story-panel hidden">
+        <div class="story-box">
+            <div class="story-head">
+                <div>
+                    <strong id="storyTitle">Durum</strong>
+                    <div id="storyMeta" class="last-message"></div>
+                </div>
+                <button id="closeStoryButton" class="icon-btn" type="button">×</button>
+            </div>
+            <div id="storyBody"></div>
+        </div>
+    </section>
 
     <section id="callPanel" class="call-panel hidden">
         <div class="call-box">
@@ -857,7 +965,7 @@
 
     <script>
         const socket = io();
-        const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+        let rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
         const state = {
             mode: "login",
             me: null,
@@ -871,12 +979,14 @@
             attachment: null,
             replyTo: null,
             waveTimer: null,
+            pendingStoryBody: "",
             generalGroup: null,
             generalPromptShown: false,
             recorder: null,
             recordedChunks: [],
             call: {
-                pc: null,
+                peers: {},
+                pendingIce: {},
                 localStream: null,
                 remoteStream: null,
                 chatId: null,
@@ -940,8 +1050,21 @@
         async function openApp() {
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
+            await loadRtcConfig();
             socket.emit("user:join", { username: state.me.username });
             await loadBootstrap();
+        }
+
+        async function loadRtcConfig() {
+            try {
+                const response = await fetch("/rtc-config");
+                const data = await response.json();
+                if (data.ok && Array.isArray(data.iceServers)) {
+                    rtcConfig = { iceServers: data.iceServers };
+                }
+            } catch (error) {
+                console.warn("Arama ayarları yüklenemedi", error);
+            }
         }
 
         async function loadBootstrap() {
@@ -1056,7 +1179,48 @@
 
         function showStory(story) {
             const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-            alert(`${story.user.displayName} (@${story.username})\n\n${story.body || "Durum"}\n\n${relativeTime(story.createdAt)} paylaşıldı\nBitiş: ${expires}`);
+            $("storyTitle").textContent = `${story.user.displayName} (@${story.username})`;
+            $("storyMeta").textContent = `${relativeTime(story.createdAt)} paylaşıldı • Bitiş: ${expires}`;
+            const body = $("storyBody");
+            body.innerHTML = "";
+            if (story.body) {
+                const text = document.createElement("p");
+                text.textContent = story.body;
+                body.appendChild(text);
+            }
+            if (story.attachment) {
+                body.appendChild(renderStoryAttachment(story.attachment));
+            }
+            $("storyPanel").classList.remove("hidden");
+        }
+
+        function closeStoryPanel() {
+            $("storyPanel").classList.add("hidden");
+            $("storyBody").innerHTML = "";
+        }
+
+        function renderStoryAttachment(attachment) {
+            if (attachment.type?.startsWith("video/")) {
+                const video = document.createElement("video");
+                video.className = "story-media";
+                video.controls = true;
+                video.playsInline = true;
+                video.src = attachment.dataUrl;
+                return video;
+            }
+            if (attachment.type?.startsWith("image/")) {
+                const image = document.createElement("img");
+                image.className = "story-media";
+                image.src = attachment.dataUrl;
+                image.alt = attachment.name || "Durum";
+                return image;
+            }
+            const link = document.createElement("a");
+            link.className = "file-pill";
+            link.href = attachment.dataUrl;
+            link.download = attachment.name || "durum";
+            link.textContent = attachment.name || "Dosya";
+            return link;
         }
 
         function renderChats() {
@@ -1337,7 +1501,16 @@
                 return audio;
             }
 
-            if (attachment.type.startsWith("image/")) {
+            if (attachment.type?.startsWith("video/")) {
+                const video = document.createElement("video");
+                video.className = "story-media";
+                video.controls = true;
+                video.playsInline = true;
+                video.src = attachment.dataUrl;
+                return video;
+            }
+
+            if (attachment.type && attachment.type.startsWith("image/")) {
                 const image = document.createElement("img");
                 image.src = attachment.dataUrl;
                 image.alt = attachment.name;
@@ -1412,11 +1585,16 @@
         }
 
         function createStory() {
-            const body = prompt("24 saat görünecek durumunu yaz.");
-            if (!body || !body.trim()) {
+            const body = prompt("24 saat görünecek durumunu yaz. Sadece resim/video paylaşmak için boş bırakabilirsin.") || "";
+            if (confirm("Duruma resim veya video eklemek ister misin?")) {
+                state.pendingStoryBody = body.trim();
+                $("storyFileInput").value = "";
+                $("storyFileInput").click();
                 return;
             }
-
+            if (!body.trim()) {
+                return;
+            }
             socket.emit("story:create", { body: body.trim() });
         }
 
@@ -1692,8 +1870,8 @@
                 return;
             }
 
-            if (file.size > 750000) {
-                alert("Dosya boyutu 750 KB altında olmalı.");
+            if (file.size > 5_000_000) {
+                alert("Dosya boyutu 5 MB altında olmalı.");
                 event.target.value = "";
                 return;
             }
@@ -1710,6 +1888,38 @@
             reader.readAsDataURL(file);
         }
 
+        function handleStoryFile(event) {
+            const file = event.target.files[0];
+            const body = state.pendingStoryBody || "";
+            state.pendingStoryBody = "";
+            if (!file) {
+                if (body) {
+                    socket.emit("story:create", { body });
+                }
+                return;
+            }
+            if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+                alert("Durum için sadece resim veya video seçebilirsin.");
+                return;
+            }
+            if (file.size > 2500000) {
+                alert("Durum dosyası 2.5 MB altında olmalı.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                socket.emit("story:create", {
+                    body,
+                    attachment: {
+                        name: file.name,
+                        type: file.type,
+                        dataUrl: reader.result
+                    }
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
         function ensureCallChat() {
             const chat = activeChat();
             if (!chat) {
@@ -1721,56 +1931,104 @@
         }
 
         async function getCallStream(audioOnly) {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error("Tarayıcı kamera/mikrofonu sadece HTTPS, localhost veya izin verilmiş güvenli adreslerde açar.");
+            }
             return navigator.mediaDevices.getUserMedia({ audio: true, video: !audioOnly });
         }
 
-        async function createPeer(chatId, audioOnly) {
+        async function ensureLocalCallStream(audioOnly) {
+            if (!state.call.localStream) {
+                state.call.localStream = await getCallStream(audioOnly);
+                $("localVideo").srcObject = state.call.localStream;
+                $("localVideo").classList.toggle("hidden", audioOnly);
+            }
+            if (!state.call.remoteStream) {
+                state.call.remoteStream = new MediaStream();
+                $("remoteVideo").srcObject = state.call.remoteStream;
+            }
+            return state.call.localStream;
+        }
+
+        async function createPeer(peerUsername, chatId, audioOnly) {
+            if (state.call.peers[peerUsername]) {
+                return state.call.peers[peerUsername];
+            }
             const pc = new RTCPeerConnection(rtcConfig);
-            const localStream = await getCallStream(audioOnly);
-            const remoteStream = new MediaStream();
+            const localStream = await ensureLocalCallStream(audioOnly);
 
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             pc.onicecandidate = event => {
                 if (event.candidate) {
-                    socket.emit("call:ice", { chatId, candidate: event.candidate });
+                    socket.emit("call:ice", { chatId, to: peerUsername, candidate: event.candidate });
                 }
             };
             pc.ontrack = event => {
-                event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+                const stream = event.streams[0];
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        if (!state.call.remoteStream.getTracks().some(existing => existing.id === track.id)) {
+                            state.call.remoteStream.addTrack(track);
+                        }
+                    });
+                }
+                $("remoteVideo").srcObject = state.call.remoteStream;
+            };
+            pc.onconnectionstatechange = () => {
+                $("callStatus").textContent = pc.connectionState === "connected" ? "bağlandı" : $("callStatus").textContent;
             };
 
-            state.call.pc = pc;
-            state.call.localStream = localStream;
-            state.call.remoteStream = remoteStream;
+            state.call.peers[peerUsername] = pc;
             state.call.chatId = chatId;
             state.call.audioOnly = audioOnly;
-            $("localVideo").srcObject = localStream;
-            $("remoteVideo").srcObject = remoteStream;
-            $("localVideo").classList.toggle("hidden", audioOnly);
             return pc;
+        }
+
+        async function flushPendingIce(peerUsername) {
+            const pc = state.call.peers[peerUsername];
+            const pending = state.call.pendingIce[peerUsername] || [];
+            if (!pc || !pc.remoteDescription) {
+                return;
+            }
+            for (const candidate of pending) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (error) {
+                    console.warn("ICE adayı eklenemedi", error);
+                }
+            }
+            state.call.pendingIce[peerUsername] = [];
         }
 
         async function startCall(audioOnly) {
             const chat = ensureCallChat();
-            if (!chat || state.call.pc) {
+            if (!chat || Object.keys(state.call.peers).length) {
                 return;
             }
 
             openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "aranıyor", false, audioOnly);
             playTone(audioOnly ? 520 : 680, 0.18);
-            let pc;
             try {
-                pc = await createPeer(chat.id, audioOnly);
+                await ensureLocalCallStream(audioOnly);
             } catch (error) {
-                alert("Mikrofon veya kamera izni alınamadı.");
+                alert(error.message || "Mikrofon veya kamera izni alınamadı.");
                 endCall(false);
                 return;
             }
             state.call.startedAt = Date.now();
             socket.emit("call:log", { chatId: chat.id, kind: audioOnly ? "audio" : "video", status: "active" });
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit("call:offer", { chatId: chat.id, offer, audioOnly });
+            const peers = chat.members.filter(member => member.username !== state.me.username);
+            if (!peers.length) {
+                alert("Aranacak kişi yok.");
+                endCall(false);
+                return;
+            }
+            for (const member of peers) {
+                const pc = await createPeer(member.username, chat.id, audioOnly);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit("call:offer", { chatId: chat.id, to: member.username, offer, audioOnly });
+            }
         }
 
         function openCallPanel(title, status, incoming, audioOnly) {
@@ -1790,36 +2048,48 @@
             openCallPanel(incoming.audioOnly ? "Sesli arama" : "Görüntülü arama", "bağlanıyor", false, incoming.audioOnly);
             let pc;
             try {
-                pc = await createPeer(incoming.chatId, incoming.audioOnly);
+                pc = await createPeer(incoming.from, incoming.chatId, incoming.audioOnly);
             } catch (error) {
-                alert("Mikrofon veya kamera izni alınamadı.");
+                alert(error.message || "Mikrofon veya kamera izni alınamadı.");
                 endCall(true);
                 return;
             }
             await pc.setRemoteDescription(new RTCSessionDescription(incoming.offer));
+            await flushPendingIce(incoming.from);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            socket.emit("call:answer", { chatId: incoming.chatId, answer });
+            socket.emit("call:answer", { chatId: incoming.chatId, to: incoming.from, answer });
             state.call.startedAt = Date.now();
             state.call.incomingOffer = null;
         }
 
         async function handleRemoteAnswer(data) {
-            if (state.call.pc && data.answer) {
-                await state.call.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            const pc = state.call.peers[data.from];
+            if (pc && data.answer) {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                await flushPendingIce(data.from);
                 $("callStatus").textContent = "bağlandı";
             }
         }
 
         async function handleRemoteIce(data) {
-            if (state.call.pc && data.candidate) {
-                await state.call.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            if (!data.candidate || !data.from) {
+                return;
+            }
+            const pc = state.call.peers[data.from];
+            if (!pc || !pc.remoteDescription) {
+                state.call.pendingIce[data.from] = state.call.pendingIce[data.from] || [];
+                state.call.pendingIce[data.from].push(data.candidate);
+                return;
+            }
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (error) {
+                console.warn("ICE adayı eklenemedi", error);
             }
         }
 
         function endCall(notify = true) {
-            const endedChatId = state.call.chatId;
-            const endedAudioOnly = state.call.audioOnly;
             const durationSeconds = state.call.startedAt ? Math.max(1, Math.round((Date.now() - state.call.startedAt) / 1000)) : 0;
             if (notify && state.call.chatId) {
                 socket.emit("call:end", { chatId: state.call.chatId });
@@ -1831,14 +2101,12 @@
                 });
             }
 
-            if (state.call.pc) {
-                state.call.pc.close();
-            }
+            Object.values(state.call.peers).forEach(pc => pc.close());
             if (state.call.localStream) {
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { pc: null, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callPanel").classList.add("hidden");
@@ -1884,6 +2152,8 @@
         });
         $("attachButton").onclick = () => $("fileInput").click();
         $("fileInput").onchange = handleFile;
+        $("storyFileInput").onchange = handleStoryFile;
+        $("closeStoryButton").onclick = closeStoryPanel;
         $("voiceButton").onclick = toggleVoiceRecording;
         $("deleteAccountButton").onclick = deleteAccount;
         $("storyButton").onclick = createStory;
@@ -2014,8 +2284,8 @@
 
         socket.on("notice", data => alert(data.message));
         socket.on("call:offer", data => {
-            if (state.call.pc || state.call.incomingOffer) {
-                socket.emit("call:end", { chatId: data.chatId });
+            if (Object.keys(state.call.peers).length || state.call.incomingOffer) {
+                socket.emit("call:end", { chatId: data.chatId, to: data.from });
                 return;
             }
 

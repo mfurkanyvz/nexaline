@@ -1,5 +1,7 @@
 import os
+import ipaddress
 import re
+import socket
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -28,10 +30,11 @@ app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_http_buffer_size=8_000_000)
 
 connections = {}
 typing_users = {}
+DEV_ADMIN_TOKEN = "NexaLineAdmin2026!"
 
 
 class User(db.Model):
@@ -326,6 +329,54 @@ def emit_general_group_updates():
         socketio.emit("general:update", general_group_state(username), room=sid)
 
 
+def admin_token_from_request():
+    data = request.get_json(silent=True) or {}
+    return request.headers.get("X-Admin-Token") or data.get("token") or request.args.get("token")
+
+
+def request_ip():
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+    raw_ip = forwarded_for.split(",", 1)[0].strip() or request.remote_addr or ""
+    if raw_ip.startswith("::ffff:"):
+        raw_ip = raw_ip.removeprefix("::ffff:")
+    return raw_ip
+
+
+def is_local_admin_request():
+    try:
+        ip = ipaddress.ip_address(request_ip())
+    except ValueError:
+        return False
+
+    if ip.is_loopback:
+        return True
+
+    try:
+        local_ips = {
+            item[4][0]
+            for item in socket.getaddrinfo(socket.gethostname(), None)
+            if item[4] and item[4][0]
+        }
+    except socket.gaierror:
+        local_ips = set()
+
+    return str(ip) in local_ips
+
+
+def require_admin():
+    expected_token = os.environ.get("ADMIN_TOKEN") or (None if os.environ.get("RENDER") else DEV_ADMIN_TOKEN)
+    if is_local_admin_request():
+        return None
+
+    if not expected_token:
+        return jsonify({"ok": False, "message": "ADMIN_TOKEN ayarlı değil."}), 503
+
+    if admin_token_from_request() != expected_token:
+        return jsonify({"ok": False, "message": "Yönetici token hatalı."}), 401
+
+    return None
+
+
 def password_error(username, password):
     if len(password) < 10:
         return "Şifre en az 10 karakter olmalı."
@@ -361,6 +412,21 @@ def username_error(username):
     return None
 
 
+def rtc_servers():
+    servers = [{"urls": "stun:stun.l.google.com:19302"}]
+    extra_urls = [url.strip() for url in os.environ.get("RTC_ICE_URLS", "").split(",") if url.strip()]
+    if extra_urls:
+        servers = [{"urls": extra_urls}]
+
+    turn_url = os.environ.get("TURN_URL")
+    turn_username = os.environ.get("TURN_USERNAME")
+    turn_credential = os.environ.get("TURN_CREDENTIAL")
+    if turn_url and turn_username and turn_credential:
+        servers.append({"urls": turn_url, "username": turn_username, "credential": turn_credential})
+
+    return servers
+
+
 @app.route("/")
 def index():
     return send_from_directory("static", "client.html")
@@ -371,6 +437,11 @@ def client():
     return send_from_directory("static", "client.html")
 
 
+@app.route("/admin")
+def admin_page():
+    return send_from_directory("static", "admin.html")
+
+
 @app.route("/health")
 def health():
     try:
@@ -379,6 +450,11 @@ def health():
     except Exception as error:
         app.logger.exception("Health check failed")
         return jsonify({"ok": False, "message": str(error)}), 500
+
+
+@app.route("/rtc-config")
+def rtc_config():
+    return jsonify({"ok": True, "iceServers": rtc_servers(), "secureContext": request.is_secure})
 
 
 @app.route("/register", methods=["POST"])
@@ -459,6 +535,8 @@ def delete_account(username):
         Story.query.filter_by(username=username).delete(synchronize_session=False)
         CallLog.query.filter_by(caller=username).delete(synchronize_session=False)
         Message.query.filter_by(sender=username).delete(synchronize_session=False)
+        if direct_chat_ids:
+            CallLog.query.filter(CallLog.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
 
         for member in member_rows:
             if member.chat and member.chat.type == "group":
@@ -491,14 +569,9 @@ def delete_account(username):
 
 @app.route("/admin/users", methods=["DELETE"])
 def delete_all_users():
-    token = request.headers.get("X-Admin-Token") or (request.get_json(silent=True) or {}).get("token")
-    expected_token = os.environ.get("ADMIN_TOKEN")
-
-    if not expected_token:
-        return jsonify({"ok": False, "message": "ADMIN_TOKEN ayarlı değil."}), 503
-
-    if token != expected_token:
-        return jsonify({"ok": False, "message": "Yönetici token hatalı."}), 401
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
 
     try:
         Story.query.delete(synchronize_session=False)
@@ -527,6 +600,151 @@ def delete_all_users():
         db.session.rollback()
         app.logger.exception("Delete all users failed")
         return jsonify({"ok": False, "message": "Kullanıcılar silinemedi."}), 500
+
+
+@app.route("/admin/state")
+def admin_state():
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    users = [public_user(user.username) | {"createdAt": to_iso(user.created_at)} for user in User.query.order_by(User.created_at.desc()).all()]
+    chats = []
+    for chat in Chat.query.order_by(Chat.created_at.desc()).all():
+        chats.append(
+            {
+                "id": chat.id,
+                "type": chat.type,
+                "title": chat.title,
+                "createdAt": to_iso(chat.created_at),
+                "members": [{**public_user(member.username), "isAdmin": member.is_admin} for member in chat.members],
+                "messages": [message_to_dict(message) for message in chat.messages],
+            }
+        )
+
+    return jsonify(
+        {
+            "ok": True,
+            "users": users,
+            "chats": chats,
+            "stories": active_stories(),
+            "calls": [call_log_to_dict(log, log.caller) for log in CallLog.query.order_by(CallLog.started_at.desc()).all()],
+            "serverIp": request.host,
+            "yourIp": request_ip(),
+            "localAdmin": is_local_admin_request(),
+        }
+    )
+
+
+@app.route("/admin/user/<username>", methods=["DELETE"])
+def admin_delete_user(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    user = db.session.get(User, username.strip().lower())
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    Story.query.filter_by(username=user.username).delete(synchronize_session=False)
+    CallLog.query.filter_by(caller=user.username).delete(synchronize_session=False)
+    Message.query.filter_by(sender=user.username).delete(synchronize_session=False)
+    member_rows = ChatMember.query.filter_by(username=user.username).all()
+    direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
+    group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
+    if direct_chat_ids:
+        CallLog.query.filter(CallLog.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
+    for member in member_rows:
+        db.session.delete(member)
+    for chat_id in direct_chat_ids:
+        chat = db.session.get(Chat, chat_id)
+        if chat:
+            db.session.delete(chat)
+    db.session.delete(user)
+    db.session.flush()
+    for chat_id in group_chat_ids:
+        promote_fallback_group_admin(db.session.get(Chat, chat_id))
+    db.session.commit()
+    broadcast_presence()
+    emit_general_group_updates()
+    broadcast_stories()
+    return jsonify({"ok": True, "message": "Kullanıcı silindi."})
+
+
+@app.route("/admin/user/<username>/password", methods=["POST"])
+def admin_reset_password(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    data = request.get_json() or {}
+    new_password = data.get("password") or ""
+    user = db.session.get(User, username.strip().lower())
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    password_problem = password_error(user.username, new_password)
+    if password_problem:
+        return jsonify({"ok": False, "message": password_problem}), 400
+
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Şifre sıfırlandı."})
+
+
+@app.route("/admin/message/<message_id>", methods=["DELETE"])
+def admin_delete_message(message_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    message = db.session.get(Message, message_id)
+    if not message:
+        return jsonify({"ok": False, "message": "Mesaj bulunamadı."}), 404
+
+    db.session.delete(message)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Mesaj silindi."})
+
+
+@app.route("/admin/story/<story_id>", methods=["DELETE"])
+def admin_delete_story(story_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    story = db.session.get(Story, story_id)
+    if not story:
+        return jsonify({"ok": False, "message": "Durum bulunamadı."}), 404
+
+    db.session.delete(story)
+    db.session.commit()
+    broadcast_stories()
+    return jsonify({"ok": True, "message": "Durum silindi."})
+
+
+@app.route("/admin/chat/<chat_id>", methods=["DELETE"])
+def admin_delete_chat(chat_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    if chat_id == "lobby":
+        return jsonify({"ok": False, "message": "Genel Grup silinemez."}), 400
+
+    chat = db.session.get(Chat, chat_id)
+    if not chat:
+        return jsonify({"ok": False, "message": "Sohbet bulunamadı."}), 404
+
+    affected_members = chat_member_names(chat)
+    db.session.delete(chat)
+    db.session.commit()
+
+    for member in affected_members:
+        for sid in connected_sids_for(member):
+            socketio.emit("chat:remove", {"chatId": chat_id}, room=sid)
+
+    return jsonify({"ok": True, "message": "Sohbet silindi."})
 
 
 @app.route("/bootstrap/<username>")
@@ -860,6 +1078,14 @@ def forward_call_event(event_name, data):
     payload = dict(data)
     payload["from"] = username
     payload["fromName"] = public_user(username)["displayName"]
+    target = (data.get("to") or "").strip().lower()
+    if target:
+        if not user_can_see_chat(chat, target):
+            return
+        for sid in connected_sids_for(target):
+            emit(event_name, payload, room=sid)
+        return
+
     emit(event_name, payload, room=chat.id, include_self=False)
 
 
