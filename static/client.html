@@ -500,7 +500,7 @@
 
         .nav-tabs {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             gap: 4px;
             padding: 8px;
             border-bottom: 1px solid var(--line);
@@ -798,6 +798,34 @@
         .deleted-message {
             color: rgba(255, 255, 255, 0.68);
             font-style: italic;
+        }
+
+        .new-message-divider {
+            display: grid;
+            place-items: center;
+            margin: 10px 0;
+            color: rgba(203, 216, 238, 0.78);
+            font-size: 11px;
+            letter-spacing: 0;
+        }
+
+        .new-message-divider span {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(47, 140, 255, 0.12);
+        }
+
+        .archive-view {
+            display: grid;
+            gap: 10px;
+            max-height: min(62vh, 520px);
+            overflow: auto;
+        }
+
+        .archive-message {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
         }
 
         .ticks.read {
@@ -1626,6 +1654,7 @@
                 <button class="nav-tab" data-section="stories" type="button">Durum</button>
                 <button class="nav-tab" data-section="calls" type="button">Arama</button>
                 <button class="nav-tab" data-section="contacts" type="button">Kişi</button>
+                <button class="nav-tab" data-section="archives" type="button">Arşiv</button>
             </nav>
 
             <div id="sectionTitle" class="section-label">Sohbetler</div>
@@ -1634,6 +1663,7 @@
             <nav id="groupList" class="chat-list hidden"></nav>
             <nav id="callList" class="chat-list hidden"></nav>
             <nav id="contactList" class="contact-list scroll-area hidden"></nav>
+            <nav id="archiveList" class="chat-list hidden"></nav>
         </aside>
 
         <section class="chat-pane">
@@ -1647,6 +1677,7 @@
                 <div class="icon-row">
                     <button class="icon-btn member-action" id="groupMembersButton" title="Üyeleri yönet">☰</button>
                     <button class="icon-btn hidden" id="leaveGroupButton" title="Gruptan çık">⇥</button>
+                    <button class="icon-btn hidden" id="deleteChatButton" title="Sohbeti sil">⌫</button>
                     <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
                     <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
                 </div>
@@ -1823,6 +1854,7 @@
             chats: [],
             stories: [],
             callLogs: [],
+            archives: [],
             contactRequests: [],
             groupInvites: [],
             blockedUsers: [],
@@ -1832,6 +1864,8 @@
             paneTransitionHideTimer: null,
             activeSection: "chats",
             activeChatId: null,
+            newMessageMarkers: {},
+            openNextChat: false,
             bootReady: false,
             typing: {},
             attachment: null,
@@ -2028,6 +2062,16 @@
             return chat.messages.filter(message => message.sender !== state.me.username && !message.readBy.includes(state.me.username)).length;
         }
 
+        function firstUnreadMessageId(chat) {
+            return chat?.messages.find(message => message.sender !== state.me.username && !message.readBy.includes(state.me.username))?.id || null;
+        }
+
+        function clearActiveNewMarker() {
+            if (state.activeChatId) {
+                delete state.newMessageMarkers[state.activeChatId];
+            }
+        }
+
         function otherMember(chat) {
             return chat?.members.find(member => member.username !== state.me.username);
         }
@@ -2064,6 +2108,7 @@
             state.contactRequests = data.contactRequests || state.contactRequests || [];
             state.groupInvites = data.groupInvites || state.groupInvites || [];
             state.blockedUsers = data.blockedUsers || state.blockedUsers || [];
+            state.archives = data.archives || state.archives || [];
         }
 
         function isMobileView() {
@@ -2077,6 +2122,7 @@
         }
 
         function closeMobileChat() {
+            clearActiveNewMarker();
             state.activeChatId = null;
             $("app").classList.remove("chat-open");
             render();
@@ -2328,6 +2374,7 @@
             renderGroups();
             renderCalls();
             renderContacts();
+            renderArchives();
             renderActiveChat();
         }
 
@@ -2344,14 +2391,15 @@
                 groups: "Gruplar",
                 stories: "Durumlar",
                 calls: "Arama kayıtları",
-                contacts: "Kişiler"
+                contacts: "Kişiler",
+                archives: "Arşivler"
             };
             document.querySelectorAll(".nav-tab").forEach(tab => {
                 tab.classList.toggle("active", tab.dataset.section === state.activeSection);
             });
             $("sectionTitle").textContent = labels[state.activeSection];
-            ["chatList", "groupList", "storyList", "callList", "contactList"].forEach(id => $(id).classList.add("hidden"));
-            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", contacts: "contactList" };
+            ["chatList", "groupList", "storyList", "callList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
+            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", contacts: "contactList", archives: "archiveList" };
             $(map[state.activeSection]).classList.remove("hidden");
         }
 
@@ -2539,6 +2587,11 @@
                     const button = document.createElement("button");
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
                     button.onclick = () => {
+                        clearActiveNewMarker();
+                        const marker = firstUnreadMessageId(chat);
+                        if (marker) {
+                            state.newMessageMarkers[chat.id] = marker;
+                        }
                         state.activeChatId = chat.id;
                         transitionThen(() => {
                             render();
@@ -2636,6 +2689,11 @@
                     const button = document.createElement("button");
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
                     button.onclick = () => {
+                        clearActiveNewMarker();
+                        const marker = firstUnreadMessageId(chat);
+                        if (marker) {
+                            state.newMessageMarkers[chat.id] = marker;
+                        }
                         state.activeChatId = chat.id;
                         transitionThen(() => {
                             render();
@@ -2697,6 +2755,7 @@
                     const button = document.createElement("button");
                     button.className = "call-item";
                     button.onclick = () => {
+                        clearActiveNewMarker();
                         state.activeChatId = log.chatId;
                         transitionThen(() => {
                             render();
@@ -2720,6 +2779,119 @@
                     button.append(avatar, body, time);
                     callList.appendChild(button);
                 });
+        }
+
+        function renderArchives() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            const archiveList = $("archiveList");
+            archiveList.innerHTML = "";
+
+            if (!state.archives.length) {
+                archiveList.insertAdjacentHTML("beforeend", `<button class="chat-item"><div class="avatar">A</div><div><strong class="chat-title">Arşiv boş</strong><div class="last-message">Silinen veya engellemede saklanan sohbetler 3 gün burada kalır</div></div><span class="chat-time"></span></button>`);
+                return;
+            }
+
+            state.archives
+                .filter(item => item.chatTitle.toLowerCase().includes(filter))
+                .forEach(item => {
+                    const button = document.createElement("button");
+                    button.className = "chat-item";
+                    button.onclick = () => openArchivePassword(item);
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar";
+                    avatar.textContent = item.reason === "blocked" ? "!" : "A";
+                    const body = document.createElement("div");
+                    const title = document.createElement("strong");
+                    title.className = "chat-title";
+                    title.textContent = item.chatTitle;
+                    const meta = document.createElement("div");
+                    meta.className = "last-message";
+                    meta.textContent = `${item.reason === "blocked" ? "Engellenen sohbet" : "Silinen sohbet"} • ${item.messageCount} mesaj • ${relativeTime(item.expiresAt)} silinir`;
+                    body.append(title, meta);
+                    const time = document.createElement("span");
+                    time.className = "chat-time";
+                    time.textContent = relativeTime(item.createdAt);
+                    button.append(avatar, body, time);
+                    archiveList.appendChild(button);
+                });
+        }
+
+        function openArchivePassword(item) {
+            openModal("Arşiv şifresi", body => {
+                const note = document.createElement("p");
+                note.textContent = `${item.chatTitle} arşivini görmek için hesap şifreni gir.`;
+                const input = document.createElement("input");
+                input.id = "archivePasswordInput";
+                input.type = "password";
+                input.placeholder = "Şifre";
+                body.append(note, input);
+                setTimeout(() => input.focus(), 60);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Aç", primary: true, onClick: () => loadArchive(item, $("archivePasswordInput").value) }
+            ]);
+        }
+
+        async function loadArchive(item, password) {
+            const response = await fetch(`/account/${state.me.username}/archives/${item.id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Arşiv açılamadı.");
+                return;
+            }
+            renderArchiveModal(data.archive, password);
+        }
+
+        function renderArchiveModal(archive, password) {
+            openModal(archive.chatTitle, body => {
+                const info = document.createElement("div");
+                info.className = "last-message";
+                info.textContent = `${archive.reason === "blocked" ? "Engellenen sohbet" : "Silinen sohbet"} • ${archive.messageCount} mesaj • ${relativeTime(archive.expiresAt)} kalıcı silinir`;
+                const list = document.createElement("div");
+                list.className = "archive-view";
+                (archive.messages || []).forEach(message => {
+                    const row = document.createElement("div");
+                    row.className = "archive-message";
+                    const sender = document.createElement("strong");
+                    sender.textContent = message.senderName || message.sender;
+                    const text = document.createElement("div");
+                    text.textContent = message.deletedAt ? "Bu mesaj silindi" : (message.body || message.attachment?.name || "Medya");
+                    const time = document.createElement("div");
+                    time.className = "last-message";
+                    time.textContent = formatTime(message.createdAt);
+                    row.append(sender, text);
+                    if (message.attachment) {
+                        row.appendChild(renderAttachment(message.attachment));
+                    }
+                    row.appendChild(time);
+                    list.appendChild(row);
+                });
+                body.append(info, list);
+            }, [
+                { label: "Kapat", onClick: closeModal },
+                { label: "Kalıcı sil", primary: true, onClick: () => deleteArchive(archive.id, password) }
+            ]);
+        }
+
+        async function deleteArchive(archiveId, password) {
+            const response = await fetch(`/account/${state.me.username}/archives/${archiveId}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Arşiv silinemedi.");
+                return;
+            }
+            state.archives = data.archives || [];
+            closeModal();
+            renderArchives();
+            showToast("Arşiv kalıcı olarak silindi.");
         }
 
         function renderContacts() {
@@ -2799,10 +2971,10 @@
                     text.textContent = "Bu kişiyle sohbet edebilir, arayabilir veya engelleyebilirsin.";
                     body.appendChild(text);
                 }, [
-                    { label: "Sohbeti Aç", primary: true, onClick: () => { closeModal(); socket.emit("chat:create", { target: user.username }); } },
+                    { label: "Sohbeti Aç", primary: true, onClick: () => { closeModal(); state.openNextChat = true; socket.emit("chat:create", { target: user.username }); } },
                     { label: "Engelle", onClick: () => {
                         closeModal();
-                        socket.emit("user:block", { username: user.username, blocked: true });
+                        openBlockMenu(user);
                     } }
                 ]);
                 return;
@@ -2812,8 +2984,34 @@
                 return;
             }
             confirmModal("Mesajlaşma isteği", `${user.displayName} kişisine mesajlaşma isteği gönderilsin mi?`, () => {
+                state.openNextChat = true;
                 socket.emit("chat:create", { target: user.username });
             });
+        }
+
+        function openBlockMenu(user) {
+            openModal("Kişiyi engelle", body => {
+                const text = document.createElement("p");
+                text.textContent = `${user.displayName} engellendiğinde sana mesaj veya arama gönderemez. Eski sohbeti 3 gün arşive alabilir veya kalıcı silebilirsin.`;
+                body.appendChild(text);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Arşive al",
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("user:block", { username: user.username, blocked: true, archiveMode: "archive" });
+                    }
+                },
+                {
+                    label: "Kalıcı sil",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("user:block", { username: user.username, blocked: true, archiveMode: "permanent" });
+                    }
+                }
+            ]);
         }
 
         function openNewCallModal() {
@@ -2878,7 +3076,11 @@
                     primary: !blocked,
                     onClick: () => {
                         closeModal();
-                        socket.emit("user:block", { username: user.username, blocked: !blocked });
+                        if (blocked) {
+                            socket.emit("user:block", { username: user.username, blocked: false });
+                        } else {
+                            openBlockMenu(user);
+                        }
                     }
                 }
             ]);
@@ -2947,6 +3149,7 @@
                 $("backButton").classList.add("hidden");
                 $("groupMembersButton").classList.remove("visible");
                 $("leaveGroupButton").classList.add("hidden");
+                $("deleteChatButton").classList.add("hidden");
                 $("callButton").classList.add("hidden");
                 $("videoButton").classList.add("hidden");
                 messageBox.innerHTML = "";
@@ -2967,11 +3170,19 @@
             $("callButton").classList.remove("hidden");
             $("videoButton").classList.remove("hidden");
             $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
+            $("deleteChatButton").classList.remove("hidden");
             const me = chat.members.find(member => member.username === state.me.username);
             $("groupMembersButton").classList.toggle("visible", chat.type === "group" && chat.id !== "lobby" && Boolean(me?.isAdmin));
             messageBox.innerHTML = "";
 
+            const markerId = state.newMessageMarkers[chat.id];
             chat.messages.forEach(message => {
+                if (markerId && message.id === markerId) {
+                    const divider = document.createElement("div");
+                    divider.className = "new-message-divider";
+                    divider.innerHTML = "<span>Yeni mesajlar</span>";
+                    messageBox.appendChild(divider);
+                }
                 const mine = message.sender === state.me.username;
                 const bubble = document.createElement("article");
                 bubble.className = "bubble" + (mine ? " mine" : "");
@@ -3034,7 +3245,8 @@
             });
 
             messageBox.scrollTop = messageBox.scrollHeight;
-            if (chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
+            const readableSection = state.activeSection === "chats" || state.activeSection === "groups";
+            if (document.visibilityState === "visible" && readableSection && chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
                 socket.emit("message:read", { chatId: chat.id });
             }
         }
@@ -3044,6 +3256,35 @@
                 return chat.members.some(member => member.username !== state.me.username && member.online);
             }
             return chat.members.some(member => member.username !== state.me.username && member.online);
+        }
+
+        function openDeleteChatMenu() {
+            const chat = activeChat();
+            if (!chat) {
+                return;
+            }
+            openModal("Sohbeti sil", body => {
+                const text = document.createElement("p");
+                text.textContent = "Bu sohbeti listenden kaldırabilirsin. Arşive alırsan mesajlar 3 gün şifreli arşivde kalır; kalıcı silersen arşive eklenmez.";
+                body.appendChild(text);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Arşive al",
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("chat:delete", { chatId: chat.id, mode: "archive" });
+                    }
+                },
+                {
+                    label: "Kalıcı sil",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("chat:delete", { chatId: chat.id, mode: "permanent" });
+                    }
+                }
+            ]);
         }
 
         function openMessageMenu(message) {
@@ -3177,6 +3418,7 @@
 
             socket.emit("message:send", { chatId: chat.id, body, attachment: state.attachment, replyTo: state.replyTo });
             socket.emit("typing", { chatId: chat.id, typing: false });
+            delete state.newMessageMarkers[chat.id];
             input.value = "";
             input.placeholder = "Mesaj";
             state.attachment = null;
@@ -3283,6 +3525,7 @@
                         showToast("Grup adı en az 2 karakter olmalı.");
                         return;
                     }
+                    state.openNextChat = true;
                     socket.emit("chat:group:create", { title, members, image: imageData });
                     closeModal();
                 } }
@@ -3344,10 +3587,14 @@
 
         function joinGeneralGroup(confirmFirst) {
             if (confirmFirst) {
-                confirmModal("Genel Grup", "Genel Gruba katılmak ister misin?", () => socket.emit("chat:lobby:join"));
+                confirmModal("Genel Grup", "Genel Gruba katılmak ister misin?", () => {
+                    state.openNextChat = true;
+                    socket.emit("chat:lobby:join");
+                });
                 return;
             }
 
+            state.openNextChat = true;
             socket.emit("chat:lobby:join");
         }
 
@@ -4352,12 +4599,14 @@
             renderGroups();
             renderCalls();
             renderContacts();
+            renderArchives();
         };
         document.querySelectorAll(".nav-tab").forEach(tab => {
             tab.onclick = () => {
                 if (state.activeSection === tab.dataset.section) {
                     return;
                 }
+                clearActiveNewMarker();
                 state.activeSection = tab.dataset.section;
                 state.activeChatId = null;
                 renderSections();
@@ -4396,6 +4645,7 @@
         $("storyButton").onclick = createStory;
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
+        $("deleteChatButton").onclick = openDeleteChatMenu;
         $("leaveGroupButton").onclick = leaveCurrentGroup;
         $("groupMembersButton").onclick = showActiveMembers;
         $("activeStatus").onclick = () => {
@@ -4461,14 +4711,21 @@
         });
 
         socket.on("chat:upsert", chat => {
+            const shouldOpen = state.openNextChat || state.activeChatId === chat.id;
             upsertChat(chat);
-            state.activeChatId = chat.id;
+            state.openNextChat = false;
+            if (shouldOpen) {
+                state.activeChatId = chat.id;
+            }
             render();
-            openMobileChat();
+            if (shouldOpen) {
+                openMobileChat();
+            }
         });
 
         socket.on("chat:remove", data => {
             state.chats = state.chats.filter(chat => chat.id !== data.chatId);
+            delete state.newMessageMarkers[data.chatId];
             state.activeChatId = null;
             render();
             closeMobileChat();
@@ -4505,6 +4762,11 @@
             renderGroups();
             renderContacts();
             renderActiveChat();
+        });
+
+        socket.on("archive:update", archives => {
+            state.archives = archives || [];
+            renderArchives();
         });
 
         socket.on("account:deleted", () => {

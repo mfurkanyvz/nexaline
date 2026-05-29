@@ -187,6 +187,27 @@ class GroupInvite(db.Model):
     chat = db.relationship("Chat")
 
 
+class HiddenChat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    chat_id = db.Column(db.String(140), nullable=False)
+    hidden_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (db.UniqueConstraint("username", "chat_id", name="unique_hidden_chat"),)
+
+
+class ChatArchive(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    chat_id = db.Column(db.String(140), nullable=False)
+    chat_title = db.Column(db.String(160), nullable=False)
+    chat_type = db.Column(db.String(20), nullable=False)
+    reason = db.Column(db.String(20), nullable=False, default="deleted")
+    messages = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime, nullable=False)
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -210,19 +231,21 @@ def is_past(value):
 def public_user(username, viewer=None):
     user = db.session.get(User, username)
     is_self = viewer == username
+    blocked = bool(viewer and viewer != username and is_blocked_between(viewer, username))
     online = any(name == username for name in connections.values())
-    show_online = is_self or not bool(user.hide_online if user else False)
-    show_last_seen = is_self or not bool(user.hide_last_seen if user else False)
-    show_email = is_self or not bool(user.hide_email if user else True)
+    show_online = not blocked and (is_self or not bool(user.hide_online if user else False))
+    show_last_seen = not blocked and (is_self or not bool(user.hide_last_seen if user else False))
+    show_email = not blocked and (is_self or not bool(user.hide_email if user else True))
     return {
         "username": username,
         "displayName": user.display_name if user else username,
         "avatar": user.avatar if user else username[:2].upper(),
-        "profileImage": user.profile_image if user else None,
-        "about": user.about if user else "NexaLine kullanıyorum.",
+        "profileImage": None if blocked else user.profile_image if user else None,
+        "about": "" if blocked else user.about if user else "NexaLine kullanıyorum.",
         "email": user.email if user and show_email else None,
         "online": online if show_online else False,
         "lastSeen": now_iso() if online and show_online else to_iso(user.last_seen) if user and show_last_seen else None,
+        "blocked": blocked,
         "privacy": {
             "lastSeenHidden": bool(user.hide_last_seen) if user else False,
             "onlineHidden": bool(user.hide_online) if user else False,
@@ -289,6 +312,92 @@ def message_to_dict(message):
         "deletedBy": message.deleted_by,
         "deletedFor": message.deleted_for or [],
     }
+
+
+def purge_expired_archives():
+    ChatArchive.query.filter(ChatArchive.expires_at <= datetime.now(timezone.utc)).delete(synchronize_session=False)
+    db.session.commit()
+
+
+def archive_to_summary(archive):
+    return {
+        "id": archive.id,
+        "chatId": archive.chat_id,
+        "chatTitle": archive.chat_title,
+        "chatType": archive.chat_type,
+        "reason": archive.reason,
+        "messageCount": len(archive.messages or []),
+        "createdAt": to_iso(archive.created_at),
+        "expiresAt": to_iso(archive.expires_at),
+    }
+
+
+def visible_archives(username):
+    purge_expired_archives()
+    rows = ChatArchive.query.filter_by(username=username).order_by(ChatArchive.created_at.desc()).all()
+    return [archive_to_summary(row) for row in rows]
+
+
+def verify_user_password(username, password):
+    user = db.session.get(User, username)
+    return bool(user and password and check_password_hash(user.password_hash, password))
+
+
+def visible_messages_for_archive(chat, username):
+    return [
+        message_to_dict(message)
+        for message in chat.messages
+        if username not in (message.deleted_for or [])
+    ]
+
+
+def hide_chat_messages_for_user(chat, username):
+    for message in chat.messages:
+        deleted_for = list(message.deleted_for or [])
+        if username not in deleted_for:
+            deleted_for.append(username)
+            message.deleted_for = deleted_for
+
+    hidden = HiddenChat.query.filter_by(username=username, chat_id=chat.id).first()
+    if hidden:
+        hidden.hidden_at = datetime.now(timezone.utc)
+    else:
+        db.session.add(HiddenChat(username=username, chat_id=chat.id))
+
+
+def chat_has_visible_messages_after(chat, username, hidden_at):
+    if hidden_at.tzinfo is None:
+        hidden_at = hidden_at.replace(tzinfo=timezone.utc)
+    for message in chat.messages:
+        if username in (message.deleted_for or []):
+            continue
+        created_at = message.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if created_at > hidden_at:
+            return True
+    return False
+
+
+def archive_chat_for_user(chat, username, reason="deleted"):
+    messages = visible_messages_for_archive(chat, username)
+    if not messages:
+        hide_chat_messages_for_user(chat, username)
+        return None
+
+    archive = ChatArchive(
+        id=uuid4().hex,
+        username=username,
+        chat_id=chat.id,
+        chat_title=chat_for_user(chat, username)["title"],
+        chat_type=chat.type,
+        reason=reason,
+        messages=messages,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=3),
+    )
+    db.session.add(archive)
+    hide_chat_messages_for_user(chat, username)
+    return archive
 
 
 def call_log_to_dict(log, username):
@@ -434,10 +543,14 @@ def chat_for_user(chat, username):
 
 def visible_chats(username):
     ensure_lobby()
+    purge_expired_archives()
     result = []
 
     for chat in Chat.query.order_by(Chat.created_at).all():
         if user_can_see_chat(chat, username):
+            hidden = HiddenChat.query.filter_by(username=username, chat_id=chat.id).first()
+            if hidden and not chat_has_visible_messages_after(chat, username, hidden.hidden_at):
+                continue
             result.append(chat_for_user(chat, username))
 
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
@@ -549,6 +662,7 @@ def emit_social_updates(*usernames):
                     "contactRequests": visible_contact_requests(username),
                     "groupInvites": visible_group_invites(username),
                     "blockedUsers": blocked_users_for(username),
+                    "archives": visible_archives(username),
                 },
                 room=sid,
             )
@@ -1211,6 +1325,45 @@ def update_privacy(username):
     return jsonify({"ok": True, "message": "Gizlilik ayarları güncellendi.", "user": private_user(username)})
 
 
+@app.route("/account/<username>/archives/<archive_id>", methods=["POST"])
+def read_archive(username, archive_id):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    if not verify_user_password(username, data.get("password") or ""):
+        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
+
+    purge_expired_archives()
+    archive = db.session.get(ChatArchive, archive_id)
+    if not archive or archive.username != username:
+        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+
+    return jsonify(
+        {
+            "ok": True,
+            "archive": {
+                **archive_to_summary(archive),
+                "messages": archive.messages or [],
+            },
+        }
+    )
+
+
+@app.route("/account/<username>/archives/<archive_id>", methods=["DELETE"])
+def delete_archive(username, archive_id):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    if not verify_user_password(username, data.get("password") or ""):
+        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
+
+    archive = db.session.get(ChatArchive, archive_id)
+    if not archive or archive.username != username:
+        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+
+    db.session.delete(archive)
+    db.session.commit()
+    return jsonify({"ok": True, "archives": visible_archives(username)})
+
+
 @app.route("/account/<username>", methods=["DELETE"])
 def delete_account(username):
     try:
@@ -1232,8 +1385,11 @@ def delete_account(username):
         BlockedUser.query.filter(db.or_(BlockedUser.blocker == username, BlockedUser.blocked == username)).delete(synchronize_session=False)
         ContactRequest.query.filter(db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username)).delete(synchronize_session=False)
         GroupInvite.query.filter(db.or_(GroupInvite.inviter == username, GroupInvite.invitee == username)).delete(synchronize_session=False)
+        HiddenChat.query.filter_by(username=username).delete(synchronize_session=False)
+        ChatArchive.query.filter_by(username=username).delete(synchronize_session=False)
         if direct_chat_ids:
             CallLog.query.filter(CallLog.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
+            HiddenChat.query.filter(HiddenChat.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
 
         for member in member_rows:
             if member.chat and member.chat.type == "group":
@@ -1277,6 +1433,8 @@ def delete_all_users():
         BlockedUser.query.delete(synchronize_session=False)
         ContactRequest.query.delete(synchronize_session=False)
         GroupInvite.query.delete(synchronize_session=False)
+        HiddenChat.query.delete(synchronize_session=False)
+        ChatArchive.query.delete(synchronize_session=False)
         ChatMember.query.delete(synchronize_session=False)
 
         for chat in Chat.query.filter(Chat.id != "lobby").all():
@@ -1359,11 +1517,14 @@ def admin_delete_user(username):
     BlockedUser.query.filter(db.or_(BlockedUser.blocker == user.username, BlockedUser.blocked == user.username)).delete(synchronize_session=False)
     ContactRequest.query.filter(db.or_(ContactRequest.from_username == user.username, ContactRequest.to_username == user.username)).delete(synchronize_session=False)
     GroupInvite.query.filter(db.or_(GroupInvite.inviter == user.username, GroupInvite.invitee == user.username)).delete(synchronize_session=False)
+    HiddenChat.query.filter_by(username=user.username).delete(synchronize_session=False)
+    ChatArchive.query.filter_by(username=user.username).delete(synchronize_session=False)
     member_rows = ChatMember.query.filter_by(username=user.username).all()
     direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
     group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
     if direct_chat_ids:
         CallLog.query.filter(CallLog.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
+        HiddenChat.query.filter(HiddenChat.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
     for member in member_rows:
         db.session.delete(member)
     for chat_id in direct_chat_ids:
@@ -1448,6 +1609,7 @@ def admin_delete_chat(chat_id):
 
     affected_members = chat_member_names(chat)
     GroupInvite.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+    HiddenChat.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
     db.session.delete(chat)
     db.session.commit()
 
@@ -1476,6 +1638,7 @@ def bootstrap(username):
             "contactRequests": visible_contact_requests(username),
             "groupInvites": visible_group_invites(username),
             "blockedUsers": blocked_users_for(username),
+            "archives": visible_archives(username),
         }
     )
 
@@ -1515,6 +1678,7 @@ def handle_user_join(data):
             "contactRequests": visible_contact_requests(username),
             "groupInvites": visible_group_invites(username),
             "blockedUsers": blocked_users_for(username),
+            "archives": visible_archives(username),
         },
     )
     broadcast_presence()
@@ -1552,6 +1716,7 @@ def handle_user_block(data):
     username = connections.get(request.sid)
     target = (data or {}).get("username", "").strip().lower()
     blocked = bool((data or {}).get("blocked", True))
+    archive_mode = (data or {}).get("archiveMode") or "keep"
 
     if not username or target == username or not db.session.get(User, target):
         emit("notice", {"message": "Kullanıcı bulunamadı."})
@@ -1559,6 +1724,12 @@ def handle_user_block(data):
 
     row = BlockedUser.query.filter_by(blocker=username, blocked=target).first()
     if blocked and not row:
+        chat = find_direct_chat(username, target)
+        if chat and archive_mode in {"archive", "permanent"}:
+            if archive_mode == "archive":
+                archive_chat_for_user(chat, username, "blocked")
+            else:
+                hide_chat_messages_for_user(chat, username)
         db.session.add(BlockedUser(blocker=username, blocked=target))
     elif not blocked and row:
         db.session.delete(row)
@@ -1599,6 +1770,8 @@ def handle_chat_create(data):
         return
 
     chat = ensure_direct_chat(username, target)
+    HiddenChat.query.filter_by(username=username, chat_id=chat.id).delete(synchronize_session=False)
+    db.session.commit()
     join_room(chat.id)
     emit("chat:upsert", chat_for_user(chat, username), room=request.sid)
 
@@ -1830,6 +2003,32 @@ def handle_chat_leave(data):
         emit_general_group_updates()
 
 
+@socketio.on("chat:delete")
+def handle_chat_delete(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+    mode = data.get("mode") or "archive"
+
+    if not username or not chat or not user_can_see_chat(chat, username):
+        return
+
+    if mode not in {"archive", "permanent"}:
+        mode = "archive"
+
+    if mode == "archive":
+        archive_chat_for_user(chat, username, "deleted")
+        message = "Sohbet 3 gunluk arsive alindi."
+    else:
+        hide_chat_messages_for_user(chat, username)
+        message = "Sohbet kalici olarak silindi."
+
+    db.session.commit()
+    emit("chat:remove", {"chatId": chat.id}, room=request.sid)
+    emit("archive:update", visible_archives(username), room=request.sid)
+    emit("notice", {"message": message})
+
+
 @socketio.on("message:send")
 def handle_message_send(data):
     username = connections.get(request.sid)
@@ -1861,6 +2060,7 @@ def handle_message_send(data):
         read_by=[username],
     )
     db.session.add(message)
+    HiddenChat.query.filter_by(username=username, chat_id=chat.id).delete(synchronize_session=False)
     db.session.commit()
     emit("message:new", message_to_dict(message), room=chat.id)
 
