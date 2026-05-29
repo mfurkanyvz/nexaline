@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <meta name="theme-color" content="#10141d">
     <meta name="application-name" content="NexaLine">
     <meta name="mobile-web-app-capable" content="yes">
@@ -184,6 +184,47 @@
             color: #cdd7ea;
             font-size: 13px;
             font-weight: 700;
+        }
+
+        .pane-transition,
+        .empty-chat {
+            position: absolute;
+            inset: 72px 0 0;
+            z-index: 4;
+            display: grid;
+            place-items: center;
+            pointer-events: none;
+            background: rgba(4, 6, 10, 0.72);
+        }
+
+        .pane-transition {
+            opacity: 0;
+            transition: opacity 160ms ease;
+        }
+
+        .pane-transition.active {
+            opacity: 1;
+        }
+
+        .pane-loader,
+        .empty-chat-inner {
+            display: grid;
+            place-items: center;
+            gap: 12px;
+        }
+
+        .pane-loader img,
+        .empty-chat-inner img {
+            width: 92px;
+            height: 92px;
+            object-fit: contain;
+            animation: logoPulse 1600ms ease-in-out infinite;
+            filter: drop-shadow(0 18px 32px rgba(47, 140, 255, 0.24));
+        }
+
+        .empty-chat.hidden,
+        .pane-transition.hidden {
+            display: none;
         }
 
         @keyframes logoShine {
@@ -601,6 +642,7 @@
         }
 
         .chat-pane {
+            position: relative;
             display: grid;
             height: 100%;
             min-height: 0;
@@ -1128,6 +1170,72 @@
             animation: panelEnter 260ms ease both;
         }
 
+        .story-reply {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .story-reply input {
+            min-width: 0;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            outline: none;
+            color: var(--text);
+            background: #090c13;
+        }
+
+        .story-reply button,
+        .media-actions a,
+        .media-actions button {
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: #fff;
+            text-decoration: none;
+            background: var(--panel-3);
+        }
+
+        .media-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+
+        .media-viewer-image {
+            display: block;
+            max-width: min(82vw, 900px);
+            max-height: 72vh;
+            border-radius: 8px;
+            object-fit: contain;
+            background: #000;
+        }
+
+        .privacy-grid {
+            display: grid;
+            gap: 8px;
+            padding: 10px 0;
+        }
+
+        .toggle-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .toggle-row input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--blue);
+        }
+
         .story-head {
             display: flex;
             align-items: center;
@@ -1234,6 +1342,11 @@
                 height: var(--app-height);
                 max-height: var(--app-height);
                 grid-template-rows: 64px minmax(0, 1fr) auto;
+            }
+
+            .pane-transition,
+            .empty-chat {
+                inset: 64px 0 0;
             }
 
             .app.chat-open .sidebar {
@@ -1541,6 +1654,18 @@
 
             <div id="messages" class="messages"></div>
 
+            <div id="emptyChat" class="empty-chat hidden" aria-hidden="true">
+                <div class="empty-chat-inner">
+                    <img src="/static/nexaline-mark.png" alt="">
+                </div>
+            </div>
+
+            <div id="paneTransition" class="pane-transition hidden" aria-hidden="true">
+                <div class="pane-loader">
+                    <img src="/static/nexaline-mark.png" alt="">
+                </div>
+            </div>
+
             <footer class="composer">
                 <div id="replyPreview" class="reply-preview hidden"></div>
                 <div id="voiceWave" class="voice-wave"></div>
@@ -1611,12 +1736,37 @@
             </div>
             <div class="settings-row">
                 <div>
+                    <strong>Gizlilik</strong>
+                    <div class="last-message">Son görülme, çevrim içi, okundu ve Gmail</div>
+                </div>
+            </div>
+            <div class="privacy-grid">
+                <label class="toggle-row">
+                    <span>Son görülmemi gizle</span>
+                    <input id="hideLastSeenInput" type="checkbox">
+                </label>
+                <label class="toggle-row">
+                    <span>Çevrim içi durumumu gizle</span>
+                    <input id="hideOnlineInput" type="checkbox">
+                </label>
+                <label class="toggle-row">
+                    <span>Okundu bilgisini kapat</span>
+                    <input id="readReceiptsInput" type="checkbox">
+                </label>
+                <label class="toggle-row">
+                    <span>Gmail adresimi gizle</span>
+                    <input id="hideEmailInput" type="checkbox">
+                </label>
+            </div>
+            <button id="savePrivacyButton" class="primary" type="button">Gizliliği Kaydet</button>
+            <div class="settings-row">
+                <div>
                     <strong>Hesap</strong>
                     <div class="last-message">Çıkış veya hesabı sil</div>
                 </div>
-                <button id="settingsLogoutButton" type="button">Çıkış</button>
+                <button id="settingsDeleteButton" type="button">Hesabı Sil</button>
             </div>
-            <button id="settingsDeleteButton" class="primary" type="button">Hesabı Sil</button>
+            <button id="settingsLogoutButton" class="primary" type="button">Çıkış</button>
         </div>
     </section>
 
@@ -1678,11 +1828,16 @@
             blockedUsers: [],
             transitionTimer: null,
             transitionHideTimer: null,
+            paneTransitionTimer: null,
+            paneTransitionHideTimer: null,
             activeSection: "chats",
-            activeChatId: "lobby",
+            activeChatId: null,
+            bootReady: false,
             typing: {},
             attachment: null,
             replyTo: null,
+            storyQueue: [],
+            activeStoryIndex: 0,
             waveTimer: null,
             pendingStoryBody: "",
             generalGroup: null,
@@ -1716,6 +1871,9 @@
                 requestAnimationFrame(() => {
                     const messageBox = $("messages");
                     messageBox.scrollTop = messageBox.scrollHeight;
+                    if (document.activeElement === $("messageInput")) {
+                        $("messageInput").scrollIntoView({ block: "end" });
+                    }
                 });
             }
         }
@@ -1755,8 +1913,33 @@
             }, duration);
         }
 
+        function hideScreenTransition() {
+            const overlay = $("screenTransition");
+            clearTimeout(state.transitionTimer);
+            clearTimeout(state.transitionHideTimer);
+            overlay.classList.remove("active");
+            overlay.classList.add("hidden");
+        }
+
+        function showPaneTransition(duration = 650) {
+            const overlay = $("paneTransition");
+            clearTimeout(state.paneTransitionTimer);
+            clearTimeout(state.paneTransitionHideTimer);
+            overlay.classList.remove("active", "hidden");
+            void overlay.offsetWidth;
+            overlay.classList.add("active");
+            state.paneTransitionTimer = setTimeout(() => {
+                overlay.classList.remove("active");
+                state.paneTransitionHideTimer = setTimeout(() => overlay.classList.add("hidden"), 170);
+            }, duration);
+        }
+
         function transitionThen(work, label, duration = 900) {
-            showScreenTransition(label, duration);
+            if (isMobileView()) {
+                showScreenTransition(label, duration);
+            } else {
+                showPaneTransition(duration);
+            }
             setTimeout(() => work?.(), Math.min(520, duration - 220));
         }
 
@@ -1777,7 +1960,6 @@
         }
 
         function openModal(title, buildBody, actions = []) {
-            showScreenTransition(title, 650);
             $("modalTitle").textContent = title;
             const body = $("modalBody");
             const actionBar = $("modalActions");
@@ -1895,7 +2077,9 @@
         }
 
         function closeMobileChat() {
+            state.activeChatId = null;
             $("app").classList.remove("chat-open");
+            render();
         }
 
         function setAuthMode(mode) {
@@ -1917,6 +2101,8 @@
 
             $("loginTab").classList.toggle("active", !isRegister);
             $("registerTab").classList.toggle("active", isRegister);
+            $("username").placeholder = isRegister ? "İsim soyisim" : "Gmail adresi";
+            $("username").autocomplete = isRegister ? "name" : "email";
             show("registerProgress", isRegister);
             show("username", !isRegister || step === 0);
             show("email", isRegister && step === 1);
@@ -1941,7 +2127,7 @@
 
             if (isRegister && !$("authStatus").textContent) {
                 const hints = [
-                    "Önce benzersiz kullanıcı adını yaz.",
+                    "Önce isim ve soyismini yaz.",
                     "Gmail adresine doğrulama kodu göndereceğiz.",
                     "Gmail'e gelen 6 haneli kodu yaz.",
                     "Güçlü şifreni iki kez yaz."
@@ -1985,12 +2171,12 @@
                 return;
             }
 
-            const username = $("username").value.trim();
+            const email = $("username").value.trim();
             const password = $("password").value;
             const response = await fetch("/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ email, password })
             });
             const data = await response.json();
 
@@ -2000,35 +2186,34 @@
             }
 
             state.me = data.user;
-            localStorage.setItem("nexalineUser", username.toLowerCase());
+            localStorage.setItem("nexalineUser", data.user.username);
             openApp();
         }
 
         async function submitRegisterStep() {
-            const username = $("username").value.trim().toLowerCase();
+            const displayName = $("username").value.trim();
             const email = $("email").value.trim();
             const code = $("verificationCode").value.trim();
             const password = $("password").value;
             const confirmPassword = $("confirmPassword").value;
 
             if (state.registerStep === 0) {
-                const response = await fetch("/register/check-username", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username })
-                });
-                const data = await response.json();
-                if (!data.ok) {
-                    $("authStatus").textContent = data.message;
+                if (displayName.length < 2 || displayName.length > 80 || !displayName.includes(" ")) {
+                    $("authStatus").textContent = "İsim ve soyisim yazmalısın.";
                     return;
                 }
-                state.pendingRegister = { username, email: "" };
+                state.pendingRegister = { displayName, username: "", email: "" };
                 setRegisterStep(1);
                 return;
             }
 
             if (state.registerStep === 1) {
-                const payload = { username: state.pendingRegister?.username || username, email };
+                const generated = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 36) || "nexaline";
+                const payload = {
+                    displayName: state.pendingRegister?.displayName || displayName,
+                    username: `${generated}${Date.now().toString().slice(-5)}`,
+                    email
+                };
                 const response = await fetch("/register", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -2090,7 +2275,7 @@
         }
 
         async function openApp() {
-            showScreenTransition("NexaLine aciliyor", 1050);
+            showScreenTransition("NexaLine açılıyor", 12000);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
             await loadRtcConfig();
@@ -2119,6 +2304,7 @@
             const data = await response.json();
 
             if (data.ok) {
+                const currentChatId = state.activeChatId;
                 state.me = data.user;
                 state.users = data.users;
                 state.chats = data.chats;
@@ -2126,8 +2312,10 @@
                 state.stories = data.stories || [];
                 state.callLogs = data.callLogs || [];
                 hydrateRealtimeState(data);
-                state.activeChatId = state.chats[0]?.id || "lobby";
+                state.activeChatId = currentChatId && state.chats.some(chat => chat.id === currentChatId) ? currentChatId : null;
+                state.bootReady = true;
                 render();
+                hideScreenTransition();
                 maybePromptGeneralGroup();
             }
         }
@@ -2180,7 +2368,7 @@
             state.stories.forEach(story => {
                 const button = document.createElement("button");
                 button.className = "story-item";
-                button.onclick = () => showStory(story);
+                button.onclick = () => showStory(story, state.stories.filter(item => item.username === story.username));
 
                 const avatar = document.createElement("div");
                 avatar.className = "avatar" + (story.user.online ? " online" : "");
@@ -2215,13 +2403,16 @@
                 return;
             }
 
-            showStory(stories[0]);
+            showStory(stories[0], stories);
         }
 
-        function showStory(story) {
-            showScreenTransition("Durum aciliyor", 750);
+        function showStory(story, queue = null) {
+            if (queue) {
+                state.storyQueue = queue;
+                state.activeStoryIndex = Math.max(0, queue.findIndex(item => item.id === story.id));
+            }
             const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-            $("storyTitle").textContent = `${story.user.displayName} (@${story.username})`;
+            $("storyTitle").textContent = story.user.displayName;
             $("storyMeta").textContent = `${relativeTime(story.createdAt)} paylaşıldı • Bitiş: ${expires}`;
             const body = $("storyBody");
             body.innerHTML = "";
@@ -2243,6 +2434,22 @@
                     closeStoryPanel();
                 };
                 body.appendChild(deleteButton);
+            } else {
+                const reply = document.createElement("div");
+                reply.className = "story-reply";
+                reply.innerHTML = `<input id="storyReplyInput" placeholder="Duruma yanıt yaz"><button id="storyReplyButton" type="button">Yanıtla</button>`;
+                body.appendChild(reply);
+                $("storyReplyButton").onclick = event => {
+                    event.stopPropagation();
+                    const value = $("storyReplyInput").value.trim();
+                    if (!value) {
+                        return;
+                    }
+                    socket.emit("story:reply", { storyId: story.id, body: value });
+                    $("storyReplyInput").value = "";
+                    closeStoryPanel();
+                };
+                $("storyReplyInput").onclick = event => event.stopPropagation();
             }
             $("storyPanel").classList.remove("hidden");
         }
@@ -2250,6 +2457,20 @@
         function closeStoryPanel() {
             $("storyPanel").classList.add("hidden");
             $("storyBody").innerHTML = "";
+            state.storyQueue = [];
+            state.activeStoryIndex = 0;
+        }
+
+        function showNextStory() {
+            if (!state.storyQueue.length) {
+                return;
+            }
+            state.activeStoryIndex += 1;
+            if (state.activeStoryIndex >= state.storyQueue.length) {
+                closeStoryPanel();
+                return;
+            }
+            showStory(state.storyQueue[state.activeStoryIndex]);
         }
 
         function renderStoryAttachment(attachment) {
@@ -2266,6 +2487,10 @@
                 image.className = "story-media";
                 image.src = attachment.dataUrl;
                 image.alt = attachment.name || "Durum";
+                image.onclick = event => {
+                    event.stopPropagation();
+                    openMediaViewer(attachment);
+                };
                 return image;
             }
             const link = document.createElement("a");
@@ -2308,13 +2533,13 @@
 
             state.chats
                 .filter(chat => chat.type !== "group")
+                .filter(chat => !otherMember(chat) || !state.blockedUsers.includes(otherMember(chat).username))
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
                 .forEach(chat => {
                     const button = document.createElement("button");
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
                     button.onclick = () => {
                         state.activeChatId = chat.id;
-                        socket.emit("message:read", { chatId: chat.id });
                         transitionThen(() => {
                             render();
                             openMobileChat();
@@ -2365,6 +2590,12 @@
             const groupList = $("groupList");
             groupList.innerHTML = "";
 
+            const create = document.createElement("button");
+            create.className = "chat-item";
+            create.onclick = createGroup;
+            create.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Yeni grup</strong><div class="last-message">Kişi listesinden grup oluştur</div></div><span class="chat-time"></span>`;
+            groupList.appendChild(create);
+
             state.groupInvites
                 .filter(invite => invite.status === "pending" && invite.invitee?.username === state.me.username)
                 .forEach(invite => {
@@ -2406,7 +2637,6 @@
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
                     button.onclick = () => {
                         state.activeChatId = chat.id;
-                        socket.emit("message:read", { chatId: chat.id });
                         transitionThen(() => {
                             render();
                             openMobileChat();
@@ -2450,8 +2680,14 @@
             const callList = $("callList");
             callList.innerHTML = "";
 
+            const create = document.createElement("button");
+            create.className = "call-item";
+            create.onclick = openNewCallModal;
+            create.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Yeni arama</strong><div class="last-message">Kişi seçip sesli veya görüntülü ara</div></div><span class="chat-time"></span>`;
+            callList.appendChild(create);
+
             if (!state.callLogs.length) {
-                callList.innerHTML = `<button class="call-item"><div class="avatar">☎</div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`;
+                callList.insertAdjacentHTML("beforeend", `<button class="call-item"><div class="avatar">☎</div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`);
                 return;
             }
 
@@ -2580,6 +2816,74 @@
             });
         }
 
+        function openNewCallModal() {
+            openModal("Yeni arama", body => {
+                const list = document.createElement("div");
+                list.className = "check-list";
+                state.chats
+                    .filter(chat => chat.type === "direct")
+                    .forEach(chat => {
+                        const user = otherMember(chat);
+                        if (!user) {
+                            return;
+                        }
+                        const row = document.createElement("button");
+                        row.className = "contact-item";
+                        row.type = "button";
+                        row.innerHTML = `<div class="avatar">${escapeHtml(initials(user.displayName))}</div><div><strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">${user.online ? "çevrim içi" : user.lastSeen ? `son görülme ${relativeTime(user.lastSeen)}` : "son görülme kapalı"}</div></div><span></span>`;
+                        row.onclick = () => {
+                            state.activeChatId = chat.id;
+                            closeModal();
+                            render();
+                            startCall(true);
+                        };
+                        list.appendChild(row);
+                    });
+                body.appendChild(list);
+            }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        function openUserDetail(user) {
+            if (!user || user.username === state.me.username) {
+                openSettings();
+                return;
+            }
+            const blocked = state.blockedUsers.includes(user.username);
+            openModal(user.displayName, body => {
+                const wrap = document.createElement("div");
+                wrap.className = "profile-preview";
+                const avatar = document.createElement("div");
+                avatar.className = "avatar" + (user.online ? " online" : "");
+                setAvatar(avatar, user, user.displayName);
+                const text = document.createElement("div");
+                const emailText = user.email || (user.privacy?.emailHidden ? "Gmail gizli" : "Gmail yok");
+                const seenText = user.online
+                    ? "çevrim içi"
+                    : user.lastSeen
+                        ? `son görülme ${relativeTime(user.lastSeen)}`
+                        : "son görülme kapalı";
+                text.innerHTML = `
+                    <strong>${escapeHtml(user.displayName)}</strong>
+                    <div class="last-message">${escapeHtml(emailText)}</div>
+                    <div class="last-message">${escapeHtml(seenText)}</div>
+                    <div class="last-message">${escapeHtml(user.about || "")}</div>
+                `;
+                wrap.append(avatar, text);
+                body.appendChild(wrap);
+            }, [
+                { label: "Sesli ara", onClick: () => { closeModal(); startCall(true); } },
+                { label: "Görüntülü ara", onClick: () => { closeModal(); startCall(false); } },
+                {
+                    label: blocked ? "Engeli kaldır" : "Engelle",
+                    primary: !blocked,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("user:block", { username: user.username, blocked: !blocked });
+                    }
+                }
+            ]);
+        }
+
         function attachSwipeReply(bubble, message) {
             let startX = 0;
             let startY = 0;
@@ -2634,14 +2938,34 @@
             const messageBox = $("messages");
 
             if (!chat) {
+                $("activeTitle").textContent = "NexaLine";
+                $("activeStatus").textContent = "";
+                setAvatar($("activeAvatar"), "NexaLine", "NexaLine");
+                $("activeAvatar").classList.remove("online");
+                $("activeAvatar").onclick = null;
+                $("activeTitle").onclick = null;
+                $("backButton").classList.add("hidden");
+                $("groupMembersButton").classList.remove("visible");
+                $("leaveGroupButton").classList.add("hidden");
+                $("callButton").classList.add("hidden");
+                $("videoButton").classList.add("hidden");
                 messageBox.innerHTML = "";
+                $("emptyChat").classList.remove("hidden");
+                document.querySelector(".composer").classList.add("hidden");
                 return;
             }
 
+            $("emptyChat").classList.add("hidden");
+            document.querySelector(".composer").classList.remove("hidden");
             $("activeTitle").textContent = chat.title;
             setAvatar($("activeAvatar"), chat.type === "direct" ? otherMember(chat) : chat, chat.title);
             $("activeAvatar").classList.toggle("online", isChatOnline(chat));
+            $("activeAvatar").onclick = () => chat.type === "direct" ? openUserDetail(otherMember(chat)) : showActiveMembers();
+            $("activeTitle").onclick = () => chat.type === "direct" ? openUserDetail(otherMember(chat)) : showActiveMembers();
             $("activeStatus").textContent = statusText(chat);
+            $("backButton").classList.remove("hidden");
+            $("callButton").classList.remove("hidden");
+            $("videoButton").classList.remove("hidden");
             $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
             const me = chat.members.find(member => member.username === state.me.username);
             $("groupMembersButton").classList.toggle("visible", chat.type === "group" && chat.id !== "lobby" && Boolean(me?.isAdmin));
@@ -2665,7 +2989,8 @@
                 } else if (message.replyTo) {
                     const reply = document.createElement("div");
                     reply.className = "reply-context";
-                    reply.textContent = `${message.replyTo.senderName}: ${message.replyTo.body || message.replyTo.attachmentName || "Mesaj"}`;
+                    const expiredStory = message.replyTo.expiresAt && new Date(message.replyTo.expiresAt).getTime() < Date.now();
+                    reply.textContent = `${message.replyTo.senderName}: ${expiredStory ? "Silinen durum" : message.replyTo.body || message.replyTo.attachmentName || "Mesaj"}`;
                     bubble.appendChild(reply);
                 }
 
@@ -2688,7 +3013,7 @@
 
                 const meta = document.createElement("div");
                 meta.className = "message-meta";
-                const read = chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
+                const read = !state.me?.privacy?.readReceiptsOff && chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
                 const delivered = mine && !read && isDelivered(chat, message);
                 meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
                 meta.querySelector(".reply-action").onclick = event => {
@@ -2709,7 +3034,7 @@
             });
 
             messageBox.scrollTop = messageBox.scrollHeight;
-            if (!isMobileView() || $("app").classList.contains("chat-open")) {
+            if (chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
                 socket.emit("message:read", { chatId: chat.id });
             }
         }
@@ -2799,6 +3124,7 @@
                 const image = document.createElement("img");
                 image.src = attachment.dataUrl;
                 image.alt = attachment.name;
+                image.onclick = () => openMediaViewer(attachment);
                 return image;
             }
 
@@ -2818,6 +3144,26 @@
             link.download = attachment.name;
             link.textContent = `Dosya: ${attachment.name}`;
             return link;
+        }
+
+        function openMediaViewer(attachment) {
+            if (!attachment?.dataUrl) {
+                return;
+            }
+            openModal(attachment.name || "Medya", body => {
+                const image = document.createElement("img");
+                image.className = "media-viewer-image";
+                image.src = attachment.dataUrl;
+                image.alt = attachment.name || "Medya";
+                const actions = document.createElement("div");
+                actions.className = "media-actions";
+                const download = document.createElement("a");
+                download.href = attachment.dataUrl;
+                download.download = attachment.name || "nexaline-gorsel.jpg";
+                download.textContent = "İndir";
+                actions.appendChild(download);
+                body.append(image, actions);
+            }, [{ label: "Kapat", onClick: closeModal }]);
         }
 
         function sendMessage() {
@@ -3190,10 +3536,13 @@
         }
 
         function openSettings() {
-            showScreenTransition("Ayarlar aciliyor", 750);
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
             $("aboutInput").value = state.me.about || "";
+            $("hideLastSeenInput").checked = Boolean(state.me.privacy?.lastSeenHidden);
+            $("hideOnlineInput").checked = Boolean(state.me.privacy?.onlineHidden);
+            $("readReceiptsInput").checked = Boolean(state.me.privacy?.readReceiptsOff);
+            $("hideEmailInput").checked = state.me.privacy?.emailHidden !== false;
             state.profileImageDraft = state.me.profileImage || null;
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
             $("settingsPanel").classList.remove("hidden");
@@ -3223,6 +3572,27 @@
             renderProfile();
             openSettings();
             showToast("Profil güncellendi.");
+        }
+
+        async function savePrivacy() {
+            const response = await fetch(`/account/${state.me.username}/privacy`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    privacy: {
+                        lastSeenHidden: $("hideLastSeenInput").checked,
+                        onlineHidden: $("hideOnlineInput").checked,
+                        readReceiptsOff: $("readReceiptsInput").checked,
+                        emailHidden: $("hideEmailInput").checked
+                    }
+                })
+            });
+            const data = await response.json();
+            showToast(data.message);
+            if (data.ok) {
+                state.me = data.user;
+                renderProfile();
+            }
         }
 
         function chooseProfileImage() {
@@ -3342,12 +3712,17 @@
         }
 
         function logout() {
-            localStorage.removeItem("nexalineUser");
-            location.reload();
+            confirmModal("Çıkış yap", "Hesaptan çıkmak istiyor musun?", () => {
+                localStorage.removeItem("nexalineUser");
+                location.reload();
+            });
         }
 
         function activeChat() {
-            return state.chats.find(chat => chat.id === state.activeChatId) || state.chats[0];
+            if (!state.activeChatId) {
+                return null;
+            }
+            return state.chats.find(chat => chat.id === state.activeChatId) || null;
         }
 
         function upsertChat(chat) {
@@ -3983,10 +4358,10 @@
                 if (state.activeSection === tab.dataset.section) {
                     return;
                 }
-                transitionThen(() => {
-                    state.activeSection = tab.dataset.section;
-                    renderSections();
-                }, "Bolum aciliyor", 760);
+                state.activeSection = tab.dataset.section;
+                state.activeChatId = null;
+                renderSections();
+                renderActiveChat();
             };
         });
         $("attachButton").onclick = () => $("fileInput").click();
@@ -3995,6 +4370,12 @@
         $("fileInput").onchange = handleFile;
         $("storyFileInput").onchange = handleStoryFile;
         $("closeStoryButton").onclick = closeStoryPanel;
+        $("storyPanel").onclick = event => {
+            if (event.target.closest("button, input, textarea, a, video")) {
+                return;
+            }
+            showNextStory();
+        };
         $("voiceButton").onclick = toggleVoiceRecording;
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("settingsButton").onclick = openSettings;
@@ -4006,6 +4387,7 @@
         };
         $("profileImageInput").onchange = handleProfileImage;
         $("saveProfileButton").onclick = saveProfile;
+        $("savePrivacyButton").onclick = savePrivacy;
         $("changeEmailButton").onclick = changeAccountEmail;
         $("changePasswordButton").onclick = changeAccountPassword;
         $("settingsDeleteButton").onclick = deleteAccount;
@@ -4016,7 +4398,13 @@
         $("backButton").onclick = closeMobileChat;
         $("leaveGroupButton").onclick = leaveCurrentGroup;
         $("groupMembersButton").onclick = showActiveMembers;
-        $("activeStatus").onclick = showActiveMembers;
+        $("activeStatus").onclick = () => {
+            const chat = activeChat();
+            if (!chat) {
+                return;
+            }
+            chat.type === "direct" ? openUserDetail(otherMember(chat)) : showActiveMembers();
+        };
         $("callButton").onclick = () => startCall(true);
         $("videoButton").onclick = () => startCall(false);
         $("acceptCallButton").onclick = acceptCall;
@@ -4031,6 +4419,15 @@
                 socket.emit("typing", { chatId: chat.id, typing: $("messageInput").value.length > 0 });
             }
         });
+        $("messageInput").addEventListener("focus", () => {
+            $("app").classList.add("keyboard-open");
+            setTimeout(updateAppViewportHeight, 80);
+            setTimeout(updateAppViewportHeight, 320);
+        });
+        $("messageInput").addEventListener("blur", () => {
+            $("app").classList.remove("keyboard-open");
+            setTimeout(updateAppViewportHeight, 120);
+        });
         $("messageInput").addEventListener("keydown", event => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -4039,6 +4436,7 @@
         });
 
         socket.on("app:state", data => {
+            const currentChatId = state.activeChatId;
             state.me = data.user;
             state.users = data.users;
             state.chats = data.chats;
@@ -4046,8 +4444,10 @@
             state.stories = data.stories || [];
             state.callLogs = data.callLogs || [];
             hydrateRealtimeState(data);
-            state.activeChatId = state.activeChatId || state.chats[0]?.id || "lobby";
+            state.activeChatId = currentChatId && state.chats.some(chat => chat.id === currentChatId) ? currentChatId : null;
+            state.bootReady = true;
             render();
+            hideScreenTransition();
             maybePromptGeneralGroup();
         });
 
@@ -4069,7 +4469,7 @@
 
         socket.on("chat:remove", data => {
             state.chats = state.chats.filter(chat => chat.id !== data.chatId);
-            state.activeChatId = state.chats[0]?.id || null;
+            state.activeChatId = null;
             render();
             closeMobileChat();
         });
@@ -4096,9 +4496,15 @@
 
         socket.on("social:update", data => {
             hydrateRealtimeState(data);
+            const chat = activeChat();
+            if (chat?.type === "direct" && otherMember(chat) && state.blockedUsers.includes(otherMember(chat).username)) {
+                state.activeChatId = null;
+            }
             renderSections();
+            renderChats();
             renderGroups();
             renderContacts();
+            renderActiveChat();
         });
 
         socket.on("account:deleted", () => {
@@ -4133,6 +4539,9 @@
         });
 
         socket.on("message:read", data => {
+            if (state.me?.privacy?.readReceiptsOff) {
+                return;
+            }
             const chat = state.chats.find(item => item.id === data.chatId);
             if (!chat) {
                 return;
@@ -4200,6 +4609,7 @@
         socket.on("call:ice", handleRemoteIce);
         socket.on("call:end", () => endCall(false));
 
+        updateAuthView();
         const rememberedUser = localStorage.getItem("nexalineUser");
         if (rememberedUser) {
             state.me = { username: rememberedUser };
@@ -4209,12 +4619,14 @@
         updateAppViewportHeight();
         window.addEventListener("resize", () => {
             updateAppViewportHeight();
-            if (!isMobileView()) {
-                closeMobileChat();
-            }
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight);
         window.visualViewport?.addEventListener("scroll", updateAppViewportHeight);
+        setInterval(() => {
+            if (state.me?.username && state.bootReady && $("modalPanel").classList.contains("hidden")) {
+                loadBootstrap().catch(() => {});
+            }
+        }, 5000);
     </script>
 </body>
 </html>

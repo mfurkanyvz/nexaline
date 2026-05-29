@@ -72,6 +72,10 @@ class User(db.Model):
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
     profile_image = db.Column(db.Text, nullable=True)
     avatar = db.Column(db.String(8), nullable=False)
+    hide_last_seen = db.Column(db.Boolean, nullable=False, default=False)
+    hide_online = db.Column(db.Boolean, nullable=False, default=False)
+    disable_read_receipts = db.Column(db.Boolean, nullable=False, default=False)
+    hide_email = db.Column(db.Boolean, nullable=False, default=True)
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -203,34 +207,55 @@ def is_past(value):
     return value < datetime.now(timezone.utc)
 
 
-def public_user(username):
+def public_user(username, viewer=None):
     user = db.session.get(User, username)
+    is_self = viewer == username
     online = any(name == username for name in connections.values())
+    show_online = is_self or not bool(user.hide_online if user else False)
+    show_last_seen = is_self or not bool(user.hide_last_seen if user else False)
+    show_email = is_self or not bool(user.hide_email if user else True)
     return {
         "username": username,
         "displayName": user.display_name if user else username,
         "avatar": user.avatar if user else username[:2].upper(),
         "profileImage": user.profile_image if user else None,
         "about": user.about if user else "NexaLine kullanıyorum.",
-        "online": online,
-        "lastSeen": now_iso() if online else to_iso(user.last_seen) if user else None,
+        "email": user.email if user and show_email else None,
+        "online": online if show_online else False,
+        "lastSeen": now_iso() if online and show_online else to_iso(user.last_seen) if user and show_last_seen else None,
+        "privacy": {
+            "lastSeenHidden": bool(user.hide_last_seen) if user else False,
+            "onlineHidden": bool(user.hide_online) if user else False,
+            "readReceiptsOff": bool(user.disable_read_receipts) if user else False,
+            "emailHidden": bool(user.hide_email) if user else True,
+        },
     }
 
 
 def private_user(username):
     user = db.session.get(User, username)
-    data = public_user(username)
+    data = public_user(username, username)
     if user:
         data["email"] = user.email
         data["emailVerified"] = user.email_verified
+        data["privacy"] = {
+            "lastSeenHidden": bool(user.hide_last_seen),
+            "onlineHidden": bool(user.hide_online),
+            "readReceiptsOff": bool(user.disable_read_receipts),
+            "emailHidden": bool(user.hide_email),
+        }
     return data
 
 
-def story_to_dict(story):
+def public_users_for(viewer):
+    return [public_user(user.username, viewer) for user in User.query.order_by(User.display_name).all()]
+
+
+def story_to_dict(story, viewer=None):
     return {
         "id": story.id,
         "username": story.username,
-        "user": public_user(story.username),
+        "user": public_user(story.username, viewer),
         "body": story.body,
         "attachment": story.attachment,
         "createdAt": to_iso(story.created_at),
@@ -238,12 +263,12 @@ def story_to_dict(story):
     }
 
 
-def active_stories():
+def active_stories(viewer=None):
     now = datetime.now(timezone.utc)
     Story.query.filter(Story.expires_at <= now).delete(synchronize_session=False)
     db.session.commit()
     stories = Story.query.filter(Story.expires_at > now).order_by(Story.created_at.desc()).all()
-    return [story_to_dict(story) for story in stories]
+    return [story_to_dict(story, viewer) for story in stories]
 
 
 def message_to_dict(message):
@@ -368,7 +393,7 @@ def promote_fallback_group_admin(chat):
 def general_group_state(username):
     ensure_lobby()
     lobby = db.session.get(Chat, "lobby")
-    members = [public_user(member) for member in chat_member_names(lobby)]
+    members = [public_user(member, username) for member in chat_member_names(lobby)]
     joined = any(member["username"] == username for member in members)
 
     return {
@@ -391,7 +416,7 @@ def chat_for_user(chat, username):
 
     if chat.type == "direct":
         other_users = [member for member in member_names if member != username]
-        title = public_user(other_users[0])["displayName"] if other_users else "Kişisel sohbet"
+        title = public_user(other_users[0], username)["displayName"] if other_users else "Kişisel sohbet"
 
     return {
         "id": chat.id,
@@ -399,7 +424,7 @@ def chat_for_user(chat, username):
         "title": title,
         "image": chat.image,
         "members": [
-            {**public_user(member), "isAdmin": is_group_admin(chat, member)}
+            {**public_user(member, username), "isAdmin": is_group_admin(chat, member)}
             for member in member_names
         ],
         "lastMessage": last_message,
@@ -453,11 +478,11 @@ def accepted_contact(first_username, second_username):
     return bool(legacy_chat and legacy_chat.messages)
 
 
-def contact_request_to_dict(request_row):
+def contact_request_to_dict(request_row, viewer=None):
     return {
         "id": request_row.id,
-        "from": public_user(request_row.from_username),
-        "to": public_user(request_row.to_username),
+        "from": public_user(request_row.from_username, viewer),
+        "to": public_user(request_row.to_username, viewer),
         "status": request_row.status,
         "createdAt": to_iso(request_row.created_at),
         "respondedAt": to_iso(request_row.responded_at) if request_row.responded_at else None,
@@ -468,17 +493,17 @@ def visible_contact_requests(username):
     rows = ContactRequest.query.filter(
         db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username)
     ).order_by(ContactRequest.created_at.desc()).all()
-    return [contact_request_to_dict(row) for row in rows]
+    return [contact_request_to_dict(row, username) for row in rows]
 
 
-def group_invite_to_dict(invite):
+def group_invite_to_dict(invite, viewer=None):
     return {
         "id": invite.id,
         "chatId": invite.chat_id,
         "chatTitle": invite.chat.title if invite.chat else "Grup",
         "chatImage": invite.chat.image if invite.chat else None,
-        "inviter": public_user(invite.inviter),
-        "invitee": public_user(invite.invitee),
+        "inviter": public_user(invite.inviter, viewer),
+        "invitee": public_user(invite.invitee, viewer),
         "status": invite.status,
         "createdAt": to_iso(invite.created_at),
         "respondedAt": to_iso(invite.responded_at) if invite.responded_at else None,
@@ -489,7 +514,7 @@ def visible_group_invites(username):
     rows = GroupInvite.query.filter(
         db.or_(GroupInvite.inviter == username, GroupInvite.invitee == username)
     ).order_by(GroupInvite.created_at.desc()).all()
-    return [group_invite_to_dict(row) for row in rows]
+    return [group_invite_to_dict(row, username) for row in rows]
 
 
 def blocked_users_for(username):
@@ -501,12 +526,13 @@ def connected_sids_for(username):
 
 
 def broadcast_presence():
-    users = [public_user(user.username) for user in User.query.order_by(User.display_name).all()]
-    socketio.emit("presence:update", users, namespace="/")
+    for sid, username in connections.items():
+        socketio.emit("presence:update", public_users_for(username), room=sid, namespace="/")
 
 
 def broadcast_stories():
-    socketio.emit("stories:update", active_stories(), namespace="/")
+    for sid, username in connections.items():
+        socketio.emit("stories:update", active_stories(username), room=sid, namespace="/")
 
 
 def emit_general_group_updates():
@@ -902,6 +928,7 @@ def register_verify():
         code = (data.get("code") or "").strip()
         password = data.get("password") or ""
         confirm_password = data.get("confirmPassword")
+        display_name = (data.get("displayName") or username).strip()
 
         email_problem = email_error(email)
         if email_problem:
@@ -954,11 +981,11 @@ def register_verify():
             User(
                 username=username,
                 password_hash=password_hash,
-                display_name=username,
+                display_name=display_name[:120] or username,
                 email=verification.email,
                 email_normalized=verification.email_normalized,
                 email_verified=True,
-                avatar=username[:2].upper(),
+                avatar=(display_name or username)[:2].upper(),
                 about="NexaLine kullanıyorum.",
             )
         )
@@ -975,14 +1002,18 @@ def register_verify():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
+    identifier = (data.get("email") or data.get("username") or "").strip().lower()
     password = data.get("password") or ""
-    user = db.session.get(User, username)
+    user = None
+    if "@" in identifier:
+        user = User.query.filter(db.func.lower(User.email_normalized) == identifier.lower()).first()
+    if not user:
+        user = db.session.get(User, identifier)
 
     if not user or not check_password_hash(user.password_hash, password):
-        return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
+        return jsonify({"ok": False, "message": "Gmail veya şifre hatalı."}), 401
 
-    return jsonify({"ok": True, "message": "Giriş başarılı.", "user": private_user(username)})
+    return jsonify({"ok": True, "message": "Giriş başarılı.", "user": private_user(user.username)})
 
 
 @app.route("/password/forgot/start", methods=["POST"])
@@ -1160,6 +1191,24 @@ def update_profile(username):
                     socketio.emit("chat:upsert", chat_for_user(chat, member), room=sid)
 
     return jsonify({"ok": True, "message": "Profil güncellendi.", "user": private_user(username)})
+
+
+@app.route("/account/<username>/privacy", methods=["POST"])
+def update_privacy(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    privacy = data.get("privacy") or {}
+    user.hide_last_seen = bool(privacy.get("lastSeenHidden"))
+    user.hide_online = bool(privacy.get("onlineHidden"))
+    user.disable_read_receipts = bool(privacy.get("readReceiptsOff"))
+    user.hide_email = bool(privacy.get("emailHidden", True))
+    db.session.commit()
+    broadcast_presence()
+    return jsonify({"ok": True, "message": "Gizlilik ayarları güncellendi.", "user": private_user(username)})
 
 
 @app.route("/account/<username>", methods=["DELETE"])
@@ -1419,10 +1468,10 @@ def bootstrap(username):
         {
             "ok": True,
             "user": private_user(username),
-            "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
+            "users": public_users_for(username),
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
-            "stories": active_stories(),
+            "stories": active_stories(username),
             "callLogs": visible_call_logs(username),
             "contactRequests": visible_contact_requests(username),
             "groupInvites": visible_group_invites(username),
@@ -1458,10 +1507,10 @@ def handle_user_join(data):
         "app:state",
         {
             "user": private_user(username),
-            "users": [public_user(user.username) for user in User.query.order_by(User.display_name).all()],
+            "users": public_users_for(username),
             "chats": visible_chats(username),
             "generalGroup": general_group_state(username),
-            "stories": active_stories(),
+            "stories": active_stories(username),
             "callLogs": visible_call_logs(username),
             "contactRequests": visible_contact_requests(username),
             "groupInvites": visible_group_invites(username),
@@ -1849,6 +1898,10 @@ def handle_message_read(data):
     if not username or not chat or not user_can_see_chat(chat, username):
         return
 
+    user = db.session.get(User, username)
+    if user and user.disable_read_receipts:
+        return
+
     updated_ids = []
     for message in chat.messages:
         read_by = list(message.read_by or [])
@@ -1951,6 +2004,49 @@ def handle_story_delete(data):
     db.session.delete(story)
     db.session.commit()
     broadcast_stories()
+
+
+@socketio.on("story:reply")
+def handle_story_reply(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    story = db.session.get(Story, data.get("storyId"))
+    body = (data.get("body") or "").strip()
+
+    if not username or not story or story.username == username or not body:
+        return
+
+    if is_blocked_between(username, story.username):
+        emit("notice", {"message": "Bu kişiye yanıt gönderilemiyor."})
+        return
+
+    if not accepted_contact(username, story.username):
+        emit("notice", {"message": "Duruma yanıt vermek için önce mesajlaşma isteği kabul edilmeli."})
+        return
+
+    chat = ensure_direct_chat(username, story.username)
+    reply_to = {
+        "storyId": story.id,
+        "senderName": public_user(story.username, username)["displayName"],
+        "body": story.body or "Durum",
+        "attachmentName": "Silinen durum",
+        "expiresAt": to_iso(story.expires_at),
+    }
+    message = Message(
+        id=uuid4().hex,
+        chat_id=chat.id,
+        sender=username,
+        body=body,
+        reply_to=reply_to,
+        read_by=[username],
+    )
+    db.session.add(message)
+    db.session.commit()
+
+    for member in chat_member_names(chat):
+        for sid in connected_sids_for(member):
+            join_room(chat.id, sid=sid)
+            socketio.emit("chat:upsert", chat_for_user(chat, member), room=sid)
 
 
 def forward_call_event(event_name, data):
@@ -2115,6 +2211,10 @@ with app.app_context():
         "email_verified": "ALTER TABLE \"user\" ADD COLUMN email_verified BOOLEAN DEFAULT FALSE NOT NULL",
         "profile_image": "ALTER TABLE \"user\" ADD COLUMN profile_image TEXT",
         "last_seen": "ALTER TABLE \"user\" ADD COLUMN last_seen TIMESTAMP",
+        "hide_last_seen": "ALTER TABLE \"user\" ADD COLUMN hide_last_seen BOOLEAN DEFAULT FALSE NOT NULL",
+        "hide_online": "ALTER TABLE \"user\" ADD COLUMN hide_online BOOLEAN DEFAULT FALSE NOT NULL",
+        "disable_read_receipts": "ALTER TABLE \"user\" ADD COLUMN disable_read_receipts BOOLEAN DEFAULT FALSE NOT NULL",
+        "hide_email": "ALTER TABLE \"user\" ADD COLUMN hide_email BOOLEAN DEFAULT TRUE NOT NULL",
     }
     for column_name, statement in user_migrations.items():
         if column_name not in user_columns:
