@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#10141d">
+    <meta name="application-name" content="NexaLine">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="NexaLine">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>NexaLine</title>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/static/icons/icon-192.png">
@@ -101,6 +104,124 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+        }
+
+        .screen-transition {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: grid;
+            place-items: center;
+            pointer-events: none;
+            opacity: 0;
+            background: rgba(3, 5, 9, 0.86);
+            backdrop-filter: blur(12px);
+            transition: opacity 180ms ease;
+        }
+
+        .screen-transition.active {
+            opacity: 1;
+        }
+
+        .transition-card {
+            display: grid;
+            place-items: center;
+            gap: 12px;
+            transform: scale(0.96);
+            animation: transitionCardIn 900ms ease forwards;
+        }
+
+        .transition-mark {
+            position: relative;
+            display: grid;
+            width: 96px;
+            height: 96px;
+            place-items: center;
+            overflow: hidden;
+            border-radius: 22px;
+        }
+
+        .transition-mark::after {
+            position: absolute;
+            inset: -40% auto -40% -70%;
+            width: 54%;
+            content: "";
+            transform: rotate(18deg);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+            animation: logoShine 1150ms ease-in-out infinite;
+        }
+
+        .transition-mark img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 18px 32px rgba(47, 140, 255, 0.28));
+            animation: logoPulse 1300ms ease-in-out infinite;
+        }
+
+        .transition-lines {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            color: #fff;
+            font-size: 28px;
+            font-weight: 900;
+        }
+
+        .transition-lines span {
+            display: inline-block;
+            overflow: hidden;
+            max-width: 0;
+            animation: drawLetter 760ms ease forwards;
+        }
+
+        .transition-lines span:last-child {
+            color: var(--red);
+            animation-delay: 260ms;
+        }
+
+        .transition-text {
+            color: #cdd7ea;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        @keyframes logoShine {
+            from {
+                left: -70%;
+            }
+            to {
+                left: 120%;
+            }
+        }
+
+        @keyframes logoPulse {
+            0%,
+            100% {
+                transform: scale(0.98);
+            }
+            50% {
+                transform: scale(1.04);
+            }
+        }
+
+        @keyframes drawLetter {
+            from {
+                max-width: 0;
+                opacity: 0.2;
+                transform: translateY(5px);
+            }
+            to {
+                max-width: 36px;
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes transitionCardIn {
+            to {
+                transform: scale(1);
+            }
         }
 
         .brand h1 {
@@ -502,12 +623,37 @@
         }
 
         .bubble {
+            position: relative;
             max-width: min(72%, 680px);
             padding: 10px 12px 8px;
             border-radius: 8px;
             line-height: 1.35;
             background: var(--panel-3);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+            touch-action: pan-y;
+        }
+
+        .bubble.swiping {
+            transition: none;
+            box-shadow: 0 10px 30px rgba(47, 140, 255, 0.22);
+        }
+
+        .bubble.reply-ready::before {
+            position: absolute;
+            left: -42px;
+            top: 50%;
+            display: grid;
+            width: 30px;
+            height: 30px;
+            place-items: center;
+            content: "Reply";
+            transform: translateY(-50%);
+            border-radius: 999px;
+            color: #fff;
+            background: var(--blue);
+            font-size: 9px;
+            font-weight: 800;
         }
 
         .bubble.mine {
@@ -780,6 +926,7 @@
             border-radius: 8px;
             background: var(--panel);
             box-shadow: var(--shadow);
+            animation: panelEnter 260ms ease both;
         }
 
         .modal-head,
@@ -861,6 +1008,75 @@
             gap: 12px;
         }
 
+        .file-picker {
+            display: grid;
+            gap: 8px;
+        }
+
+        .file-trigger {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 700;
+            background: var(--panel-3);
+        }
+
+        .file-picked {
+            min-height: 16px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .crop-frame {
+            position: relative;
+            width: min(280px, 78vw);
+            height: min(280px, 78vw);
+            margin: 0 auto;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: #05070c;
+            touch-action: none;
+        }
+
+        .crop-frame::after {
+            position: absolute;
+            inset: 0;
+            content: "";
+            border: 2px solid rgba(255, 255, 255, 0.72);
+            border-radius: 50%;
+            box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.08);
+            pointer-events: none;
+        }
+
+        .crop-frame img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            max-width: none;
+            transform-origin: center;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .crop-controls {
+            display: grid;
+            gap: 10px;
+        }
+
+        .crop-controls label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .crop-controls input {
+            accent-color: var(--blue);
+        }
+
         .settings-box {
             width: min(460px, 100%);
             padding: 18px;
@@ -868,6 +1084,7 @@
             border-radius: 8px;
             background: var(--panel);
             box-shadow: var(--shadow);
+            animation: panelEnter 260ms ease both;
         }
 
         .settings-head,
@@ -908,6 +1125,7 @@
             border-radius: 8px;
             background: var(--panel);
             box-shadow: var(--shadow);
+            animation: panelEnter 260ms ease both;
         }
 
         .story-head {
@@ -925,6 +1143,18 @@
             overflow: hidden;
             background: var(--panel);
             box-shadow: var(--shadow);
+            animation: panelEnter 260ms ease both;
+        }
+
+        @keyframes panelEnter {
+            from {
+                opacity: 0;
+                transform: translateY(18px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .video-stage {
@@ -1212,6 +1442,16 @@
     </style>
 </head>
 <body>
+    <div id="screenTransition" class="screen-transition hidden" aria-hidden="true">
+        <div class="transition-card">
+            <div class="transition-mark">
+                <img src="/static/nexaline-mark.png" alt="">
+            </div>
+            <div class="transition-lines"><span>N</span><span>L</span></div>
+            <div id="transitionText" class="transition-text">NexaLine hazirlaniyor</div>
+        </div>
+    </div>
+
     <main id="authScreen" class="auth-screen">
         <section class="auth-card">
             <div class="brand">
@@ -1436,6 +1676,8 @@
             contactRequests: [],
             groupInvites: [],
             blockedUsers: [],
+            transitionTimer: null,
+            transitionHideTimer: null,
             activeSection: "chats",
             activeChatId: "lobby",
             typing: {},
@@ -1449,6 +1691,7 @@
             recordedChunks: [],
             cancelRecording: false,
             profileImageDraft: null,
+            profileCrop: null,
             call: {
                 peers: {},
                 pendingIce: {},
@@ -1485,6 +1728,38 @@
             setTimeout(() => item.remove(), 3600);
         }
 
+        function showScreenTransition(label = "NexaLine hazirlaniyor", duration = 900) {
+            const overlay = $("screenTransition");
+            $("transitionText").textContent = label;
+            clearTimeout(state.transitionTimer);
+            clearTimeout(state.transitionHideTimer);
+            overlay.classList.remove("active", "hidden");
+            overlay.classList.remove("hidden");
+            overlay.querySelectorAll(".transition-card, .transition-mark img, .transition-lines span").forEach(item => {
+                item.style.animation = "none";
+                void item.offsetWidth;
+                item.style.animation = "";
+            });
+            void overlay.offsetWidth;
+            overlay.classList.add("active");
+            state.transitionTimer = setTimeout(() => {
+                overlay.classList.remove("active");
+                state.transitionHideTimer = setTimeout(() => {
+                    if (!overlay.classList.contains("active")) {
+                        overlay.classList.add("hidden");
+                    } else {
+                        overlay.classList.remove("active");
+                        overlay.classList.add("hidden");
+                    }
+                }, 190);
+            }, duration);
+        }
+
+        function transitionThen(work, label, duration = 900) {
+            showScreenTransition(label, duration);
+            setTimeout(() => work?.(), Math.min(520, duration - 220));
+        }
+
         function escapeHtml(value) {
             return String(value ?? "")
                 .replaceAll("&", "&amp;")
@@ -1498,9 +1773,11 @@
             $("modalPanel").classList.add("hidden");
             $("modalBody").innerHTML = "";
             $("modalActions").innerHTML = "";
+            state.profileCrop = null;
         }
 
         function openModal(title, buildBody, actions = []) {
+            showScreenTransition(title, 650);
             $("modalTitle").textContent = title;
             const body = $("modalBody");
             const actionBar = $("modalActions");
@@ -1527,6 +1804,29 @@
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Tamam", primary: true, onClick: () => { closeModal(); onConfirm?.(); } }
             ]);
+        }
+
+        function createFilePicker({ label, accept, onFile }) {
+            const wrap = document.createElement("div");
+            wrap.className = "file-picker";
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = accept || "";
+            input.className = "hidden";
+            const button = document.createElement("button");
+            button.className = "file-trigger";
+            button.type = "button";
+            button.textContent = label || "Dosya sec";
+            const status = document.createElement("div");
+            status.className = "file-picked";
+            button.onclick = () => input.click();
+            input.onchange = () => {
+                const file = input.files[0];
+                status.textContent = file ? file.name : "";
+                onFile?.(file, input);
+            };
+            wrap.append(input, button, status);
+            return { wrap, input, status };
         }
 
         function setAvatar(element, userOrTitle, fallbackText) {
@@ -1790,6 +2090,7 @@
         }
 
         async function openApp() {
+            showScreenTransition("NexaLine aciliyor", 1050);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
             await loadRtcConfig();
@@ -1918,6 +2219,7 @@
         }
 
         function showStory(story) {
+            showScreenTransition("Durum aciliyor", 750);
             const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
             $("storyTitle").textContent = `${story.user.displayName} (@${story.username})`;
             $("storyMeta").textContent = `${relativeTime(story.createdAt)} paylaşıldı • Bitiş: ${expires}`;
@@ -2013,8 +2315,10 @@
                     button.onclick = () => {
                         state.activeChatId = chat.id;
                         socket.emit("message:read", { chatId: chat.id });
-                        render();
-                        openMobileChat();
+                        transitionThen(() => {
+                            render();
+                            openMobileChat();
+                        }, "Sohbet aciliyor", 1050);
                     };
 
                     const avatar = document.createElement("div");
@@ -2103,8 +2407,10 @@
                     button.onclick = () => {
                         state.activeChatId = chat.id;
                         socket.emit("message:read", { chatId: chat.id });
-                        render();
-                        openMobileChat();
+                        transitionThen(() => {
+                            render();
+                            openMobileChat();
+                        }, "Grup aciliyor", 1050);
                     };
 
                     const avatar = document.createElement("div");
@@ -2156,8 +2462,10 @@
                     button.className = "call-item";
                     button.onclick = () => {
                         state.activeChatId = log.chatId;
-                        render();
-                        openMobileChat();
+                        transitionThen(() => {
+                            render();
+                            openMobileChat();
+                        }, "Arama kaydi aciliyor", 900);
                     };
                     const avatar = document.createElement("div");
                     avatar.className = "avatar";
@@ -2272,6 +2580,55 @@
             });
         }
 
+        function attachSwipeReply(bubble, message) {
+            let startX = 0;
+            let startY = 0;
+            let dragX = 0;
+            let dragging = false;
+
+            const reset = () => {
+                bubble.classList.remove("swiping", "reply-ready");
+                bubble.style.transform = "";
+                dragging = false;
+                dragX = 0;
+            };
+
+            bubble.addEventListener("pointerdown", event => {
+                if (!isMobileView() || event.pointerType === "mouse") {
+                    return;
+                }
+                startX = event.clientX;
+                startY = event.clientY;
+                dragX = 0;
+                dragging = true;
+                bubble.classList.add("swiping");
+                bubble.setPointerCapture(event.pointerId);
+            });
+
+            bubble.addEventListener("pointermove", event => {
+                if (!dragging) {
+                    return;
+                }
+                const dx = event.clientX - startX;
+                const dy = event.clientY - startY;
+                if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+                    reset();
+                    return;
+                }
+                dragX = clamp(dx, 0, 78);
+                bubble.style.transform = `translateX(${dragX}px)`;
+                bubble.classList.toggle("reply-ready", dragX > 52);
+            });
+
+            bubble.addEventListener("pointerup", () => {
+                if (dragging && dragX > 52) {
+                    setReplyTo(message);
+                }
+                reset();
+            });
+            bubble.addEventListener("pointercancel", reset);
+        }
+
         function renderActiveChat() {
             const chat = activeChat();
             const messageBox = $("messages");
@@ -2347,15 +2704,7 @@
                     openReactionMenu(message);
                 };
                 bubble.appendChild(meta);
-                let touchStartX = 0;
-                bubble.addEventListener("touchstart", event => {
-                    touchStartX = event.changedTouches[0].clientX;
-                }, { passive: true });
-                bubble.addEventListener("touchend", event => {
-                    if (Math.abs(event.changedTouches[0].clientX - touchStartX) > 55) {
-                        setReplyTo(message);
-                    }
-                }, { passive: true });
+                attachSwipeReply(bubble, message);
                 messageBox.appendChild(bubble);
             });
 
@@ -2565,10 +2914,11 @@
                 const title = document.createElement("input");
                 title.id = "groupTitleInput";
                 title.placeholder = "Grup adı";
-                const file = document.createElement("input");
-                file.type = "file";
-                file.accept = "image/*";
-                file.onchange = () => readImageFile(file.files[0], dataUrl => imageData = dataUrl);
+                const picker = createFilePicker({
+                    label: "Grup fotografi sec",
+                    accept: "image/*",
+                    onFile: file => readImageFile(file, dataUrl => imageData = dataUrl)
+                });
                 const list = document.createElement("div");
                 list.className = "check-list";
                 state.users.filter(user => user.username !== state.me.username).forEach(user => {
@@ -2577,7 +2927,7 @@
                     row.innerHTML = `<input type="checkbox" value="${escapeHtml(user.username)}"><span>${escapeHtml(user.displayName)} (@${escapeHtml(user.username)})</span><small>${user.online ? "çevrimiçi" : "çevrimdışı"}</small>`;
                     list.appendChild(row);
                 });
-                body.append(title, file, list);
+                body.append(title, picker.wrap, list);
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Oluştur", primary: true, onClick: () => {
@@ -2598,11 +2948,12 @@
                 const text = document.createElement("textarea");
                 text.id = "storyTextInput";
                 text.placeholder = "24 saat görünecek durum";
-                const file = document.createElement("input");
-                file.id = "storyMediaInput";
-                file.type = "file";
-                file.accept = "image/*,video/*";
-                body.append(text, file);
+                const picker = createFilePicker({
+                    label: "Resim veya video sec",
+                    accept: "image/*,video/*"
+                });
+                picker.input.id = "storyMediaInput";
+                body.append(text, picker.wrap);
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Paylaş", primary: true, onClick: () => {
@@ -2678,11 +3029,12 @@
                     const title = document.createElement("input");
                     title.id = "editGroupTitle";
                     title.value = chat.title;
-                    const file = document.createElement("input");
-                    file.type = "file";
-                    file.accept = "image/*";
-                    file.onchange = () => readImageFile(file.files[0], dataUrl => imageData = dataUrl);
-                    body.append(title, file);
+                    const picker = createFilePicker({
+                        label: "Grup fotografini degistir",
+                        accept: "image/*",
+                        onFile: file => readImageFile(file, dataUrl => imageData = dataUrl)
+                    });
+                    body.append(title, picker.wrap);
                 }
 
                 const list = document.createElement("div");
@@ -2838,6 +3190,7 @@
         }
 
         function openSettings() {
+            showScreenTransition("Ayarlar aciliyor", 750);
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
             $("aboutInput").value = state.me.about || "";
@@ -2879,8 +3232,9 @@
 
         function handleProfileImage(event) {
             readImageFile(event.target.files[0], dataUrl => {
-                state.profileImageDraft = dataUrl;
-                setAvatar($("settingsAvatar"), { profileImage: dataUrl, displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
+                if (dataUrl) {
+                    openProfileCropper(dataUrl);
+                }
             });
         }
 
@@ -3168,6 +3522,131 @@
             const reader = new FileReader();
             reader.onload = () => onLoad(reader.result);
             reader.readAsDataURL(file);
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function openProfileCropper(dataUrl) {
+            const crop = {
+                image: new Image(),
+                zoom: 1.08,
+                x: 0,
+                y: 0,
+                frameSize: 280,
+                displayWidth: 0,
+                displayHeight: 0
+            };
+            state.profileCrop = crop;
+
+            openModal("Fotografi kirp", body => {
+                const frame = document.createElement("div");
+                frame.className = "crop-frame";
+                const image = crop.image;
+                image.alt = "Profil";
+                frame.appendChild(image);
+
+                const controls = document.createElement("div");
+                controls.className = "crop-controls";
+                controls.innerHTML = `
+                    <label>Yakinlastir<input id="cropZoomInput" type="range" min="1" max="3" step="0.01" value="1.08"></label>
+                    <label>Yatay<input id="cropXInput" type="range" min="-120" max="120" step="1" value="0"></label>
+                    <label>Dikey<input id="cropYInput" type="range" min="-120" max="120" step="1" value="0"></label>
+                `;
+                body.append(frame, controls);
+
+                const updatePreview = () => {
+                    crop.frameSize = frame.clientWidth || 280;
+                    if (!image.naturalWidth || !image.naturalHeight) {
+                        return;
+                    }
+                    const baseScale = Math.max(crop.frameSize / image.naturalWidth, crop.frameSize / image.naturalHeight);
+                    const scale = baseScale * crop.zoom;
+                    crop.displayWidth = image.naturalWidth * scale;
+                    crop.displayHeight = image.naturalHeight * scale;
+                    image.style.width = `${crop.displayWidth}px`;
+                    image.style.height = `${crop.displayHeight}px`;
+                    image.style.transform = `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px))`;
+                };
+
+                const bindRange = (id, key) => {
+                    $(id).oninput = event => {
+                        crop[key] = Number(event.target.value);
+                        updatePreview();
+                    };
+                };
+
+                image.onload = updatePreview;
+                image.src = dataUrl;
+                bindRange("cropZoomInput", "zoom");
+                bindRange("cropXInput", "x");
+                bindRange("cropYInput", "y");
+
+                let dragStart = null;
+                frame.addEventListener("pointerdown", event => {
+                    dragStart = { x: event.clientX, y: event.clientY, offsetX: crop.x, offsetY: crop.y };
+                    frame.setPointerCapture(event.pointerId);
+                });
+                frame.addEventListener("pointermove", event => {
+                    if (!dragStart) {
+                        return;
+                    }
+                    crop.x = clamp(dragStart.offsetX + event.clientX - dragStart.x, -120, 120);
+                    crop.y = clamp(dragStart.offsetY + event.clientY - dragStart.y, -120, 120);
+                    $("cropXInput").value = crop.x;
+                    $("cropYInput").value = crop.y;
+                    updatePreview();
+                });
+                frame.addEventListener("pointerup", () => {
+                    dragStart = null;
+                });
+                frame.addEventListener("pointercancel", () => {
+                    dragStart = null;
+                });
+            }, [
+                { label: "Vazgec", onClick: closeModal },
+                { label: "Kullan", primary: true, onClick: useCroppedProfileImage }
+            ]);
+        }
+
+        function useCroppedProfileImage() {
+            const crop = state.profileCrop;
+            const image = crop?.image;
+            if (!crop || !image?.naturalWidth || !image?.naturalHeight) {
+                showToast("Fotoğraf hazırlanamadı.");
+                return;
+            }
+
+            const frame = crop.frameSize || 280;
+            const displayWidth = crop.displayWidth || image.naturalWidth;
+            const displayHeight = crop.displayHeight || image.naturalHeight;
+            const left = frame / 2 - displayWidth / 2 + crop.x;
+            const top = frame / 2 - displayHeight / 2 + crop.y;
+            let sourceWidth = frame / displayWidth * image.naturalWidth;
+            let sourceHeight = frame / displayHeight * image.naturalHeight;
+            let sourceX = -left / displayWidth * image.naturalWidth;
+            let sourceY = -top / displayHeight * image.naturalHeight;
+
+            sourceWidth = clamp(sourceWidth, 1, image.naturalWidth);
+            sourceHeight = clamp(sourceHeight, 1, image.naturalHeight);
+            sourceX = clamp(sourceX, 0, image.naturalWidth - sourceWidth);
+            sourceY = clamp(sourceY, 0, image.naturalHeight - sourceHeight);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext("2d");
+            context.fillStyle = "#05070c";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+            state.profileImageDraft = dataUrl;
+            state.profileCrop = null;
+            setAvatar($("settingsAvatar"), { profileImage: dataUrl, displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
+            closeModal();
+            showToast("Profil fotoğrafı hazır. Kaydetmeyi unutma.");
         }
 
         function handleFile(event) {
@@ -3501,8 +3980,13 @@
         };
         document.querySelectorAll(".nav-tab").forEach(tab => {
             tab.onclick = () => {
-                state.activeSection = tab.dataset.section;
-                renderSections();
+                if (state.activeSection === tab.dataset.section) {
+                    return;
+                }
+                transitionThen(() => {
+                    state.activeSection = tab.dataset.section;
+                    renderSections();
+                }, "Bolum aciliyor", 760);
             };
         });
         $("attachButton").onclick = () => $("fileInput").click();
