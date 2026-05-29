@@ -584,14 +584,19 @@ def send_email_code(email, code, purpose):
     subject = email_subject(purpose)
     body = email_body(code)
 
-    try:
-        if os.environ.get("RESEND_API_KEY"):
-            return send_email_via_resend(email, subject, body)
-        if os.environ.get("BREVO_API_KEY"):
-            return send_email_via_brevo(email, subject, body)
-    except Exception:
-        app.logger.exception("Dogrulama maili HTTPS mail servisiyle gonderilemedi")
-        return False
+    if os.environ.get("RESEND_API_KEY"):
+        try:
+            if send_email_via_resend(email, subject, body):
+                return True
+        except Exception:
+            app.logger.exception("Dogrulama maili Resend ile gonderilemedi")
+
+    if os.environ.get("BREVO_API_KEY"):
+        try:
+            if send_email_via_brevo(email, subject, body):
+                return True
+        except Exception:
+            app.logger.exception("Dogrulama maili Brevo ile gonderilemedi")
 
     smtp_host = os.environ.get("SMTP_HOST")
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
