@@ -332,6 +332,18 @@ def archive_to_summary(archive):
     }
 
 
+def archives_with_messages(username):
+    purge_expired_archives()
+    rows = ChatArchive.query.filter_by(username=username).order_by(ChatArchive.created_at.desc()).all()
+    return [
+        {
+            **archive_to_summary(row),
+            "messages": row.messages or [],
+        }
+        for row in rows
+    ]
+
+
 def visible_archives(username):
     purge_expired_archives()
     rows = ChatArchive.query.filter_by(username=username).order_by(ChatArchive.created_at.desc()).all()
@@ -398,6 +410,23 @@ def archive_chat_for_user(chat, username, reason="deleted"):
     db.session.add(archive)
     hide_chat_messages_for_user(chat, username)
     return archive
+
+
+def restore_archive_for_user(archive):
+    chat = db.session.get(Chat, archive.chat_id)
+    if not chat or not user_can_see_chat(chat, archive.username):
+        return None
+
+    archived_ids = {message.get("id") for message in (archive.messages or []) if message.get("id")}
+    for message in chat.messages:
+        if message.id not in archived_ids:
+            continue
+        deleted_for = [item for item in (message.deleted_for or []) if item != archive.username]
+        message.deleted_for = deleted_for
+
+    HiddenChat.query.filter_by(username=archive.username, chat_id=archive.chat_id).delete(synchronize_session=False)
+    db.session.delete(archive)
+    return chat
 
 
 def call_log_to_dict(log, username):
@@ -1348,6 +1377,43 @@ def read_archive(username, archive_id):
     )
 
 
+@app.route("/account/<username>/archives/unlock", methods=["POST"])
+def unlock_archives(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    if not verify_user_password(username, data.get("password") or ""):
+        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
+
+    return jsonify({"ok": True, "archives": archives_with_messages(username)})
+
+
+@app.route("/account/<username>/archives/<archive_id>/restore", methods=["POST"])
+def restore_archive(username, archive_id):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    if not verify_user_password(username, data.get("password") or ""):
+        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
+
+    purge_expired_archives()
+    archive = db.session.get(ChatArchive, archive_id)
+    if not archive or archive.username != username:
+        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+
+    chat = restore_archive_for_user(archive)
+    if not chat:
+        return jsonify({"ok": False, "message": "Sohbet artik geri yuklenemiyor."}), 404
+
+    db.session.commit()
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Sohbet arsivden cikarildi.",
+            "chat": chat_for_user(chat, username),
+            "archives": visible_archives(username),
+        }
+    )
+
+
 @app.route("/account/<username>/archives/<archive_id>", methods=["DELETE"])
 def delete_archive(username, archive_id):
     data = request.get_json() or {}
@@ -1487,6 +1553,32 @@ def admin_state():
             }
         )
 
+    archives = [
+        {
+            **archive_to_summary(archive),
+            "username": archive.username,
+            "messages": archive.messages or [],
+        }
+        for archive in ChatArchive.query.order_by(ChatArchive.created_at.desc()).all()
+    ]
+    blocks = [
+        {
+            "id": row.id,
+            "blocker": public_user(row.blocker),
+            "blocked": public_user(row.blocked),
+            "createdAt": to_iso(row.created_at),
+        }
+        for row in BlockedUser.query.order_by(BlockedUser.created_at.desc()).all()
+    ]
+    contact_requests = [
+        contact_request_to_dict(row)
+        for row in ContactRequest.query.order_by(ContactRequest.created_at.desc()).all()
+    ]
+    group_invites = [
+        group_invite_to_dict(row)
+        for row in GroupInvite.query.order_by(GroupInvite.created_at.desc()).all()
+    ]
+
     return jsonify(
         {
             "ok": True,
@@ -1494,11 +1586,75 @@ def admin_state():
             "chats": chats,
             "stories": active_stories(),
             "calls": [call_log_to_dict(log, log.caller) for log in CallLog.query.order_by(CallLog.started_at.desc()).all()],
+            "archives": archives,
+            "blocks": blocks,
+            "contactRequests": contact_requests,
+            "groupInvites": group_invites,
             "serverIp": request.host,
             "yourIp": request_ip(),
             "localAdmin": is_local_admin_request(),
         }
     )
+
+
+@app.route("/admin/user", methods=["POST"])
+def admin_create_user():
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    data = request.get_json() or {}
+    display_name = (data.get("displayName") or "").strip()
+    email, email_normalized = normalize_email(data.get("email") or "")
+    username = (data.get("username") or "").strip().lower()
+    password = data.get("password") or ""
+
+    if len(display_name) < 2 or len(display_name) > 80:
+        return jsonify({"ok": False, "message": "Isim soyisim 2-80 karakter olmali."}), 400
+
+    if display_name_exists(display_name):
+        return jsonify({"ok": False, "message": "Bu isim zaten kayitli."}), 400
+
+    if not email or not email_normalized:
+        return jsonify({"ok": False, "message": "Giris icin gecerli bir e-posta formati yaz."}), 400
+
+    if email_exists(email_normalized):
+        return jsonify({"ok": False, "message": "Bu e-posta zaten kayitli."}), 400
+
+    if not username:
+        base = email_normalized.split("@", 1)[0]
+        username = re.sub(r"[^a-z0-9_]", "_", base).strip("_")[:18] or "adminuser"
+        candidate = username
+        counter = 1
+        while db.session.get(User, candidate):
+            counter += 1
+            candidate = f"{username[:18]}_{counter}"
+        username = candidate
+
+    username_problem = username_error(username)
+    if username_problem:
+        return jsonify({"ok": False, "message": username_problem}), 400
+
+    if db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Bu kullanici adi zaten var."}), 400
+
+    password_problem = password_error(username, password)
+    if password_problem:
+        return jsonify({"ok": False, "message": password_problem}), 400
+
+    user = User(
+        username=username,
+        password_hash=generate_password_hash(password),
+        display_name=display_name,
+        email=email,
+        email_normalized=email_normalized,
+        email_verified=True,
+        avatar=display_name[:2].upper(),
+    )
+    db.session.add(user)
+    db.session.commit()
+    broadcast_presence()
+    return jsonify({"ok": True, "user": private_user(username), "message": "Kullanici olusturuldu."})
 
 
 @app.route("/admin/user/<username>", methods=["DELETE"])
@@ -1561,6 +1717,63 @@ def admin_reset_password(username):
     user.password_hash = generate_password_hash(new_password)
     db.session.commit()
     return jsonify({"ok": True, "message": "Şifre sıfırlandı."})
+
+
+@app.route("/admin/user/<username>/privacy", methods=["POST"])
+def admin_update_user_privacy(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    user = db.session.get(User, username.strip().lower())
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+
+    data = request.get_json() or {}
+    user.hide_last_seen = bool(data.get("lastSeenHidden"))
+    user.hide_online = bool(data.get("onlineHidden"))
+    user.disable_read_receipts = bool(data.get("readReceiptsOff"))
+    user.hide_email = bool(data.get("emailHidden", True))
+    db.session.commit()
+    broadcast_presence()
+    return jsonify({"ok": True, "message": "Gizlilik guncellendi.", "user": private_user(user.username)})
+
+
+@app.route("/admin/archive/<archive_id>", methods=["DELETE"])
+def admin_delete_archive(archive_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    archive = db.session.get(ChatArchive, archive_id)
+    if not archive:
+        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+
+    db.session.delete(archive)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Arsiv silindi."})
+
+
+@app.route("/admin/archive/<archive_id>/restore", methods=["POST"])
+def admin_restore_archive(archive_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    archive = db.session.get(ChatArchive, archive_id)
+    if not archive:
+        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+
+    username = archive.username
+    chat = restore_archive_for_user(archive)
+    if not chat:
+        return jsonify({"ok": False, "message": "Sohbet geri yuklenemiyor."}), 404
+
+    db.session.commit()
+    for sid in connected_sids_for(username):
+        socketio.emit("chat:upsert", chat_for_user(chat, username), room=sid)
+        socketio.emit("archive:update", visible_archives(username), room=sid)
+    return jsonify({"ok": True, "message": "Arsivden cikarildi."})
 
 
 @app.route("/admin/message/<message_id>", methods=["DELETE"])

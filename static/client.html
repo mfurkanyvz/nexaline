@@ -29,6 +29,7 @@
             --green: #2bd576;
             --shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
             --app-height: 100vh;
+            --keyboard-inset: 0px;
         }
 
         * {
@@ -508,6 +509,11 @@
         }
 
         .nav-tab {
+            display: grid;
+            grid-template-columns: auto minmax(0, auto);
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
             min-width: 0;
             padding: 9px 4px;
             border-radius: 7px;
@@ -515,6 +521,18 @@
             background: transparent;
             font-size: 12px;
             font-weight: 700;
+            transition: transform 160ms ease, background 160ms ease, color 160ms ease;
+        }
+
+        .nav-tab:hover {
+            transform: scale(1.04);
+        }
+
+        .nav-icon {
+            display: grid;
+            place-items: center;
+            font-size: 17px;
+            line-height: 1;
         }
 
         .nav-tab.active {
@@ -955,6 +973,7 @@
             z-index: 12;
             display: grid;
             place-items: center;
+            overflow: hidden;
             padding: 18px;
             background: rgba(0, 0, 0, 0.76);
         }
@@ -1149,6 +1168,10 @@
 
         .settings-box {
             width: min(460px, 100%);
+            max-height: calc(100dvh - 36px);
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             padding: 18px;
             border: 1px solid var(--line);
             border-radius: 8px;
@@ -1176,6 +1199,60 @@
             border-radius: 7px;
             color: #fff;
             background: var(--panel-3);
+        }
+
+        .settings-menu,
+        .settings-section {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .settings-option {
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: var(--text);
+            text-align: left;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .settings-option .option-icon {
+            display: grid;
+            width: 36px;
+            height: 36px;
+            place-items: center;
+            border-radius: 8px;
+            background: var(--panel-3);
+        }
+
+        .settings-back {
+            width: auto;
+            margin-top: 10px;
+            padding: 9px 11px;
+            border-radius: 7px;
+            color: #fff;
+            background: var(--panel-3);
+        }
+
+        .archive-lock {
+            display: grid;
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .archive-lock input {
+            min-width: 0;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            background: #090c13;
         }
 
         .story-panel {
@@ -1370,6 +1447,7 @@
                 height: var(--app-height);
                 max-height: var(--app-height);
                 grid-template-rows: 64px minmax(0, 1fr) auto;
+                overflow: hidden;
             }
 
             .pane-transition,
@@ -1393,6 +1471,12 @@
             .chat-top {
                 min-height: 64px;
                 padding: 10px 12px;
+            }
+
+            .chat-top {
+                position: sticky;
+                top: 0;
+                z-index: 3;
             }
 
             .topbar .identity,
@@ -1436,12 +1520,21 @@
                 max-height: none;
                 min-height: 0;
                 flex: 1;
+                padding-bottom: 104px;
             }
 
             .story-list {
                 max-height: none;
                 min-height: 0;
                 flex: 1;
+                padding-bottom: 104px;
+            }
+
+            .contact-list,
+            #archiveList,
+            #callList,
+            #groupList {
+                padding-bottom: 104px;
             }
 
             .chat-item,
@@ -1470,27 +1563,42 @@
             }
 
             .composer {
-                grid-template-columns: repeat(5, 36px) minmax(0, 1fr);
+                position: sticky;
+                bottom: 0;
+                z-index: 4;
+                grid-template-columns: 38px 38px minmax(0, 1fr) 38px 42px;
                 gap: 7px;
                 padding: 8px;
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
+                background: rgba(9, 12, 19, 0.96);
             }
 
             .composer textarea {
-                grid-column: 1 / 6;
-                grid-row: 2;
+                grid-column: 3;
+                grid-row: 1;
                 min-height: 40px;
+                max-height: 92px;
                 padding: 10px 12px;
                 font-size: 14px;
             }
 
+            #attachButton { grid-column: 1; grid-row: 1; }
+            #voiceButton { grid-column: 2; grid-row: 1; }
+            #emojiButton { grid-column: 4; grid-row: 1; }
+            #locationButton { grid-column: 1; grid-row: 2; }
+            #cancelVoiceButton { grid-column: 2; grid-row: 2; }
+
             #cancelVoiceButton:not(.hidden) ~ #messageInput {
-                grid-column: 1 / 6;
+                grid-column: 3;
             }
 
             #sendButton {
-                grid-column: 6;
-                grid-row: 2;
+                grid-column: 5;
+                grid-row: 1;
+            }
+
+            .app.keyboard-open .composer {
+                padding-bottom: 8px;
             }
 
             .call-panel {
@@ -1519,14 +1627,57 @@
             }
 
             .nav-tabs {
-                grid-template-columns: repeat(5, max-content);
+                position: fixed;
+                left: max(10px, env(safe-area-inset-left));
+                right: max(10px, env(safe-area-inset-right));
+                bottom: max(10px, env(safe-area-inset-bottom));
+                z-index: 8;
+                display: flex;
+                align-items: center;
+                justify-content: space-around;
+                gap: 3px;
+                padding: 7px;
+                border: 1px solid rgba(255, 255, 255, 0.09);
+                border-radius: 30px;
+                background: rgba(22, 24, 30, 0.94);
+                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
                 overflow-x: auto;
                 scrollbar-width: none;
             }
 
+            .nav-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .nav-tab[data-section="stories"] { order: 1; }
+            .nav-tab[data-section="calls"] { order: 2; }
+            .nav-tab[data-section="groups"] { order: 3; }
+            .nav-tab[data-section="chats"] { order: 4; }
+            .nav-tab[data-section="contacts"] { order: 5; }
+            .nav-tab[data-section="archives"] { order: 6; }
+
             .nav-tab {
-                min-width: 68px;
-                padding: 9px 10px;
+                grid-template-columns: 1fr;
+                min-width: 58px;
+                padding: 8px 7px;
+                border-radius: 24px;
+                font-size: 11px;
+            }
+
+            .nav-tab.active {
+                background: rgba(255, 255, 255, 0.15);
+            }
+
+            .nav-icon {
+                font-size: 24px;
+            }
+
+            .nav-label {
+                line-height: 1.1;
+            }
+
+            .app.chat-open .nav-tabs {
+                display: none;
             }
 
             .toast-stack {
@@ -1543,6 +1694,17 @@
             .modal-box {
                 width: 100%;
                 max-height: calc(100dvh - 20px);
+            }
+
+            .settings-panel {
+                align-items: stretch;
+                padding: 10px;
+            }
+
+            .settings-box {
+                width: 100%;
+                max-height: calc(var(--app-height) - 20px);
+                padding-bottom: max(18px, env(safe-area-inset-bottom));
             }
         }
 
@@ -1649,12 +1811,12 @@
             </div>
 
             <nav class="nav-tabs">
-                <button class="nav-tab active" data-section="chats" type="button">Sohbet</button>
-                <button class="nav-tab" data-section="groups" type="button">Grup</button>
-                <button class="nav-tab" data-section="stories" type="button">Durum</button>
-                <button class="nav-tab" data-section="calls" type="button">Arama</button>
-                <button class="nav-tab" data-section="contacts" type="button">Kişi</button>
-                <button class="nav-tab" data-section="archives" type="button">Arşiv</button>
+                <button class="nav-tab active" data-section="chats" type="button"><span class="nav-icon">◖</span><span class="nav-label">Sohbetler</span></button>
+                <button class="nav-tab" data-section="groups" type="button"><span class="nav-icon">☷</span><span class="nav-label">Topluluk</span></button>
+                <button class="nav-tab" data-section="stories" type="button"><span class="nav-icon">◉</span><span class="nav-label">Güncelleme</span></button>
+                <button class="nav-tab" data-section="calls" type="button"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
+                <button class="nav-tab" data-section="contacts" type="button"><span class="nav-icon">◎</span><span class="nav-label">Kişi</span></button>
+                <button class="nav-tab" data-section="archives" type="button"><span class="nav-icon">▤</span><span class="nav-label">Arşiv</span></button>
             </nav>
 
             <div id="sectionTitle" class="section-label">Sohbetler</div>
@@ -1736,68 +1898,97 @@
                 </div>
                 <button id="closeSettingsButton" class="icon-btn" type="button">×</button>
             </div>
-            <div class="settings-row">
-                <div>
-                    <strong>Profil</strong>
-                    <div class="last-message">Fotoğraf, görünen ad ve hakkımda</div>
+            <div id="settingsMenu" class="settings-menu">
+                <button id="settingsProfileTab" class="settings-option" type="button">
+                    <span class="option-icon">◎</span>
+                    <span><strong>Profil</strong><small class="last-message">Fotoğraf, isim soyisim ve hakkımda</small></span>
+                    <span>›</span>
+                </button>
+                <button id="settingsPrivacyTab" class="settings-option" type="button">
+                    <span class="option-icon">▣</span>
+                    <span><strong>Gizlilik</strong><small class="last-message">Son görülme, çevrim içi, okundu ve Gmail</small></span>
+                    <span>›</span>
+                </button>
+                <button id="settingsAccountTab" class="settings-option" type="button">
+                    <span class="option-icon">⚿</span>
+                    <span><strong>Hesap</strong><small class="last-message">Gmail, şifre, çıkış ve hesap silme</small></span>
+                    <span>›</span>
+                </button>
+            </div>
+
+            <div id="settingsProfileSection" class="settings-section hidden">
+                <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Profil</strong>
+                        <div class="last-message">Fotoğraf, görünen ad ve hakkımda</div>
+                    </div>
+                    <div id="settingsAvatar" class="avatar">NL</div>
                 </div>
-                <div id="settingsAvatar" class="avatar">NL</div>
-            </div>
-            <input id="profileImageInput" class="hidden" type="file" accept="image/*">
-            <div class="settings-row">
-                <button id="profileImageButton" type="button">Fotoğraf Seç</button>
-                <button id="removeProfileImageButton" type="button">Fotoğrafı Sil</button>
-            </div>
-            <input id="displayNameInput" placeholder="Görünen ad">
-            <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
-            <button id="saveProfileButton" class="primary" type="button">Profili Kaydet</button>
-            <div class="settings-row">
-                <div>
-                    <strong>Gmail</strong>
-                    <div class="last-message">Doğrulama kodu ile değişir</div>
+                <input id="profileImageInput" class="hidden" type="file" accept="image/*">
+                <div class="settings-row">
+                    <button id="profileImageButton" type="button">Fotoğraf Seç</button>
+                    <button id="removeProfileImageButton" type="button">Fotoğrafı Sil</button>
                 </div>
-                <button id="changeEmailButton" type="button">Değiştir</button>
+                <input id="displayNameInput" placeholder="İsim soyisim">
+                <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
+                <button id="saveProfileButton" class="primary" type="button">Profili Kaydet</button>
             </div>
-            <div class="settings-row">
-                <div>
-                    <strong>Şifre</strong>
-                    <div class="last-message">Mevcut şifre gerekir</div>
+
+            <div id="settingsPrivacySection" class="settings-section hidden">
+                <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Gizlilik</strong>
+                        <div class="last-message">Kapattığın bilgiyi karşı tarafta da göremezsin</div>
+                    </div>
                 </div>
-                <button id="changePasswordButton" type="button">Değiştir</button>
-            </div>
-            <div class="settings-row">
-                <div>
-                    <strong>Gizlilik</strong>
-                    <div class="last-message">Son görülme, çevrim içi, okundu ve Gmail</div>
+                <div class="privacy-grid">
+                    <label class="toggle-row">
+                        <span>Son görülmemi gizle</span>
+                        <input id="hideLastSeenInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>Çevrim içi durumumu gizle</span>
+                        <input id="hideOnlineInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>Okundu bilgisini kapat</span>
+                        <input id="readReceiptsInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>Gmail adresimi gizle</span>
+                        <input id="hideEmailInput" type="checkbox">
+                    </label>
                 </div>
+                <button id="savePrivacyButton" class="primary" type="button">Gizliliği Kaydet</button>
             </div>
-            <div class="privacy-grid">
-                <label class="toggle-row">
-                    <span>Son görülmemi gizle</span>
-                    <input id="hideLastSeenInput" type="checkbox">
-                </label>
-                <label class="toggle-row">
-                    <span>Çevrim içi durumumu gizle</span>
-                    <input id="hideOnlineInput" type="checkbox">
-                </label>
-                <label class="toggle-row">
-                    <span>Okundu bilgisini kapat</span>
-                    <input id="readReceiptsInput" type="checkbox">
-                </label>
-                <label class="toggle-row">
-                    <span>Gmail adresimi gizle</span>
-                    <input id="hideEmailInput" type="checkbox">
-                </label>
-            </div>
-            <button id="savePrivacyButton" class="primary" type="button">Gizliliği Kaydet</button>
-            <div class="settings-row">
-                <div>
-                    <strong>Hesap</strong>
-                    <div class="last-message">Çıkış veya hesabı sil</div>
+
+            <div id="settingsAccountSection" class="settings-section hidden">
+                <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Gmail</strong>
+                        <div class="last-message">Doğrulama kodu ile değişir</div>
+                    </div>
+                    <button id="changeEmailButton" type="button">Değiştir</button>
                 </div>
-                <button id="settingsDeleteButton" type="button">Hesabı Sil</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Şifre</strong>
+                        <div class="last-message">Mevcut şifre gerekir</div>
+                    </div>
+                    <button id="changePasswordButton" type="button">Değiştir</button>
+                </div>
+                <div class="settings-row">
+                    <div>
+                        <strong>Hesap</strong>
+                        <div class="last-message">Çıkış veya hesabı sil</div>
+                    </div>
+                    <button id="settingsDeleteButton" type="button">Hesabı Sil</button>
+                </div>
+                <button id="settingsLogoutButton" class="primary" type="button">Çıkış</button>
             </div>
-            <button id="settingsLogoutButton" class="primary" type="button">Çıkış</button>
         </div>
     </section>
 
@@ -1866,6 +2057,10 @@
             activeChatId: null,
             newMessageMarkers: {},
             openNextChat: false,
+            archiveUnlocked: false,
+            archivePassword: "",
+            archiveItems: [],
+            settingsView: "menu",
             bootReady: false,
             typing: {},
             attachment: null,
@@ -1899,14 +2094,24 @@
         const EMOJIS = ["😀", "😂", "😍", "🥰", "😎", "😢", "😡", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "📍", "☕"];
 
         function updateAppViewportHeight() {
-            const viewportHeight = window.visualViewport?.height || window.innerHeight;
+            const viewport = window.visualViewport;
+            const viewportHeight = viewport?.height || window.innerHeight;
+            const keyboardInset = viewport
+                ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+                : 0;
+            const keyboardOpen = Boolean(
+                document.activeElement === $("messageInput")
+                && (keyboardInset > 60 || viewportHeight < window.innerHeight - 80)
+            );
             document.documentElement.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
+            document.documentElement.style.setProperty("--keyboard-inset", `${Math.round(keyboardInset)}px`);
+            $("app")?.classList.toggle("keyboard-open", keyboardOpen);
             if (state.me && activeChat()) {
                 requestAnimationFrame(() => {
                     const messageBox = $("messages");
                     messageBox.scrollTop = messageBox.scrollHeight;
                     if (document.activeElement === $("messageInput")) {
-                        $("messageInput").scrollIntoView({ block: "end" });
+                        document.querySelector(".composer")?.scrollIntoView({ block: "end" });
                     }
                 });
             }
@@ -1934,17 +2139,19 @@
             });
             void overlay.offsetWidth;
             overlay.classList.add("active");
-            state.transitionTimer = setTimeout(() => {
-                overlay.classList.remove("active");
-                state.transitionHideTimer = setTimeout(() => {
-                    if (!overlay.classList.contains("active")) {
-                        overlay.classList.add("hidden");
-                    } else {
-                        overlay.classList.remove("active");
-                        overlay.classList.add("hidden");
-                    }
-                }, 190);
-            }, duration);
+            if (Number.isFinite(duration) && duration > 0) {
+                state.transitionTimer = setTimeout(() => {
+                    overlay.classList.remove("active");
+                    state.transitionHideTimer = setTimeout(() => {
+                        if (!overlay.classList.contains("active")) {
+                            overlay.classList.add("hidden");
+                        } else {
+                            overlay.classList.remove("active");
+                            overlay.classList.add("hidden");
+                        }
+                    }, 190);
+                }, duration);
+            }
         }
 
         function hideScreenTransition() {
@@ -2126,6 +2333,29 @@
             state.activeChatId = null;
             $("app").classList.remove("chat-open");
             render();
+        }
+
+        function resetToAuth(message = "") {
+            localStorage.removeItem("nexalineUser");
+            state.me = null;
+            state.users = [];
+            state.chats = [];
+            state.stories = [];
+            state.callLogs = [];
+            state.archives = [];
+            state.contactRequests = [];
+            state.groupInvites = [];
+            state.blockedUsers = [];
+            state.activeChatId = null;
+            state.bootReady = false;
+            $("app").classList.add("hidden");
+            $("app").classList.remove("chat-open", "keyboard-open");
+            $("authScreen").classList.remove("hidden");
+            hideScreenTransition();
+            updateAuthView();
+            if (message) {
+                $("authStatus").textContent = message;
+            }
         }
 
         function setAuthMode(mode) {
@@ -2321,12 +2551,11 @@
         }
 
         async function openApp() {
-            showScreenTransition("NexaLine açılıyor", 12000);
+            showScreenTransition("NexaLine açılıyor", 7000);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
-            await loadRtcConfig();
             socket.emit("user:join", { username: state.me.username });
-            await loadBootstrap();
+            await Promise.allSettled([loadRtcConfig(), loadBootstrap()]);
         }
 
         async function loadRtcConfig() {
@@ -2346,8 +2575,18 @@
                 return;
             }
 
-            const response = await fetch(`/bootstrap/${state.me.username}`);
-            const data = await response.json();
+            let response;
+            let data;
+            try {
+                response = await fetch(`/bootstrap/${state.me.username}`);
+                data = await response.json();
+            } catch (error) {
+                if (!state.bootReady) {
+                    hideScreenTransition();
+                    $("authStatus").textContent = "Sunucuya bağlanılamadı. Birazdan tekrar dene.";
+                }
+                return;
+            }
 
             if (data.ok) {
                 const currentChatId = state.activeChatId;
@@ -2363,6 +2602,11 @@
                 render();
                 hideScreenTransition();
                 maybePromptGeneralGroup();
+            } else if (response.status === 401 || response.status === 404) {
+                resetToAuth(data.message || "Oturum bulunamadı. Yeniden giriş yap.");
+            } else if (!state.bootReady) {
+                hideScreenTransition();
+                $("authStatus").textContent = data.message || "Başlangıç verileri alınamadı.";
             }
         }
 
@@ -2388,9 +2632,9 @@
         function renderSections() {
             const labels = {
                 chats: "Sohbetler",
-                groups: "Gruplar",
-                stories: "Durumlar",
-                calls: "Arama kayıtları",
+                groups: "Topluluklar",
+                stories: "Güncellemeler",
+                calls: "Aramalar",
                 contacts: "Kişiler",
                 archives: "Arşivler"
             };
@@ -2786,17 +3030,53 @@
             const archiveList = $("archiveList");
             archiveList.innerHTML = "";
 
-            if (!state.archives.length) {
+            if (!state.archiveUnlocked) {
+                const lock = document.createElement("div");
+                lock.className = "archive-lock";
+                lock.innerHTML = `
+                    <strong>Arşivi görüntülemek için şifre girin</strong>
+                    <div class="last-message">Silinen ve engellenirken saklanan sohbetler şifreyle açılır.</div>
+                    <input id="archiveUnlockPassword" type="password" placeholder="Hesap şifresi">
+                    <button id="archiveUnlockButton" class="primary" type="button">Arşivi Aç</button>
+                `;
+                archiveList.appendChild(lock);
+                $("archiveUnlockButton").onclick = unlockArchives;
+                $("archiveUnlockPassword").addEventListener("keydown", event => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        unlockArchives();
+                    }
+                });
+                return;
+            }
+
+            const header = document.createElement("div");
+            header.className = "archive-lock";
+            header.innerHTML = `
+                <div class="last-message">Arşiv açık. Sohbeti seçince mesajları görebilir veya arşivden çıkarabilirsin.</div>
+                <button id="archiveLockButton" type="button">Arşivi Kilitle</button>
+            `;
+            archiveList.appendChild(header);
+            $("archiveLockButton").onclick = () => {
+                state.archiveUnlocked = false;
+                state.archivePassword = "";
+                state.archiveItems = [];
+                renderArchives();
+            };
+
+            const items = (state.archiveItems.length ? state.archiveItems : state.archives)
+                .filter(item => item.chatTitle.toLowerCase().includes(filter));
+
+            if (!items.length) {
                 archiveList.insertAdjacentHTML("beforeend", `<button class="chat-item"><div class="avatar">A</div><div><strong class="chat-title">Arşiv boş</strong><div class="last-message">Silinen veya engellemede saklanan sohbetler 3 gün burada kalır</div></div><span class="chat-time"></span></button>`);
                 return;
             }
 
-            state.archives
-                .filter(item => item.chatTitle.toLowerCase().includes(filter))
+            items
                 .forEach(item => {
                     const button = document.createElement("button");
                     button.className = "chat-item";
-                    button.onclick = () => openArchivePassword(item);
+                    button.onclick = () => renderArchiveModal(item, state.archivePassword);
                     const avatar = document.createElement("div");
                     avatar.className = "avatar";
                     avatar.textContent = item.reason === "blocked" ? "!" : "A";
@@ -2814,6 +3094,24 @@
                     button.append(avatar, body, time);
                     archiveList.appendChild(button);
                 });
+        }
+
+        async function unlockArchives() {
+            const password = $("archiveUnlockPassword")?.value || "";
+            const response = await fetch(`/account/${state.me.username}/archives/unlock`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Arşiv açılamadı.");
+                return;
+            }
+            state.archiveUnlocked = true;
+            state.archivePassword = password;
+            state.archiveItems = data.archives || [];
+            renderArchives();
         }
 
         function openArchivePassword(item) {
@@ -2873,8 +3171,30 @@
                 body.append(info, list);
             }, [
                 { label: "Kapat", onClick: closeModal },
+                { label: "Arşivden çıkar", onClick: () => restoreArchive(archive.id, password) },
                 { label: "Kalıcı sil", primary: true, onClick: () => deleteArchive(archive.id, password) }
             ]);
+        }
+
+        async function restoreArchive(archiveId, password) {
+            const response = await fetch(`/account/${state.me.username}/archives/${archiveId}/restore`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Arşivden çıkarılamadı.");
+                return;
+            }
+            if (data.chat) {
+                upsertChat(data.chat);
+            }
+            state.archives = data.archives || [];
+            state.archiveItems = state.archiveItems.filter(item => item.id !== archiveId);
+            closeModal();
+            render();
+            showToast(data.message || "Sohbet arşivden çıkarıldı.");
         }
 
         async function deleteArchive(archiveId, password) {
@@ -2889,6 +3209,7 @@
                 return;
             }
             state.archives = data.archives || [];
+            state.archiveItems = state.archiveItems.filter(item => item.id !== archiveId);
             closeModal();
             renderArchives();
             showToast("Arşiv kalıcı olarak silindi.");
@@ -3792,11 +4113,28 @@
             $("hideEmailInput").checked = state.me.privacy?.emailHidden !== false;
             state.profileImageDraft = state.me.profileImage || null;
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
+            setSettingsView("menu");
             $("settingsPanel").classList.remove("hidden");
         }
 
         function closeSettings() {
             $("settingsPanel").classList.add("hidden");
+        }
+
+        function setSettingsView(view) {
+            state.settingsView = view;
+            $("settingsMenu").classList.toggle("hidden", view !== "menu");
+            $("settingsProfileSection").classList.toggle("hidden", view !== "profile");
+            $("settingsPrivacySection").classList.toggle("hidden", view !== "privacy");
+            $("settingsAccountSection").classList.toggle("hidden", view !== "account");
+            $("settingsEmail").textContent = view === "menu"
+                ? (state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış")
+                : view === "profile"
+                    ? "Profil bilgileri"
+                    : view === "privacy"
+                        ? "Gizlilik seçenekleri"
+                        : "Hesap işlemleri";
+            $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
         }
 
         async function saveProfile() {
@@ -4629,6 +4967,12 @@
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("settingsButton").onclick = openSettings;
         $("closeSettingsButton").onclick = closeSettings;
+        $("settingsProfileTab").onclick = () => setSettingsView("profile");
+        $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
+        $("settingsAccountTab").onclick = () => setSettingsView("account");
+        document.querySelectorAll("[data-settings-back]").forEach(button => {
+            button.onclick = () => setSettingsView("menu");
+        });
         $("profileImageButton").onclick = chooseProfileImage;
         $("removeProfileImageButton").onclick = () => {
             state.profileImageDraft = "";
@@ -4766,6 +5110,9 @@
 
         socket.on("archive:update", archives => {
             state.archives = archives || [];
+            if (state.archiveUnlocked) {
+                state.archiveItems = state.archiveItems.filter(item => state.archives.some(summary => summary.id === item.id));
+            }
             renderArchives();
         });
 
@@ -4884,6 +5231,15 @@
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight);
         window.visualViewport?.addEventListener("scroll", updateAppViewportHeight);
+        $("messageInput").addEventListener("focus", () => {
+            [60, 180, 360, 620].forEach(delay => setTimeout(updateAppViewportHeight, delay));
+        });
+        $("messageInput").addEventListener("input", () => {
+            updateAppViewportHeight();
+        });
+        $("messageInput").addEventListener("blur", () => {
+            setTimeout(updateAppViewportHeight, 180);
+        });
         setInterval(() => {
             if (state.me?.username && state.bootReady && $("modalPanel").classList.contains("hidden")) {
                 loadBootstrap().catch(() => {});

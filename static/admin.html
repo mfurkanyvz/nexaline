@@ -129,7 +129,7 @@
 
         .summary {
             display: grid;
-            grid-template-columns: repeat(5, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 10px;
             margin-bottom: 16px;
         }
@@ -183,6 +183,38 @@
         .message.deleted-message {
             border-left-color: var(--yellow);
             opacity: 0.82;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            color: var(--text);
+            background: #090d15;
+            resize: vertical;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            padding: 5px 8px;
+            border-radius: 999px;
+            color: #d7e4ff;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 12px;
         }
 
         .media {
@@ -251,6 +283,9 @@
                 <button class="tab" data-view="messages" type="button">Mesajlar</button>
                 <button class="tab" data-view="stories" type="button">Durumlar</button>
                 <button class="tab" data-view="calls" type="button">Aramalar</button>
+                <button class="tab" data-view="archives" type="button">Arşivler</button>
+                <button class="tab" data-view="social" type="button">Engel/İstek</button>
+                <button class="tab" data-view="create" type="button">Hesap Aç</button>
             </nav>
         </aside>
 
@@ -326,6 +361,9 @@
             if (state.view === "messages") renderMessages();
             if (state.view === "stories") renderStories();
             if (state.view === "calls") renderCalls();
+            if (state.view === "archives") renderArchives();
+            if (state.view === "social") renderSocial();
+            if (state.view === "create") renderCreateUsers();
         }
 
         function renderSummary() {
@@ -336,6 +374,9 @@
                 <div class="metric"><strong>${messageCount}</strong><small>Mesaj</small></div>
                 <div class="metric"><strong>${state.data.stories.length}</strong><small>Durum</small></div>
                 <div class="metric"><strong>${state.data.calls.length}</strong><small>Arama</small></div>
+                <div class="metric"><strong>${state.data.archives?.length || 0}</strong><small>Arşiv</small></div>
+                <div class="metric"><strong>${state.data.blocks?.length || 0}</strong><small>Engel</small></div>
+                <div class="metric"><strong>${(state.data.contactRequests?.length || 0) + (state.data.groupInvites?.length || 0)}</strong><small>İstek</small></div>
             `;
         }
 
@@ -362,13 +403,22 @@
                 card.innerHTML = `
                     <h3>${escapeHtml(user.displayName)} (@${escapeHtml(user.username)})</h3>
                     <p>${user.online ? "çevrimiçi" : "çevrimdışı"} • ${escapeHtml(user.email || "Gmail yok")} • ${new Date(user.createdAt).toLocaleString("tr-TR")}</p>
+                    <div class="chip-row">
+                        <span class="chip">${user.emailVerified ? "E-posta doğrulanmış" : "E-posta doğrulanmamış"}</span>
+                        <span class="chip">${user.privacy?.lastSeenHidden ? "Son görülme kapalı" : "Son görülme açık"}</span>
+                        <span class="chip">${user.privacy?.onlineHidden ? "Çevrim içi gizli" : "Çevrim içi açık"}</span>
+                        <span class="chip">${user.privacy?.readReceiptsOff ? "Okundu kapalı" : "Okundu açık"}</span>
+                        <span class="chip">${user.privacy?.emailHidden ? "Gmail gizli" : "Gmail görünür"}</span>
+                    </div>
                     <div class="card-row">
+                        <button data-privacy="${user.username}" type="button">Gizlilik</button>
                         <button class="ok" data-reset="${user.username}" type="button">Şifre Sıfırla</button>
                         <button class="danger" data-delete="${user.username}" type="button">Sil</button>
                     </div>
                 `;
                 grid.appendChild(card);
             });
+            grid.querySelectorAll("[data-privacy]").forEach(button => button.onclick = () => editUserPrivacy(button.dataset.privacy));
             grid.querySelectorAll("[data-delete]").forEach(button => button.onclick = () => deleteUser(button.dataset.delete));
             grid.querySelectorAll("[data-reset]").forEach(button => button.onclick = () => resetPassword(button.dataset.reset));
         }
@@ -481,6 +531,169 @@
                 `;
                 list.appendChild(item);
             });
+        }
+
+        function renderArchives() {
+            const archives = (state.data.archives || []).filter(archive => matchesSearch(
+                archive.username,
+                archive.chatTitle,
+                archive.reason,
+                archive.messages?.map(message => `${message.senderName} ${message.body} ${message.attachment?.name || ""}`).join(" ")
+            ));
+            $("view").innerHTML = `<h2>Arşivler (${archives.length}/${state.data.archives?.length || 0})</h2><div class="list"></div>`;
+            const list = $("view").querySelector(".list");
+            if (!archives.length) {
+                list.innerHTML = empty((state.data.archives || []).length ? "Aramana uygun arşiv yok." : "Arşivde sohbet yok.");
+                return;
+            }
+            archives.forEach(archive => {
+                const item = document.createElement("article");
+                item.className = "card";
+                const messages = archive.messages || [];
+                const preview = messages.slice(-4).map(message => `
+                    <div class="message${message.deletedAt ? " deleted-message" : ""}">
+                        <strong>${escapeHtml(message.senderName || message.sender || "Kullanıcı")}</strong>
+                        <p>${escapeHtml(message.deletedAt ? "Bu mesaj silindi" : (message.body || message.attachment?.name || message.attachment?.type || "Dosya"))}</p>
+                        ${renderAttachment(message.attachment)}
+                        <small class="meta">${message.createdAt ? new Date(message.createdAt).toLocaleString("tr-TR") : ""}</small>
+                    </div>
+                `).join("");
+                item.innerHTML = `
+                    <h3>${escapeHtml(archive.chatTitle)} • ${escapeHtml(archive.username)}</h3>
+                    <p>${archive.reason === "blocked" ? "Engellenirken arşivlendi" : "Silinen sohbet"} • ${archive.messageCount} mesaj • ${new Date(archive.expiresAt).toLocaleString("tr-TR")} kalıcı silinir</p>
+                    <div class="list">${preview || empty("Bu arşivde mesaj yok.")}</div>
+                    <div class="card-row">
+                        <button class="ok" data-restore-archive="${escapeAttr(archive.id)}" type="button">Arşivden Çıkar</button>
+                        <button class="danger" data-delete-archive="${escapeAttr(archive.id)}" type="button">Kalıcı Sil</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            list.querySelectorAll("[data-restore-archive]").forEach(button => button.onclick = () => restoreArchive(button.dataset.restoreArchive));
+            list.querySelectorAll("[data-delete-archive]").forEach(button => button.onclick = () => deleteArchive(button.dataset.deleteArchive));
+        }
+
+        function renderSocial() {
+            const blocks = (state.data.blocks || []).filter(item => matchesSearch(item.blocker?.displayName, item.blocked?.displayName, item.blocker?.username, item.blocked?.username));
+            const contactRequests = (state.data.contactRequests || []).filter(item => matchesSearch(item.from?.displayName, item.to?.displayName, item.status));
+            const groupInvites = (state.data.groupInvites || []).filter(item => matchesSearch(item.groupTitle, item.inviter?.displayName, item.invitee?.displayName, item.status));
+            $("view").innerHTML = `
+                <h2>Engel ve İstekler</h2>
+                <div class="grid">
+                    <article class="card"><h3>Engeller (${blocks.length})</h3><div id="adminBlocks" class="list"></div></article>
+                    <article class="card"><h3>Mesaj İstekleri (${contactRequests.length})</h3><div id="adminContactRequests" class="list"></div></article>
+                    <article class="card"><h3>Grup İstekleri (${groupInvites.length})</h3><div id="adminGroupInvites" class="list"></div></article>
+                </div>
+            `;
+            $("adminBlocks").innerHTML = blocks.length ? blocks.map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.blocker?.displayName || item.blocker?.username || "?")} engelledi</strong>
+                    <p>${escapeHtml(item.blocked?.displayName || item.blocked?.username || "?")}</p>
+                    <small class="meta">${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
+                </div>
+            `).join("") : empty("Engel kaydı yok.");
+            $("adminContactRequests").innerHTML = contactRequests.length ? contactRequests.map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.from?.displayName || "?")} → ${escapeHtml(item.to?.displayName || "?")}</strong>
+                    <p>${escapeHtml(item.status || "bekliyor")}</p>
+                    <small class="meta">${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
+                </div>
+            `).join("") : empty("Mesaj isteği yok.");
+            $("adminGroupInvites").innerHTML = groupInvites.length ? groupInvites.map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.groupTitle || "Grup")}</strong>
+                    <p>${escapeHtml(item.inviter?.displayName || "?")} → ${escapeHtml(item.invitee?.displayName || "?")} • ${escapeHtml(item.status || "bekliyor")}</p>
+                    <small class="meta">${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
+                </div>
+            `).join("") : empty("Grup isteği yok.");
+        }
+
+        function renderCreateUsers() {
+            $("view").innerHTML = `
+                <h2>Admin Hesap Açma</h2>
+                <article class="card">
+                    <h3>Tek hesap</h3>
+                    <div class="form-grid">
+                        <input id="newDisplayName" placeholder="İsim soyisim">
+                        <input id="newEmail" placeholder="E-posta (sahte olabilir ama formatlı olsun)">
+                        <input id="newUsername" placeholder="Kullanıcı adı (boş kalırsa otomatik)">
+                        <input id="newPassword" type="password" placeholder="Güçlü şifre">
+                    </div>
+                    <button id="createUserButton" class="primary" type="button">Hesabı Oluştur</button>
+                </article>
+                <article class="card">
+                    <h3>Toplu hesap</h3>
+                    <p>Her satır: İsim Soyisim | email@example.com | Sifre123! | kullaniciadi</p>
+                    <textarea id="bulkUsers" placeholder="Ali Veli | ali@example.com | Guclu123! | aliveli"></textarea>
+                    <button id="bulkCreateButton" class="primary" type="button">Toplu Oluştur</button>
+                    <div id="bulkResult" class="meta"></div>
+                </article>
+            `;
+            $("createUserButton").onclick = async () => {
+                await createAdminUser({
+                    displayName: $("newDisplayName").value.trim(),
+                    email: $("newEmail").value.trim(),
+                    username: $("newUsername").value.trim(),
+                    password: $("newPassword").value
+                });
+                $("newDisplayName").value = "";
+                $("newEmail").value = "";
+                $("newUsername").value = "";
+                $("newPassword").value = "";
+                await load();
+                state.view = "create";
+                render();
+                setStatus("Hesap oluşturuldu.", "ok");
+            };
+            $("bulkCreateButton").onclick = async () => {
+                const lines = $("bulkUsers").value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+                const results = [];
+                for (const line of lines) {
+                    const [displayName, email, password, username] = line.split("|").map(part => part?.trim() || "");
+                    try {
+                        await createAdminUser({ displayName, email, password, username });
+                        results.push(`Tamam: ${displayName}`);
+                    } catch (error) {
+                        results.push(`Hata: ${displayName || line} - ${error.message}`);
+                    }
+                }
+                $("bulkResult").innerHTML = results.map(result => `<div>${escapeHtml(result)}</div>`).join("");
+                await load();
+                state.view = "create";
+                render();
+            };
+        }
+
+        async function createAdminUser(payload) {
+            if (!payload.displayName || !payload.email || !payload.password) {
+                throw new Error("İsim, e-posta ve şifre gerekli.");
+            }
+            return api("/admin/user", { method: "POST", body: JSON.stringify(payload) });
+        }
+
+        async function editUserPrivacy(username) {
+            const user = state.data.users.find(item => item.username === username);
+            if (!user) return;
+            const payload = {
+                lastSeenHidden: confirm(`${user.displayName}: son görülme gizlensin mi?`),
+                onlineHidden: confirm(`${user.displayName}: çevrim içi durumu gizlensin mi?`),
+                readReceiptsOff: confirm(`${user.displayName}: okundu bilgisi kapatılsın mı?`),
+                emailHidden: confirm(`${user.displayName}: Gmail adresi gizlensin mi?`)
+            };
+            await api(`/admin/user/${encodeURIComponent(username)}/privacy`, { method: "POST", body: JSON.stringify(payload) });
+            await load();
+        }
+
+        async function restoreArchive(id) {
+            if (!confirm("Bu arşiv sohbet listesine geri çıkarılsın mı?")) return;
+            await api(`/admin/archive/${encodeURIComponent(id)}/restore`, { method: "POST" });
+            await load();
+        }
+
+        async function deleteArchive(id) {
+            if (!confirm("Bu arşiv kalıcı olarak silinsin mi?")) return;
+            await api(`/admin/archive/${encodeURIComponent(id)}`, { method: "DELETE" });
+            await load();
         }
 
         async function deleteUser(username) {
