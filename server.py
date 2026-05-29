@@ -74,12 +74,14 @@ class User(db.Model):
     avatar = db.Column(db.String(8), nullable=False)
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class Chat(db.Model):
     id = db.Column(db.String(140), primary_key=True)
     type = db.Column(db.String(20), nullable=False)
     title = db.Column(db.String(160), nullable=False)
+    image = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     members = db.relationship("ChatMember", backref="chat", cascade="all, delete-orphan")
@@ -104,6 +106,10 @@ class Message(db.Model):
     attachment = db.Column(db.JSON, nullable=True)
     reply_to = db.Column(db.JSON, nullable=True)
     read_by = db.Column(db.JSON, nullable=False, default=list)
+    reactions = db.Column(db.JSON, nullable=False, default=dict)
+    deleted_for = db.Column(db.JSON, nullable=False, default=list)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_by = db.Column(db.String(80), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     sender_user = db.relationship("User")
@@ -147,6 +153,36 @@ class EmailVerification(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
+class BlockedUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    blocker = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    blocked = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (db.UniqueConstraint("blocker", "blocked", name="unique_blocked_user"),)
+
+
+class ContactRequest(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    from_username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    to_username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="pending")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    responded_at = db.Column(db.DateTime, nullable=True)
+
+
+class GroupInvite(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
+    inviter = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    invitee = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="pending")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    responded_at = db.Column(db.DateTime, nullable=True)
+
+    chat = db.relationship("Chat")
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -169,13 +205,15 @@ def is_past(value):
 
 def public_user(username):
     user = db.session.get(User, username)
+    online = any(name == username for name in connections.values())
     return {
         "username": username,
         "displayName": user.display_name if user else username,
         "avatar": user.avatar if user else username[:2].upper(),
         "profileImage": user.profile_image if user else None,
         "about": user.about if user else "NexaLine kullanıyorum.",
-        "online": any(name == username for name in connections.values()),
+        "online": online,
+        "lastSeen": now_iso() if online else to_iso(user.last_seen) if user else None,
     }
 
 
@@ -209,17 +247,22 @@ def active_stories():
 
 
 def message_to_dict(message):
+    deleted_at = to_iso(message.deleted_at) if message.deleted_at else None
     return {
         "id": message.id,
         "chatId": message.chat_id,
         "sender": message.sender,
         "senderName": message.sender_user.display_name if message.sender_user else message.sender,
-        "body": message.body,
-        "attachment": message.attachment,
+        "body": "" if message.deleted_at else message.body,
+        "attachment": None if message.deleted_at else message.attachment,
         "replyTo": message.reply_to,
         "createdAt": to_iso(message.created_at),
         "status": "sent",
         "readBy": message.read_by or [],
+        "reactions": message.reactions or {},
+        "deletedAt": deleted_at,
+        "deletedBy": message.deleted_by,
+        "deletedFor": message.deleted_for or [],
     }
 
 
@@ -255,7 +298,19 @@ def direct_chat_id(first_username, second_username):
     return "dm:" + ":".join(sorted([first_username, second_username]))
 
 
+def find_direct_chat(first_username, second_username):
+    wanted = sorted([first_username, second_username])
+    for chat in Chat.query.filter_by(type="direct").all():
+        if chat_member_names(chat) == wanted:
+            return chat
+    return None
+
+
 def ensure_direct_chat(first_username, second_username):
+    existing = find_direct_chat(first_username, second_username)
+    if existing:
+        return existing
+
     chat_id = direct_chat_id(first_username, second_username)
     chat = db.session.get(Chat, chat_id)
 
@@ -325,7 +380,11 @@ def general_group_state(username):
 
 
 def chat_for_user(chat, username):
-    messages = [message_to_dict(message) for message in chat.messages]
+    messages = [
+        message_to_dict(message)
+        for message in chat.messages
+        if username not in (message.deleted_for or [])
+    ]
     last_message = messages[-1] if messages else None
     member_names = chat_member_names(chat)
     title = chat.title
@@ -338,6 +397,7 @@ def chat_for_user(chat, username):
         "id": chat.id,
         "type": chat.type,
         "title": title,
+        "image": chat.image,
         "members": [
             {**public_user(member), "isAdmin": is_group_admin(chat, member)}
             for member in member_names
@@ -370,6 +430,72 @@ def visible_call_logs(username):
     return [call_log_to_dict(log, username) for log in logs]
 
 
+def is_blocked_between(first_username, second_username):
+    return (
+        BlockedUser.query.filter_by(blocker=first_username, blocked=second_username).first()
+        or BlockedUser.query.filter_by(blocker=second_username, blocked=first_username).first()
+    )
+
+
+def contact_request_between(first_username, second_username):
+    return (
+        ContactRequest.query.filter_by(from_username=first_username, to_username=second_username).order_by(ContactRequest.created_at.desc()).first()
+        or ContactRequest.query.filter_by(from_username=second_username, to_username=first_username).order_by(ContactRequest.created_at.desc()).first()
+    )
+
+
+def accepted_contact(first_username, second_username):
+    request_row = contact_request_between(first_username, second_username)
+    if request_row and request_row.status == "accepted":
+        return True
+
+    legacy_chat = find_direct_chat(first_username, second_username)
+    return bool(legacy_chat and legacy_chat.messages)
+
+
+def contact_request_to_dict(request_row):
+    return {
+        "id": request_row.id,
+        "from": public_user(request_row.from_username),
+        "to": public_user(request_row.to_username),
+        "status": request_row.status,
+        "createdAt": to_iso(request_row.created_at),
+        "respondedAt": to_iso(request_row.responded_at) if request_row.responded_at else None,
+    }
+
+
+def visible_contact_requests(username):
+    rows = ContactRequest.query.filter(
+        db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username)
+    ).order_by(ContactRequest.created_at.desc()).all()
+    return [contact_request_to_dict(row) for row in rows]
+
+
+def group_invite_to_dict(invite):
+    return {
+        "id": invite.id,
+        "chatId": invite.chat_id,
+        "chatTitle": invite.chat.title if invite.chat else "Grup",
+        "chatImage": invite.chat.image if invite.chat else None,
+        "inviter": public_user(invite.inviter),
+        "invitee": public_user(invite.invitee),
+        "status": invite.status,
+        "createdAt": to_iso(invite.created_at),
+        "respondedAt": to_iso(invite.responded_at) if invite.responded_at else None,
+    }
+
+
+def visible_group_invites(username):
+    rows = GroupInvite.query.filter(
+        db.or_(GroupInvite.inviter == username, GroupInvite.invitee == username)
+    ).order_by(GroupInvite.created_at.desc()).all()
+    return [group_invite_to_dict(row) for row in rows]
+
+
+def blocked_users_for(username):
+    return [row.blocked for row in BlockedUser.query.filter_by(blocker=username).all()]
+
+
 def connected_sids_for(username):
     return [sid for sid, connected_user in connections.items() if connected_user == username]
 
@@ -386,6 +512,20 @@ def broadcast_stories():
 def emit_general_group_updates():
     for sid, username in connections.items():
         socketio.emit("general:update", general_group_state(username), room=sid)
+
+
+def emit_social_updates(*usernames):
+    for username in {name for name in usernames if name}:
+        for sid in connected_sids_for(username):
+            socketio.emit(
+                "social:update",
+                {
+                    "contactRequests": visible_contact_requests(username),
+                    "groupInvites": visible_group_invites(username),
+                    "blockedUsers": blocked_users_for(username),
+                },
+                room=sid,
+            )
 
 
 def admin_token_from_request():
@@ -982,6 +1122,46 @@ def change_email_verify(username):
     return jsonify({"ok": True, "message": "Gmail değiştirildi.", "user": private_user(username)})
 
 
+@app.route("/account/<username>/profile", methods=["POST"])
+def update_profile(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    display_name = (data.get("displayName") or user.display_name).strip()
+    about = (data.get("about") or user.about or "").strip()
+    profile_image = data.get("profileImage")
+
+    if len(display_name) < 2 or len(display_name) > 40:
+        return jsonify({"ok": False, "message": "Görünen ad 2-40 karakter olmalı."}), 400
+
+    if len(about) > 180:
+        return jsonify({"ok": False, "message": "Hakkımda yazısı en fazla 180 karakter olmalı."}), 400
+
+    user.display_name = display_name
+    user.avatar = display_name[:2].upper()
+    user.about = about or "NexaLine kullanıyorum."
+    if isinstance(profile_image, str):
+        if profile_image and not profile_image.startswith("data:image/"):
+            return jsonify({"ok": False, "message": "Profil fotoğrafı sadece resim olabilir."}), 400
+        if len(profile_image) > 1_500_000:
+            return jsonify({"ok": False, "message": "Profil fotoğrafı 1.5 MB altında olmalı."}), 400
+        user.profile_image = profile_image or None
+
+    db.session.commit()
+    broadcast_presence()
+
+    for chat in Chat.query.all():
+        if user_can_see_chat(chat, username):
+            for member in chat_member_names(chat):
+                for sid in connected_sids_for(member):
+                    socketio.emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+    return jsonify({"ok": True, "message": "Profil güncellendi.", "user": private_user(username)})
+
+
 @app.route("/account/<username>", methods=["DELETE"])
 def delete_account(username):
     try:
@@ -1000,6 +1180,9 @@ def delete_account(username):
         Story.query.filter_by(username=username).delete(synchronize_session=False)
         CallLog.query.filter_by(caller=username).delete(synchronize_session=False)
         Message.query.filter_by(sender=username).delete(synchronize_session=False)
+        BlockedUser.query.filter(db.or_(BlockedUser.blocker == username, BlockedUser.blocked == username)).delete(synchronize_session=False)
+        ContactRequest.query.filter(db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username)).delete(synchronize_session=False)
+        GroupInvite.query.filter(db.or_(GroupInvite.inviter == username, GroupInvite.invitee == username)).delete(synchronize_session=False)
         if direct_chat_ids:
             CallLog.query.filter(CallLog.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
 
@@ -1042,6 +1225,9 @@ def delete_all_users():
         Story.query.delete(synchronize_session=False)
         CallLog.query.delete(synchronize_session=False)
         Message.query.delete(synchronize_session=False)
+        BlockedUser.query.delete(synchronize_session=False)
+        ContactRequest.query.delete(synchronize_session=False)
+        GroupInvite.query.delete(synchronize_session=False)
         ChatMember.query.delete(synchronize_session=False)
 
         for chat in Chat.query.filter(Chat.id != "lobby").all():
@@ -1121,6 +1307,9 @@ def admin_delete_user(username):
     Story.query.filter_by(username=user.username).delete(synchronize_session=False)
     CallLog.query.filter_by(caller=user.username).delete(synchronize_session=False)
     Message.query.filter_by(sender=user.username).delete(synchronize_session=False)
+    BlockedUser.query.filter(db.or_(BlockedUser.blocker == user.username, BlockedUser.blocked == user.username)).delete(synchronize_session=False)
+    ContactRequest.query.filter(db.or_(ContactRequest.from_username == user.username, ContactRequest.to_username == user.username)).delete(synchronize_session=False)
+    GroupInvite.query.filter(db.or_(GroupInvite.inviter == user.username, GroupInvite.invitee == user.username)).delete(synchronize_session=False)
     member_rows = ChatMember.query.filter_by(username=user.username).all()
     direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
     group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
@@ -1209,6 +1398,7 @@ def admin_delete_chat(chat_id):
         return jsonify({"ok": False, "message": "Sohbet bulunamadı."}), 404
 
     affected_members = chat_member_names(chat)
+    GroupInvite.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
     db.session.delete(chat)
     db.session.commit()
 
@@ -1234,6 +1424,9 @@ def bootstrap(username):
             "generalGroup": general_group_state(username),
             "stories": active_stories(),
             "callLogs": visible_call_logs(username),
+            "contactRequests": visible_contact_requests(username),
+            "groupInvites": visible_group_invites(username),
+            "blockedUsers": blocked_users_for(username),
         }
     )
 
@@ -1252,6 +1445,10 @@ def handle_user_join(data):
         return
 
     connections[request.sid] = username
+    user = db.session.get(User, username)
+    if user:
+        user.last_seen = datetime.now(timezone.utc)
+        db.session.commit()
 
     for chat in Chat.query.all():
         if user_can_see_chat(chat, username):
@@ -1266,10 +1463,60 @@ def handle_user_join(data):
             "generalGroup": general_group_state(username),
             "stories": active_stories(),
             "callLogs": visible_call_logs(username),
+            "contactRequests": visible_contact_requests(username),
+            "groupInvites": visible_group_invites(username),
+            "blockedUsers": blocked_users_for(username),
         },
     )
     broadcast_presence()
     emit_general_group_updates()
+
+
+@socketio.on("contact:respond")
+def handle_contact_respond(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    request_row = db.session.get(ContactRequest, data.get("requestId"))
+    accept = bool(data.get("accept"))
+
+    if not username or not request_row or request_row.to_username != username or request_row.status != "pending":
+        emit("notice", {"message": "Mesajlaşma isteği bulunamadı."})
+        return
+
+    request_row.status = "accepted" if accept else "declined"
+    request_row.responded_at = datetime.now(timezone.utc)
+    db.session.commit()
+
+    if accept and not is_blocked_between(request_row.from_username, request_row.to_username):
+        chat = ensure_direct_chat(request_row.from_username, request_row.to_username)
+        for member in chat_member_names(chat):
+            for sid in connected_sids_for(member):
+                join_room(chat.id, sid=sid)
+                emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+    emit_social_updates(request_row.from_username, request_row.to_username)
+    emit("notice", {"message": "İstek kabul edildi." if accept else "İstek reddedildi."})
+
+
+@socketio.on("user:block")
+def handle_user_block(data):
+    username = connections.get(request.sid)
+    target = (data or {}).get("username", "").strip().lower()
+    blocked = bool((data or {}).get("blocked", True))
+
+    if not username or target == username or not db.session.get(User, target):
+        emit("notice", {"message": "Kullanıcı bulunamadı."})
+        return
+
+    row = BlockedUser.query.filter_by(blocker=username, blocked=target).first()
+    if blocked and not row:
+        db.session.add(BlockedUser(blocker=username, blocked=target))
+    elif not blocked and row:
+        db.session.delete(row)
+
+    db.session.commit()
+    emit_social_updates(username, target)
+    emit("notice", {"message": "Kullanıcı engellendi." if blocked else "Engel kaldırıldı."})
 
 
 @socketio.on("chat:create")
@@ -1279,6 +1526,27 @@ def handle_chat_create(data):
 
     if not username or not db.session.get(User, target) or target == username:
         emit("notice", {"message": "Kullanıcı bulunamadı."})
+        return
+
+    if is_blocked_between(username, target):
+        emit("notice", {"message": "Bu kişiyle mesajlaşma veya arama engellenmiş."})
+        return
+
+    existing_request = contact_request_between(username, target)
+    if not accepted_contact(username, target):
+        if existing_request and existing_request.status == "pending":
+            emit("notice", {"message": "Mesajlaşma isteği zaten bekliyor."})
+        else:
+            request_row = ContactRequest(
+                id=uuid4().hex,
+                from_username=username,
+                to_username=target,
+                status="pending",
+            )
+            db.session.add(request_row)
+            db.session.commit()
+            emit("notice", {"message": "Mesajlaşma isteği gönderildi. Karşı taraf kabul edince sohbet açılacak."})
+            emit_social_updates(username, target)
         return
 
     chat = ensure_direct_chat(username, target)
@@ -1295,31 +1563,31 @@ def handle_group_create(data):
     username = connections.get(request.sid)
     data = data or {}
     title = (data.get("title") or "").strip()
+    image = data.get("image") if isinstance(data.get("image"), str) else None
     requested_members = {(member or "").strip().lower() for member in data.get("members", [])}
     requested_members.discard("")
+    requested_members.discard(username)
 
     if not username or len(title) < 2:
         emit("notice", {"message": "Grup adı en az 2 karakter olmalı."})
         return
 
-    member_names = {username}
-    for member in requested_members:
-        if db.session.get(User, member):
-            member_names.add(member)
-
-    chat = Chat(id="group:" + uuid4().hex, type="group", title=title)
+    chat = Chat(id="group:" + uuid4().hex, type="group", title=title, image=image)
     db.session.add(chat)
     db.session.flush()
 
-    for member in sorted(member_names):
-        db.session.add(ChatMember(chat_id=chat.id, username=member, is_admin=member == username))
+    db.session.add(ChatMember(chat_id=chat.id, username=username, is_admin=True))
+    invitees = []
+    for member in sorted(requested_members):
+        if db.session.get(User, member) and not is_blocked_between(username, member):
+            invitees.append(member)
+            db.session.add(GroupInvite(id=uuid4().hex, chat_id=chat.id, inviter=username, invitee=member))
 
     db.session.commit()
 
-    for member in member_names:
-        for sid in connected_sids_for(member):
-            join_room(chat.id, sid=sid)
-            emit("chat:upsert", chat_for_user(chat, member), room=sid)
+    join_room(chat.id)
+    emit("chat:upsert", chat_for_user(chat, username), room=request.sid)
+    emit_social_updates(username, *invitees)
 
 
 @socketio.on("chat:group:add")
@@ -1337,16 +1605,26 @@ def handle_group_add(data):
         emit("notice", {"message": "Kullanıcı bulunamadı."})
         return
 
-    if add_chat_member(chat.id, target):
-        db.session.commit()
+    if is_blocked_between(username, target):
+        emit("notice", {"message": "Bu kişi davet edilemiyor."})
+        return
 
-    for sid in connected_sids_for(target):
-        join_room(chat.id, sid=sid)
-        emit("chat:upsert", chat_for_user(chat, target), room=sid)
+    if ChatMember.query.filter_by(chat_id=chat.id, username=target).first():
+        emit("notice", {"message": "Bu kişi zaten grupta."})
+        return
+
+    invite = GroupInvite.query.filter_by(chat_id=chat.id, invitee=target, status="pending").first()
+    if not invite:
+        invite = GroupInvite(id=uuid4().hex, chat_id=chat.id, inviter=username, invitee=target)
+        db.session.add(invite)
+        db.session.commit()
 
     for member in chat_member_names(chat):
         for sid in connected_sids_for(member):
             emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+    emit_social_updates(username, target)
+    emit("notice", {"message": "Grup daveti gönderildi. Kişi kabul edince eklenecek."})
 
 
 @socketio.on("chat:group:remove")
@@ -1385,6 +1663,80 @@ def handle_group_remove(data):
     for member_name in chat_member_names(chat):
         for sid in connected_sids_for(member_name):
             emit("chat:upsert", chat_for_user(chat, member_name), room=sid)
+
+
+@socketio.on("group:invite:respond")
+def handle_group_invite_respond(data):
+    username = connections.get(request.sid)
+    invite = db.session.get(GroupInvite, (data or {}).get("inviteId"))
+    accept = bool((data or {}).get("accept"))
+
+    if not username or not invite or invite.invitee != username or invite.status != "pending":
+        emit("notice", {"message": "Grup daveti bulunamadı."})
+        return
+
+    chat = db.session.get(Chat, invite.chat_id)
+    invite.status = "accepted" if accept else "declined"
+    invite.responded_at = datetime.now(timezone.utc)
+
+    if accept and chat and not ChatMember.query.filter_by(chat_id=chat.id, username=username).first():
+        db.session.add(ChatMember(chat_id=chat.id, username=username, is_admin=False))
+
+    db.session.commit()
+
+    if accept and chat:
+        join_room(chat.id)
+        for member in chat_member_names(chat):
+            for sid in connected_sids_for(member):
+                emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+    emit_social_updates(invite.inviter, invite.invitee)
+    emit("notice", {"message": "Gruba katıldın." if accept else "Grup daveti reddedildi."})
+
+
+@socketio.on("chat:group:update")
+def handle_group_update(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+
+    if not username or not chat or chat.type != "group" or chat.id == "lobby" or not is_group_admin(chat, username):
+        emit("notice", {"message": "Sadece grup yöneticisi grup bilgisini değiştirebilir."})
+        return
+
+    title = (data.get("title") or chat.title).strip()
+    image = data.get("image")
+    transfer_to = (data.get("transferTo") or "").strip().lower()
+
+    if len(title) < 2 or len(title) > 60:
+        emit("notice", {"message": "Grup adı 2-60 karakter olmalı."})
+        return
+
+    chat.title = title
+    if isinstance(image, str):
+        if image and not image.startswith("data:image/"):
+            emit("notice", {"message": "Grup fotoğrafı sadece resim olabilir."})
+            return
+        if len(image) > 1_500_000:
+            emit("notice", {"message": "Grup fotoğrafı 1.5 MB altında olmalı."})
+            return
+        chat.image = image or None
+
+    if transfer_to:
+        target_member = ChatMember.query.filter_by(chat_id=chat.id, username=transfer_to).first()
+        current_member = ChatMember.query.filter_by(chat_id=chat.id, username=username).first()
+        if not target_member:
+            emit("notice", {"message": "Yönetici devredilecek kişi grupta değil."})
+            return
+        target_member.is_admin = True
+        if current_member and transfer_to != username:
+            current_member.is_admin = False
+
+    db.session.commit()
+    for member in chat_member_names(chat):
+        for sid in connected_sids_for(member):
+            emit("chat:upsert", chat_for_user(chat, member), room=sid)
+    emit("notice", {"message": "Grup güncellendi."})
 
 
 @socketio.on("chat:lobby:join")
@@ -1440,6 +1792,12 @@ def handle_message_send(data):
 
     if not username or not chat or not user_can_see_chat(chat, username):
         return
+
+    if chat.type == "direct":
+        others = [member for member in chat_member_names(chat) if member != username]
+        if any(is_blocked_between(username, other) for other in others) or any(not accepted_contact(username, other) for other in others):
+            emit("notice", {"message": "Mesaj göndermek için önce istek kabul edilmeli ve engel olmamalı."})
+            return
 
     if not body and not attachment:
         return
@@ -1504,6 +1862,62 @@ def handle_message_read(data):
         emit("message:read", {"chatId": chat_id, "reader": username, "messageIds": updated_ids}, room=chat_id)
 
 
+@socketio.on("message:delete")
+def handle_message_delete(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    message = db.session.get(Message, data.get("messageId"))
+    scope = data.get("scope") or "me"
+
+    if not username or not message:
+        return
+
+    chat = db.session.get(Chat, message.chat_id)
+    if not chat or not user_can_see_chat(chat, username):
+        return
+
+    if scope == "all":
+        if message.sender != username and not is_group_admin(chat, username):
+            emit("notice", {"message": "Bu mesajı herkesten sadece gönderen veya grup yöneticisi silebilir."})
+            return
+        message.body = ""
+        message.attachment = None
+        message.reply_to = None
+        message.deleted_at = datetime.now(timezone.utc)
+        message.deleted_by = username
+        db.session.commit()
+        emit("message:deleted", message_to_dict(message), room=chat.id)
+        return
+
+    deleted_for = list(message.deleted_for or [])
+    if username not in deleted_for:
+        deleted_for.append(username)
+        message.deleted_for = deleted_for
+        db.session.commit()
+    emit("message:remove-local", {"chatId": chat.id, "messageId": message.id}, room=request.sid)
+
+
+@socketio.on("message:react")
+def handle_message_react(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    message = db.session.get(Message, data.get("messageId"))
+    emoji = (data.get("emoji") or "").strip()[:8]
+
+    if not username or not message or not emoji:
+        return
+
+    chat = db.session.get(Chat, message.chat_id)
+    if not chat or not user_can_see_chat(chat, username):
+        return
+
+    reactions = dict(message.reactions or {})
+    reactions[username] = emoji
+    message.reactions = reactions
+    db.session.commit()
+    emit("message:reaction", {"chatId": chat.id, "messageId": message.id, "reactions": reactions}, room=chat.id)
+
+
 @socketio.on("story:create")
 def handle_story_create(data):
     username = connections.get(request.sid)
@@ -1547,6 +1961,12 @@ def forward_call_event(event_name, data):
     if not username or not chat or not user_can_see_chat(chat, username):
         return
 
+    if chat.type == "direct":
+        others = [member for member in chat_member_names(chat) if member != username]
+        if any(is_blocked_between(username, other) for other in others) or any(not accepted_contact(username, other) for other in others):
+            emit("notice", {"message": "Arama için önce istek kabul edilmeli ve engel olmamalı."})
+            return
+
     payload = dict(data)
     payload["from"] = username
     payload["fromName"] = public_user(username)["displayName"]
@@ -1578,6 +1998,11 @@ def handle_call_log(data):
 
     if not username or not chat or not user_can_see_chat(chat, username):
         return
+
+    if chat.type == "direct":
+        others = [member for member in chat_member_names(chat) if member != username]
+        if any(is_blocked_between(username, other) for other in others) or any(not accepted_contact(username, other) for other in others):
+            return
 
     kind = "video" if data.get("kind") == "video" else "audio"
     status = "active" if data.get("status") == "active" else "ended"
@@ -1645,6 +2070,11 @@ def handle_disconnect():
     username = connections.pop(request.sid, None)
 
     if username:
+        user = db.session.get(User, username)
+        if user:
+            user.last_seen = datetime.now(timezone.utc)
+            db.session.commit()
+
         for chat_id, users_typing in typing_users.items():
             if username in users_typing:
                 users_typing.discard(username)
@@ -1664,17 +2094,34 @@ with app.app_context():
     if "reply_to" not in message_columns:
         db.session.execute(text("ALTER TABLE message ADD COLUMN reply_to JSON"))
         db.session.commit()
+    message_migrations = {
+        "reactions": "ALTER TABLE message ADD COLUMN reactions JSON",
+        "deleted_for": "ALTER TABLE message ADD COLUMN deleted_for JSON",
+        "deleted_at": "ALTER TABLE message ADD COLUMN deleted_at TIMESTAMP",
+        "deleted_by": "ALTER TABLE message ADD COLUMN deleted_by VARCHAR(80)",
+    }
+    for column_name, statement in message_migrations.items():
+        if column_name not in message_columns:
+            db.session.execute(text(statement))
+            db.session.commit()
+    chat_columns = {column["name"] for column in inspector.get_columns("chat")} if inspector.has_table("chat") else set()
+    if "image" not in chat_columns:
+        db.session.execute(text("ALTER TABLE chat ADD COLUMN image TEXT"))
+        db.session.commit()
     user_columns = {column["name"] for column in inspector.get_columns("user")} if inspector.has_table("user") else set()
     user_migrations = {
         "email": "ALTER TABLE \"user\" ADD COLUMN email VARCHAR(255)",
         "email_normalized": "ALTER TABLE \"user\" ADD COLUMN email_normalized VARCHAR(255)",
         "email_verified": "ALTER TABLE \"user\" ADD COLUMN email_verified BOOLEAN DEFAULT FALSE NOT NULL",
         "profile_image": "ALTER TABLE \"user\" ADD COLUMN profile_image TEXT",
+        "last_seen": "ALTER TABLE \"user\" ADD COLUMN last_seen TIMESTAMP",
     }
     for column_name, statement in user_migrations.items():
         if column_name not in user_columns:
             db.session.execute(text(statement))
             db.session.commit()
+    db.session.execute(text("UPDATE \"user\" SET last_seen = COALESCE(last_seen, created_at)"))
+    db.session.commit()
     ensure_lobby()
     for group_chat in Chat.query.filter_by(type="group").all():
         promote_fallback_group_admin(group_chat)

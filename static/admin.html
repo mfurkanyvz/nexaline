@@ -180,6 +180,11 @@
             background: var(--panel-2);
         }
 
+        .message.deleted-message {
+            border-left-color: var(--yellow);
+            opacity: 0.82;
+        }
+
         .media {
             display: block;
             max-width: 100%;
@@ -418,13 +423,13 @@
             }
             filtered.forEach(({ chat, message }) => {
                 const item = document.createElement("article");
-                item.className = "message";
+                item.className = "message" + (message.deletedAt ? " deleted-message" : "");
                 item.innerHTML = `
                     <strong>${escapeHtml(chat.title)} • ${escapeHtml(message.senderName)}</strong>
-                    <p>${escapeHtml(message.body || message.attachment?.name || message.attachment?.type || "Dosya")}</p>
+                    <p>${escapeHtml(message.deletedAt ? "Bu mesaj kullanıcı tarafından geri çekildi." : (message.body || message.attachment?.name || message.attachment?.type || "Dosya"))}</p>
                     ${renderAttachment(message.attachment)}
                     <div class="card-row">
-                        <span class="meta">${new Date(message.createdAt).toLocaleString("tr-TR")}</span>
+                        <span class="meta">${new Date(message.createdAt).toLocaleString("tr-TR")}${message.deletedAt ? " • silindi" : ""}</span>
                         <button class="danger" data-message="${message.id}" type="button">Mesajı Sil</button>
                     </div>
                 `;

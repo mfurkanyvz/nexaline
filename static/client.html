@@ -266,10 +266,17 @@
             flex: 0 0 44px;
             place-items: center;
             border-radius: 50%;
+            overflow: hidden;
             color: #fff;
             font-weight: 800;
             background: linear-gradient(135deg, #323949, #151923);
             border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .avatar.online {
@@ -430,6 +437,25 @@
             font-size: 12px;
         }
 
+        .badge {
+            display: inline-grid;
+            min-width: 22px;
+            height: 22px;
+            place-items: center;
+            padding: 0 6px;
+            border-radius: 999px;
+            color: #fff;
+            background: var(--blue);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .chat-side {
+            display: grid;
+            justify-items: end;
+            gap: 6px;
+        }
+
         .online-dot {
             width: 9px;
             height: 9px;
@@ -518,6 +544,7 @@
         .message-meta {
             display: flex;
             justify-content: flex-end;
+            align-items: center;
             gap: 6px;
             margin-top: 4px;
             color: rgba(255, 255, 255, 0.72);
@@ -558,13 +585,29 @@
             font-size: 12px;
         }
 
+        .message-menu {
+            color: rgba(255, 255, 255, 0.78);
+            background: transparent;
+            font-size: 12px;
+        }
+
+        .deleted-message {
+            color: rgba(255, 255, 255, 0.68);
+            font-style: italic;
+        }
+
         .ticks.read {
-            color: #75c9ff;
+            color: #024fba;
+            font-weight: 900;
+        }
+
+        .ticks.delivered {
+            color: rgba(255, 255, 255, 0.82);
         }
 
         .composer {
             display: grid;
-            grid-template-columns: 44px 44px 1fr 44px;
+            grid-template-columns: 44px 44px 44px 44px 44px minmax(0, 1fr) 44px;
             gap: 10px;
             padding: 12px;
             border-top: 1px solid var(--line);
@@ -576,6 +619,7 @@
         }
 
         .composer textarea {
+            grid-column: 5 / 7;
             min-height: 44px;
             max-height: 120px;
             resize: none;
@@ -585,6 +629,14 @@
             outline: none;
             color: var(--text);
             background: #090c13;
+        }
+
+        #cancelVoiceButton:not(.hidden) ~ #messageInput {
+            grid-column: 6 / 7;
+        }
+
+        #sendButton {
+            grid-column: 7;
         }
 
         .send-btn {
@@ -629,6 +681,30 @@
             cursor: pointer;
         }
 
+        .emoji-panel {
+            display: flex;
+            grid-column: 1 / -1;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #090c13;
+        }
+
+        .emoji-panel button {
+            width: 34px;
+            height: 34px;
+            border-radius: 7px;
+            background: var(--panel-3);
+        }
+
+        .location-pill {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+        }
+
         .call-panel {
             position: fixed;
             inset: 0;
@@ -647,6 +723,124 @@
             place-items: center;
             padding: 18px;
             background: rgba(0, 0, 0, 0.76);
+        }
+
+        .toast-stack {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 30;
+            display: grid;
+            gap: 8px;
+            width: min(360px, calc(100vw - 32px));
+        }
+
+        .toast {
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .modal-panel {
+            position: fixed;
+            inset: 0;
+            z-index: 25;
+            display: grid;
+            place-items: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.76);
+        }
+
+        .modal-box {
+            width: min(560px, 100%);
+            max-height: calc(100dvh - 32px);
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .modal-head,
+        .modal-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .modal-actions {
+            justify-content: flex-end;
+            border-top: 1px solid var(--line);
+            border-bottom: 0;
+        }
+
+        .modal-body {
+            display: grid;
+            gap: 12px;
+            padding: 14px;
+        }
+
+        .modal-body input,
+        .modal-body textarea,
+        .settings-box input,
+        .settings-box textarea {
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            outline: none;
+            color: var(--text);
+            background: #090c13;
+        }
+
+        .modal-body textarea,
+        .settings-box textarea {
+            min-height: 86px;
+            resize: vertical;
+        }
+
+        .check-list {
+            display: grid;
+            max-height: 260px;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .check-row,
+        .member-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .check-row:last-child,
+        .member-row:last-child {
+            border-bottom: 0;
+        }
+
+        .mini-btn {
+            width: auto;
+            min-width: 0;
+            padding: 8px 10px;
+            border-radius: 7px;
+            color: #fff;
+            background: var(--panel-3);
+        }
+
+        .profile-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .settings-box {
@@ -783,6 +977,7 @@
                 display: flex;
                 width: 100%;
                 height: 100dvh;
+                min-height: 0;
             }
 
             .chat-pane {
@@ -883,7 +1078,7 @@
             }
 
             .composer {
-                grid-template-columns: 38px 38px minmax(0, 1fr) 38px;
+                grid-template-columns: 38px 38px 38px 38px 38px minmax(0, 1fr) 38px;
                 gap: 7px;
                 padding: 8px;
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
@@ -929,6 +1124,22 @@
             .nav-tab {
                 min-width: 68px;
                 padding: 9px 10px;
+            }
+
+            .toast-stack {
+                right: 10px;
+                bottom: max(10px, env(safe-area-inset-bottom));
+                width: calc(100vw - 20px);
+            }
+
+            .modal-panel {
+                align-items: end;
+                padding: 10px;
+            }
+
+            .modal-box {
+                width: 100%;
+                max-height: calc(100dvh - 20px);
             }
         }
 
@@ -1061,8 +1272,12 @@
             <footer class="composer">
                 <div id="replyPreview" class="reply-preview hidden"></div>
                 <div id="voiceWave" class="voice-wave"></div>
+                <div id="emojiPanel" class="emoji-panel hidden"></div>
                 <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
                 <button id="voiceButton" class="icon-btn" title="Sesli mesaj">●</button>
+                <button id="emojiButton" class="icon-btn" title="Emoji">☺</button>
+                <button id="locationButton" class="icon-btn" title="Konum">⌖</button>
+                <button id="cancelVoiceButton" class="icon-btn danger hidden" title="Kaydı iptal et">×</button>
                 <input id="fileInput" class="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
                 <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
                 <textarea id="messageInput" placeholder="Mesaj"></textarea>
@@ -1095,6 +1310,21 @@
             </div>
             <div class="settings-row">
                 <div>
+                    <strong>Profil</strong>
+                    <div class="last-message">Fotoğraf, görünen ad ve hakkımda</div>
+                </div>
+                <div id="settingsAvatar" class="avatar">NL</div>
+            </div>
+            <input id="profileImageInput" class="hidden" type="file" accept="image/*">
+            <div class="settings-row">
+                <button id="profileImageButton" type="button">Fotoğraf Seç</button>
+                <button id="removeProfileImageButton" type="button">Fotoğrafı Sil</button>
+            </div>
+            <input id="displayNameInput" placeholder="Görünen ad">
+            <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
+            <button id="saveProfileButton" class="primary" type="button">Profili Kaydet</button>
+            <div class="settings-row">
+                <div>
                     <strong>Gmail</strong>
                     <div class="last-message">Doğrulama kodu ile değişir</div>
                 </div>
@@ -1118,6 +1348,19 @@
         </div>
     </section>
 
+    <section id="modalPanel" class="modal-panel hidden">
+        <div class="modal-box">
+            <div class="modal-head">
+                <strong id="modalTitle">NexaLine</strong>
+                <button id="modalCloseButton" class="icon-btn" type="button">×</button>
+            </div>
+            <div id="modalBody" class="modal-body"></div>
+            <div id="modalActions" class="modal-actions"></div>
+        </div>
+    </section>
+
+    <div id="toastStack" class="toast-stack"></div>
+
     <section id="callPanel" class="call-panel hidden">
         <div class="call-box">
             <div class="video-stage">
@@ -1132,6 +1375,7 @@
                 <button id="acceptCallButton" class="icon-btn accept hidden" title="Kabul et">✓</button>
                 <button id="muteButton" class="icon-btn" title="Mikrofon">♫</button>
                 <button id="cameraButton" class="icon-btn" title="Kamera">▣</button>
+                <button id="switchCameraButton" class="icon-btn" title="Kamerayı çevir">⇄</button>
                 <button id="endCallButton" class="icon-btn danger" title="Bitir">×</button>
             </div>
         </div>
@@ -1157,6 +1401,9 @@
             chats: [],
             stories: [],
             callLogs: [],
+            contactRequests: [],
+            groupInvites: [],
+            blockedUsers: [],
             activeSection: "chats",
             activeChatId: "lobby",
             typing: {},
@@ -1168,6 +1415,8 @@
             generalPromptShown: false,
             recorder: null,
             recordedChunks: [],
+            cancelRecording: false,
+            profileImageDraft: null,
             call: {
                 peers: {},
                 pendingIce: {},
@@ -1176,11 +1425,121 @@
                 chatId: null,
                 audioOnly: false,
                 incomingOffer: null,
-                startedAt: null
+                startedAt: null,
+                ringtoneTimer: null,
+                cameraFacing: "user"
             }
         };
 
         const $ = (id) => document.getElementById(id);
+        const EMOJIS = ["😀", "😂", "😍", "🥰", "😎", "😢", "😡", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "📍", "☕"];
+
+        function showToast(message) {
+            const item = document.createElement("div");
+            item.className = "toast";
+            item.textContent = message;
+            $("toastStack").appendChild(item);
+            setTimeout(() => item.remove(), 3600);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function closeModal() {
+            $("modalPanel").classList.add("hidden");
+            $("modalBody").innerHTML = "";
+            $("modalActions").innerHTML = "";
+        }
+
+        function openModal(title, buildBody, actions = []) {
+            $("modalTitle").textContent = title;
+            const body = $("modalBody");
+            const actionBar = $("modalActions");
+            body.innerHTML = "";
+            actionBar.innerHTML = "";
+            buildBody(body);
+            actions.forEach(action => {
+                const button = document.createElement("button");
+                button.className = action.primary ? "primary mini-btn" : "mini-btn";
+                button.type = "button";
+                button.textContent = action.label;
+                button.onclick = () => action.onClick?.();
+                actionBar.appendChild(button);
+            });
+            $("modalPanel").classList.remove("hidden");
+        }
+
+        function confirmModal(title, message, onConfirm) {
+            openModal(title, body => {
+                const text = document.createElement("p");
+                text.textContent = message;
+                body.appendChild(text);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Tamam", primary: true, onClick: () => { closeModal(); onConfirm?.(); } }
+            ]);
+        }
+
+        function setAvatar(element, userOrTitle, fallbackText) {
+            const image = userOrTitle?.profileImage || userOrTitle?.image;
+            element.innerHTML = "";
+            if (image) {
+                const img = document.createElement("img");
+                img.src = image;
+                img.alt = fallbackText || userOrTitle.displayName || userOrTitle.title || "NexaLine";
+                element.appendChild(img);
+            } else {
+                element.textContent = initials(fallbackText || userOrTitle?.displayName || userOrTitle?.title || userOrTitle || "NL");
+            }
+        }
+
+        function unreadCount(chat) {
+            return chat.messages.filter(message => message.sender !== state.me.username && !message.readBy.includes(state.me.username)).length;
+        }
+
+        function otherMember(chat) {
+            return chat?.members.find(member => member.username !== state.me.username);
+        }
+
+        function contactRequestWith(username) {
+            return state.contactRequests.find(item => {
+                const from = item.from?.username;
+                const to = item.to?.username;
+                return (from === state.me.username && to === username) || (to === state.me.username && from === username);
+            });
+        }
+
+        function contactStatus(username) {
+            if (state.blockedUsers.includes(username)) {
+                return "blocked";
+            }
+            const request = contactRequestWith(username);
+            if (!request) {
+                return "none";
+            }
+            if (request.status === "accepted") {
+                return "accepted";
+            }
+            if (request.status === "pending" && request.to?.username === state.me.username) {
+                return "incoming";
+            }
+            if (request.status === "pending") {
+                return "outgoing";
+            }
+            return "none";
+        }
+
+        function hydrateRealtimeState(data) {
+            state.contactRequests = data.contactRequests || state.contactRequests || [];
+            state.groupInvites = data.groupInvites || state.groupInvites || [];
+            state.blockedUsers = data.blockedUsers || state.blockedUsers || [];
+        }
 
         function isMobileView() {
             return window.matchMedia("(max-width: 760px)").matches;
@@ -1422,6 +1781,7 @@
                 state.generalGroup = data.generalGroup;
                 state.stories = data.stories || [];
                 state.callLogs = data.callLogs || [];
+                hydrateRealtimeState(data);
                 state.activeChatId = state.chats[0]?.id || "lobby";
                 render();
                 maybePromptGeneralGroup();
@@ -1440,7 +1800,7 @@
         }
 
         function renderProfile() {
-            $("meAvatar").textContent = initials(state.me.displayName);
+            setAvatar($("meAvatar"), state.me, state.me.displayName);
             $("meAvatar").classList.add("online");
             $("meAvatar").onclick = () => showStoryForUser(state.me.username);
             $("meName").textContent = state.me.displayName;
@@ -1467,14 +1827,11 @@
             const storyList = $("storyList");
             storyList.innerHTML = "";
 
-            if (!state.stories.length) {
-                const empty = document.createElement("button");
-                empty.className = "story-item";
-                empty.onclick = createStory;
-                empty.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Durum ekle</strong><div class="last-message">24 saat görünür</div></div><span class="chat-time"></span>`;
-                storyList.appendChild(empty);
-                return;
-            }
+            const add = document.createElement("button");
+            add.className = "story-item";
+            add.onclick = createStory;
+            add.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Durum ekle</strong><div class="last-message">Resim, video veya yazı</div></div><span class="chat-time"></span>`;
+            storyList.appendChild(add);
 
             state.stories.forEach(story => {
                 const button = document.createElement("button");
@@ -1483,7 +1840,7 @@
 
                 const avatar = document.createElement("div");
                 avatar.className = "avatar" + (story.user.online ? " online" : "");
-                avatar.textContent = initials(story.user.displayName);
+                setAvatar(avatar, story.user, story.user.displayName);
 
                 const body = document.createElement("div");
                 const title = document.createElement("strong");
@@ -1510,7 +1867,7 @@
                     createStory();
                     return;
                 }
-                alert("Bu kullanıcının aktif durumu yok.");
+                showToast("Bu kullanıcının aktif durumu yok.");
                 return;
             }
 
@@ -1530,6 +1887,17 @@
             }
             if (story.attachment) {
                 body.appendChild(renderStoryAttachment(story.attachment));
+            }
+            if (story.username === state.me.username) {
+                const deleteButton = document.createElement("button");
+                deleteButton.className = "mini-btn danger";
+                deleteButton.type = "button";
+                deleteButton.textContent = "Durumu Sil";
+                deleteButton.onclick = () => {
+                    socket.emit("story:delete", { storyId: story.id });
+                    closeStoryPanel();
+                };
+                body.appendChild(deleteButton);
             }
             $("storyPanel").classList.remove("hidden");
         }
@@ -1608,7 +1976,7 @@
 
                     const avatar = document.createElement("div");
                     avatar.className = "avatar" + (isChatOnline(chat) ? " online" : "");
-                    avatar.textContent = initials(chat.title);
+                    setAvatar(avatar, otherMember(chat), chat.title);
                     avatar.onclick = event => {
                         event.stopPropagation();
                         const other = chat.members.find(member => member.username !== state.me.username);
@@ -1626,11 +1994,21 @@
                     last.textContent = latestText(chat);
                     body.append(title, last);
 
+                    const side = document.createElement("span");
+                    side.className = "chat-side";
                     const time = document.createElement("span");
                     time.className = "chat-time";
                     time.textContent = chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : "";
+                    side.appendChild(time);
+                    const unread = unreadCount(chat);
+                    if (unread) {
+                        const badge = document.createElement("span");
+                        badge.className = "badge";
+                        badge.textContent = unread > 99 ? "99+" : unread;
+                        side.appendChild(badge);
+                    }
 
-                    button.append(avatar, body, time);
+                    button.append(avatar, body, side);
                     chatList.appendChild(button);
                 });
         }
@@ -1639,6 +2017,39 @@
             const filter = $("searchInput").value.trim().toLowerCase();
             const groupList = $("groupList");
             groupList.innerHTML = "";
+
+            state.groupInvites
+                .filter(invite => invite.status === "pending" && invite.invitee?.username === state.me.username)
+                .forEach(invite => {
+                    const button = document.createElement("button");
+                    button.className = "chat-item";
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar";
+                    setAvatar(avatar, { image: invite.chatImage, title: invite.chatTitle }, invite.chatTitle);
+                    const body = document.createElement("div");
+                    body.innerHTML = `<strong class="chat-title">${escapeHtml(invite.chatTitle)}</strong><div class="last-message">${escapeHtml(invite.inviter.displayName)} seni davet etti</div>`;
+                    const actions = document.createElement("span");
+                    actions.className = "chat-side";
+                    const accept = document.createElement("button");
+                    accept.className = "mini-btn";
+                    accept.type = "button";
+                    accept.textContent = "Kabul";
+                    accept.onclick = event => {
+                        event.stopPropagation();
+                        socket.emit("group:invite:respond", { inviteId: invite.id, accept: true });
+                    };
+                    const decline = document.createElement("button");
+                    decline.className = "mini-btn";
+                    decline.type = "button";
+                    decline.textContent = "Red";
+                    decline.onclick = event => {
+                        event.stopPropagation();
+                        socket.emit("group:invite:respond", { inviteId: invite.id, accept: false });
+                    };
+                    actions.append(accept, decline);
+                    button.append(avatar, body, actions);
+                    groupList.appendChild(button);
+                });
 
             state.chats
                 .filter(chat => chat.type === "group")
@@ -1655,7 +2066,7 @@
 
                     const avatar = document.createElement("div");
                     avatar.className = "avatar";
-                    avatar.textContent = initials(chat.title);
+                    setAvatar(avatar, chat, chat.title);
 
                     const body = document.createElement("div");
                     const title = document.createElement("strong");
@@ -1666,11 +2077,21 @@
                     last.textContent = latestText(chat) || `${chat.members.length} kişi`;
                     body.append(title, last);
 
+                    const side = document.createElement("span");
+                    side.className = "chat-side";
                     const time = document.createElement("span");
                     time.className = "chat-time";
                     time.textContent = chat.lastMessage ? relativeTime(chat.lastMessage.createdAt) : "";
+                    side.appendChild(time);
+                    const unread = unreadCount(chat);
+                    if (unread) {
+                        const badge = document.createElement("span");
+                        badge.className = "badge";
+                        badge.textContent = unread > 99 ? "99+" : unread;
+                        side.appendChild(badge);
+                    }
 
-                    button.append(avatar, body, time);
+                    button.append(avatar, body, side);
                     groupList.appendChild(button);
                 });
         }
@@ -1725,11 +2146,11 @@
                 .forEach(user => {
                     const button = document.createElement("button");
                     button.className = "contact-item";
-                    button.onclick = () => socket.emit("chat:create", { target: user.username });
+                    button.onclick = () => handleContactAction(user);
 
                     const avatar = document.createElement("div");
                     avatar.className = "avatar" + (user.online ? " online" : "");
-                    avatar.textContent = initials(user.displayName);
+                    setAvatar(avatar, user, user.displayName);
                     avatar.onclick = event => {
                         event.stopPropagation();
                         showStoryForUser(user.username);
@@ -1741,15 +2162,71 @@
                     title.textContent = user.displayName;
                     const meta = document.createElement("div");
                     meta.className = "last-message";
-                    meta.textContent = user.online ? "çevrimiçi" : "çevrimdışı";
+                    meta.textContent = contactLine(user);
                     body.append(title, meta);
 
                     const dot = document.createElement("span");
-                    dot.className = "online-dot" + (user.online ? " online" : "");
+                    dot.className = contactStatus(user.username) === "incoming" ? "badge" : "online-dot" + (user.online ? " online" : "");
+                    dot.textContent = contactStatus(user.username) === "incoming" ? "!" : "";
 
                     button.append(avatar, body, dot);
                     contactList.appendChild(button);
                 });
+        }
+
+        function contactLine(user) {
+            const status = contactStatus(user.username);
+            if (status === "accepted") {
+                return user.online ? "çevrimiçi" : `son görülme ${relativeTime(user.lastSeen)}`;
+            }
+            if (status === "incoming") {
+                return "Mesajlaşma isteği geldi";
+            }
+            if (status === "outgoing") {
+                return "İstek gönderildi, bekliyor";
+            }
+            if (status === "blocked") {
+                return "Engelledin";
+            }
+            return user.online ? "çevrimiçi • istek gönder" : `son görülme ${relativeTime(user.lastSeen)} • istek gönder`;
+        }
+
+        function handleContactAction(user) {
+            const status = contactStatus(user.username);
+            const request = contactRequestWith(user.username);
+            if (status === "incoming" && request) {
+                confirmModal("Mesajlaşma isteği", `${user.displayName} ile mesajlaşmayı kabul ediyor musun?`, () => {
+                    socket.emit("contact:respond", { requestId: request.id, accept: true });
+                });
+                return;
+            }
+            if (status === "blocked") {
+                confirmModal("Engeli kaldır", `${user.displayName} yeniden mesaj ve arama gönderebilsin mi?`, () => {
+                    socket.emit("user:block", { username: user.username, blocked: false });
+                });
+                return;
+            }
+            if (status === "accepted") {
+                openModal(user.displayName, body => {
+                    const text = document.createElement("p");
+                    text.textContent = "Bu kişiyle sohbet edebilir, arayabilir veya engelleyebilirsin.";
+                    body.appendChild(text);
+                }, [
+                    { label: "Sohbeti Aç", primary: true, onClick: () => { closeModal(); socket.emit("chat:create", { target: user.username }); } },
+                    { label: "Engelle", onClick: () => {
+                        closeModal();
+                        socket.emit("user:block", { username: user.username, blocked: true });
+                    } }
+                ]);
+                return;
+            }
+            if (status === "outgoing") {
+                showToast("İstek zaten gönderildi.");
+                return;
+            }
+            confirmModal("Mesajlaşma isteği", `${user.displayName} kişisine mesajlaşma isteği gönderilsin mi?`, () => {
+                socket.emit("chat:create", { target: user.username });
+            });
         }
 
         function renderActiveChat() {
@@ -1762,7 +2239,7 @@
             }
 
             $("activeTitle").textContent = chat.title;
-            $("activeAvatar").textContent = initials(chat.title);
+            setAvatar($("activeAvatar"), chat.type === "direct" ? otherMember(chat) : chat, chat.title);
             $("activeAvatar").classList.toggle("online", isChatOnline(chat));
             $("activeStatus").textContent = statusText(chat);
             $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
@@ -1780,30 +2257,51 @@
                 sender.textContent = message.senderName;
                 bubble.appendChild(sender);
 
-                if (message.replyTo) {
+                if (message.deletedAt) {
+                    const deleted = document.createElement("div");
+                    deleted.className = "deleted-message";
+                    deleted.textContent = "Bu mesaj silindi";
+                    bubble.appendChild(deleted);
+                } else if (message.replyTo) {
                     const reply = document.createElement("div");
                     reply.className = "reply-context";
                     reply.textContent = `${message.replyTo.senderName}: ${message.replyTo.body || message.replyTo.attachmentName || "Mesaj"}`;
                     bubble.appendChild(reply);
                 }
 
-                if (message.body) {
+                if (!message.deletedAt && message.body) {
                     const text = document.createElement("div");
                     text.textContent = message.body;
                     bubble.appendChild(text);
                 }
 
-                if (message.attachment) {
+                if (!message.deletedAt && message.attachment) {
                     bubble.appendChild(renderAttachment(message.attachment));
+                }
+
+                if (message.reactions && Object.keys(message.reactions).length) {
+                    const reactions = document.createElement("div");
+                    reactions.className = "last-message";
+                    reactions.textContent = Object.values(message.reactions).join(" ");
+                    bubble.appendChild(reactions);
                 }
 
                 const meta = document.createElement("div");
                 meta.className = "message-meta";
                 const read = chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
-                meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : ""}">${mine ? (read ? "✓✓" : "✓") : ""}</span>`;
+                const delivered = mine && !read && isDelivered(chat, message);
+                meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
                 meta.querySelector(".reply-action").onclick = event => {
                     event.stopPropagation();
                     setReplyTo(message);
+                };
+                meta.querySelector(".message-menu").onclick = event => {
+                    event.stopPropagation();
+                    openMessageMenu(message);
+                };
+                meta.querySelector(".react-action").onclick = event => {
+                    event.stopPropagation();
+                    openReactionMenu(message);
                 };
                 bubble.appendChild(meta);
                 let touchStartX = 0;
@@ -1819,7 +2317,62 @@
             });
 
             messageBox.scrollTop = messageBox.scrollHeight;
-            socket.emit("message:read", { chatId: chat.id });
+            if (!isMobileView() || $("app").classList.contains("chat-open")) {
+                socket.emit("message:read", { chatId: chat.id });
+            }
+        }
+
+        function isDelivered(chat, message) {
+            if (chat.type === "direct") {
+                return chat.members.some(member => member.username !== state.me.username && member.online);
+            }
+            return chat.members.some(member => member.username !== state.me.username && member.online);
+        }
+
+        function openMessageMenu(message) {
+            const mine = message.sender === state.me.username;
+            const actions = [
+                {
+                    label: "Benden sil",
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("message:delete", { messageId: message.id, scope: "me" });
+                    }
+                }
+            ];
+            if (mine || activeChat()?.members.find(member => member.username === state.me.username)?.isAdmin) {
+                actions.push({
+                    label: "Herkesten sil",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("message:delete", { messageId: message.id, scope: "all" });
+                    }
+                });
+            }
+            openModal("Mesaj", body => {
+                const text = document.createElement("p");
+                text.textContent = message.deletedAt ? "Silinmiş mesaj" : (message.body || message.attachment?.name || "Mesaj");
+                body.appendChild(text);
+            }, actions);
+        }
+
+        function openReactionMenu(message) {
+            openModal("Tepki ver", body => {
+                const panel = document.createElement("div");
+                panel.className = "emoji-panel";
+                ["👍", "❤️", "😂", "😮", "😢", "🙏"].forEach(emoji => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = emoji;
+                    button.onclick = () => {
+                        socket.emit("message:react", { messageId: message.id, emoji });
+                        closeModal();
+                    };
+                    panel.appendChild(button);
+                });
+                body.appendChild(panel);
+            }, [{ label: "Vazgeç", onClick: closeModal }]);
         }
 
         function renderAttachment(attachment) {
@@ -1857,6 +2410,16 @@
                 return image;
             }
 
+            if (attachment.type === "location") {
+                const link = document.createElement("a");
+                link.className = "file-pill location-pill";
+                link.href = attachment.url;
+                link.target = "_blank";
+                link.rel = "noreferrer";
+                link.textContent = `📍 Konum: ${Number(attachment.lat).toFixed(5)}, ${Number(attachment.lng).toFixed(5)}`;
+                return link;
+            }
+
             const link = document.createElement("a");
             link.className = "file-pill";
             link.href = attachment.dataUrl;
@@ -1880,6 +2443,49 @@
             input.placeholder = "Mesaj";
             state.attachment = null;
             clearReply();
+        }
+
+        function toggleEmojiPanel() {
+            const panel = $("emojiPanel");
+            if (panel.innerHTML === "") {
+                EMOJIS.forEach(emoji => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = emoji;
+                    button.onclick = () => {
+                        $("messageInput").value += emoji;
+                        $("messageInput").focus();
+                    };
+                    panel.appendChild(button);
+                });
+            }
+            panel.classList.toggle("hidden");
+        }
+
+        function sendCurrentLocation() {
+            const chat = activeChat();
+            if (!chat || !navigator.geolocation) {
+                showToast("Konum bu cihazda desteklenmiyor.");
+                return;
+            }
+            showToast("Konum alınıyor...");
+            navigator.geolocation.getCurrentPosition(position => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                socket.emit("message:send", {
+                    chatId: chat.id,
+                    body: "Mevcut konumum",
+                    attachment: {
+                        type: "location",
+                        name: "Konum",
+                        lat,
+                        lng,
+                        url: `https://www.google.com/maps?q=${lat},${lng}`
+                    },
+                    replyTo: state.replyTo
+                });
+                clearReply();
+            }, () => showToast("Konum izni alınamadı."), { enableHighAccuracy: true, timeout: 12000 });
         }
 
         function setReplyTo(message) {
@@ -1911,31 +2517,80 @@
         }
 
         function createGroup() {
-            const title = prompt("Grup adı");
-            if (!title || title.trim().length < 2) {
-                return;
-            }
-
-            const members = prompt("Gruba eklenecek kullanıcı adları, virgülle ayır. İstersen boş bırakıp sonra yönetici olarak ekleyebilirsin.") || "";
-
-            socket.emit("chat:group:create", {
-                title: title.trim(),
-                members: members.split(",").map(item => item.trim().toLowerCase()).filter(Boolean)
-            });
+            let imageData = null;
+            openModal("Grup oluştur", body => {
+                const title = document.createElement("input");
+                title.id = "groupTitleInput";
+                title.placeholder = "Grup adı";
+                const file = document.createElement("input");
+                file.type = "file";
+                file.accept = "image/*";
+                file.onchange = () => readImageFile(file.files[0], dataUrl => imageData = dataUrl);
+                const list = document.createElement("div");
+                list.className = "check-list";
+                state.users.filter(user => user.username !== state.me.username).forEach(user => {
+                    const row = document.createElement("label");
+                    row.className = "check-row";
+                    row.innerHTML = `<input type="checkbox" value="${escapeHtml(user.username)}"><span>${escapeHtml(user.displayName)} (@${escapeHtml(user.username)})</span><small>${user.online ? "çevrimiçi" : "çevrimdışı"}</small>`;
+                    list.appendChild(row);
+                });
+                body.append(title, file, list);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Oluştur", primary: true, onClick: () => {
+                    const title = $("groupTitleInput").value.trim();
+                    const members = [...$("modalBody").querySelectorAll("input[type='checkbox']:checked")].map(item => item.value);
+                    if (title.length < 2) {
+                        showToast("Grup adı en az 2 karakter olmalı.");
+                        return;
+                    }
+                    socket.emit("chat:group:create", { title, members, image: imageData });
+                    closeModal();
+                } }
+            ]);
         }
 
         function createStory() {
-            const body = prompt("24 saat görünecek durumunu yaz. Sadece resim/video paylaşmak için boş bırakabilirsin.") || "";
-            if (confirm("Duruma resim veya video eklemek ister misin?")) {
-                state.pendingStoryBody = body.trim();
-                $("storyFileInput").value = "";
-                $("storyFileInput").click();
-                return;
-            }
-            if (!body.trim()) {
-                return;
-            }
-            socket.emit("story:create", { body: body.trim() });
+            openModal("Durum ekle", body => {
+                const text = document.createElement("textarea");
+                text.id = "storyTextInput";
+                text.placeholder = "24 saat görünecek durum";
+                const file = document.createElement("input");
+                file.id = "storyMediaInput";
+                file.type = "file";
+                file.accept = "image/*,video/*";
+                body.append(text, file);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Paylaş", primary: true, onClick: () => {
+                    const bodyText = $("storyTextInput").value.trim();
+                    const file = $("storyMediaInput").files[0];
+                    if (!file) {
+                        if (bodyText) {
+                            socket.emit("story:create", { body: bodyText });
+                            closeModal();
+                        }
+                        return;
+                    }
+                    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+                        showToast("Durum için sadece resim veya video seçebilirsin.");
+                        return;
+                    }
+                    if (file.size > 8_000_000) {
+                        showToast("Durum dosyası 8 MB altında olmalı.");
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        socket.emit("story:create", {
+                            body: bodyText,
+                            attachment: { name: file.name, type: file.type, dataUrl: reader.result }
+                        });
+                        closeModal();
+                    };
+                    reader.readAsDataURL(file);
+                } }
+            ]);
         }
 
         function maybePromptGeneralGroup() {
@@ -1948,7 +2603,8 @@
         }
 
         function joinGeneralGroup(confirmFirst) {
-            if (confirmFirst && !confirm("Genel Gruba katılmak ister misin?")) {
+            if (confirmFirst) {
+                confirmModal("Genel Grup", "Genel Gruba katılmak ister misin?", () => socket.emit("chat:lobby:join"));
                 return;
             }
 
@@ -1961,11 +2617,9 @@
                 return;
             }
 
-            if (!confirm(`${chat.title} grubundan çıkmak istiyor musun?`)) {
-                return;
-            }
-
-            socket.emit("chat:leave", { chatId: chat.id });
+            confirmModal("Gruptan çık", `${chat.title} grubundan çıkmak istiyor musun?`, () => {
+                socket.emit("chat:leave", { chatId: chat.id });
+            });
         }
 
         function showActiveMembers() {
@@ -1975,29 +2629,71 @@
             }
 
             const me = chat.members.find(member => member.username === state.me.username);
-            const members = chat.members
-                .map(member => `${member.online ? "çevrimiçi" : "çevrimdışı"} - ${member.displayName} (@${member.username})${member.isAdmin ? " - Yönetici" : ""}`)
-                .join("\n");
+            let imageData = null;
+            openModal("Grup bilgisi", body => {
+                if (me?.isAdmin && chat.id !== "lobby") {
+                    const title = document.createElement("input");
+                    title.id = "editGroupTitle";
+                    title.value = chat.title;
+                    const file = document.createElement("input");
+                    file.type = "file";
+                    file.accept = "image/*";
+                    file.onchange = () => readImageFile(file.files[0], dataUrl => imageData = dataUrl);
+                    body.append(title, file);
+                }
 
-            if (!me?.isAdmin || chat.id === "lobby") {
-                alert(members || "Bu grupta kişi yok.");
-                return;
-            }
+                const list = document.createElement("div");
+                list.className = "check-list";
+                chat.members.forEach(member => {
+                    const row = document.createElement("div");
+                    row.className = "member-row";
+                    const name = document.createElement("span");
+                    name.textContent = `${member.displayName} (@${member.username})${member.isAdmin ? " • Yönetici" : ""}`;
+                    const meta = document.createElement("small");
+                    meta.textContent = member.online ? "çevrimiçi" : `son görülme ${relativeTime(member.lastSeen)}`;
+                    const actions = document.createElement("span");
+                    if (me?.isAdmin && chat.id !== "lobby" && member.username !== state.me.username) {
+                        const transfer = document.createElement("button");
+                        transfer.className = "mini-btn";
+                        transfer.type = "button";
+                        transfer.textContent = "Yönetici yap";
+                        transfer.onclick = () => socket.emit("chat:group:update", { chatId: chat.id, title: $("editGroupTitle")?.value || chat.title, transferTo: member.username });
+                        const remove = document.createElement("button");
+                        remove.className = "mini-btn danger";
+                        remove.type = "button";
+                        remove.textContent = "Çıkar";
+                        remove.onclick = () => socket.emit("chat:group:remove", { chatId: chat.id, username: member.username });
+                        actions.append(transfer, remove);
+                    }
+                    row.append(meta, name, actions);
+                    list.appendChild(row);
+                });
+                body.appendChild(list);
 
-            const action = prompt(
-                `${members || "Bu grupta kişi yok."}\n\nSen bu grubun yöneticisisin.\nÜye eklemek için +kullanıcıadı yaz.\nÜye çıkarmak için -kullanıcıadı yaz.`
-            );
-
-            if (!action) {
-                return;
-            }
-
-            const trimmed = action.trim().toLowerCase();
-            if (trimmed.startsWith("+")) {
-                socket.emit("chat:group:add", { chatId: chat.id, username: trimmed.slice(1).trim() });
-            } else if (trimmed.startsWith("-")) {
-                socket.emit("chat:group:remove", { chatId: chat.id, username: trimmed.slice(1).trim() });
-            }
+                if (me?.isAdmin && chat.id !== "lobby") {
+                    const inviteTitle = document.createElement("strong");
+                    inviteTitle.textContent = "Davet edilecek kişiler";
+                    const inviteList = document.createElement("div");
+                    inviteList.className = "check-list";
+                    const memberNames = chat.members.map(member => member.username);
+                    state.users.filter(user => user.username !== state.me.username && !memberNames.includes(user.username)).forEach(user => {
+                        const row = document.createElement("label");
+                        row.className = "check-row";
+                        row.innerHTML = `<input type="checkbox" value="${escapeHtml(user.username)}"><span>${escapeHtml(user.displayName)} (@${escapeHtml(user.username)})</span><small>${user.online ? "çevrimiçi" : "çevrimdışı"}</small>`;
+                        inviteList.appendChild(row);
+                    });
+                    body.append(inviteTitle, inviteList);
+                }
+            }, me?.isAdmin && chat.id !== "lobby" ? [
+                { label: "Kapat", onClick: closeModal },
+                { label: "Kaydet / Davet Et", primary: true, onClick: () => {
+                    socket.emit("chat:group:update", { chatId: chat.id, title: $("editGroupTitle").value.trim(), image: imageData });
+                    [...$("modalBody").querySelectorAll("input[type='checkbox']:checked")].forEach(item => {
+                        socket.emit("chat:group:add", { chatId: chat.id, username: item.value });
+                    });
+                    closeModal();
+                } }
+            ] : [{ label: "Kapat", onClick: closeModal }]);
         }
 
         async function toggleVoiceRecording() {
@@ -2005,12 +2701,13 @@
                 state.recorder.stop();
                 $("voiceButton").classList.remove("recording");
                 $("voiceButton").textContent = "●";
+                $("cancelVoiceButton").classList.add("hidden");
                 stopVoiceWave();
                 return;
             }
 
             if (!navigator.mediaDevices || !window.MediaRecorder) {
-                alert("Bu tarayıcı sesli mesaj kaydını desteklemiyor.");
+                showToast("Bu tarayıcı sesli mesaj kaydını desteklemiyor.");
                 return;
             }
 
@@ -2018,10 +2715,11 @@
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (error) {
-                alert("Mikrofon izni alınamadı.");
+                showToast("Mikrofon izni alınamadı.");
                 return;
             }
             state.recordedChunks = [];
+            state.cancelRecording = false;
             state.recorder = new MediaRecorder(stream);
             startVoiceWave(stream);
             state.recorder.ondataavailable = event => {
@@ -2032,6 +2730,12 @@
             state.recorder.onstop = () => {
                 stream.getTracks().forEach(track => track.stop());
                 stopVoiceWave();
+                $("cancelVoiceButton").classList.add("hidden");
+                if (state.cancelRecording) {
+                    state.recordedChunks = [];
+                    $("messageInput").placeholder = "Mesaj";
+                    return;
+                }
                 const blob = new Blob(state.recordedChunks, { type: "audio/webm" });
                 const reader = new FileReader();
                 reader.onload = () => {
@@ -2047,36 +2751,55 @@
             state.recorder.start();
             $("voiceButton").classList.add("recording");
             $("voiceButton").textContent = "■";
+            $("cancelVoiceButton").classList.remove("hidden");
+        }
+
+        function cancelVoiceRecording() {
+            if (state.recorder && state.recorder.state === "recording") {
+                state.cancelRecording = true;
+                state.recorder.stop();
+                $("voiceButton").classList.remove("recording");
+                $("voiceButton").textContent = "●";
+                $("cancelVoiceButton").classList.add("hidden");
+                stopVoiceWave();
+                showToast("Ses kaydı iptal edildi.");
+            }
         }
 
         async function deleteAccount() {
-            const password = prompt("Hesabını silmek için şifreni yaz.");
-            if (!password) {
-                return;
-            }
-
-            if (!confirm("Hesabın ve sana ait mesajlar silinecek. Devam edilsin mi?")) {
-                return;
-            }
-
-            const response = await fetch(`/account/${state.me.username}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password })
-            });
-            const data = await response.json();
-
-            if (!data.ok) {
-                alert(data.message);
-                return;
-            }
-
-            localStorage.removeItem("nexalineUser");
-            location.reload();
+            openModal("Hesabı sil", body => {
+                const note = document.createElement("p");
+                note.textContent = "Hesabın ve sana ait mesajlar silinecek. Devam etmek için şifreni yaz.";
+                const password = document.createElement("input");
+                password.id = "deletePasswordInput";
+                password.type = "password";
+                password.placeholder = "Şifre";
+                body.append(note, password);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Hesabı Sil", primary: true, onClick: async () => {
+                    const response = await fetch(`/account/${state.me.username}`, {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ password: $("deletePasswordInput").value })
+                    });
+                    const data = await response.json();
+                    if (!data.ok) {
+                        showToast(data.message);
+                        return;
+                    }
+                    localStorage.removeItem("nexalineUser");
+                    location.reload();
+                } }
+            ]);
         }
 
         function openSettings() {
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
+            $("displayNameInput").value = state.me.displayName || "";
+            $("aboutInput").value = state.me.about || "";
+            state.profileImageDraft = state.me.profileImage || null;
+            setAvatar($("settingsAvatar"), state.me, state.me.displayName);
             $("settingsPanel").classList.remove("hidden");
         }
 
@@ -2084,93 +2807,141 @@
             $("settingsPanel").classList.add("hidden");
         }
 
-        async function changeAccountEmail() {
-            const email = prompt("Yeni Gmail adresini yaz.");
-            if (!email) {
-                return;
-            }
-            const password = prompt("Gmail değiştirmek için mevcut şifreni yaz.");
-            if (!password) {
-                return;
-            }
-
-            let response = await fetch(`/account/${state.me.username}/email/start`, {
+        async function saveProfile() {
+            const response = await fetch(`/account/${state.me.username}/profile`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({
+                    displayName: $("displayNameInput").value.trim(),
+                    about: $("aboutInput").value.trim(),
+                    profileImage: state.profileImageDraft
+                })
             });
-            let data = await response.json();
+            const data = await response.json();
             if (!data.ok) {
-                alert(data.message);
-                return;
-            }
-            const code = prompt(data.devCode ? `${data.message}\nKod: ${data.devCode}` : data.message);
-            if (!code) {
-                return;
-            }
-            response = await fetch(`/account/${state.me.username}/email/verify`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, code })
-            });
-            data = await response.json();
-            if (!data.ok) {
-                alert(data.message);
+                showToast(data.message);
                 return;
             }
             state.me = data.user;
+            localStorage.setItem("nexalineUser", data.user.username);
+            renderProfile();
             openSettings();
-            alert("Gmail değiştirildi.");
+            showToast("Profil güncellendi.");
+        }
+
+        function chooseProfileImage() {
+            $("profileImageInput").value = "";
+            $("profileImageInput").click();
+        }
+
+        function handleProfileImage(event) {
+            readImageFile(event.target.files[0], dataUrl => {
+                state.profileImageDraft = dataUrl;
+                setAvatar($("settingsAvatar"), { profileImage: dataUrl, displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
+            });
+        }
+
+        async function changeAccountEmail() {
+            openModal("Gmail değiştir", body => {
+                body.innerHTML = `<input id="newEmailInput" placeholder="Yeni Gmail"><input id="emailPasswordInput" type="password" placeholder="Mevcut şifre"><input id="emailCodeInput" class="hidden" inputmode="numeric" placeholder="Doğrulama kodu">`;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Kod Gönder", primary: true, onClick: async () => {
+                    const email = $("newEmailInput").value.trim();
+                    let response = await fetch(`/account/${state.me.username}/email/start`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, password: $("emailPasswordInput").value })
+                    });
+                    let data = await response.json();
+                    if (!data.ok) {
+                        showToast(data.message);
+                        return;
+                    }
+                    $("emailCodeInput").classList.remove("hidden");
+                    showToast(data.message);
+                    $("modalActions").innerHTML = "";
+                    openModal("Gmail doğrula", body => {
+                        body.innerHTML = `<input id="newEmailInput" value="${escapeHtml(email)}" readonly><input id="emailCodeInput" inputmode="numeric" placeholder="Gmail doğrulama kodu">`;
+                    }, [
+                        { label: "Vazgeç", onClick: closeModal },
+                        { label: "Değiştir", primary: true, onClick: async () => {
+                            response = await fetch(`/account/${state.me.username}/email/verify`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email, code: $("emailCodeInput").value.trim() })
+                            });
+                            data = await response.json();
+                            if (!data.ok) {
+                                showToast(data.message);
+                                return;
+                            }
+                            state.me = data.user;
+                            closeModal();
+                            openSettings();
+                            showToast("Gmail değiştirildi.");
+                        } }
+                    ]);
+                } }
+            ]);
         }
 
         async function changeAccountPassword() {
-            const currentPassword = prompt("Mevcut şifreni yaz.");
-            if (!currentPassword) {
-                return;
-            }
-            const newPassword = prompt("Yeni güçlü şifreni yaz.");
-            if (!newPassword) {
-                return;
-            }
-            const response = await fetch(`/account/${state.me.username}/password`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ currentPassword, newPassword })
-            });
-            const data = await response.json();
-            alert(data.message);
+            openModal("Şifre değiştir", body => {
+                body.innerHTML = `<input id="currentPasswordInput" type="password" placeholder="Mevcut şifre"><input id="newPasswordInput" type="password" placeholder="Yeni güçlü şifre">`;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Değiştir", primary: true, onClick: async () => {
+                    const response = await fetch(`/account/${state.me.username}/password`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ currentPassword: $("currentPasswordInput").value, newPassword: $("newPasswordInput").value })
+                    });
+                    const data = await response.json();
+                    showToast(data.message);
+                    if (data.ok) {
+                        closeModal();
+                    }
+                } }
+            ]);
         }
 
         async function forgotPassword() {
-            const email = prompt("Hesabına bağlı Gmail adresini yaz.");
-            if (!email) {
-                return;
-            }
-            let response = await fetch("/password/forgot/start", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email })
-            });
-            let data = await response.json();
-            if (!data.ok) {
-                alert(data.message);
-                return;
-            }
-            const code = prompt(data.devCode ? `${data.message}\nKod: ${data.devCode}` : data.message);
-            if (!code) {
-                return;
-            }
-            const password = prompt("Yeni güçlü şifreni yaz.");
-            if (!password) {
-                return;
-            }
-            response = await fetch("/password/forgot/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, code, password })
-            });
-            data = await response.json();
-            alert(data.message);
+            openModal("Şifremi unuttum", body => {
+                body.innerHTML = `<input id="forgotEmailInput" placeholder="Gmail adresi">`;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Kod Gönder", primary: true, onClick: async () => {
+                    const email = $("forgotEmailInput").value.trim();
+                    let response = await fetch("/password/forgot/start", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email })
+                    });
+                    let data = await response.json();
+                    if (!data.ok) {
+                        showToast(data.message);
+                        return;
+                    }
+                    openModal("Yeni şifre", body => {
+                        body.innerHTML = `<input id="forgotEmailInput" value="${escapeHtml(email)}" readonly><input id="forgotCodeInput" inputmode="numeric" placeholder="Doğrulama kodu"><input id="forgotNewPasswordInput" type="password" placeholder="Yeni güçlü şifre">`;
+                    }, [
+                        { label: "Vazgeç", onClick: closeModal },
+                        { label: "Şifreyi Değiştir", primary: true, onClick: async () => {
+                            response = await fetch("/password/forgot/verify", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email, code: $("forgotCodeInput").value.trim(), password: $("forgotNewPasswordInput").value })
+                            });
+                            data = await response.json();
+                            showToast(data.message);
+                            if (data.ok) {
+                                closeModal();
+                            }
+                        } }
+                    ]);
+                } }
+            ]);
         }
 
         function logout() {
@@ -2197,6 +2968,12 @@
                 return "";
             }
 
+            if (message.deletedAt) {
+                return "Bu mesaj silindi";
+            }
+            if (message.attachment?.type === "location") {
+                return "Konum paylaşıldı";
+            }
             return message.body || message.attachment?.name || "Dosya";
         }
 
@@ -2215,7 +2992,8 @@
                 return `${chat.members.length || state.users.length} kişi${me?.isAdmin ? " • Yönetici" : ""}`;
             }
 
-            return isChatOnline(chat) ? "çevrimiçi" : "çevrimdışı";
+            const other = otherMember(chat);
+            return isChatOnline(chat) ? "çevrimiçi" : other?.lastSeen ? `son görülme ${relativeTime(other.lastSeen)}` : "çevrimdışı";
         }
 
         function initials(text) {
@@ -2318,6 +3096,37 @@
             setTimeout(() => playTone(420, 0.22), 520);
         }
 
+        function startCallRingtone() {
+            stopCallRingtone();
+            startCallRingtone();
+            state.call.ringtoneTimer = setInterval(playCallSound, 1400);
+        }
+
+        function stopCallRingtone() {
+            if (state.call.ringtoneTimer) {
+                clearInterval(state.call.ringtoneTimer);
+                state.call.ringtoneTimer = null;
+            }
+        }
+
+        function readImageFile(file, onLoad) {
+            if (!file) {
+                onLoad(null);
+                return;
+            }
+            if (!file.type.startsWith("image/")) {
+                showToast("Sadece resim seçebilirsin.");
+                return;
+            }
+            if (file.size > 1_500_000) {
+                showToast("Resim 1.5 MB altında olmalı.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => onLoad(reader.result);
+            reader.readAsDataURL(file);
+        }
+
         function handleFile(event) {
             const file = event.target.files[0];
             if (!file) {
@@ -2325,7 +3134,7 @@
             }
 
             if (file.size > 5_000_000) {
-                alert("Dosya boyutu 5 MB altında olmalı.");
+                showToast("Dosya boyutu 5 MB altında olmalı.");
                 event.target.value = "";
                 return;
             }
@@ -2353,11 +3162,11 @@
                 return;
             }
             if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-                alert("Durum için sadece resim veya video seçebilirsin.");
+                showToast("Durum için sadece resim veya video seçebilirsin.");
                 return;
             }
             if (file.size > 2500000) {
-                alert("Durum dosyası 2.5 MB altında olmalı.");
+                showToast("Durum dosyası 2.5 MB altında olmalı.");
                 return;
             }
             const reader = new FileReader();
@@ -2377,7 +3186,7 @@
         function ensureCallChat() {
             const chat = activeChat();
             if (!chat) {
-                alert("Önce bir sohbet seçmelisin.");
+                showToast("Önce bir sohbet seçmelisin.");
                 return null;
             }
 
@@ -2388,7 +3197,10 @@
             if (!navigator.mediaDevices?.getUserMedia) {
                 throw new Error("Tarayıcı kamera/mikrofonu sadece HTTPS, localhost veya izin verilmiş güvenli adreslerde açar.");
             }
-            return navigator.mediaDevices.getUserMedia({ audio: true, video: !audioOnly });
+            return navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: audioOnly ? false : { facingMode: state.call.cameraFacing || "user" }
+            });
         }
 
         async function ensureLocalCallStream(audioOnly) {
@@ -2465,7 +3277,7 @@
             try {
                 await ensureLocalCallStream(audioOnly);
             } catch (error) {
-                alert(error.message || "Mikrofon veya kamera izni alınamadı.");
+                showToast(error.message || "Mikrofon veya kamera izni alınamadı.");
                 endCall(false);
                 return;
             }
@@ -2473,7 +3285,7 @@
             socket.emit("call:log", { chatId: chat.id, kind: audioOnly ? "audio" : "video", status: "active" });
             const peers = chat.members.filter(member => member.username !== state.me.username);
             if (!peers.length) {
-                alert("Aranacak kişi yok.");
+                showToast("Aranacak kişi yok.");
                 endCall(false);
                 return;
             }
@@ -2490,6 +3302,7 @@
             $("callStatus").textContent = status;
             $("acceptCallButton").classList.toggle("hidden", !incoming);
             $("cameraButton").classList.toggle("hidden", audioOnly);
+            $("switchCameraButton").classList.toggle("hidden", audioOnly);
             $("callPanel").classList.remove("hidden");
         }
 
@@ -2499,12 +3312,13 @@
                 return;
             }
 
+            stopCallRingtone();
             openCallPanel(incoming.audioOnly ? "Sesli arama" : "Görüntülü arama", "bağlanıyor", false, incoming.audioOnly);
             let pc;
             try {
                 pc = await createPeer(incoming.from, incoming.chatId, incoming.audioOnly);
             } catch (error) {
-                alert(error.message || "Mikrofon veya kamera izni alınamadı.");
+                showToast(error.message || "Mikrofon veya kamera izni alınamadı.");
                 endCall(true);
                 return;
             }
@@ -2544,6 +3358,7 @@
         }
 
         function endCall(notify = true) {
+            stopCallRingtone();
             const durationSeconds = state.call.startedAt ? Math.max(1, Math.round((Date.now() - state.call.startedAt) / 1000)) : 0;
             if (notify && state.call.chatId) {
                 socket.emit("call:end", { chatId: state.call.chatId });
@@ -2560,7 +3375,7 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, cameraFacing: "user" };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callPanel").classList.add("hidden");
@@ -2586,6 +3401,34 @@
                 track.enabled = !track.enabled;
                 $("cameraButton").textContent = track.enabled ? "▣" : "□";
             });
+        }
+
+        async function switchCamera() {
+            if (!state.call.localStream || state.call.audioOnly) {
+                return;
+            }
+            state.call.cameraFacing = state.call.cameraFacing === "user" ? "environment" : "user";
+            try {
+                const nextStream = await getCallStream(false);
+                const nextVideoTrack = nextStream.getVideoTracks()[0];
+                if (!nextVideoTrack) {
+                    return;
+                }
+                const oldVideoTracks = state.call.localStream.getVideoTracks();
+                oldVideoTracks.forEach(track => {
+                    state.call.localStream.removeTrack(track);
+                    track.stop();
+                });
+                state.call.localStream.addTrack(nextVideoTrack);
+                $("localVideo").srcObject = state.call.localStream;
+                Object.values(state.call.peers).forEach(pc => {
+                    const sender = pc.getSenders().find(item => item.track?.kind === "video");
+                    sender?.replaceTrack(nextVideoTrack);
+                });
+                nextStream.getAudioTracks().forEach(track => track.stop());
+            } catch (error) {
+                showToast("Kamera değiştirilemedi.");
+            }
         }
 
         $("loginTab").onclick = () => setAuthMode("login");
@@ -2614,12 +3457,22 @@
             };
         });
         $("attachButton").onclick = () => $("fileInput").click();
+        $("emojiButton").onclick = toggleEmojiPanel;
+        $("locationButton").onclick = sendCurrentLocation;
         $("fileInput").onchange = handleFile;
         $("storyFileInput").onchange = handleStoryFile;
         $("closeStoryButton").onclick = closeStoryPanel;
         $("voiceButton").onclick = toggleVoiceRecording;
+        $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("settingsButton").onclick = openSettings;
         $("closeSettingsButton").onclick = closeSettings;
+        $("profileImageButton").onclick = chooseProfileImage;
+        $("removeProfileImageButton").onclick = () => {
+            state.profileImageDraft = "";
+            setAvatar($("settingsAvatar"), { displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
+        };
+        $("profileImageInput").onchange = handleProfileImage;
+        $("saveProfileButton").onclick = saveProfile;
         $("changeEmailButton").onclick = changeAccountEmail;
         $("changePasswordButton").onclick = changeAccountPassword;
         $("settingsDeleteButton").onclick = deleteAccount;
@@ -2637,6 +3490,8 @@
         $("endCallButton").onclick = () => endCall(true);
         $("muteButton").onclick = toggleMute;
         $("cameraButton").onclick = toggleCamera;
+        $("switchCameraButton").onclick = switchCamera;
+        $("modalCloseButton").onclick = closeModal;
         $("messageInput").addEventListener("input", () => {
             const chat = activeChat();
             if (chat) {
@@ -2657,6 +3512,7 @@
             state.generalGroup = data.generalGroup;
             state.stories = data.stories || [];
             state.callLogs = data.callLogs || [];
+            hydrateRealtimeState(data);
             state.activeChatId = state.activeChatId || state.chats[0]?.id || "lobby";
             render();
             maybePromptGeneralGroup();
@@ -2705,6 +3561,13 @@
             renderCalls();
         });
 
+        socket.on("social:update", data => {
+            hydrateRealtimeState(data);
+            renderSections();
+            renderGroups();
+            renderContacts();
+        });
+
         socket.on("account:deleted", () => {
             localStorage.removeItem("nexalineUser");
             location.reload();
@@ -2750,7 +3613,44 @@
             renderActiveChat();
         });
 
-        socket.on("notice", data => alert(data.message));
+        socket.on("message:deleted", message => {
+            const chat = state.chats.find(item => item.id === message.chatId);
+            if (!chat) {
+                return;
+            }
+            const index = chat.messages.findIndex(item => item.id === message.id);
+            if (index >= 0) {
+                chat.messages[index] = message;
+            }
+            if (chat.lastMessage?.id === message.id) {
+                chat.lastMessage = message;
+            }
+            render();
+        });
+
+        socket.on("message:remove-local", data => {
+            const chat = state.chats.find(item => item.id === data.chatId);
+            if (!chat) {
+                return;
+            }
+            chat.messages = chat.messages.filter(message => message.id !== data.messageId);
+            chat.lastMessage = chat.messages[chat.messages.length - 1] || null;
+            render();
+        });
+
+        socket.on("message:reaction", data => {
+            const chat = state.chats.find(item => item.id === data.chatId);
+            if (!chat) {
+                return;
+            }
+            const message = chat.messages.find(item => item.id === data.messageId);
+            if (message) {
+                message.reactions = data.reactions || {};
+                renderActiveChat();
+            }
+        });
+
+        socket.on("notice", data => showToast(data.message));
         socket.on("call:offer", data => {
             if (Object.keys(state.call.peers).length || state.call.incomingOffer) {
                 socket.emit("call:end", { chatId: data.chatId, to: data.from });
@@ -2758,7 +3658,7 @@
             }
 
             state.call.incomingOffer = data;
-            playCallSound();
+            startCallRingtone();
             openCallPanel(`${data.fromName} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly);
         });
         socket.on("call:answer", handleRemoteAnswer);
