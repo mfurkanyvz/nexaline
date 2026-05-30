@@ -267,23 +267,24 @@ DEFAULT_DESIGN_SETTINGS = {
     "text": {
         "chats": "Sohbetler",
         "groups": "Gruplar",
-        "stories": "Guncellemeler",
+        "stories": "Güncellemeler",
         "calls": "Aramalar",
-        "contacts": "Kisiler",
-        "archives": "Arsiv",
-        "searchPlaceholder": "Aratin veya yeni sohbet baslatin",
-        "messagePlaceholder": "Bir mesaj yazin",
+        "friends": "Arkadaşlarım",
+        "contacts": "Kişiler",
+        "archives": "Arşiv",
+        "searchPlaceholder": "Aratın veya yeni sohbet başlatın",
+        "messagePlaceholder": "Bir mesaj yazın",
         "newChat": "Yeni sohbet",
         "newGroup": "Yeni grup",
         "newStory": "Durum ekle",
         "newCall": "Yeni arama",
-        "noCalls": "Arama kaydi yok",
+        "noCalls": "Arama kaydı yok",
         "attachment": "Dosya",
         "emoji": "Emoji",
         "voice": "Sesli mesaj",
         "location": "Konum",
         "timed": "Zamanla",
-        "send": "Gonder",
+        "send": "Gönder",
     },
     "desktop": {
         "fontSize": 16,
@@ -296,7 +297,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "composerRadius": 30,
         "headerHeight": 72,
         "showNavLabels": False,
-        "navOrder": ["chats", "calls", "stories", "groups", "contacts", "archives"],
+        "navOrder": ["chats", "calls", "groups", "stories", "friends", "contacts"],
         "composerOrder": ["attach", "emoji", "input", "voice", "send"],
     },
     "mobile": {
@@ -308,7 +309,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "composerRadius": 26,
         "headerHeight": 64,
         "showNavLabels": True,
-        "navOrder": ["chats", "calls", "stories", "groups", "contacts", "archives"],
+        "navOrder": ["stories", "groups", "calls", "chats", "friends", "contacts"],
         "composerOrder": ["attach", "emoji", "input", "voice", "send"],
     },
     # Legacy flat keys are kept so older deployed clients can still read a sane design.
@@ -324,7 +325,7 @@ DEFAULT_DESIGN_SETTINGS = {
 
 
 DESIGN_SECTIONS = ("desktop", "mobile")
-DESIGN_NAV_KEYS = ("chats", "calls", "stories", "groups", "contacts", "archives")
+DESIGN_NAV_KEYS = ("chats", "calls", "groups", "stories", "friends", "contacts")
 DESIGN_COMPOSER_KEYS = ("attach", "emoji", "input", "voice", "send", "location", "timed")
 
 
@@ -341,7 +342,12 @@ def deep_merge_dict(base, override):
 def design_settings():
     row = db.session.get(AppSetting, "design")
     data = row.value if row and isinstance(row.value, dict) else {}
-    return deep_merge_dict(DEFAULT_DESIGN_SETTINGS, data)
+    merged = deep_merge_dict(DEFAULT_DESIGN_SETTINGS, data)
+    for section in DESIGN_SECTIONS:
+        screen = merged.get(section, {})
+        order = [item for item in screen.get("navOrder", []) if item in DESIGN_NAV_KEYS]
+        screen["navOrder"] = order + [item for item in DESIGN_NAV_KEYS if item not in order]
+    return merged
 
 
 def sanitize_design_settings(data):
@@ -449,6 +455,16 @@ def parse_expiry_seconds(value):
     return min(seconds, MAX_SCHEDULE_DAYS * 24 * 60 * 60)
 
 
+def user_points(username):
+    message_points = Message.query.filter_by(sender=username).count()
+    story_points = Story.query.filter_by(username=username).count() * 5
+    friend_points = ContactRequest.query.filter(
+        ContactRequest.status == "accepted",
+        db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username),
+    ).count() * 3
+    return message_points + story_points + friend_points
+
+
 def public_user(username, viewer=None):
     user = db.session.get(User, username)
     is_self = viewer == username
@@ -463,6 +479,8 @@ def public_user(username, viewer=None):
         "avatar": user.avatar if user else username[:2].upper(),
         "profileImage": None if blocked else user.profile_image if user else None,
         "about": "" if blocked else user.about if user else "NexaLine kullanıyorum.",
+        "createdAt": to_iso(user.created_at) if user else now_iso(),
+        "points": 0 if blocked else user_points(username) if user else 0,
         "email": user.email if user and show_email else None,
         "online": online if show_online else False,
         "lastSeen": now_iso() if online and show_online else to_iso(user.last_seen) if user and show_last_seen else None,
@@ -492,7 +510,7 @@ def private_user(username):
 
 
 def public_users_for(viewer):
-    return [public_user(user.username, viewer) for user in User.query.order_by(User.display_name).all()]
+    return [public_user(user.username, viewer) for user in User.query.order_by(User.created_at.desc()).all()]
 
 
 def story_to_dict(story, viewer=None):
@@ -1269,17 +1287,17 @@ def verification_code():
 
 def email_subject(purpose):
     labels = {
-        "register": "NexaLine kayit dogrulama kodun",
-        "forgot": "NexaLine sifre sifirlama kodun",
-        "email_change": "NexaLine Gmail degistirme kodun",
+        "register": "NexaLine kayıt doğrulama kodun",
+        "forgot": "NexaLine şifre sıfırlama kodun",
+        "email_change": "NexaLine Gmail değiştirme kodun",
     }
-    return labels.get(purpose, "NexaLine dogrulama kodun")
+    return labels.get(purpose, "NexaLine doğrulama kodun")
 
 
 def email_body(code):
     return (
-        f"NexaLine dogrulama kodun: {code}\n\n"
-        "Bu kod 10 dakika gecerlidir. Bu islemi sen yapmadiysan bu mesaji yok sayabilirsin."
+        f"NexaLine doğrulama kodun: {code}\n\n"
+        "Bu kod 10 dakika geçerlidir. Bu işlemi sen yapmadıysan bu mesajı yok sayabilirsin."
     )
 
 
@@ -1411,12 +1429,12 @@ def rtc_servers():
     return servers
 
 
-AI_SYSTEM_PROMPT = """Sen NexaLine icinde calisan kisilestirilebilir Next AI asistansin.
-Kullanici sana hangi ismi verdiyse o isimle davran; yeri geldiginde sicak bir arkadas, yeri geldiginde net bir asistan ol.
-Turkce, dogal, kisa ve guvenli cevap ver. Sohbetleri ozetleyebilir, cevap taslagi hazirlayabilir, uygulama ayarlarini
-aciklayabilir ve izinli uygulama eylemleri onerebilirsin. Mesaj gonderme, sohbet silme, arama baslatma, kilitleme,
-tema/gizlilik/AI ayari degistirme ve zamanlama gibi islemler uygulama tarafindan kullanicinin onay ayarina gore calistirilir.
-Bilmedigin veya internette dogrulanmasi gereken konuda eminmis gibi davranma."""
+AI_SYSTEM_PROMPT = """Sen NexaLine içinde çalışan kişiselleştirilebilir Nexa AI asistansın.
+Kullanıcı sana hangi ismi verdiyse o isimle davran; yeri geldiğinde sıcak bir arkadaş, yeri geldiğinde net bir asistan ol.
+Türkçe, doğal, kısa ve güvenli cevap ver. Sohbetleri özetleyebilir, cevap taslağı hazırlayabilir, uygulama ayarlarını
+açıklayabilir ve izinli uygulama eylemleri önerebilirsin. Mesaj gönderme, sohbet silme, arama başlatma, kilitleme,
+tema/gizlilik/AI ayarı değiştirme ve zamanlama gibi işlemler uygulama tarafından kullanıcının onay ayarına göre çalıştırılır.
+Bilmediğin veya internette doğrulanması gereken konuda eminmiş gibi davranma."""
 
 ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex", "erotik", "onlyfans"}
 ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "siktir", "amk", "aq"}
@@ -1489,17 +1507,17 @@ def ai_context_for_user(username, chat_id=None):
             "sohbet ozeti",
             "cevap taslagi",
             "onayli mesaj gonderme",
-            "profil adi ve hakkimda guncelleme",
-            "tema degistirme",
+            "profil adı ve hakkımda güncelleme",
+            "tema değiştirme",
             "sohbet sabitleme/sessize alma/gizleme",
             "AI sansur filtresini acma/kapatma",
-            "Next AI acma/kapatma, isim ve onay yetkisi ayarlama",
-            "gizlilik ayarlarini onayli degistirme",
-            "sohbet acma, sohbet silme ve arama baslatma",
+            "Nexa AI acma/kapatma, isim ve onay yetkisi ayarlama",
+            "gizlilik ayarlarını onaylı değiştirme",
+            "sohbet açma, sohbet silme ve arama başlatma",
             "mesaj zamanlama",
             "gelen mesaji +18/kufur/spam icin uyarmali gizleme",
         ],
-        "privacy": "Sifreler ve sifre hashleri AI baglamina eklenmez.",
+        "privacy": "Şifreler ve şifre hashleri AI bağlamına eklenmez.",
     }
 
 
@@ -1646,14 +1664,14 @@ def ai_detect_actions(prompt, username, active_chat_id=None, timezone_offset_min
         actions.append({"type": "set_censor", "enabled": False, "label": "AI sansür filtresini kapat"})
     elif wants_censor_on or ("sansür" in lowered or "sansur" in lowered or "+18" in lowered or "filtre" in lowered):
         actions.append({"type": "set_censor", "enabled": True, "label": "AI sansür filtresini aç"})
-    if any(word in lowered for word in ["next ai kapat", "nex ai kapat", "asistanı kapat", "asistani kapat", "yapay zekayı kapat", "yapay zekayi kapat"]):
-        actions.append({"type": "set_ai_enabled", "enabled": False, "label": "Next AI'ı kapat"})
-    if any(word in lowered for word in ["next ai aç", "next ai ac", "nex ai aç", "nex ai ac", "asistanı aç", "asistani ac", "yapay zekayı aç", "yapay zekayi ac"]):
-        actions.append({"type": "set_ai_enabled", "enabled": True, "label": "Next AI'ı aç"})
+    if any(word in lowered for word in ["next ai kapat", "nexa ai kapat", "nex ai kapat", "asistanı kapat", "asistani kapat", "yapay zekayı kapat", "yapay zekayi kapat"]):
+        actions.append({"type": "set_ai_enabled", "enabled": False, "label": "Nexa AI'ı kapat"})
+    if any(word in lowered for word in ["next ai aç", "next ai ac", "nexa ai aç", "nexa ai ac", "nex ai aç", "nex ai ac", "asistanı aç", "asistani ac", "yapay zekayı aç", "yapay zekayi ac"]):
+        actions.append({"type": "set_ai_enabled", "enabled": True, "label": "Nexa AI'ı aç"})
     if any(word in lowered for word in ["tam yetki ver", "tam erişim ver", "tam erisim ver", "onaysız yap", "onaysiz yap", "izin almadan yap", "direkt yap"]):
-        actions.append({"type": "set_ai_auto_approve", "enabled": True, "label": "Next AI tam yetkisini aç"})
+        actions.append({"type": "set_ai_auto_approve", "enabled": True, "label": "Nexa AI tam yetkisini aç"})
     if any(word in lowered for word in ["tam yetki kapat", "tam erişimi kapat", "tam erisimi kapat", "onay al", "önce onay", "once onay"]):
-        actions.append({"type": "set_ai_auto_approve", "enabled": False, "label": "Next AI her işlemde onay alsın"})
+        actions.append({"type": "set_ai_auto_approve", "enabled": False, "label": "Nexa AI her işlemde onay alsın"})
     ai_name = extract_value_after_phrases(
         prompt,
         [
@@ -1662,9 +1680,9 @@ def ai_detect_actions(prompt, username, active_chat_id=None, timezone_offset_min
         40,
     )
     if ai_name and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun"]):
-        actions.append({"type": "set_ai_name", "name": ai_name, "label": f"Next AI adını “{ai_name}” yap"})
+        actions.append({"type": "set_ai_name", "name": ai_name, "label": f"Nexa AI adını “{ai_name}” yap"})
     settings_section = None
-    if "next ai ayar" in lowered or "ai ayar" in lowered or "asistan ayar" in lowered:
+    if "next ai ayar" in lowered or "nexa ai ayar" in lowered or "ai ayar" in lowered or "asistan ayar" in lowered:
         settings_section = "ai"
     elif "gizlilik ayar" in lowered:
         settings_section = "privacy"
@@ -1923,7 +1941,7 @@ def live_info_for_prompt(prompt, timezone_offset_minutes=0):
 def local_ai_reply(prompt, context, actions, research=None):
     active = context.get("activeChat") or {}
     messages = active.get("messages") or []
-    assistant_name = (context.get("assistant") or {}).get("name") or "Next AI"
+    assistant_name = (context.get("assistant") or {}).get("name") or "Nexa AI"
     lowered = (prompt or "").casefold()
     tokens = set(re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", lowered))
     research_answer = local_research_answer(prompt, research)
@@ -1999,7 +2017,7 @@ def call_gemini_ai(prompt, context_text, research):
         params={"key": key},
         json={
             "systemInstruction": {"parts": [{"text": AI_SYSTEM_PROMPT}]},
-            "contents": [{"role": "user", "parts": [{"text": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"}]}],
+            "contents": [{"role": "user", "parts": [{"text": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"}]}],
             "generationConfig": {"temperature": 0.45, "maxOutputTokens": 900},
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -2024,7 +2042,7 @@ def call_openai_ai(prompt, context_text, research):
             "max_tokens": 900,
             "messages": [
                 {"role": "system", "content": AI_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"},
+                {"role": "user", "content": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"},
             ],
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -2043,7 +2061,7 @@ def call_ollama_ai(prompt, context_text, research):
             "stream": False,
             "messages": [
                 {"role": "system", "content": AI_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"},
+                {"role": "user", "content": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"},
             ],
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -2171,7 +2189,7 @@ def ai_chat():
     username = (data.get("username") or "").strip().lower()
     prompt = (data.get("prompt") or "").strip()
     chat_id = data.get("chatId")
-    assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Next AI").strip())[:40] or "Next AI"
+    assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Nexa AI").strip())[:40] or "Nexa AI"
 
     if not username or not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
@@ -2261,9 +2279,9 @@ def register_check_username():
         return jsonify({"ok": False, "message": username_problem}), 400
 
     if db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Bu kullanici adi zaten kayitli. Farkli bir kullanici adi dene."}), 409
+        return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı. Farklı bir kullanıcı adı dene."}), 409
 
-    return jsonify({"ok": True, "message": "Kullanici adi uygun."})
+    return jsonify({"ok": True, "message": "Kullanıcı adı uygun."})
 
 
 @app.route("/register/verify", methods=["POST"])
@@ -2324,7 +2342,7 @@ def register_verify():
             password_hash = verification.password_hash
 
         if not password_hash:
-            return jsonify({"ok": False, "message": "Sifre olusturulmadan kayit tamamlanamaz."}), 400
+            return jsonify({"ok": False, "message": "Şifre oluşturulmadan kayıt tamamlanamaz."}), 400
 
         db.session.add(
             User(
@@ -2569,7 +2587,7 @@ def read_archive(username, archive_id):
     purge_expired_archives()
     archive = db.session.get(ChatArchive, archive_id)
     if not archive or archive.username != username:
-        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
 
     return jsonify(
         {
@@ -2596,7 +2614,7 @@ def restore_archive(username, archive_id):
     purge_expired_archives()
     archive = db.session.get(ChatArchive, archive_id)
     if not archive or archive.username != username:
-        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
 
     chat = restore_archive_for_user(archive)
     if not chat:
@@ -2606,7 +2624,7 @@ def restore_archive(username, archive_id):
     return jsonify(
         {
             "ok": True,
-            "message": "Sohbet arsivden cikarildi.",
+            "message": "Sohbet arşivden çıkarıldı.",
             "chat": chat_for_user(chat, username),
             "archives": visible_archives(username),
             "scheduledMessages": visible_scheduled_messages(username),
@@ -2620,7 +2638,7 @@ def delete_archive(username, archive_id):
 
     archive = db.session.get(ChatArchive, archive_id)
     if not archive or archive.username != username:
-        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
 
     db.session.delete(archive)
     db.session.commit()
@@ -2817,13 +2835,13 @@ def admin_create_user():
         return jsonify({"ok": False, "message": display_name_error}), 400
 
     if display_name_exists(display_name):
-        return jsonify({"ok": False, "message": "Bu isim zaten kayitli."}), 400
+        return jsonify({"ok": False, "message": "Bu isim zaten kayıtlı."}), 400
 
     if not email or not email_normalized:
-        return jsonify({"ok": False, "message": "Giris icin gecerli bir e-posta formati yaz."}), 400
+        return jsonify({"ok": False, "message": "Giriş için geçerli bir e-posta formatı yaz."}), 400
 
     if email_exists(email_normalized):
-        return jsonify({"ok": False, "message": "Bu e-posta zaten kayitli."}), 400
+        return jsonify({"ok": False, "message": "Bu e-posta zaten kayıtlı."}), 400
 
     if not username:
         base = email_normalized.split("@", 1)[0]
@@ -2840,7 +2858,7 @@ def admin_create_user():
         return jsonify({"ok": False, "message": username_problem}), 400
 
     if db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Bu kullanici adi zaten var."}), 400
+        return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten var."}), 400
 
     password_problem = password_error(username, password)
     if password_problem:
@@ -2858,7 +2876,7 @@ def admin_create_user():
     db.session.add(user)
     db.session.commit()
     broadcast_presence()
-    return jsonify({"ok": True, "user": private_user(username), "message": "Kullanici olusturuldu."})
+    return jsonify({"ok": True, "user": private_user(username), "message": "Kullanıcı oluşturuldu."})
 
 
 @app.route("/admin/user/<username>", methods=["DELETE"])
@@ -2933,7 +2951,7 @@ def admin_update_user_privacy(username):
 
     user = db.session.get(User, username.strip().lower())
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
     data = request.get_json() or {}
     user.hide_last_seen = bool(data.get("lastSeenHidden"))
@@ -2942,7 +2960,7 @@ def admin_update_user_privacy(username):
     user.hide_email = bool(data.get("emailHidden", True))
     db.session.commit()
     broadcast_presence()
-    return jsonify({"ok": True, "message": "Gizlilik guncellendi.", "user": private_user(user.username)})
+    return jsonify({"ok": True, "message": "Gizlilik güncellendi.", "user": private_user(user.username)})
 
 
 @app.route("/admin/archive/<archive_id>", methods=["DELETE"])
@@ -2953,11 +2971,11 @@ def admin_delete_archive(archive_id):
 
     archive = db.session.get(ChatArchive, archive_id)
     if not archive:
-        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
 
     db.session.delete(archive)
     db.session.commit()
-    return jsonify({"ok": True, "message": "Arsiv silindi."})
+    return jsonify({"ok": True, "message": "Arşiv silindi."})
 
 
 @app.route("/admin/archive/<archive_id>/restore", methods=["POST"])
@@ -2968,7 +2986,7 @@ def admin_restore_archive(archive_id):
 
     archive = db.session.get(ChatArchive, archive_id)
     if not archive:
-        return jsonify({"ok": False, "message": "Arsiv bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
 
     username = archive.username
     chat = restore_archive_for_user(archive)
@@ -2979,7 +2997,7 @@ def admin_restore_archive(archive_id):
     for sid in connected_sids_for(username):
         socketio.emit("chat:upsert", chat_for_user(chat, username), room=sid)
         socketio.emit("archive:update", visible_archives(username), room=sid)
-    return jsonify({"ok": True, "message": "Arsivden cikarildi."})
+    return jsonify({"ok": True, "message": "Arşivden çıkarıldı."})
 
 
 @app.route("/admin/message/<message_id>", methods=["DELETE"])

@@ -530,7 +530,7 @@
         }
 
         .avatar.online {
-            box-shadow: 0 0 0 2px var(--green);
+            box-shadow: 0 0 0 2px var(--red);
         }
 
         .identity {
@@ -667,7 +667,7 @@
         .nav-tab.active {
             color: #fff;
             background: var(--panel-3);
-            box-shadow: inset 3px 0 0 var(--green);
+            box-shadow: inset 3px 0 0 var(--red);
         }
 
         .search-box input {
@@ -681,15 +681,75 @@
             background: #090c13;
         }
 
-        .section-label {
+        #installButton,
+        #notificationButton {
+            display: none;
+        }
+
+        .section-head {
             grid-column: 2;
             grid-row: 3;
-            padding: 12px 16px 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            padding: 12px 12px 6px 16px;
+        }
+
+        .section-label {
+            flex: 1;
+            min-width: 0;
+            padding: 0;
             color: var(--text);
             font-size: 22px;
             font-weight: 800;
             text-transform: none;
             letter-spacing: 0;
+        }
+
+        .archive-shortcut {
+            display: inline-flex;
+            min-width: 0;
+            height: 32px;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            color: var(--text);
+            background: var(--panel-2);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .archive-shortcut:hover {
+            border-color: color-mix(in srgb, var(--red), transparent 35%);
+            color: #fff;
+        }
+
+        .new-chat-fab {
+            position: absolute;
+            right: 1cm;
+            bottom: clamp(96px, 24%, 260px);
+            z-index: 7;
+            display: grid;
+            width: 48px;
+            height: 48px;
+            place-items: center;
+            border-radius: 50%;
+            color: #fff;
+            background: linear-gradient(135deg, var(--red), var(--blue));
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            font-size: 25px;
+            font-weight: 900;
+            line-height: 1;
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .new-chat-fab:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 18px 38px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.12);
         }
 
         .scroll-area {
@@ -2049,6 +2109,7 @@
 
             .sidebar {
                 display: flex;
+                flex-direction: column;
                 width: 100%;
                 height: var(--app-height);
                 min-height: 0;
@@ -2147,9 +2208,13 @@
             }
 
             .contact-list,
+            #friendList,
             #archiveList,
             #callList,
             #groupList {
+                flex: 1;
+                min-height: 0;
+                overflow: auto;
                 padding-bottom: 104px;
             }
 
@@ -2251,11 +2316,11 @@
             }
 
             .nav-tab[data-section="stories"] { order: 1; }
-            .nav-tab[data-section="calls"] { order: 2; }
-            .nav-tab[data-section="groups"] { order: 3; }
+            .nav-tab[data-section="groups"] { order: 2; }
+            .nav-tab[data-section="calls"] { order: 3; }
             .nav-tab[data-section="chats"] { order: 4; }
-            .nav-tab[data-section="contacts"] { order: 5; }
-            .nav-tab[data-section="archives"] { order: 6; }
+            .nav-tab[data-section="friends"] { order: 5; }
+            .nav-tab[data-section="contacts"] { order: 6; }
 
             .nav-tab {
                 min-width: 58px;
@@ -2297,6 +2362,14 @@
 
             .app.chat-open .nav-tabs {
                 display: none;
+            }
+
+            .new-chat-fab {
+                right: 18px;
+                bottom: calc(94px + env(safe-area-inset-bottom));
+                width: 48px;
+                height: 48px;
+                font-size: 24px;
             }
 
             .toast-stack {
@@ -2391,7 +2464,7 @@
                 <img src="/static/nexaline-mark.png" alt="">
             </div>
             <div class="transition-lines"><span>N</span><span>L</span></div>
-            <div id="transitionText" class="transition-text">NexaLine hazirlaniyor</div>
+            <div id="transitionText" class="transition-text">NexaLine hazırlanıyor</div>
         </div>
     </div>
 
@@ -2438,7 +2511,7 @@
                 <div id="meAvatar" class="avatar">NL</div>
                 <div class="identity">
                     <strong id="meName">NexaLine</strong>
-                    <small id="meStatus">çevrimiçi</small>
+                    <small id="meStatus" class="hidden"></small>
                 </div>
                 <div class="icon-row">
                     <button class="icon-btn" id="installButton" title="Uygulamayı indir">⇩</button>
@@ -2456,19 +2529,25 @@
             <nav class="nav-tabs">
                 <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
                 <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
-                <button class="nav-tab" data-section="stories" type="button" title="Güncellemeler"><span class="nav-icon">◌</span><span class="nav-label">Güncelleme</span></button>
                 <button class="nav-tab" data-section="groups" type="button" title="Gruplar"><span class="nav-icon">☷</span><span class="nav-label">Gruplar</span></button>
-                <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişi</span></button>
-                <button class="nav-tab" data-section="archives" type="button" title="Arşiv"><span class="nav-icon">▤</span><span class="nav-label">Arşiv</span></button>
+                <button class="nav-tab" data-section="stories" type="button" title="Güncellemeler"><span class="nav-icon">◌</span><span class="nav-label">Güncellemeler</span></button>
+                <button class="nav-tab" data-section="friends" type="button" title="Arkadaşlarım"><span class="nav-icon">☻</span><span class="nav-label">Arkadaşlarım</span></button>
+                <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
             </nav>
 
-            <div id="sectionTitle" class="section-label">Sohbetler</div>
+            <div class="section-head">
+                <button id="archiveBackButton" class="archive-shortcut hidden" type="button" title="Sohbetlere dön">← Sohbetler</button>
+                <div id="sectionTitle" class="section-label">Sohbetler</div>
+                <button id="archiveShortcutButton" class="archive-shortcut" type="button" title="Arşiv">Arşiv</button>
+            </div>
             <nav id="storyList" class="story-list hidden"></nav>
             <nav id="chatList" class="chat-list"></nav>
             <nav id="groupList" class="chat-list hidden"></nav>
             <nav id="callList" class="chat-list hidden"></nav>
+            <nav id="friendList" class="contact-list scroll-area hidden"></nav>
             <nav id="contactList" class="contact-list scroll-area hidden"></nav>
             <nav id="archiveList" class="chat-list hidden"></nav>
+            <button id="newChatFab" class="new-chat-fab" type="button" title="Yeni sohbet">+</button>
         </aside>
 
         <section class="chat-pane">
@@ -2514,6 +2593,7 @@
                 <button id="sendToolsButton" class="icon-btn" data-tool="timed" title="Zamanla ve kaybolan mesaj">⏱</button>
                 <button id="cancelVoiceButton" class="icon-btn danger hidden" title="Kaydı iptal et">×</button>
                 <input id="fileInput" class="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
+                <input id="cameraInput" class="hidden" type="file" accept="image/*,video/*" capture="environment">
                 <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
                 <textarea id="messageInput" placeholder="Mesaj"></textarea>
                 <button id="sendButton" class="send-btn" data-tool="send" title="Gönder">➤</button>
@@ -2576,7 +2656,7 @@
                 </button>
                 <button id="settingsAiTab" class="settings-option" type="button">
                     <span class="option-icon">N</span>
-                    <span><strong>Next AI</strong><small class="last-message">Asistan adı, fotoğrafı, sansür ve yetki</small></span>
+                    <span><strong>Nexa AI</strong><small class="last-message">Asistan adı, fotoğrafı, sansür ve yetki</small></span>
                     <span>›</span>
                 </button>
                 <button id="settingsAccountTab" class="settings-option" type="button">
@@ -2661,7 +2741,7 @@
                 <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
                 <div class="settings-row">
                     <div>
-                        <strong>Next AI</strong>
+                        <strong>Nexa AI</strong>
                         <div class="last-message">Sohbet listesindeki kişisel asistanını buradan yönet</div>
                     </div>
                     <div id="nextAiAvatar" class="avatar">N</div>
@@ -2674,7 +2754,7 @@
                 <input id="nextAiNameInput" maxlength="40" placeholder="Asistan adı">
                 <div class="privacy-grid">
                     <label class="toggle-row">
-                        <span>Next AI açık</span>
+                        <span>Nexa AI açık</span>
                         <input id="nextAiEnabledInput" type="checkbox">
                     </label>
                     <label class="toggle-row">
@@ -2687,7 +2767,7 @@
                     </label>
                 </div>
                 <div class="last-message">Tam yetki açılırsa mesaj gönderme, sohbet silme, arama ve ayar değiştirme komutlarını ayrıca onay istemeden uygular.</div>
-                <button id="saveNextAiButton" class="primary" type="button">Next AI Ayarlarını Kaydet</button>
+                <button id="saveNextAiButton" class="primary" type="button">Nexa AI Ayarlarını Kaydet</button>
             </div>
 
             <div id="settingsAccountSection" class="settings-section hidden">
@@ -2713,6 +2793,7 @@
                     </div>
                     <button id="settingsDeleteButton" type="button">Hesabı Sil</button>
                 </div>
+                <button id="settingsInstallButton" type="button">Uygulamayı İndir</button>
                 <button id="settingsLogoutButton" class="primary" type="button">Çıkış</button>
             </div>
         </div>
@@ -2739,15 +2820,15 @@
                 <div id="callCover" class="call-cover">
                     <div id="callAvatar" class="avatar">N</div>
                     <strong id="callPeerName">NexaLine</strong>
-                    <span id="callPeerMeta">baglaniyor</span>
+                    <span id="callPeerMeta">bağlanıyor</span>
                 </div>
             </div>
             <div class="call-info">
                 <div>
                     <strong id="callTitle">Arama</strong>
-                    <span id="callPeerLine" class="last-message">Kisi</span>
+                    <span id="callPeerLine" class="last-message">Kişi</span>
                 </div>
-                <span id="callStatus">baglaniyor</span>
+                <span id="callStatus">bağlanıyor</span>
                 <span id="callTimer">00:00</span>
             </div>
             <div class="call-actions">
@@ -2795,7 +2876,7 @@
         const AI_CHAT_ID = "__next_ai_chat__";
         const AI_SENDER = "__next_ai__";
         const DEFAULT_BRAND_LOGO = "/static/nexaline-mark.png";
-        const DEFAULT_AI_NAME = "Next AI";
+        const DEFAULT_AI_NAME = "Nexa AI";
         const DEFAULT_AI_AVATAR = DEFAULT_BRAND_LOGO;
         const MESSAGE_TONES = {
             classic: [[660, 70], [880, 80]],
@@ -2856,6 +2937,9 @@
                 ...readStoredJson(aiSettingsKey(), {})
             };
             if (!state.aiSettings.name?.trim()) {
+                state.aiSettings.name = DEFAULT_AI_NAME;
+            }
+            if (state.aiSettings.name.trim().toLowerCase() === "next ai") {
                 state.aiSettings.name = DEFAULT_AI_NAME;
             }
             const userCensor = localStorage.getItem(aiCensorKey());
@@ -3039,10 +3123,11 @@
             const labels = {
                 chats: "Sohbetler",
                 groups: "Gruplar",
-                stories: "Guncellemeler",
+                stories: "Güncellemeler",
                 calls: "Aramalar",
-                contacts: "Kisiler",
-                archives: "Arsiv"
+                friends: "Arkadaşlarım",
+                contacts: "Kişiler",
+                archives: "Arşiv"
             };
             Object.entries(labels).forEach(([key, fallback]) => {
                 const value = text[key] || fallback;
@@ -3053,15 +3138,15 @@
                     if (label) label.textContent = value;
                 }
             });
-            if ($("searchInput")) $("searchInput").placeholder = text.searchPlaceholder || "Aratin veya yeni sohbet baslatin";
-            if ($("messageInput")) $("messageInput").placeholder = text.messagePlaceholder || "Bir mesaj yazin";
+            if ($("searchInput")) $("searchInput").placeholder = text.searchPlaceholder || "Aratın veya yeni sohbet başlatın";
+            if ($("messageInput")) $("messageInput").placeholder = text.messagePlaceholder || "Bir mesaj yazın";
             const titleMap = {
                 attachButton: text.attachment || "Dosya",
                 emojiButton: text.emoji || "Emoji",
                 voiceButton: text.voice || "Sesli mesaj",
                 locationButton: text.location || "Konum",
                 sendToolsButton: text.timed || "Zamanla",
-                sendButton: text.send || "Gonder"
+                sendButton: text.send || "Gönder"
             };
             Object.entries(titleMap).forEach(([id, value]) => {
                 if ($(id)) $(id).title = value;
@@ -3378,7 +3463,7 @@
 
         function aiLastText() {
             if (!state.aiSettings.enabled) {
-                return "Kapalı. Ayarlar > Next AI ile açabilirsin.";
+                return "Kapalı. Ayarlar > Nexa AI ile açabilirsin.";
             }
             const last = state.aiMessages[state.aiMessages.length - 1];
             return last?.text || "Arkadaş gibi yaz, asistan gibi yardım edeyim.";
@@ -3386,7 +3471,7 @@
 
         function selectAiChat() {
             if (!state.aiSettings.enabled) {
-                showToast("Next AI kapalı. Ayarlar > Next AI bölümünden açabilirsin.");
+                showToast("Nexa AI kapalı. Ayarlar > Nexa AI bölümünden açabilirsin.");
                 return;
             }
             clearActiveNewMarker();
@@ -3553,7 +3638,7 @@
             }, [{ label: "Kapat", onClick: closeModal }]);
         }
 
-        function showScreenTransition(label = "NexaLine hazirlaniyor", duration = 900) {
+        function showScreenTransition(label = "NexaLine hazırlanıyor", duration = 900) {
             const overlay = $("screenTransition");
             $("transitionText").textContent = label;
             clearTimeout(state.transitionTimer);
@@ -3776,7 +3861,7 @@
                 input.value = "";
             }
             if (!state.aiSettings.enabled) {
-                addAiMessage("assistant", "Next AI kapalı. Ayarlar > Next AI bölümünden açabilirsin.");
+                addAiMessage("assistant", "Nexa AI kapalı. Ayarlar > Nexa AI bölümünden açabilirsin.");
                 return;
             }
             state.aiBusy = true;
@@ -3934,14 +4019,14 @@
                     closeMobileChat();
                 }
                 render();
-                showToast(state.aiSettings.enabled ? "Next AI açıldı." : "Next AI kapatıldı.");
+                showToast(state.aiSettings.enabled ? "Nexa AI açıldı." : "Nexa AI kapatıldı.");
                 return;
             }
             if (action.type === "set_ai_auto_approve") {
                 state.aiSettings.autoApprove = action.enabled !== false;
                 saveAiSettings();
                 if ($("nextAiAutoApproveInput")) $("nextAiAutoApproveInput").checked = state.aiSettings.autoApprove;
-                showToast(state.aiSettings.autoApprove ? "Next AI tam yetkiyle çalışacak." : "Next AI her işlemde onay isteyecek.");
+                showToast(state.aiSettings.autoApprove ? "Nexa AI tam yetkiyle çalışacak." : "Nexa AI her işlemde onay isteyecek.");
                 return;
             }
             if (action.type === "set_ai_name") {
@@ -3950,7 +4035,7 @@
                 if ($("nextAiNameInput")) $("nextAiNameInput").value = state.aiSettings.name;
                 if ($("nextAiAvatar")) setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
                 render();
-                showToast(`Next AI adı ${state.aiSettings.name} oldu.`);
+                showToast(`Nexa AI adı ${state.aiSettings.name} oldu.`);
                 return;
             }
             if (action.type === "update_profile") {
@@ -4636,6 +4721,7 @@
             renderChats();
             renderGroups();
             renderCalls();
+            renderFriends();
             renderContacts();
             renderArchives();
             renderActiveChat();
@@ -4646,10 +4732,18 @@
         function renderProfile() {
             setAvatar($("meAvatar"), state.me, state.me.displayName);
             $("meAvatar").classList.add("online");
-            $("meAvatar").onclick = () => showStoryForUser(state.me.username);
+            $("meAvatar").onclick = openProfileSettings;
             $("meName").textContent = state.me.displayName;
+            $("meName").onclick = openProfileSettings;
+            $("meStatus").textContent = "";
+            $("meStatus").classList.add("hidden");
             updateAiAssistantVisibility();
             updateNotificationButton();
+        }
+
+        function openProfileSettings() {
+            openSettings();
+            setSettingsView("profile");
         }
 
         function updateAiAssistantVisibility() {
@@ -4671,18 +4765,22 @@
             const labels = {
                 chats: designText("chats", "Sohbetler"),
                 groups: designText("groups", "Gruplar"),
-                stories: designText("stories", "Guncellemeler"),
+                stories: designText("stories", "Güncellemeler"),
                 calls: designText("calls", "Aramalar"),
-                contacts: designText("contacts", "Kisiler"),
-                archives: designText("archives", "Arsiv")
+                friends: designText("friends", "Arkadaşlarım"),
+                contacts: designText("contacts", "Kişiler"),
+                archives: designText("archives", "Arşiv")
             };
             document.querySelectorAll(".nav-tab").forEach(tab => {
                 tab.classList.toggle("active", tab.dataset.section === state.activeSection);
             });
             $("sectionTitle").textContent = labels[state.activeSection];
-            ["chatList", "groupList", "storyList", "callList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
-            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", contacts: "contactList", archives: "archiveList" };
-            $(map[state.activeSection]).classList.remove("hidden");
+            ["chatList", "groupList", "storyList", "callList", "friendList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
+            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
+            $(map[state.activeSection] || "chatList").classList.remove("hidden");
+            $("archiveShortcutButton").classList.toggle("hidden", state.activeSection !== "chats");
+            $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
+            $("newChatFab").classList.toggle("hidden", state.activeSection !== "chats");
             updateAiAssistantVisibility();
         }
 
@@ -5299,6 +5397,104 @@
             showToast("Arşiv kalıcı olarak silindi.");
         }
 
+        function acceptedFriends() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            return state.users
+                .filter(user => user.username !== state.me.username)
+                .filter(user => contactStatus(user.username) === "accepted")
+                .filter(user => !filter || user.displayName.toLowerCase().includes(filter) || user.username.toLowerCase().includes(filter))
+                .sort((a, b) => Number(b.online) - Number(a.online) || a.displayName.localeCompare(b.displayName, "tr"));
+        }
+
+        function startChatWithUser(user) {
+            if (!user) return;
+            state.openNextChat = true;
+            socket.emit("chat:create", { target: user.username });
+        }
+
+        function renderFriends() {
+            const friendList = $("friendList");
+            friendList.innerHTML = "";
+            const friends = acceptedFriends();
+            if (!friends.length) {
+                const empty = document.createElement("button");
+                empty.className = "contact-item";
+                empty.type = "button";
+                empty.onclick = () => {
+                    state.activeSection = "contacts";
+                    renderSections();
+                    renderContacts();
+                };
+                empty.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Arkadaş ekle</strong><div class="last-message">Kişilerden istek gönder veya gelen isteği kabul et.</div></div><span></span>`;
+                friendList.appendChild(empty);
+                return;
+            }
+            friends.forEach(user => {
+                const button = document.createElement("button");
+                button.className = "contact-item";
+                button.type = "button";
+                button.onclick = () => startChatWithUser(user);
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar" + (user.online ? " online" : "");
+                setAvatar(avatar, user, user.displayName);
+
+                const body = document.createElement("div");
+                const title = document.createElement("strong");
+                title.className = "chat-title";
+                title.textContent = user.displayName;
+                const meta = document.createElement("div");
+                meta.className = "last-message";
+                meta.textContent = user.online ? "çevrim içi" : `son görülme ${relativeTime(user.lastSeen)}`;
+                body.append(title, meta);
+
+                const score = document.createElement("span");
+                score.className = "chat-time";
+                score.textContent = `${Number(user.points || 0)} puan`;
+                button.append(avatar, body, score);
+                friendList.appendChild(button);
+            });
+        }
+
+        function openNewChatFromFriends() {
+            const friends = acceptedFriends();
+            openModal("Yeni sohbet", body => {
+                const list = document.createElement("div");
+                list.className = "check-list";
+                if (!friends.length) {
+                    list.innerHTML = `<p>Henüz arkadaşın yok. Önce Kişiler bölümünden istek gönder.</p>`;
+                    body.appendChild(list);
+                    return;
+                }
+                friends.forEach(user => {
+                    const row = document.createElement("button");
+                    row.className = "contact-item";
+                    row.type = "button";
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (user.online ? " online" : "");
+                    setAvatar(avatar, user, user.displayName);
+                    const text = document.createElement("div");
+                    const title = document.createElement("strong");
+                    title.className = "chat-title";
+                    title.textContent = user.displayName;
+                    const meta = document.createElement("div");
+                    meta.className = "last-message";
+                    meta.textContent = user.online ? "çevrim içi" : `son görülme ${relativeTime(user.lastSeen)}`;
+                    text.append(title, meta);
+                    row.append(avatar, text, document.createElement("span"));
+                    row.onclick = () => {
+                        closeModal();
+                        startChatWithUser(user);
+                    };
+                    list.appendChild(row);
+                });
+                body.appendChild(list);
+            }, [
+                { label: "Kapat", onClick: closeModal },
+                { label: "Kişiler", primary: !friends.length, onClick: () => { closeModal(); state.activeSection = "contacts"; renderSections(); renderContacts(); } }
+            ]);
+        }
+
         function renderContacts() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const contactList = $("contactList");
@@ -5356,42 +5552,7 @@
         }
 
         function handleContactAction(user) {
-            const status = contactStatus(user.username);
-            const request = contactRequestWith(user.username);
-            if (status === "incoming" && request) {
-                confirmModal("Mesajlaşma isteği", `${user.displayName} ile mesajlaşmayı kabul ediyor musun?`, () => {
-                    socket.emit("contact:respond", { requestId: request.id, accept: true });
-                });
-                return;
-            }
-            if (status === "blocked") {
-                confirmModal("Engeli kaldır", `${user.displayName} yeniden mesaj ve arama gönderebilsin mi?`, () => {
-                    socket.emit("user:block", { username: user.username, blocked: false });
-                });
-                return;
-            }
-            if (status === "accepted") {
-                openModal(user.displayName, body => {
-                    const text = document.createElement("p");
-                    text.textContent = "Bu kişiyle sohbet edebilir, arayabilir veya engelleyebilirsin.";
-                    body.appendChild(text);
-                }, [
-                    { label: "Sohbeti Aç", primary: true, onClick: () => { closeModal(); state.openNextChat = true; socket.emit("chat:create", { target: user.username }); } },
-                    { label: "Engelle", onClick: () => {
-                        closeModal();
-                        openBlockMenu(user);
-                    } }
-                ]);
-                return;
-            }
-            if (status === "outgoing") {
-                showToast("İstek zaten gönderildi.");
-                return;
-            }
-            confirmModal("Mesajlaşma isteği", `${user.displayName} kişisine mesajlaşma isteği gönderilsin mi?`, () => {
-                state.openNextChat = true;
-                socket.emit("chat:create", { target: user.username });
-            });
+            openUserDetail(user);
         }
 
         function openBlockMenu(user) {
@@ -5457,6 +5618,67 @@
                 return;
             }
             const blocked = state.blockedUsers.includes(user.username);
+            const status = contactStatus(user.username);
+            const request = contactRequestWith(user.username);
+            const joinedText = user.createdAt ? `Katılma: ${new Date(user.createdAt).toLocaleDateString("tr-TR")}` : "Katılma tarihi yok";
+            const actions = [{ label: "Kapat", onClick: closeModal }];
+            if (status === "accepted") {
+                actions.unshift({
+                    label: "Sohbeti Aç",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        startChatWithUser(user);
+                    }
+                });
+                actions.push({
+                    label: blocked ? "Engeli kaldır" : "Engelle",
+                    onClick: () => {
+                        closeModal();
+                        if (blocked) {
+                            socket.emit("user:block", { username: user.username, blocked: false });
+                        } else {
+                            openBlockMenu(user);
+                        }
+                    }
+                });
+            } else if (status === "incoming" && request) {
+                actions.unshift({
+                    label: "Kabul Et",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("contact:respond", { requestId: request.id, accept: true });
+                    }
+                });
+                actions.push({
+                    label: "Reddet",
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("contact:respond", { requestId: request.id, accept: false });
+                    }
+                });
+            } else if (status === "outgoing") {
+                actions.unshift({ label: "İstek Gönderildi", onClick: () => showToast("İstek zaten gönderildi.") });
+            } else if (status === "blocked") {
+                actions.unshift({
+                    label: "Engeli Kaldır",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("user:block", { username: user.username, blocked: false });
+                    }
+                });
+            } else {
+                actions.unshift({
+                    label: "İstek Gönder",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("chat:create", { target: user.username });
+                    }
+                });
+            }
             openModal(user.displayName, body => {
                 const wrap = document.createElement("div");
                 wrap.className = "profile-preview";
@@ -5474,26 +5696,13 @@
                     <strong>${escapeHtml(user.displayName)}</strong>
                     <div class="last-message">${escapeHtml(emailText)}</div>
                     <div class="last-message">${escapeHtml(seenText)}</div>
+                    <div class="last-message">${escapeHtml(joinedText)}</div>
+                    <div class="last-message">${Number(user.points || 0)} puan</div>
                     <div class="last-message">${escapeHtml(user.about || "")}</div>
                 `;
                 wrap.append(avatar, text);
                 body.appendChild(wrap);
-            }, [
-                { label: "Sesli ara", onClick: () => { closeModal(); startCall(true); } },
-                { label: "Görüntülü ara", onClick: () => { closeModal(); startCall(false); } },
-                {
-                    label: blocked ? "Engeli kaldır" : "Engelle",
-                    primary: !blocked,
-                    onClick: () => {
-                        closeModal();
-                        if (blocked) {
-                            socket.emit("user:block", { username: user.username, blocked: false });
-                        } else {
-                            openBlockMenu(user);
-                        }
-                    }
-                }
-            ]);
+            }, actions);
         }
 
         function attachSwipeReply(bubble, message) {
@@ -6164,7 +6373,7 @@
 
             if (isAiChat(chat)) {
                 if (state.attachment) {
-                    showToast("Next AI şu an dosya almıyor, metin olarak yazabilirsin.");
+                    showToast("Nexa AI şu an dosya almıyor, metin olarak yazabilirsin.");
                     return;
                 }
                 input.value = "";
@@ -6197,18 +6406,16 @@
         }
 
         function openAttachmentMenu() {
-            openModal("Gonder", body => {
+            openModal("Gönder", body => {
                 const menu = document.createElement("div");
                 menu.className = "attachment-menu";
                 const items = [
-                    ["Belge", "Dosya sec", () => $("fileInput").click()],
-                    ["Fotograflar ve Videolar", "Galeri veya dosya", () => $("fileInput").click()],
-                    ["Kamera", "Kamera destegi tarayici iznine bagli", () => $("fileInput").click()],
-                    ["Ses", "Ses dosyasi sec", () => $("fileInput").click()],
-                    ["Kisi", "Kisi paylasimi yakinda", () => showToast("Kisi paylasimi icin once kisi secme ekrani acilacak.")],
-                    ["Anket", "Anket yakinda", () => showToast("Anket ozelligi hazirlaniyor.")],
-                    ["Etkinlik", "Etkinlik yakinda", () => showToast("Etkinlik ozelligi hazirlaniyor.")],
-                    ["Yeni Cikartma", "Cikartma yakinda", () => showToast("Cikartma ozelligi hazirlaniyor.")]
+                    ["Belge", "Dosya seç", () => $("fileInput").click()],
+                    ["Fotoğraflar ve Videolar", "Galeri veya dosya", () => $("fileInput").click()],
+                    ["Kamera", "Fotoğraf veya video çek", () => $("cameraInput").click()],
+                    ["Ses", "Ses dosyası seç", () => $("fileInput").click()],
+                    ["Kişi", "Kişi paylaşımı yakında", () => showToast("Kişi paylaşımı için önce kişi seçme ekranı açılacak.")],
+                    ["Anket", "Anket yakında", () => showToast("Anket özelliği hazırlanıyor.")]
                 ];
                 items.forEach(([title, hint, action]) => {
                     const button = document.createElement("button");
@@ -6403,7 +6610,7 @@
                 title.id = "groupTitleInput";
                 title.placeholder = "Grup adı";
                 const picker = createFilePicker({
-                    label: "Grup fotografi sec",
+                    label: "Grup fotoğrafı seç",
                     accept: "image/*",
                     onFile: file => readImageFile(file, dataUrl => imageData = dataUrl)
                 });
@@ -6521,7 +6728,7 @@
                     title.id = "editGroupTitle";
                     title.value = chat.title;
                     const picker = createFilePicker({
-                        label: "Grup fotografini degistir",
+                        label: "Grup fotoğrafını değiştir",
                         accept: "image/*",
                         onFile: file => readImageFile(file, dataUrl => imageData = dataUrl)
                     });
@@ -6737,7 +6944,7 @@
                         : view === "appearance"
                             ? "Görünüm ve kilit"
                             : view === "ai"
-                                ? "Next AI ayarları"
+                                ? "Nexa AI ayarları"
                                 : "Hesap işlemleri";
             $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
         }
@@ -6841,7 +7048,7 @@
             }
             setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
             render();
-            showToast("Next AI ayarları kaydedildi.");
+            showToast("Nexa AI ayarları kaydedildi.");
         }
 
         function chooseProfileImage() {
@@ -7432,7 +7639,7 @@
                 return null;
             }
             if (isAiChat(chat)) {
-                showToast("Next AI sohbetinden arama başlatmak için kişiyi yazarak söyleyebilirsin.");
+                showToast("Nexa AI sohbetinden arama başlatmak için kişiyi yazarak söyleyebilirsin.");
                 return null;
             }
 
@@ -7569,11 +7776,11 @@
             const peers = callPeersForChat(chat);
             const reachablePeers = chat.type === "direct" ? peers.filter(member => member.online) : peers;
             if (!reachablePeers.length) {
-                showToast("Kisi cevrim disi, arama baslatilamadi.");
+                showToast("Kişi çevrim dışı, arama başlatılamadı.");
                 return;
             }
 
-            openCallPanel(audioOnly ? "Sesli arama" : "Goruntulu arama", "caliyor", false, audioOnly, chat, callDisplayPeer(chat, reachablePeers));
+            openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "çalıyor", false, audioOnly, chat, callDisplayPeer(chat, reachablePeers));
             startCallRingtone();
             try {
                 await ensureLocalCallStream(audioOnly);
@@ -7613,7 +7820,7 @@
             stopCallRingtone();
             const chat = state.chats.find(item => item.id === incoming.chatId) || activeChat();
             const peer = chat?.members?.find(member => member.username === incoming.from) || { displayName: incoming.fromName || incoming.from };
-            openCallPanel(incoming.audioOnly ? "Sesli arama" : "Goruntulu arama", "baglaniyor", false, incoming.audioOnly, chat, peer);
+            openCallPanel(incoming.audioOnly ? "Sesli arama" : "Görüntülü arama", "bağlanıyor", false, incoming.audioOnly, chat, peer);
             let pc;
             try {
                 pc = await createPeer(incoming.from, incoming.chatId, incoming.audioOnly);
@@ -7760,6 +7967,7 @@
             renderChats();
             renderGroups();
             renderCalls();
+            renderFriends();
             renderContacts();
             renderArchives();
         };
@@ -7779,8 +7987,10 @@
         $("emojiButton").onclick = toggleEmojiPanel;
         $("locationButton").onclick = sendCurrentLocation;
         $("fileInput").onchange = handleFile;
+        $("cameraInput").onchange = handleFile;
         $("storyFileInput").onchange = handleStoryFile;
         $("installButton").onclick = openInstallPanel;
+        $("settingsInstallButton").onclick = openInstallPanel;
         $("notificationButton").onclick = openNotificationPanel;
         $("sendToolsButton").onclick = openSendTools;
         $("closeStoryButton").onclick = closeStoryPanel;
@@ -7793,6 +8003,19 @@
         $("voiceButton").onclick = toggleVoiceRecording;
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("settingsButton").onclick = openSettings;
+        $("archiveShortcutButton").onclick = () => {
+            state.activeSection = "archives";
+            state.activeChatId = null;
+            renderSections();
+            renderActiveChat();
+            renderArchives();
+        };
+        $("archiveBackButton").onclick = () => {
+            state.activeSection = "chats";
+            renderSections();
+            renderChats();
+        };
+        $("newChatFab").onclick = openNewChatFromFriends;
         $("closeSettingsButton").onclick = closeSettings;
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
         $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
@@ -7964,6 +8187,7 @@
             renderSections();
             renderChats();
             renderGroups();
+            renderFriends();
             renderContacts();
             renderActiveChat();
         });

@@ -753,7 +753,7 @@
             const device = state.designDevice || "desktop";
             const screen = design[device] || {};
             $("view").innerHTML = `
-                <h2>Tasarim Kontrolu</h2>
+                <h2>Tasarım Kontrolü</h2>
                 <article class="card">
                     <h3>Marka, renk ve logo</h3>
                     <div class="form-grid">
@@ -765,10 +765,10 @@
                         <label>Aktif kart/input<input id="designPanel3" type="color" value="${escapeAttr(colors.panel3 || "#2a3330")}"></label>
                         <label>Cizgi<input id="designLine" type="color" value="${escapeAttr(colors.line || "#2a3430")}"></label>
                         <label>Yazi<input id="designTextColor" type="color" value="${escapeAttr(colors.text || "#eef4f1")}"></label>
-                        <label>Soluk yazi<input id="designMuted" type="color" value="${escapeAttr(colors.muted || "#9aa6a1")}"></label>
+                        <label>Soluk yazı<input id="designMuted" type="color" value="${escapeAttr(colors.muted || "#9aa6a1")}"></label>
                         <label>Mavi<input id="designBlue" type="color" value="${escapeAttr(colors.blue || design.blue || "#2f8cff")}"></label>
-                        <label>Kirmizi<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#f03d54")}"></label>
-                        <label>Yesil<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#20d66b")}"></label>
+                        <label>Kırmızı<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#f03d54")}"></label>
+                        <label>Yeşil<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#20d66b")}"></label>
                         <label>Gelen mesaj<input id="designIncoming" type="color" value="${escapeAttr(colors.incoming || "#1f2724")}"></label>
                         <label>Giden mesaj<input id="designOutgoing" type="color" value="${escapeAttr(colors.outgoing || "#075e54")}"></label>
                         <label>Sohbet zemini<input id="designChatBackground" type="color" value="${escapeAttr(colors.chatBackground || "#101713")}"></label>
@@ -779,48 +779,49 @@
                     </div>
                 </article>
                 <article class="card">
-                    <h3>Yazi ve buton metinleri</h3>
+                    <h3>Yazı ve buton metinleri</h3>
                     <div class="form-grid">
                         ${designTextInput("chats", "Sohbetler", text.chats)}
                         ${designTextInput("groups", "Gruplar", text.groups)}
-                        ${designTextInput("stories", "Guncellemeler", text.stories)}
+                        ${designTextInput("stories", "Güncellemeler", text.stories)}
                         ${designTextInput("calls", "Aramalar", text.calls)}
-                        ${designTextInput("contacts", "Kisiler", text.contacts)}
-                        ${designTextInput("archives", "Arsiv", text.archives)}
-                        ${designTextInput("searchPlaceholder", "Aratin veya yeni sohbet baslatin", text.searchPlaceholder)}
-                        ${designTextInput("messagePlaceholder", "Bir mesaj yazin", text.messagePlaceholder)}
+                        ${designTextInput("friends", "Arkadaşlarım", text.friends)}
+                        ${designTextInput("contacts", "Kişiler", text.contacts)}
+                        ${designTextInput("archives", "Arşiv", text.archives)}
+                        ${designTextInput("searchPlaceholder", "Aratın veya yeni sohbet başlatın", text.searchPlaceholder)}
+                        ${designTextInput("messagePlaceholder", "Bir mesaj yazın", text.messagePlaceholder)}
                         ${designTextInput("attachment", "Dosya", text.attachment)}
                         ${designTextInput("emoji", "Emoji", text.emoji)}
                         ${designTextInput("voice", "Sesli mesaj", text.voice)}
                         ${designTextInput("location", "Konum", text.location)}
                         ${designTextInput("timed", "Zamanla", text.timed)}
-                        ${designTextInput("send", "Gonder", text.send)}
+                        ${designTextInput("send", "Gönder", text.send)}
                     </div>
                 </article>
                 <article class="card">
-                    <h3>PC ve Mobil yerlesim</h3>
+                    <h3>PC ve Mobil yerleşim</h3>
                     <div class="design-tabs">
                         <button class="${device === "desktop" ? "active" : ""}" data-design-device="desktop" type="button">PC</button>
                         <button class="${device === "mobile" ? "active" : ""}" data-design-device="mobile" type="button">Mobil</button>
                     </div>
                     <div class="form-grid">
-                        <label>Genel yazi boyutu<input id="designFontSize" type="number" min="12" max="22" value="${Number(screen.fontSize || 16)}"></label>
-                        <label>Mesaj yazi boyutu<input id="designMessageFontSize" type="number" min="12" max="22" value="${Number(screen.messageFontSize || 15)}"></label>
-                        ${device === "desktop" ? `<label>Sol panel genisligi<input id="designSidebarWidth" type="number" min="360" max="820" value="${Number(screen.sidebarWidth || 700)}"></label><label>Sol ikon rayi<input id="designRailWidth" type="number" min="56" max="112" value="${Number(screen.railWidth || 80)}"></label>` : ""}
+                        <label>Genel yazı boyutu<input id="designFontSize" type="number" min="12" max="22" value="${Number(screen.fontSize || 16)}"></label>
+                        <label>Mesaj yazı boyutu<input id="designMessageFontSize" type="number" min="12" max="22" value="${Number(screen.messageFontSize || 15)}"></label>
+                        ${device === "desktop" ? `<label>Sol panel genişliği<input id="designSidebarWidth" type="number" min="360" max="820" value="${Number(screen.sidebarWidth || 700)}"></label><label>Sol ikon rayı<input id="designRailWidth" type="number" min="56" max="112" value="${Number(screen.railWidth || 80)}"></label>` : ""}
                         <label>Simge boyutu<input id="designIconSize" type="number" min="30" max="58" value="${Number(screen.iconSize || 42)}"></label>
-                        <label>Baslik yuksekligi<input id="designHeaderHeight" type="number" min="54" max="96" value="${Number(screen.headerHeight || 72)}"></label>
-                        <label>Mesaj balonu yuvarlakligi<input id="designBubbleRadius" type="number" min="0" max="24" value="${Number(screen.bubbleRadius || 9)}"></label>
-                        <label>Liste kart yuvarlakligi<input id="designListItemRadius" type="number" min="0" max="24" value="${Number(screen.listItemRadius || 12)}"></label>
-                        <label>Mesaj kutusu yuvarlakligi<input id="designComposerRadius" type="number" min="8" max="40" value="${Number(screen.composerRadius || 30)}"></label>
-                        <label>Sol menude yazi<input id="designShowNavLabels" type="checkbox" ${screen.showNavLabels ? "checked" : ""}></label>
-                        <label>Sol menu sirasi<input id="designNavOrder" value="${escapeAttr((screen.navOrder || []).join(","))}"></label>
-                        <label>Mesaj kutusu sirasi<input id="designComposerOrder" value="${escapeAttr((screen.composerOrder || []).join(","))}"></label>
+                        <label>Başlık yüksekliği<input id="designHeaderHeight" type="number" min="54" max="96" value="${Number(screen.headerHeight || 72)}"></label>
+                        <label>Mesaj balonu yuvarlaklığı<input id="designBubbleRadius" type="number" min="0" max="24" value="${Number(screen.bubbleRadius || 9)}"></label>
+                        <label>Liste kart yuvarlaklığı<input id="designListItemRadius" type="number" min="0" max="24" value="${Number(screen.listItemRadius || 12)}"></label>
+                        <label>Mesaj kutusu yuvarlaklığı<input id="designComposerRadius" type="number" min="8" max="40" value="${Number(screen.composerRadius || 30)}"></label>
+                        <label>Sol menüde yazı<input id="designShowNavLabels" type="checkbox" ${screen.showNavLabels ? "checked" : ""}></label>
+                        <label>Sol menü sırası<input id="designNavOrder" value="${escapeAttr((screen.navOrder || []).join(","))}"></label>
+                        <label>Mesaj kutusu sırası<input id="designComposerOrder" value="${escapeAttr((screen.composerOrder || []).join(","))}"></label>
                     </div>
-                    <p class="meta">Siralar: chats,calls,stories,groups,contacts,archives ve attach,emoji,input,voice,send,location,timed</p>
+                    <p class="meta">Sıralar: PC için chats,calls,groups,stories,friends,contacts; mobil için stories,groups,calls,chats,friends,contacts. Mesaj kutusu: attach,emoji,input,voice,send,location,timed.</p>
                 </article>
                 <div class="card-row">
-                    <button id="saveDesignButton" class="primary" type="button">Tasarimi Kaydet</button>
-                    <button id="resetDesignButton" type="button">Varsayilana Yaklastir</button>
+                    <button id="saveDesignButton" class="primary" type="button">Tasarımı Kaydet</button>
+                    <button id="resetDesignButton" type="button">Varsayılana Yaklaştır</button>
                 </div>
             `;
             $("saveDesignButton").onclick = saveDesign;
@@ -857,7 +858,7 @@
                 </article>
                 <article class="card">
                     <h3>Toplu hesap</h3>
-                    <p>Her satır: İsim Soyisim | email@example.com | Sifre123! | kullaniciadi</p>
+                    <p>Her satır: İsim Soyisim | email@example.com | Şifre123! | kullanıcıadı</p>
                     <textarea id="bulkUsers" placeholder="Ali Veli | ali@example.com | Guclu123! | aliveli"></textarea>
                     <button id="bulkCreateButton" class="primary" type="button">Toplu Oluştur</button>
                     <div id="bulkResult" class="meta"></div>
@@ -980,7 +981,7 @@
             design[device] = collectScreenDesign(design[device]);
             const data = await api("/admin/design", { method: "POST", body: JSON.stringify({ design }) });
             state.data.design = data.design;
-            setStatus(data.message || "Tasarim kaydedildi.", "ok");
+            setStatus(data.message || "Tasarım kaydedildi.", "ok");
             renderAdvancedDesign();
         }
 
@@ -1006,7 +1007,7 @@
             const file = event.target.files?.[0];
             if (!file) return;
             if (file.size > 650000) {
-                alert("Logo 650 KB altinda olmali.");
+                alert("Logo 650 KB altında olmalı.");
                 event.target.value = "";
                 return;
             }

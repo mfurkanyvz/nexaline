@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v15";
+const CACHE_NAME = "nexaline-pwa-v16";
 const APP_SHELL = [
   "/",
   "/client.html",
