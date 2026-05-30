@@ -94,9 +94,27 @@ class User(db.Model):
     hide_online = db.Column(db.Boolean, nullable=False, default=False)
     disable_read_receipts = db.Column(db.Boolean, nullable=False, default=False)
     hide_email = db.Column(db.Boolean, nullable=False, default=True)
+    points = db.Column(db.Integer, nullable=False, default=0)
+    two_factor_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    theme_preference = db.Column(db.String(20), nullable=False, default="dark")
+    font_size_preference = db.Column(db.String(20), nullable=False, default="medium")
+    notification_sound = db.Column(db.String(40), nullable=False, default="classic")
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class DeviceSession(db.Model):
+    id = db.Column(db.String(80), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    label = db.Column(db.String(120), nullable=False, default="NexaLine cihazi")
+    user_agent = db.Column(db.Text, nullable=True)
+    ip_address = db.Column(db.String(80), nullable=True)
+    last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    revoked_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship("User")
 
 
 class Chat(db.Model):
@@ -459,13 +477,37 @@ def parse_expiry_seconds(value):
 
 
 def user_points(username):
+    user = db.session.get(User, username)
+    if not user:
+        return 0
+    return max(0, int(user.points or 0))
+
+
+def historical_points(username):
     message_points = Message.query.filter_by(sender=username).count()
+    received_points = (
+        Message.query.join(ChatMember, ChatMember.chat_id == Message.chat_id)
+        .filter(ChatMember.username == username, Message.sender != username)
+        .count()
+    )
     story_points = Story.query.filter_by(username=username).count() * 5
     friend_points = ContactRequest.query.filter(
         ContactRequest.status == "accepted",
         db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username),
     ).count() * 3
-    return message_points + story_points + friend_points
+    return message_points + received_points + story_points + friend_points
+
+
+def add_points(usernames, amount):
+    if isinstance(usernames, str):
+        usernames = [usernames]
+    amount = int(amount or 0)
+    if amount <= 0:
+        return
+    for username in sorted({name for name in usernames if name}):
+        user = db.session.get(User, username)
+        if user:
+            user.points = max(0, int(user.points or 0)) + amount
 
 
 def public_user(username, viewer=None):
@@ -508,6 +550,12 @@ def private_user(username):
             "onlineHidden": bool(user.hide_online),
             "readReceiptsOff": bool(user.disable_read_receipts),
             "emailHidden": bool(user.hide_email),
+        }
+        data["twoFactorEnabled"] = bool(user.two_factor_enabled)
+        data["preferences"] = {
+            "theme": user.theme_preference or "dark",
+            "fontSize": user.font_size_preference or "medium",
+            "notificationSound": user.notification_sound or "classic",
         }
     return data
 
@@ -992,6 +1040,8 @@ def app_state_for_user(username):
         "contactRequests": visible_contact_requests(username),
         "groupInvites": visible_group_invites(username),
         "blockedUsers": blocked_users_for(username),
+        "blockedProfiles": [public_user(item, username) for item in blocked_users_for(username)],
+        "devices": active_device_sessions(username),
         "archives": visible_archives(username),
         "scheduledMessages": visible_scheduled_messages(username),
     }
@@ -1095,6 +1145,74 @@ def connected_sids_for(username):
     return [sid for sid, connected_user in connections.items() if connected_user == username]
 
 
+def device_label(user_agent):
+    value = (user_agent or "").lower()
+    if "android" in value:
+        return "Android"
+    if "iphone" in value or "ipad" in value:
+        return "iPhone/iPad"
+    if "windows" in value:
+        return "Windows Web"
+    if "mac" in value:
+        return "Mac Web"
+    if "linux" in value:
+        return "Linux Web"
+    return "NexaLine Web"
+
+
+def normalize_device_id(value):
+    value = re.sub(r"[^a-zA-Z0-9:_-]", "", str(value or ""))[:80]
+    return value or uuid4().hex
+
+
+def upsert_device_session(username, device_id=None):
+    if not username or not db.session.get(User, username):
+        return None
+    device_id = normalize_device_id(device_id)
+    user_agent = request.headers.get("User-Agent", "")[:600]
+    row = db.session.get(DeviceSession, device_id)
+    if row and row.username != username:
+        device_id = uuid4().hex
+        row = None
+    if not row:
+        row = DeviceSession(id=device_id, username=username)
+        db.session.add(row)
+    row.label = device_label(user_agent)
+    row.user_agent = user_agent
+    row.ip_address = request_ip()
+    row.last_seen = datetime.now(timezone.utc)
+    row.revoked_at = None
+    return row
+
+
+def device_session_to_dict(row):
+    return {
+        "id": row.id,
+        "label": row.label,
+        "ipAddress": row.ip_address,
+        "userAgent": row.user_agent,
+        "createdAt": to_iso(row.created_at),
+        "lastSeen": to_iso(row.last_seen),
+        "revokedAt": to_iso(row.revoked_at) if row.revoked_at else None,
+    }
+
+
+def active_device_sessions(username):
+    rows = (
+        DeviceSession.query.filter_by(username=username, revoked_at=None)
+        .order_by(DeviceSession.last_seen.desc())
+        .all()
+    )
+    return [device_session_to_dict(row) for row in rows]
+
+
+def device_revoked(username, device_id):
+    if not device_id:
+        return False
+    row = db.session.get(DeviceSession, normalize_device_id(device_id))
+    return bool(row and row.username == username and row.revoked_at)
+
+
 def broadcast_presence():
     for sid, username in connections.items():
         socketio.emit("presence:update", public_users_for(username), room=sid, namespace="/")
@@ -1116,9 +1234,12 @@ def emit_social_updates(*usernames):
             socketio.emit(
                 "social:update",
                 {
+                    "user": private_user(username),
                     "contactRequests": visible_contact_requests(username),
                     "groupInvites": visible_group_invites(username),
                     "blockedUsers": blocked_users_for(username),
+                    "blockedProfiles": [public_user(item, username) for item in blocked_users_for(username)],
+                    "devices": active_device_sessions(username),
                     "archives": visible_archives(username),
                     "scheduledMessages": visible_scheduled_messages(username),
                 },
@@ -1415,6 +1536,15 @@ def verification_response(message, code=None, sent=True):
         if not os.environ.get("RENDER"):
             response["devCode"] = code
     return jsonify(response)
+
+
+def login_success_payload(user, device_id=None, message="Giriş başarılı."):
+    device = upsert_device_session(user.username, device_id)
+    db.session.commit()
+    payload = {"ok": True, "message": message, "user": private_user(user.username)}
+    if device:
+        payload["device"] = device_session_to_dict(device)
+    return payload
 
 
 def cleanup_qr_login_sessions():
@@ -2303,9 +2433,11 @@ def qr_login_status(session_id):
     user = db.session.get(User, username)
     if not user:
         return jsonify({"ok": False, "message": "Bağlanan kullanıcı bulunamadı."}), 404
+    device_id = data.get("deviceId") or request.args.get("deviceId") or request.headers.get("X-Nexa-Device")
+    payload = login_success_payload(user, device_id, "QR giriş başarılı.")
     with qr_login_lock:
         row["consumed"] = True
-    return jsonify({"ok": True, "status": "confirmed", "user": private_user(user.username)})
+    return jsonify({"status": "confirmed", **payload})
 
 
 @app.route("/qr-login/confirm", methods=["POST"])
@@ -2324,6 +2456,7 @@ def qr_login_confirm():
     with qr_login_lock:
         row["username"] = username
         row["confirmed_at"] = datetime.now(timezone.utc)
+    socketio.emit("qr:confirmed", {"ok": True, "sessionId": session_id, "user": private_user(username)}, room=f"qr:{session_id}", namespace="/")
     return jsonify({"ok": True, "message": "Web oturumu bağlandı."})
 
 
@@ -2473,6 +2606,7 @@ def login():
     data = request.get_json() or {}
     identifier = (data.get("email") or data.get("username") or "").strip().lower()
     password = data.get("password") or ""
+    device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
     user = None
     if "@" in identifier:
         user = User.query.filter(db.func.lower(User.email_normalized) == identifier.lower()).first()
@@ -2482,7 +2616,45 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"ok": False, "message": "Gmail veya şifre hatalı."}), 401
 
-    return jsonify({"ok": True, "message": "Giriş başarılı.", "user": private_user(user.username)})
+    if user.two_factor_enabled:
+        if not user.email_normalized:
+            return jsonify({"ok": False, "message": "2FA için Gmail gerekli. Yöneticiyle iletişime geç."}), 400
+        _, code, sent = create_email_verification("login_2fa", user.email, user.email_normalized, username=user.username)
+        response = {"ok": True, "requiresTwoFactor": True, "message": "Gmail adresine giriş doğrulama kodu gönderdik.", "username": user.username}
+        if not sent:
+            if os.environ.get("RENDER"):
+                return jsonify({"ok": False, "message": "Mail gönderilemedi. Render mail ayarlarını kontrol et."}), 503
+            response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
+            response["devCode"] = code
+        return jsonify(response)
+
+    return jsonify(login_success_payload(user, device_id))
+
+
+@app.route("/login/2fa", methods=["POST"])
+def login_two_factor():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    code = (data.get("code") or "").strip()
+    device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
+    user = db.session.get(User, username)
+    if not user or not user.two_factor_enabled:
+        return jsonify({"ok": False, "message": "Doğrulama oturumu bulunamadı."}), 404
+    verification = EmailVerification.query.filter_by(
+        purpose="login_2fa",
+        username=username,
+        email_normalized=user.email_normalized,
+    ).order_by(EmailVerification.created_at.desc()).first()
+    if not verification or is_past(verification.expires_at):
+        return jsonify({"ok": False, "message": "Kod bulunamadı veya süresi doldu."}), 400
+    if verification.attempts >= 5:
+        return jsonify({"ok": False, "message": "Çok fazla yanlış deneme. Yeniden giriş yap."}), 429
+    if not check_password_hash(verification.code_hash, code):
+        verification.attempts += 1
+        db.session.commit()
+        return jsonify({"ok": False, "message": "Doğrulama kodu hatalı."}), 400
+    db.session.delete(verification)
+    return jsonify(login_success_payload(user, device_id))
 
 
 @app.route("/password/forgot/start", methods=["POST"])
@@ -2680,6 +2852,88 @@ def update_privacy(username):
     db.session.commit()
     broadcast_presence()
     return jsonify({"ok": True, "message": "Gizlilik ayarları güncellendi.", "user": private_user(username)})
+
+
+@app.route("/account/<username>/preferences", methods=["POST"])
+def update_preferences(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    theme = (data.get("theme") or user.theme_preference or "dark").strip().lower()
+    font_size = (data.get("fontSize") or user.font_size_preference or "medium").strip().lower()
+    sound = (data.get("notificationSound") or user.notification_sound or "classic").strip().lower()
+    if theme not in {"dark", "light", "system"}:
+        theme = "dark"
+    if font_size not in {"small", "medium", "large"}:
+        font_size = "medium"
+    if sound not in {"classic", "notify", "glass", "ripple", "neon", "soft", "bright", "deep", "calm", "pulse", "silent", "nexaline", "crystal", "alert", "ding", "pop", "arcade"}:
+        sound = "classic"
+    user.theme_preference = theme
+    user.font_size_preference = font_size
+    user.notification_sound = sound
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Tercihler kaydedildi.", "user": private_user(username)})
+
+
+@app.route("/account/<username>/security/two-factor", methods=["POST"])
+def update_two_factor(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    password = data.get("password") or ""
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    if password and not check_password_hash(user.password_hash, password):
+        return jsonify({"ok": False, "message": "Şifre hatalı."}), 401
+    user.two_factor_enabled = bool(data.get("enabled"))
+    db.session.commit()
+    return jsonify({"ok": True, "message": "İki adımlı doğrulama güncellendi.", "user": private_user(username)})
+
+
+@app.route("/account/<username>/devices", methods=["GET"])
+def list_devices(username):
+    username = username.strip().lower()
+    if not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    device_id = request.args.get("deviceId") or request.headers.get("X-Nexa-Device")
+    if device_id:
+        upsert_device_session(username, device_id)
+        db.session.commit()
+    return jsonify({"ok": True, "devices": active_device_sessions(username)})
+
+
+@app.route("/account/<username>/devices/<device_id>", methods=["DELETE"])
+def revoke_device(username, device_id):
+    username = username.strip().lower()
+    row = db.session.get(DeviceSession, normalize_device_id(device_id))
+    if not row or row.username != username:
+        return jsonify({"ok": False, "message": "Cihaz bulunamadı."}), 404
+    row.revoked_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Cihaz oturumu kapatıldı.", "devices": active_device_sessions(username)})
+
+
+@app.route("/account/<username>/blocked", methods=["GET"])
+def list_blocked(username):
+    username = username.strip().lower()
+    if not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    return jsonify({"ok": True, "blocked": [public_user(item, username) for item in blocked_users_for(username)]})
+
+
+@app.route("/account/<username>/blocked/<target>", methods=["DELETE"])
+def unblock_user(username, target):
+    username = username.strip().lower()
+    target = target.strip().lower()
+    row = BlockedUser.query.filter_by(blocker=username, blocked=target).first()
+    if row:
+        db.session.delete(row)
+        db.session.commit()
+        emit_social_updates(username, target)
+    return jsonify({"ok": True, "message": "Engel kaldırıldı.", "blocked": [public_user(item, username) for item in blocked_users_for(username)]})
 
 
 @app.route("/account/<username>/archives/<archive_id>", methods=["POST"])
@@ -3000,6 +3254,7 @@ def admin_delete_user(username):
     ScheduledMessage.query.filter_by(sender=user.username).delete(synchronize_session=False)
     HiddenChat.query.filter_by(username=user.username).delete(synchronize_session=False)
     ChatArchive.query.filter_by(username=user.username).delete(synchronize_session=False)
+    DeviceSession.query.filter_by(username=user.username).delete(synchronize_session=False)
     member_rows = ChatMember.query.filter_by(username=user.username).all()
     direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
     group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
@@ -3168,6 +3423,13 @@ def bootstrap(username):
     if not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
+    device_id = request.args.get("deviceId") or request.headers.get("X-Nexa-Device")
+    if device_revoked(username, device_id):
+        return jsonify({"ok": False, "message": "Bu cihaz oturumu uzaktan kapatildi."}), 401
+    if device_id:
+        upsert_device_session(username, device_id)
+        db.session.commit()
+
     return jsonify({"ok": True, **app_state_for_user(username)})
 
 
@@ -3210,10 +3472,24 @@ def handle_connect():
     ensure_lobby()
 
 
+@socketio.on("qr:watch")
+def handle_qr_watch(data):
+    data = data or {}
+    session_id = (data.get("sessionId") or "").strip()
+    secret = (data.get("secret") or "").strip()
+    row, error = qr_session_error(session_id, secret)
+    if error:
+        emit("qr:error", {"message": "QR oturumu bulunamadi veya suresi doldu."})
+        return
+    join_room(f"qr:{session_id}")
+    emit("qr:ready", {"sessionId": session_id, "expiresAt": to_iso(row["expires_at"])})
+
+
 @socketio.on("user:join")
 def handle_user_join(data):
     username = (data or {}).get("username", "").strip().lower()
     include_state = (data or {}).get("includeState", True) is not False
+    device_id = (data or {}).get("deviceId")
     expire_due_messages(notify=True)
     deliver_due_scheduled_messages()
 
@@ -3221,10 +3497,15 @@ def handle_user_join(data):
         emit("auth:error", {"message": "Önce giriş yapmalısın."})
         return
 
+    if device_revoked(username, device_id):
+        emit("auth:error", {"message": "Bu cihaz oturumu uzaktan kapatildi."})
+        return
+
     connections[request.sid] = username
     user = db.session.get(User, username)
     if user:
         user.last_seen = datetime.now(timezone.utc)
+        upsert_device_session(username, device_id)
         db.session.commit()
 
     chat_ids = [
@@ -3253,6 +3534,8 @@ def handle_contact_respond(data):
 
     request_row.status = "accepted" if accept else "declined"
     request_row.responded_at = datetime.now(timezone.utc)
+    if accept:
+        add_points([request_row.from_username, request_row.to_username], 3)
     db.session.commit()
 
     if accept and not is_blocked_between(request_row.from_username, request_row.to_username):
@@ -3888,6 +4171,7 @@ def handle_story_create(data):
         expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
     db.session.add(story)
+    add_points(username, 5)
     db.session.commit()
     broadcast_stories()
 
@@ -3940,6 +4224,7 @@ def handle_story_reply(data):
         read_by=[username],
     )
     db.session.add(message)
+    add_points(chat_member_names(chat), 1)
     db.session.commit()
 
     for member in chat_member_names(chat):
@@ -4008,6 +4293,7 @@ def create_chat_message(chat, username, body, attachment=None, reply_to=None, ex
     )
     db.session.add(message)
     HiddenChat.query.filter_by(username=username, chat_id=chat.id).delete(synchronize_session=False)
+    add_points(chat_member_names(chat), 1)
     return message
 
 
@@ -4083,6 +4369,7 @@ def handle_call_log(data):
     )
     db.session.add(log)
     db.session.add(message)
+    add_points(chat_member_names(chat), 1)
     db.session.commit()
     emit("message:new", message_to_dict(message), room=chat.id)
     emit_call_logs_for_chat(chat)
@@ -4184,12 +4471,21 @@ with app.app_context():
         "hide_online": "ALTER TABLE \"user\" ADD COLUMN hide_online BOOLEAN DEFAULT FALSE NOT NULL",
         "disable_read_receipts": "ALTER TABLE \"user\" ADD COLUMN disable_read_receipts BOOLEAN DEFAULT FALSE NOT NULL",
         "hide_email": "ALTER TABLE \"user\" ADD COLUMN hide_email BOOLEAN DEFAULT TRUE NOT NULL",
+        "points": "ALTER TABLE \"user\" ADD COLUMN points INTEGER DEFAULT 0 NOT NULL",
+        "two_factor_enabled": "ALTER TABLE \"user\" ADD COLUMN two_factor_enabled BOOLEAN DEFAULT FALSE NOT NULL",
+        "theme_preference": "ALTER TABLE \"user\" ADD COLUMN theme_preference VARCHAR(20) DEFAULT 'dark' NOT NULL",
+        "font_size_preference": "ALTER TABLE \"user\" ADD COLUMN font_size_preference VARCHAR(20) DEFAULT 'medium' NOT NULL",
+        "notification_sound": "ALTER TABLE \"user\" ADD COLUMN notification_sound VARCHAR(40) DEFAULT 'classic' NOT NULL",
     }
     for column_name, statement in user_migrations.items():
         if column_name not in user_columns:
             db.session.execute(text(statement))
             db.session.commit()
     db.session.execute(text("UPDATE \"user\" SET last_seen = COALESCE(last_seen, created_at)"))
+    db.session.commit()
+    for existing_user in User.query.all():
+        if not existing_user.points:
+            existing_user.points = historical_points(existing_user.username)
     db.session.commit()
     ensure_lobby()
     for group_chat in Chat.query.filter_by(type="group").all():

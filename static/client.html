@@ -3545,6 +3545,175 @@
                 border-radius: 24px;
             }
         }
+        .mobile-qr-button {
+            display: none;
+        }
+
+        .online-strip {
+            display: flex;
+            gap: 10px;
+            padding: 8px 14px 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .online-strip::-webkit-scrollbar {
+            display: none;
+        }
+
+        .online-chip {
+            display: grid;
+            gap: 5px;
+            min-width: 56px;
+            border: 0;
+            color: var(--kit-text);
+            background: transparent;
+            cursor: pointer;
+            justify-items: center;
+        }
+
+        .online-chip .avatar {
+            width: 48px;
+            height: 48px;
+            flex-basis: 48px;
+            border: 2px solid var(--kit-red);
+        }
+
+        .online-chip span {
+            max-width: 60px;
+            overflow: hidden;
+            color: var(--kit-muted);
+            font-size: 11px;
+            font-weight: 800;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            padding: 4px 14px 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .filter-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-chip {
+            border: 1px solid var(--kit-border);
+            border-radius: 999px;
+            padding: 8px 12px;
+            color: var(--kit-muted);
+            background: var(--kit-surface-2);
+            font-weight: 900;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .filter-chip.active {
+            color: #fff;
+            border-color: var(--kit-red);
+            background: linear-gradient(135deg, var(--kit-red), oklch(0.45 0.20 25));
+        }
+
+        .settings-bento {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .settings-bento .settings-row,
+        .device-card,
+        .blocked-card {
+            align-items: start;
+            border: 1px solid var(--kit-border);
+            border-radius: 18px;
+            background: var(--kit-surface-2);
+        }
+
+        .device-card,
+        .blocked-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            padding: 12px;
+        }
+
+        .settings-list {
+            display: grid;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .points-help {
+            position: relative;
+            display: inline-grid;
+            width: 22px;
+            height: 22px;
+            place-items: center;
+            border-radius: 999px;
+            color: #2a1900;
+            background: var(--kit-gold);
+            font-weight: 1000;
+            cursor: help;
+        }
+
+        .points-help::after {
+            content: "Durum +5, gonderilen/alinen mesaj +1, yeni arkadas +3 puan kazandirir.";
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 10px);
+            width: min(260px, 70vw);
+            padding: 10px 12px;
+            border: 1px solid var(--kit-border);
+            border-radius: 14px;
+            color: var(--kit-text);
+            background: var(--kit-surface);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(6px);
+            transition: opacity 160ms ease, transform 160ms ease;
+            z-index: 4;
+        }
+
+        .points-help:hover::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        :root[data-font-size="small"] {
+            font-size: 14px;
+        }
+
+        :root[data-font-size="large"] {
+            font-size: 17px;
+        }
+
+        @media (max-width: 760px) {
+            .mobile-qr-button {
+                display: grid;
+            }
+
+            .topbar .icon-row {
+                display: none;
+            }
+
+            .topbar .points-chip {
+                padding: 6px 8px;
+            }
+
+            .online-strip {
+                padding-bottom: 8px;
+            }
+
+            .settings-bento {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3625,6 +3794,7 @@
                     <span class="points-star">★</span>
                     <span id="pointsTopLabel">0 Puan</span>
                 </button>
+                <button id="mobileQrButton" class="icon-btn mobile-qr-button" type="button" title="QR tara">▣</button>
                 <div class="icon-row">
                     <button class="icon-btn" id="installButton" title="Uygulamayı indir">⇩</button>
                     <button class="icon-btn" id="storyButton" title="Durum ekle">◉</button>
@@ -4003,6 +4173,7 @@
         const AI_HISTORY_KEY = "nexalineAiHistory";
         const AI_CENSOR_KEY = "nexalineAiCensor";
         const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
+        const DEVICE_ID_KEY = "nexalineDeviceId";
         const AI_CHAT_ID = "__next_ai_chat__";
         const AI_SENDER = "__next_ai__";
         const DEFAULT_BRAND_LOGO = "/static/nexaline-mark.png";
@@ -4135,6 +4306,24 @@
             }
         }
 
+        function deviceId() {
+            let value = localStorage.getItem(DEVICE_ID_KEY);
+            if (!value) {
+                const randomPart = window.crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                value = `web:${randomPart}`;
+                localStorage.setItem(DEVICE_ID_KEY, value);
+            }
+            return value;
+        }
+
+        function authHeaders(extra = {}) {
+            return {
+                "Content-Type": "application/json",
+                "X-Nexa-Device": deviceId(),
+                ...extra
+            };
+        }
+
         function defaultAiSettings() {
             return {
                 enabled: true,
@@ -4204,6 +4393,7 @@
             awaitingRegisterVerification: false,
             authBusy: false,
             pendingRegister: null,
+            pendingTwoFactor: null,
             me: null,
             users: [],
             chats: [],
@@ -4214,6 +4404,8 @@
             contactRequests: [],
             groupInvites: [],
             blockedUsers: [],
+            blockedProfiles: [],
+            devices: [],
             deferredInstallPrompt: null,
             notificationReady: false,
             notifications: readStoredJson(NOTIFICATION_LOG_KEY, []),
@@ -4236,6 +4428,7 @@
             activeSection: "chats",
             activeChatId: null,
             activeProfileUsername: null,
+            callFilter: "all",
             newMessageMarkers: {},
             openNextChat: false,
             pendingViewOnce: false,
@@ -4526,6 +4719,20 @@
             document.documentElement.dataset.theme = state.theme;
             document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.theme === "light" ? "#eef2f7" : "#10141d");
             localStorage.setItem(THEME_KEY, state.theme);
+        }
+
+        function applyUserPreferences() {
+            const prefs = state.me?.preferences || {};
+            const theme = prefs.theme === "system"
+                ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+                : prefs.theme;
+            if (theme) {
+                applyTheme(theme);
+            }
+            document.documentElement.dataset.fontSize = prefs.fontSize || "medium";
+            if (prefs.notificationSound) {
+                localStorage.setItem(SYSTEM_SOUND_KEY, prefs.notificationSound);
+            }
         }
 
         function updateAppViewportHeight() {
@@ -5765,6 +5972,8 @@
             state.contactRequests = data.contactRequests || state.contactRequests || [];
             state.groupInvites = data.groupInvites || state.groupInvites || [];
             state.blockedUsers = data.blockedUsers || state.blockedUsers || [];
+            state.blockedProfiles = data.blockedProfiles || state.blockedProfiles || [];
+            state.devices = data.devices || state.devices || [];
             state.archives = data.archives || state.archives || [];
             state.scheduledMessages = data.scheduledMessages || state.scheduledMessages || [];
         }
@@ -5801,6 +6010,8 @@
             state.contactRequests = [];
             state.groupInvites = [];
             state.blockedUsers = [];
+            state.blockedProfiles = [];
+            state.devices = [];
             state.aiSettings = defaultAiSettings();
             state.aiAvatarDraft = "";
             state.activeChatId = null;
@@ -5824,6 +6035,7 @@
             state.registerVerifiedCode = "";
             state.awaitingRegisterVerification = false;
             state.pendingRegister = null;
+            state.pendingTwoFactor = null;
             $("lastName").value = "";
             $("registerUsername").value = "";
             $("verificationCode").value = "";
@@ -5837,6 +6049,7 @@
 
         function updateAuthView(direction = "next") {
             const isRegister = state.mode === "register";
+            const isTwoFactor = !isRegister && Boolean(state.pendingTwoFactor?.username);
             const step = state.registerStep;
             const show = (id, visible) => $(id).classList.toggle("hidden", !visible);
 
@@ -5846,20 +6059,22 @@
             $("username").placeholder = isRegister ? "İsim" : "Gmail adresi";
             $("username").autocomplete = isRegister ? "given-name" : "email";
             show("registerProgress", isRegister);
-            show("username", !isRegister || step === 0);
+            show("username", isRegister ? step === 0 : !isTwoFactor);
             show("lastName", isRegister && step === 0);
             show("registerUsername", isRegister && step === 1);
             show("email", isRegister && step === 2);
-            show("verificationCode", isRegister && step === 3);
-            show("password", !isRegister || step === 4);
+            show("verificationCode", isTwoFactor || (isRegister && step === 3));
+            show("password", (!isRegister && !isTwoFactor) || step === 4);
             show("confirmPassword", isRegister && step === 4);
-            show("forgotButton", !isRegister);
-            show("authBackButton", isRegister && step > 0);
+            show("forgotButton", !isRegister && !isTwoFactor);
+            show("authBackButton", isTwoFactor || (isRegister && step > 0));
 
-            $("authActions").classList.toggle("with-back", isRegister && step > 0);
+            $("authActions").classList.toggle("with-back", isTwoFactor || (isRegister && step > 0));
             $("password").autocomplete = isRegister ? "new-password" : "current-password";
             $("password").placeholder = isRegister ? "Güçlü şifre" : "Şifre";
-            $("authButton").textContent = !isRegister
+            $("authButton").textContent = isTwoFactor
+                ? "Dogrula"
+                : !isRegister
                 ? "Giriş Yap"
                 : step === 4
                     ? "Hesabı Oluştur"
@@ -5882,7 +6097,9 @@
 
             animateAuthFields(direction);
             setTimeout(() => {
-                if (isRegister) {
+                if (isTwoFactor) {
+                    $("verificationCode").focus();
+                } else if (isRegister) {
                     const focusIds = ["username", "registerUsername", "email", "verificationCode", "password"];
                     $(focusIds[step])?.focus();
                 } else {
@@ -5905,6 +6122,12 @@
         }
 
         function goBackAuthStep() {
+            if (state.pendingTwoFactor) {
+                state.pendingTwoFactor = null;
+                $("verificationCode").value = "";
+                updateAuthView("back");
+                return;
+            }
             if (state.mode === "register" && state.registerStep > 0) {
                 setRegisterStep(state.registerStep - 1, "back");
             }
@@ -5926,17 +6149,47 @@
                     return;
                 }
 
+                if (state.pendingTwoFactor?.username) {
+                    const code = $("verificationCode").value.trim();
+                    if (!code) {
+                        $("authStatus").textContent = "Gelen 6 haneli kodu yaz.";
+                        return;
+                    }
+                    const response = await fetch("/login/2fa", {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({ username: state.pendingTwoFactor.username, code, deviceId: deviceId() })
+                    });
+                    const data = await response.json();
+                    if (!data.ok) {
+                        $("authStatus").textContent = data.message;
+                        return;
+                    }
+                    state.pendingTwoFactor = null;
+                    state.me = data.user;
+                    localStorage.setItem("nexalineUser", data.user.username);
+                    openApp();
+                    return;
+                }
+
                 const email = $("username").value.trim();
                 const password = $("password").value;
                 const response = await fetch("/login", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, password })
+                    headers: authHeaders(),
+                    body: JSON.stringify({ email, password, deviceId: deviceId() })
                 });
                 const data = await response.json();
 
                 if (!data.ok) {
                     $("authStatus").textContent = data.message;
+                    return;
+                }
+                if (data.requiresTwoFactor) {
+                    state.pendingTwoFactor = { username: data.username };
+                    $("verificationCode").value = data.devCode || "";
+                    $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
+                    updateAuthView();
                     return;
                 }
 
@@ -5993,6 +6246,7 @@
                 const imageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(data.payload)}`;
                 $("qrCodeBox").innerHTML = `<img src="${imageUrl}" alt="NexaLine QR giriş kodu">`;
                 $("qrLoginStatus").textContent = "Telefondan Ayarlar > Cihaz Bağla ile okut. Kod 3 dakika geçerli.";
+                socket.emit("qr:watch", { sessionId: data.sessionId, secret: data.secret });
                 state.qrLogin.timer = setInterval(pollQrLogin, 1600);
                 pollQrLogin();
             } catch (_error) {
@@ -6005,8 +6259,8 @@
         async function pollQrLogin() {
             if (!state.qrLogin.sessionId || !state.qrLogin.secret) return;
             try {
-                const url = `/qr-login/status/${encodeURIComponent(state.qrLogin.sessionId)}?secret=${encodeURIComponent(state.qrLogin.secret)}&t=${Date.now()}`;
-                const response = await fetch(url, { cache: "no-store" });
+                const url = `/qr-login/status/${encodeURIComponent(state.qrLogin.sessionId)}?secret=${encodeURIComponent(state.qrLogin.secret)}&deviceId=${encodeURIComponent(deviceId())}&t=${Date.now()}`;
+                const response = await fetch(url, { cache: "no-store", headers: { "X-Nexa-Device": deviceId() } });
                 const data = await response.json();
                 if (!data.ok) {
                     $("qrLoginStatus").textContent = data.message || "QR oturumu kapandı.";
@@ -6259,11 +6513,12 @@
 
         function joinRealtime() {
             if (state.me?.username && socket.connected) {
-                socket.emit("user:join", { username: state.me.username, includeState: false });
+                socket.emit("user:join", { username: state.me.username, includeState: false, deviceId: deviceId() });
             }
         }
 
         async function openApp() {
+            applyUserPreferences();
             loadAiSettings();
             showScreenTransition("NexaLine açılıyor", 0);
             $("authScreen").classList.add("hidden");
@@ -6294,7 +6549,9 @@
             let response;
             let data;
             try {
-                response = await fetch(`/bootstrap/${state.me.username}`);
+                response = await fetch(`/bootstrap/${state.me.username}?deviceId=${encodeURIComponent(deviceId())}`, {
+                    headers: { "X-Nexa-Device": deviceId() }
+                });
                 data = await response.json();
             } catch (error) {
                 if (!state.bootReady) {
@@ -6346,6 +6603,7 @@
         }
 
         function renderProfile() {
+            applyUserPreferences();
             setAvatar($("meAvatar"), state.me, state.me.displayName);
             $("meAvatar").classList.add("online");
             $("meAvatar").onclick = openProfileSettings;
@@ -6373,7 +6631,7 @@
                     <div class="profile-hero">
                         <div class="avatar">${escapeHtml(initials(state.me?.displayName || "NL"))}</div>
                         <div class="profile-title">
-                            <h2>${points} puan</h2>
+                            <h2>${points} puan <span class="points-help">?</span></h2>
                             <p>Paylaş, mesajlaş, arkadaş ekle; NexaLine içinde görünürlüğün artsın.</p>
                         </div>
                     </div>
@@ -6603,10 +6861,36 @@
             return link;
         }
 
+        function appendOnlineStrip(container) {
+            const rows = state.users
+                .filter(user => user.username !== state.me?.username && user.online && acceptedContactUsernames().includes(user.username))
+                .slice(0, 18);
+            if (!rows.length) {
+                return;
+            }
+            const strip = document.createElement("div");
+            strip.className = "online-strip";
+            rows.forEach(user => {
+                const button = document.createElement("button");
+                button.className = "online-chip";
+                button.type = "button";
+                button.onclick = () => openUserProfilePane(user);
+                const avatar = document.createElement("div");
+                avatar.className = "avatar online";
+                setAvatar(avatar, user, user.displayName);
+                const label = document.createElement("span");
+                label.textContent = user.displayName;
+                button.append(avatar, label);
+                strip.appendChild(button);
+            });
+            container.appendChild(strip);
+        }
+
         function renderChats() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const chatList = $("chatList");
             chatList.innerHTML = "";
+            appendOnlineStrip(chatList);
 
             const aiName = aiDisplayName();
             const aiSearchText = `${aiName} nexa ai next ai yapay zeka asistan aslanım al ali ${aiLastText()}`.toLocaleLowerCase("tr-TR");
@@ -6835,6 +7119,11 @@
                 });
         }
 
+        function callLogType(log) {
+            if (log.status === "missed") return "missed";
+            return log.caller === state.me?.username ? "outgoing" : "incoming";
+        }
+
         function renderCalls() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const callList = $("callList");
@@ -6845,6 +7134,25 @@
             create.onclick = openNewCallModal;
             create.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Yeni arama</strong><div class="last-message">Kişi seçip sesli veya görüntülü ara</div></div><span class="chat-time"></span>`;
             callList.appendChild(create);
+            const filters = document.createElement("div");
+            filters.className = "filter-row";
+            [
+                ["all", "Tumu"],
+                ["missed", "Cevapsiz"],
+                ["incoming", "Gelen"],
+                ["outgoing", "Giden"]
+            ].forEach(([key, label]) => {
+                const chip = document.createElement("button");
+                chip.className = "filter-chip" + (state.callFilter === key ? " active" : "");
+                chip.type = "button";
+                chip.textContent = label;
+                chip.onclick = () => {
+                    state.callFilter = key;
+                    renderCalls();
+                };
+                filters.appendChild(chip);
+            });
+            callList.appendChild(filters);
 
             if (!state.callLogs.length) {
                 callList.insertAdjacentHTML("beforeend", `<button class="call-item"><div class="avatar"><img src="/static/nexaline-mark.png" alt=""></div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`);
@@ -6852,6 +7160,7 @@
             }
 
             state.callLogs
+                .filter(log => state.callFilter === "all" || callLogType(log) === state.callFilter)
                 .filter(log => log.chatTitle.toLowerCase().includes(filter) || log.callerName.toLowerCase().includes(filter))
                 .forEach(log => {
                     const button = document.createElement("button");
@@ -7079,6 +7388,12 @@
                 .sort((a, b) => Number(b.online) - Number(a.online) || a.displayName.localeCompare(b.displayName, "tr"));
         }
 
+        function acceptedContactUsernames() {
+            return state.users
+                .filter(user => user.username !== state.me?.username && contactStatus(user.username) === "accepted")
+                .map(user => user.username);
+        }
+
         function startChatWithUser(user) {
             if (!user) return;
             state.activeProfileUsername = null;
@@ -7262,10 +7577,15 @@
             const filter = $("searchInput").value.trim().toLowerCase();
             const contactList = $("contactList");
             contactList.innerHTML = "";
+            const allHeader = document.createElement("div");
+            allHeader.className = "section-mini-title";
+            allHeader.textContent = "Tum kullanicilar";
+            contactList.appendChild(allHeader);
 
             state.users
                 .filter(user => user.username !== state.me.username)
                 .filter(user => user.displayName.toLowerCase().includes(filter) || user.username.toLowerCase().includes(filter))
+                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                 .forEach(user => {
                     const button = document.createElement("button");
                     button.className = "contact-item";
@@ -7289,9 +7609,10 @@
                     meta.textContent = contactLine(user);
                     body.append(title, meta);
 
+                    const status = contactStatus(user.username);
                     const dot = document.createElement("span");
-                    dot.className = contactStatus(user.username) === "incoming" ? "badge" : "online-dot" + (user.online ? " online" : "");
-                    dot.textContent = contactStatus(user.username) === "incoming" ? "!" : "";
+                    dot.className = status === "incoming" || status === "accepted" ? "badge" : "online-dot" + (user.online ? " online" : "");
+                    dot.textContent = status === "incoming" ? "!" : status === "accepted" ? "Arkadas" : "";
 
                     button.append(avatar, body, dot);
                     contactList.appendChild(button);
@@ -8758,6 +9079,8 @@
                     if (!file) {
                         if (bodyText) {
                             socket.emit("story:create", { body: bodyText });
+                            state.me.points = Number(state.me.points || 0) + 5;
+                            renderProfile();
                             closeModal();
                         }
                         return;
@@ -8775,6 +9098,8 @@
                             body: bodyText,
                             attachment
                         });
+                        state.me.points = Number(state.me.points || 0) + 5;
+                        renderProfile();
                         closeModal();
                     }).catch(() => showToast("Durum dosyası hazırlanamadı."));
                 } }
@@ -8998,7 +9323,56 @@
             ]);
         }
 
+        function ensureSettingsExtras() {
+            if (!$("blockedUsersList")) {
+                const list = document.createElement("div");
+                list.id = "blockedUsersList";
+                list.className = "settings-list";
+                $("settingsPrivacySection").insertBefore(list, $("savePrivacyButton"));
+            }
+            if (!$("fontSizeSelect")) {
+                const font = document.createElement("select");
+                font.id = "fontSizeSelect";
+                font.innerHTML = `<option value="small">Kucuk yazi</option><option value="medium">Orta yazi</option><option value="large">Buyuk yazi</option>`;
+                $("settingsAppearanceSection").insertBefore(font, $("secretPinInput"));
+            }
+            if (!$("notificationSoundSelect")) {
+                const sound = document.createElement("select");
+                sound.id = "notificationSoundSelect";
+                $("settingsAppearanceSection").insertBefore(sound, $("secretPinInput"));
+            }
+            if (!$("deviceList")) {
+                const list = document.createElement("div");
+                list.id = "deviceList";
+                list.className = "settings-list";
+                $("settingsDeviceSection").appendChild(list);
+            }
+            if (!$("twoFactorInput")) {
+                const toggle = document.createElement("label");
+                toggle.className = "toggle-row";
+                toggle.innerHTML = `<span>Iki adimli dogrulama</span><input id="twoFactorInput" type="checkbox">`;
+                const save = document.createElement("button");
+                save.id = "saveTwoFactorButton";
+                save.type = "button";
+                save.textContent = "2FA Ayarini Kaydet";
+                $("settingsAccountSection").insertBefore(save, $("settingsInstallButton"));
+                $("settingsAccountSection").insertBefore(toggle, save);
+            }
+            $("saveTwoFactorButton").onclick = saveTwoFactorSetting;
+            renderSoundOptions();
+            $("notificationSoundSelect").onchange = () => NexaAudio.changeSystemSound($("notificationSoundSelect").value);
+        }
+
+        function renderSoundOptions() {
+            const select = $("notificationSoundSelect");
+            if (!select) return;
+            select.innerHTML = Object.entries(SYSTEM_SOUND_LABELS)
+                .map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`)
+                .join("");
+        }
+
         function openSettings() {
+            ensureSettingsExtras();
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
             $("aboutInput").value = state.me.about || "";
@@ -9007,6 +9381,9 @@
             $("readReceiptsInput").checked = Boolean(state.me.privacy?.readReceiptsOff);
             $("hideEmailInput").checked = state.me.privacy?.emailHidden !== false;
             $("lightThemeInput").checked = state.theme === "light";
+            $("fontSizeSelect").value = state.me.preferences?.fontSize || "medium";
+            $("notificationSoundSelect").value = state.me.preferences?.notificationSound || localStorage.getItem(SYSTEM_SOUND_KEY) || "classic";
+            $("twoFactorInput").checked = Boolean(state.me.twoFactorEnabled);
             $("unlockSecretChatsInput").checked = state.lockedChatsUnlocked;
             $("nextAiEnabledInput").checked = state.aiSettings.enabled;
             $("nextAiCensorInput").checked = state.aiCensorEnabled;
@@ -9018,6 +9395,8 @@
             state.aiAvatarDraft = state.aiSettings.image || "";
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
             setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
+            renderBlockedUsers();
+            renderDevices();
             setSettingsView("menu");
             $("settingsPanel").classList.remove("hidden");
             pushAppHistory("settings");
@@ -9050,6 +9429,127 @@
                                     ? "QR cihaz bağlantısı"
                                     : "Hesap işlemleri";
             $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
+            if (view === "device") {
+                loadDevices();
+            }
+            if (view === "privacy") {
+                loadBlockedUsers();
+            }
+        }
+
+        function renderDevices() {
+            const list = $("deviceList");
+            if (!list) return;
+            const rows = state.devices || [];
+            if (!rows.length) {
+                list.innerHTML = `<div class="device-card"><div><strong>Aktif cihaz yok</strong><div class="last-message">Bu oturum kaydedilince burada gorunur.</div></div></div>`;
+                return;
+            }
+            list.innerHTML = rows.map(device => `
+                <div class="device-card">
+                    <div>
+                        <strong>${escapeHtml(device.label || "NexaLine")}</strong>
+                        <div class="last-message">${escapeHtml(device.ipAddress || "IP yok")} • ${relativeTime(device.lastSeen)}</div>
+                        <div class="last-message">${escapeHtml((device.userAgent || "").slice(0, 120))}</div>
+                    </div>
+                    <button class="mini-btn danger" type="button" data-revoke-device="${escapeHtml(device.id)}">Kapat</button>
+                </div>
+            `).join("");
+            list.querySelectorAll("[data-revoke-device]").forEach(button => {
+                button.onclick = () => revokeDevice(button.dataset.revokeDevice);
+            });
+        }
+
+        async function loadDevices() {
+            try {
+                const response = await fetch(`/account/${state.me.username}/devices?deviceId=${encodeURIComponent(deviceId())}`, {
+                    headers: { "X-Nexa-Device": deviceId() }
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    state.devices = data.devices || [];
+                    renderDevices();
+                }
+            } catch (_error) {
+                showToast("Cihazlar yuklenemedi.");
+            }
+        }
+
+        async function revokeDevice(id) {
+            if (!id) return;
+            const response = await fetch(`/account/${state.me.username}/devices/${encodeURIComponent(id)}`, {
+                method: "DELETE",
+                headers: authHeaders()
+            });
+            const data = await response.json();
+            showToast(data.message || "Cihaz guncellendi.");
+            if (data.ok) {
+                state.devices = data.devices || [];
+                renderDevices();
+                if (id === deviceId()) {
+                    resetToAuth("Bu cihaz oturumu kapatildi.");
+                }
+            }
+        }
+
+        function renderBlockedUsers() {
+            const list = $("blockedUsersList");
+            if (!list) return;
+            const rows = state.blockedProfiles || [];
+            if (!rows.length) {
+                list.innerHTML = `<div class="blocked-card"><div><strong>Engellenen yok</strong><div class="last-message">Engelledigin kisiler burada gorunur.</div></div></div>`;
+                return;
+            }
+            list.innerHTML = rows.map(user => `
+                <div class="blocked-card">
+                    <div><strong>${escapeHtml(user.displayName || user.username)}</strong><div class="last-message">@${escapeHtml(user.username)}</div></div>
+                    <button class="mini-btn" type="button" data-unblock-user="${escapeHtml(user.username)}">Engeli kaldir</button>
+                </div>
+            `).join("");
+            list.querySelectorAll("[data-unblock-user]").forEach(button => {
+                button.onclick = () => unblockUser(button.dataset.unblockUser);
+            });
+        }
+
+        async function loadBlockedUsers() {
+            try {
+                const response = await fetch(`/account/${state.me.username}/blocked`, { headers: { "X-Nexa-Device": deviceId() } });
+                const data = await response.json();
+                if (data.ok) {
+                    state.blockedProfiles = data.blocked || [];
+                    renderBlockedUsers();
+                }
+            } catch (_error) {
+                showToast("Engellenenler yuklenemedi.");
+            }
+        }
+
+        async function unblockUser(username) {
+            const response = await fetch(`/account/${state.me.username}/blocked/${encodeURIComponent(username)}`, {
+                method: "DELETE",
+                headers: authHeaders()
+            });
+            const data = await response.json();
+            showToast(data.message || "Engel kaldirildi.");
+            if (data.ok) {
+                state.blockedProfiles = data.blocked || [];
+                state.blockedUsers = state.blockedUsers.filter(item => item !== username);
+                renderBlockedUsers();
+                render();
+            }
+        }
+
+        async function saveTwoFactorSetting() {
+            const response = await fetch(`/account/${state.me.username}/security/two-factor`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ enabled: $("twoFactorInput").checked })
+            });
+            const data = await response.json();
+            showToast(data.message || "2FA guncellendi.");
+            if (data.ok) {
+                state.me = data.user;
+            }
         }
 
         async function saveProfile() {
@@ -9095,7 +9595,7 @@
             }
         }
 
-        function saveAppearance() {
+        async function saveAppearance() {
             applyTheme($("lightThemeInput").checked ? "light" : "dark");
             const pin = $("secretPinInput").value.trim();
             let pinJustSaved = false;
@@ -9121,6 +9621,27 @@
             }
             $("secretPinInput").value = "";
             $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
+            try {
+                const response = await fetch(`/account/${state.me.username}/preferences`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        theme: $("lightThemeInput").checked ? "light" : "dark",
+                        fontSize: $("fontSizeSelect").value,
+                        notificationSound: $("notificationSoundSelect").value
+                    })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    showToast(data.message || "Tercihler kaydedilemedi.");
+                    return;
+                }
+                state.me = data.user;
+                applyUserPreferences();
+            } catch (_error) {
+                showToast("Tercihler sunucuya kaydedilemedi.");
+                return;
+            }
             showToast("Görünüm kaydedildi.");
         }
 
@@ -10165,6 +10686,7 @@
             renderChats();
         };
         $("pointsRailButton").onclick = openPointsPanel;
+        $("mobileQrButton").onclick = openQrScanner;
         $("newChatFab").onclick = openNewChatFromFriends;
         $("closeSettingsButton").onclick = closeSettings;
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
@@ -10262,6 +10784,32 @@
             showToast("Bağlantı koptu, yeniden bağlanıyor...");
         });
 
+        socket.on("auth:error", data => {
+            resetToAuth(data?.message || "Oturum kapandi. Yeniden giris yap.");
+        });
+
+        socket.on("qr:ready", data => {
+            if (data?.sessionId === state.qrLogin.sessionId) {
+                $("qrLoginStatus").textContent = "QR kod canli. Telefonda cihaz baglama ekranindan okut.";
+            }
+        });
+
+        socket.on("qr:error", data => {
+            $("qrLoginStatus").textContent = data?.message || "QR oturumu kapandi.";
+            stopQrLoginPolling();
+        });
+
+        socket.on("qr:confirmed", data => {
+            if (data?.sessionId !== state.qrLogin.sessionId || !data.user) {
+                return;
+            }
+            stopQrLoginPolling();
+            state.me = data.user;
+            localStorage.setItem("nexalineUser", data.user.username);
+            $("qrLoginStatus").textContent = "Baglandi. NexaLine aciliyor...";
+            openApp();
+        });
+
         socket.on("app:state", data => {
             const currentChatId = state.activeChatId;
             state.me = data.user;
@@ -10332,6 +10880,9 @@
         });
 
         socket.on("social:update", data => {
+            if (data.user) {
+                state.me = data.user;
+            }
             hydrateRealtimeState(data);
             const chat = activeChat();
             if (chat?.type === "direct" && otherMember(chat) && state.blockedUsers.includes(otherMember(chat).username)) {
@@ -10377,6 +10928,7 @@
             if (message.sender !== state.me.username) {
                 NexaAudio.play("incoming", chat.id);
             }
+            state.me.points = Number(state.me.points || 0) + 1;
             chat.messages.push(message);
             chat.messageCount = Math.max((chat.messageCount || 0) + 1, chat.messages.length);
             chat.lastMessage = message;
