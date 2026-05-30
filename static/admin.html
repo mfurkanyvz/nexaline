@@ -14,15 +14,15 @@
     <style>
         :root {
             --bg: #070a10;
-            --panel: #111722;
-            --panel-2: #192131;
-            --line: #30394b;
+            --panel: #121722;
+            --panel-2: #181f2b;
+            --line: #303848;
             --text: #eef4ff;
-            --muted: #95a0b5;
-            --red: #f03d54;
-            --blue: #2f8cff;
-            --green: #2bd576;
-            --yellow: #f5c451;
+            --muted: #8f99ac;
+            --red: #e23a4f;
+            --blue: #357fef;
+            --green: #24c872;
+            --yellow: #e7b84d;
         }
 
         * { box-sizing: border-box; min-width: 0; }
@@ -108,7 +108,7 @@
             background: #090d15;
         }
 
-        .primary { background: linear-gradient(135deg, var(--red), var(--blue)); }
+        .primary { background: linear-gradient(135deg, var(--red), #b3263b); }
         .danger { background: var(--red); }
         .ok { background: var(--green); color: #06100a; }
 
@@ -123,7 +123,8 @@
         }
 
         .tab.active {
-            background: var(--blue);
+            background: var(--red);
+            box-shadow: 0 0 18px rgba(226, 58, 79, 0.22);
         }
 
         .content {
@@ -195,6 +196,39 @@
         .message.deleted-message {
             border-left-color: var(--yellow);
             opacity: 0.82;
+        }
+
+        .conversation-view {
+            display: grid;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background:
+                radial-gradient(circle at 16% 12%, rgba(226, 58, 79, 0.10), transparent 28%),
+                radial-gradient(circle at 85% 72%, rgba(53, 127, 239, 0.10), transparent 30%),
+                #0b1018;
+        }
+
+        .admin-bubble {
+            width: fit-content;
+            max-width: min(760px, 88%);
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+            background: var(--panel-2);
+        }
+
+        .admin-bubble.outgoing {
+            justify-self: end;
+            background: #1f3146;
+        }
+
+        .admin-bubble strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #c8d7ff;
+            font-size: 12px;
         }
 
         .form-grid {
@@ -355,7 +389,7 @@
             });
         }
 
-        const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "", designDevice: "desktop" };
+        const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "", designDevice: "desktop", selectedUser: "", selectedChat: "" };
         const ADMIN_LOAD_TIMEOUT_MS = 15000;
         const $ = id => document.getElementById(id);
         $("tokenInput").value = state.token;
@@ -438,6 +472,8 @@
             if (state.view === "social") renderSocial();
             if (state.view === "design") renderDesign();
             if (state.view === "create") renderCreateUsers();
+            if (state.view === "userChats") renderUserChats(state.selectedUser);
+            if (state.view === "conversation") renderConversation(state.selectedChat, state.selectedUser);
         }
 
         function renderSummary() {
@@ -487,12 +523,18 @@
                         <span class="chip">${user.privacy?.emailHidden ? "Gmail gizli" : "Gmail görünür"}</span>
                     </div>
                     <div class="card-row">
+                        <button data-user-chats="${user.username}" type="button">Sohbetleri</button>
                         <button data-privacy="${user.username}" type="button">Gizlilik</button>
                         <button class="ok" data-reset="${user.username}" type="button">Şifre Sıfırla</button>
                         <button class="danger" data-delete="${user.username}" type="button">Sil</button>
                     </div>
                 `;
                 grid.appendChild(card);
+            });
+            grid.querySelectorAll("[data-user-chats]").forEach(button => button.onclick = () => {
+                state.selectedUser = button.dataset.userChats;
+                state.view = "userChats";
+                render();
             });
             grid.querySelectorAll("[data-privacy]").forEach(button => button.onclick = () => editUserPrivacy(button.dataset.privacy));
             grid.querySelectorAll("[data-delete]").forEach(button => button.onclick = () => deleteUser(button.dataset.delete));
@@ -526,6 +568,80 @@
                 list.appendChild(item);
             });
             list.querySelectorAll("[data-chat]").forEach(button => button.onclick = () => deleteChat(button.dataset.chat));
+        }
+
+        function renderUserChats(username) {
+            const user = state.data.users.find(item => item.username === username);
+            const chats = state.data.chats
+                .filter(chat => chat.members.some(member => member.username === username))
+                .filter(chat => matchesSearch(chat.title, chat.members.map(member => member.displayName).join(" "), chat.messages.map(message => message.body || message.attachment?.name || "").join(" ")));
+            $("view").innerHTML = `
+                <div class="card-row">
+                    <h2>${escapeHtml(user?.displayName || username)} sohbetleri (${chats.length})</h2>
+                    <button type="button" id="backToUsersButton">Kullanıcılara Dön</button>
+                </div>
+                <div class="list"></div>
+            `;
+            $("backToUsersButton").onclick = () => { state.view = "users"; render(); };
+            const list = $("view").querySelector(".list");
+            if (!chats.length) {
+                list.innerHTML = empty("Bu kullanıcının sohbeti yok.");
+                return;
+            }
+            chats.forEach(chat => {
+                const others = chat.members.filter(member => member.username !== username).map(member => member.displayName).join(", ") || chat.title;
+                const item = document.createElement("article");
+                item.className = "card";
+                item.innerHTML = `
+                    <h3>${escapeHtml(chat.title)} (${escapeHtml(chat.type)})</h3>
+                    <p>Karşı taraf/grup: ${escapeHtml(others)}</p>
+                    <div class="card-row">
+                        <small>${chat.messageCount || chat.messages.length} mesaj • ${new Date(chat.createdAt).toLocaleString("tr-TR")}</small>
+                        <button data-open-conversation="${escapeAttr(chat.id)}" type="button">Mesajları Gör</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            list.querySelectorAll("[data-open-conversation]").forEach(button => button.onclick = () => {
+                state.selectedChat = button.dataset.openConversation;
+                state.view = "conversation";
+                render();
+            });
+        }
+
+        function renderConversation(chatId, focusUsername = "") {
+            const chat = state.data.chats.find(item => item.id === chatId);
+            if (!chat) {
+                $("view").innerHTML = empty("Sohbet bulunamadı.");
+                return;
+            }
+            const messages = chat.messages || [];
+            $("view").innerHTML = `
+                <div class="card-row">
+                    <div>
+                        <h2>${escapeHtml(chat.title)}</h2>
+                        <p>${chat.members.map(member => escapeHtml(member.displayName)).join(", ")}</p>
+                    </div>
+                    <button type="button" id="backToUserChatsButton">Sohbet Listesine Dön</button>
+                </div>
+                <div class="conversation-view"></div>
+            `;
+            $("backToUserChatsButton").onclick = () => { state.view = focusUsername ? "userChats" : "chats"; render(); };
+            const view = $("view").querySelector(".conversation-view");
+            if (!messages.length) {
+                view.innerHTML = empty("Bu sohbette yüklü mesaj yok.");
+                return;
+            }
+            messages.forEach(message => {
+                const bubble = document.createElement("article");
+                bubble.className = "admin-bubble" + (focusUsername && message.sender === focusUsername ? " outgoing" : "");
+                bubble.innerHTML = `
+                    <strong>${escapeHtml(message.senderName || message.sender)} • ${new Date(message.createdAt).toLocaleString("tr-TR")}</strong>
+                    <div>${escapeHtml(message.deletedAt ? "Bu mesaj silindi." : (message.body || message.attachment?.name || message.attachment?.type || "Dosya"))}</div>
+                    ${renderAttachment(message.attachment)}
+                `;
+                view.appendChild(bubble);
+            });
         }
 
         function renderMessages() {

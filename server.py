@@ -53,7 +53,10 @@ RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 2, int(os.environ.get("
 AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "12")))
 AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "16")))
 AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
+QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "180")))
 scheduled_delivery_lock = threading.Lock()
+qr_login_lock = threading.Lock()
+qr_login_sessions = {}
 
 
 class IPv4SMTP(smtplib.SMTP):
@@ -1414,6 +1417,40 @@ def verification_response(message, code=None, sent=True):
     return jsonify(response)
 
 
+def cleanup_qr_login_sessions():
+    now = datetime.now(timezone.utc)
+    with qr_login_lock:
+        expired = [
+            session_id
+            for session_id, row in qr_login_sessions.items()
+            if row["expires_at"] <= now or row.get("consumed")
+        ]
+        for session_id in expired:
+            qr_login_sessions.pop(session_id, None)
+
+
+def parse_qr_login_token(value):
+    value = (value or "").strip()
+    if "nexaQrLogin=" in value:
+        value = value.split("nexaQrLogin=", 1)[1].split("&", 1)[0]
+    if "." not in value:
+        return "", ""
+    session_id, secret = value.split(".", 1)
+    return session_id.strip(), secret.strip()
+
+
+def qr_session_error(session_id, secret):
+    cleanup_qr_login_sessions()
+    with qr_login_lock:
+        row = qr_login_sessions.get(session_id)
+        if not row or row.get("secret") != secret:
+            return None, (jsonify({"ok": False, "message": "QR oturumu bulunamadı."}), 404)
+        if row["expires_at"] <= datetime.now(timezone.utc):
+            qr_login_sessions.pop(session_id, None)
+            return None, (jsonify({"ok": False, "message": "QR kodun süresi doldu."}), 410)
+        return row, None
+
+
 def rtc_servers():
     servers = [{"urls": "stun:stun.l.google.com:19302"}]
     extra_urls = [url.strip() for url in os.environ.get("RTC_ICE_URLS", "").split(",") if url.strip()]
@@ -2223,6 +2260,71 @@ def ai_moderate():
     text_value = (data.get("text") or "")[:4000]
     labels = ai_moderation_labels(text_value)
     return jsonify({"ok": True, "labels": labels, "blocked": bool(labels), "reason": ", ".join(labels)})
+
+
+@app.route("/qr-login/start", methods=["POST"])
+def qr_login_start():
+    cleanup_qr_login_sessions()
+    session_id = secrets.token_urlsafe(12)
+    secret = secrets.token_urlsafe(24)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=QR_LOGIN_TTL_SECONDS)
+    with qr_login_lock:
+        qr_login_sessions[session_id] = {
+            "secret": secret,
+            "expires_at": expires_at,
+            "username": None,
+            "confirmed_at": None,
+            "consumed": False,
+        }
+    token = f"{session_id}.{secret}"
+    return jsonify(
+        {
+            "ok": True,
+            "sessionId": session_id,
+            "secret": secret,
+            "token": token,
+            "payload": f"{request.host_url.rstrip('/')}/?nexaQrLogin={token}",
+            "expiresAt": to_iso(expires_at),
+            "ttl": QR_LOGIN_TTL_SECONDS,
+        }
+    )
+
+
+@app.route("/qr-login/status/<session_id>", methods=["GET", "POST"])
+def qr_login_status(session_id):
+    data = request.get_json(silent=True) or {}
+    secret = data.get("secret") or request.args.get("secret") or ""
+    row, error = qr_session_error(session_id, secret)
+    if error:
+        return error
+    username = row.get("username")
+    if not username:
+        return jsonify({"ok": True, "status": "pending", "expiresAt": to_iso(row["expires_at"])})
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Bağlanan kullanıcı bulunamadı."}), 404
+    with qr_login_lock:
+        row["consumed"] = True
+    return jsonify({"ok": True, "status": "confirmed", "user": private_user(user.username)})
+
+
+@app.route("/qr-login/confirm", methods=["POST"])
+def qr_login_confirm():
+    data = request.get_json() or {}
+    session_id = data.get("sessionId") or ""
+    secret = data.get("secret") or ""
+    if data.get("token") or data.get("payload"):
+        session_id, secret = parse_qr_login_token(data.get("token") or data.get("payload"))
+    username = (data.get("username") or "").strip().lower()
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Telefonda açık bir NexaLine hesabı bulunamadı."}), 401
+    row, error = qr_session_error(session_id, secret)
+    if error:
+        return error
+    with qr_login_lock:
+        row["username"] = username
+        row["confirmed_at"] = datetime.now(timezone.utc)
+    return jsonify({"ok": True, "message": "Web oturumu bağlandı."})
 
 
 @app.route("/register", methods=["POST"])

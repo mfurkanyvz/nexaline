@@ -17,21 +17,22 @@
     <script src="/static/vendor/socket.io.min.js"></script>
     <style>
         :root {
-            --ink: #06080d;
-            --panel: #10141d;
-            --panel-2: #171c27;
-            --panel-3: #202633;
-            --line: #303746;
+            --ink: #070a10;
+            --panel: #121722;
+            --panel-2: #181f2b;
+            --panel-3: #202937;
+            --line: #303848;
             --text: #eef4ff;
-            --muted: #8993a7;
-            --red: #f03d54;
-            --blue: #2f8cff;
-            --green: #2bd576;
+            --muted: #8f99ac;
+            --red: #e23a4f;
+            --blue: #357fef;
+            --green: #24c872;
             --incoming: #1f2724;
             --outgoing: #075e54;
-            --app-bg: #0b1117;
-            --chat-bg: #101713;
-            --shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+            --gold: #e7b84d;
+            --app-bg: #0d1219;
+            --chat-bg: #10151d;
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
             --app-height: 100vh;
             --keyboard-inset: 0px;
             --admin-font-size: 16px;
@@ -128,15 +129,21 @@
             display: grid;
             min-height: var(--app-height);
             place-items: center;
+            gap: 14px;
             padding: 24px;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(226, 58, 79, 0.20), transparent 28%),
+                radial-gradient(circle at 82% 70%, rgba(53, 127, 239, 0.15), transparent 32%),
+                linear-gradient(145deg, #070a10, #0d1219);
         }
 
         .auth-card {
             width: min(440px, 100%);
             padding: 28px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            background: rgba(16, 20, 29, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 22px;
+            background: rgba(18, 23, 34, 0.88);
+            backdrop-filter: blur(20px) saturate(150%);
             box-shadow: var(--shadow);
         }
 
@@ -145,19 +152,22 @@
             align-items: center;
             gap: 12px;
             margin-bottom: 24px;
+            justify-content: center;
+            text-align: center;
         }
 
         .brand-mark {
             display: grid;
-            width: 42px;
-            height: 42px;
+            width: 56px;
+            height: 56px;
             place-items: center;
-            border-radius: 8px;
+            border-radius: 16px;
             overflow: hidden;
             background: transparent;
             color: #fff;
             font-size: 22px;
             font-weight: 800;
+            filter: drop-shadow(0 0 22px rgba(226, 58, 79, 0.34));
         }
 
         .brand-mark img {
@@ -331,19 +341,28 @@
             letter-spacing: 0;
         }
 
+        .brand-subtitle {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
         .auth-tabs {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
             margin-bottom: 16px;
             padding: 4px;
-            border-radius: 8px;
+            border-radius: 14px;
             background: var(--ink);
         }
 
         .auth-tab {
             padding: 10px;
-            border-radius: 6px;
+            border-radius: 11px;
             color: var(--muted);
             background: transparent;
         }
@@ -351,11 +370,12 @@
         .auth-tab.active {
             color: #fff;
             background: var(--panel-3);
+            box-shadow: 0 0 0 1px rgba(226, 58, 79, 0.22), 0 10px 30px rgba(0, 0, 0, 0.22);
         }
 
         .auth-progress {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 8px;
             margin-bottom: 16px;
         }
@@ -409,33 +429,82 @@
             margin-bottom: 12px;
             padding: 14px 15px;
             border: 1px solid var(--line);
-            border-radius: 8px;
+            border-radius: 14px;
             outline: none;
             color: var(--text);
-            background: #090c13;
+            background: #0b1018;
         }
 
         .field:focus {
-            border-color: var(--blue);
+            border-color: var(--red);
+            box-shadow: 0 0 0 3px rgba(226, 58, 79, 0.16);
         }
 
         .primary {
             width: 100%;
             padding: 14px 18px;
-            border-radius: 8px;
+            border-radius: 14px;
             color: #fff;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--red), var(--blue));
+            background: linear-gradient(135deg, var(--red), #b3263b);
+            box-shadow: 0 0 22px rgba(226, 58, 79, 0.30);
         }
 
         .secondary {
             width: 100%;
             padding: 14px 16px;
-            border-radius: 8px;
+            border-radius: 14px;
             color: var(--text);
             font-weight: 700;
             border: 1px solid var(--line);
             background: var(--panel-2);
+        }
+
+        .qr-login-card {
+            display: grid;
+            gap: 12px;
+            width: min(440px, 100%);
+            margin-top: 14px;
+            padding: 16px;
+            border: 1px solid rgba(53, 127, 239, 0.24);
+            border-radius: 18px;
+            background: rgba(18, 23, 34, 0.72);
+            backdrop-filter: blur(18px) saturate(140%);
+        }
+
+        .qr-login-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .qr-login-head strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .qr-code-box {
+            display: grid;
+            min-height: 224px;
+            place-items: center;
+            border: 1px dashed rgba(255, 255, 255, 0.13);
+            border-radius: 16px;
+            background: #0b1018;
+        }
+
+        .qr-code-box img {
+            width: min(220px, 100%);
+            height: auto;
+            padding: 10px;
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .qr-code-meta {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.35;
         }
 
         .auth-actions {
@@ -691,6 +760,24 @@
             color: #fff;
             background: var(--panel-3);
             box-shadow: inset 3px 0 0 var(--red);
+        }
+
+        .points-rail-button {
+            grid-column: 1;
+            grid-row: 4;
+            align-self: end;
+            justify-self: center;
+            display: grid;
+            width: 52px;
+            height: 52px;
+            place-items: center;
+            margin-bottom: 14px;
+            border-radius: 18px;
+            color: #1a1302;
+            background: linear-gradient(135deg, var(--gold), #ffdf7a);
+            box-shadow: 0 0 18px rgba(231, 184, 77, 0.28);
+            font-size: 20px;
+            font-weight: 900;
         }
 
         .search-box input {
@@ -2498,6 +2585,10 @@
                 padding: 10px 12px;
             }
 
+            .qr-login-card {
+                display: none;
+            }
+
             .chat-top {
                 position: sticky;
                 top: 0;
@@ -2671,13 +2762,15 @@
                 bottom: max(10px, env(safe-area-inset-bottom));
                 z-index: 8;
                 display: flex;
+                flex-direction: row;
                 align-items: center;
                 justify-content: space-around;
                 gap: 3px;
                 padding: 7px;
                 border: 1px solid rgba(255, 255, 255, 0.09);
                 border-radius: 30px;
-                background: rgba(22, 24, 30, 0.94);
+                background: rgba(18, 23, 34, 0.92);
+                backdrop-filter: blur(20px) saturate(180%);
                 box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
                 overflow-x: auto;
                 scrollbar-width: none;
@@ -2738,6 +2831,10 @@
             }
 
             .app.chat-open .nav-tabs {
+                display: none;
+            }
+
+            .points-rail-button {
                 display: none;
             }
 
@@ -2862,7 +2959,10 @@
         <section class="auth-card">
             <div class="brand">
                 <div class="brand-mark"><img src="/static/nexaline-mark.png" alt="NexaLine"></div>
-                <h1>NexaLine</h1>
+                <div>
+                    <h1>NexaLine</h1>
+                    <div class="brand-subtitle">Mesajlaş • Bağlan • Kazan</div>
+                </div>
             </div>
 
             <div class="auth-tabs">
@@ -2875,11 +2975,13 @@
                 <span></span>
                 <span></span>
                 <span></span>
+                <span></span>
             </div>
 
             <div id="authFields" class="auth-fields">
                 <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
                 <input id="lastName" class="field hidden" autocomplete="family-name" placeholder="SOYİSİM">
+                <input id="registerUsername" class="field hidden" autocomplete="username" placeholder="Kullanıcı adı">
                 <input id="email" class="field hidden" autocomplete="email" placeholder="Gmail adresi">
                 <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
                 <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
@@ -2892,6 +2994,19 @@
             </div>
             <button id="forgotButton" class="text-btn" type="button">Şifremi unuttum</button>
             <div id="authStatus" class="status-line"></div>
+        </section>
+        <section id="qrLoginCard" class="qr-login-card">
+            <div class="qr-login-head">
+                <div>
+                    <strong>QR kodla web girişi</strong>
+                    <div class="qr-code-meta">Telefondaki NexaLine hesabından Ayarlar > Cihaz Bağla ile okut.</div>
+                </div>
+                <button id="qrLoginStartButton" class="secondary" type="button">QR Oluştur</button>
+            </div>
+            <div id="qrCodeBox" class="qr-code-box">
+                <div class="qr-code-meta">QR kod oluşturmak için butona bas.</div>
+            </div>
+            <div id="qrLoginStatus" class="qr-code-meta"></div>
         </section>
     </main>
 
@@ -2924,6 +3039,7 @@
                 <button class="nav-tab" data-section="friends" type="button" title="Arkadaşlarım"><span class="nav-icon">☻</span><span class="nav-label">Arkadaşlarım</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
             </nav>
+            <button id="pointsRailButton" class="points-rail-button" type="button" title="Nexa puanları">★</button>
 
             <div class="section-head">
                 <button id="archiveBackButton" class="archive-shortcut hidden" type="button" title="Sohbetlere dön">← Sohbetler</button>
@@ -3049,6 +3165,11 @@
                     <span><strong>Nexa AI</strong><small class="last-message">Asistan adı, fotoğrafı, sansür ve yetki</small></span>
                     <span>›</span>
                 </button>
+                <button id="settingsDeviceTab" class="settings-option" type="button">
+                    <span class="option-icon">▣</span>
+                    <span><strong>Cihaz Bağla</strong><small class="last-message">Web girişindeki QR kodu telefonla okut</small></span>
+                    <span>›</span>
+                </button>
                 <button id="settingsAccountTab" class="settings-option" type="button">
                     <span class="option-icon">⚿</span>
                     <span><strong>Hesap</strong><small class="last-message">Gmail, şifre, çıkış ve hesap silme</small></span>
@@ -3158,6 +3279,18 @@
                 </div>
                 <div class="last-message">Tam yetki açılırsa mesaj gönderme, sohbet silme, arama ve ayar değiştirme komutlarını ayrıca onay istemeden uygular.</div>
                 <button id="saveNextAiButton" class="primary" type="button">Nexa AI Ayarlarını Kaydet</button>
+            </div>
+
+            <div id="settingsDeviceSection" class="settings-section hidden">
+                <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Cihaz Bağla</strong>
+                        <div class="last-message">Bilgisayardaki QR kodu okutup web oturumunu otomatik aç.</div>
+                    </div>
+                </div>
+                <button id="startQrScannerButton" class="primary" type="button">QR Kodu Tara</button>
+                <div class="last-message">Kamera izni verildikten sonra kare içindeki QR kodu otomatik okunur. Şifre paylaşılmaz.</div>
             </div>
 
             <div id="settingsAccountSection" class="settings-section hidden">
@@ -3503,6 +3636,8 @@
             archiveUnlocked: false,
             archiveItems: [],
             settingsView: "menu",
+            qrLogin: { timer: null, sessionId: "", secret: "", expiresAt: null },
+            qrScan: { stream: null, timer: null, busy: false },
             bootReady: false,
             bootstrapLoading: false,
             renderQueued: false,
@@ -4275,6 +4410,7 @@
         }
 
         function closeModal() {
+            stopQrScanner();
             $("modalPanel").classList.add("hidden");
             $("modalBody").innerHTML = "";
             $("modalActions").innerHTML = "";
@@ -4991,9 +5127,13 @@
             state.awaitingRegisterVerification = false;
             state.pendingRegister = null;
             $("lastName").value = "";
+            $("registerUsername").value = "";
             $("verificationCode").value = "";
             $("confirmPassword").value = "";
             $("authStatus").textContent = "";
+            if (mode === "register") {
+                stopQrLoginPolling();
+            }
             updateAuthView();
         }
 
@@ -5004,15 +5144,17 @@
 
             $("loginTab").classList.toggle("active", !isRegister);
             $("registerTab").classList.toggle("active", isRegister);
-            $("username").placeholder = isRegister ? "İSİM" : "Gmail adresi";
+            $("qrLoginCard").classList.toggle("hidden", isRegister);
+            $("username").placeholder = isRegister ? "İsim" : "Gmail adresi";
             $("username").autocomplete = isRegister ? "given-name" : "email";
             show("registerProgress", isRegister);
             show("username", !isRegister || step === 0);
             show("lastName", isRegister && step === 0);
-            show("email", isRegister && step === 1);
-            show("verificationCode", isRegister && step === 2);
-            show("password", !isRegister || step === 3);
-            show("confirmPassword", isRegister && step === 3);
+            show("registerUsername", isRegister && step === 1);
+            show("email", isRegister && step === 2);
+            show("verificationCode", isRegister && step === 3);
+            show("password", !isRegister || step === 4);
+            show("confirmPassword", isRegister && step === 4);
             show("forgotButton", !isRegister);
             show("authBackButton", isRegister && step > 0);
 
@@ -5021,7 +5163,7 @@
             $("password").placeholder = isRegister ? "Güçlü şifre" : "Şifre";
             $("authButton").textContent = !isRegister
                 ? "Giriş Yap"
-                : step === 3
+                : step === 4
                     ? "Hesabı Oluştur"
                     : "Devam";
 
@@ -5032,6 +5174,7 @@
             if (isRegister && !$("authStatus").textContent) {
                 const hints = [
                     "Önce isim ve soyismini yaz.",
+                    "Sonra sana özel kullanıcı adını seç.",
                     "Gmail adresine doğrulama kodu göndereceğiz.",
                     "Gmail'e gelen 6 haneli kodu yaz.",
                     "Güçlü şifreni iki kez yaz."
@@ -5042,7 +5185,7 @@
             animateAuthFields(direction);
             setTimeout(() => {
                 if (isRegister) {
-                    const focusIds = ["username", "email", "verificationCode", "password"];
+                    const focusIds = ["username", "registerUsername", "email", "verificationCode", "password"];
                     $(focusIds[step])?.focus();
                 } else {
                     $("username").focus();
@@ -5058,7 +5201,7 @@
         }
 
         function setRegisterStep(step, direction = "next") {
-            state.registerStep = Math.max(0, Math.min(3, step));
+            state.registerStep = Math.max(0, Math.min(4, step));
             $("authStatus").textContent = "";
             updateAuthView(direction);
         }
@@ -5109,6 +5252,168 @@
             }
         }
 
+        function qrTokenFromPayload(value) {
+            const raw = (value || "").trim();
+            if (!raw) return "";
+            try {
+                const url = new URL(raw, location.origin);
+                return url.searchParams.get("nexaQrLogin") || raw;
+            } catch (_error) {
+                return raw.includes("nexaQrLogin=") ? raw.split("nexaQrLogin=", 1)[1].split("&", 1)[0] : raw;
+            }
+        }
+
+        function stopQrLoginPolling() {
+            if (state.qrLogin.timer) {
+                clearInterval(state.qrLogin.timer);
+            }
+            state.qrLogin = { timer: null, sessionId: "", secret: "", expiresAt: null };
+        }
+
+        async function startQrLogin() {
+            if (isMobileView()) {
+                $("qrLoginStatus").textContent = "QR giriş bilgisayar/web ekranı içindir. Telefonda Ayarlar > Cihaz Bağla kısmını kullan.";
+                return;
+            }
+            stopQrLoginPolling();
+            $("qrLoginStartButton").disabled = true;
+            $("qrLoginStatus").textContent = "QR kod hazırlanıyor...";
+            $("qrCodeBox").innerHTML = `<div class="qr-code-meta">Hazırlanıyor...</div>`;
+            try {
+                const response = await fetch("/qr-login/start", { method: "POST", headers: { "Content-Type": "application/json" } });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("qrLoginStatus").textContent = data.message || "QR kod oluşturulamadı.";
+                    return;
+                }
+                state.qrLogin = {
+                    timer: null,
+                    sessionId: data.sessionId,
+                    secret: data.secret,
+                    expiresAt: data.expiresAt
+                };
+                const imageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(data.payload)}`;
+                $("qrCodeBox").innerHTML = `<img src="${imageUrl}" alt="NexaLine QR giriş kodu">`;
+                $("qrLoginStatus").textContent = "Telefondan Ayarlar > Cihaz Bağla ile okut. Kod 3 dakika geçerli.";
+                state.qrLogin.timer = setInterval(pollQrLogin, 1600);
+                pollQrLogin();
+            } catch (_error) {
+                $("qrLoginStatus").textContent = "QR giriş başlatılamadı. Bağlantını kontrol et.";
+            } finally {
+                $("qrLoginStartButton").disabled = false;
+            }
+        }
+
+        async function pollQrLogin() {
+            if (!state.qrLogin.sessionId || !state.qrLogin.secret) return;
+            try {
+                const url = `/qr-login/status/${encodeURIComponent(state.qrLogin.sessionId)}?secret=${encodeURIComponent(state.qrLogin.secret)}&t=${Date.now()}`;
+                const response = await fetch(url, { cache: "no-store" });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("qrLoginStatus").textContent = data.message || "QR oturumu kapandı.";
+                    stopQrLoginPolling();
+                    return;
+                }
+                if (data.status === "confirmed" && data.user) {
+                    stopQrLoginPolling();
+                    state.me = data.user;
+                    localStorage.setItem("nexalineUser", data.user.username);
+                    $("qrLoginStatus").textContent = "Bağlandı. NexaLine açılıyor...";
+                    openApp();
+                    return;
+                }
+                if (state.qrLogin.expiresAt && Date.now() > new Date(state.qrLogin.expiresAt).getTime()) {
+                    $("qrLoginStatus").textContent = "QR kodun süresi doldu. Yeniden oluştur.";
+                    stopQrLoginPolling();
+                }
+            } catch (_error) {
+                $("qrLoginStatus").textContent = "QR durumu alınamadı, tekrar deneniyor...";
+            }
+        }
+
+        function stopQrScanner() {
+            if (state.qrScan.timer) {
+                clearInterval(state.qrScan.timer);
+            }
+            if (state.qrScan.stream) {
+                state.qrScan.stream.getTracks().forEach(track => track.stop());
+            }
+            state.qrScan = { stream: null, timer: null, busy: false };
+        }
+
+        async function confirmQrPayload(payload) {
+            const token = qrTokenFromPayload(payload);
+            if (!token || state.qrScan.busy) return;
+            state.qrScan.busy = true;
+            try {
+                const response = await fetch("/qr-login/confirm", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: state.me.username, token })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    showToast(data.message || "QR bağlantısı tamamlanamadı.");
+                    state.qrScan.busy = false;
+                    return;
+                }
+                showToast("Web oturumu bağlandı.");
+                closeModal();
+            } catch (_error) {
+                showToast("QR bağlantısı gönderilemedi.");
+                state.qrScan.busy = false;
+            }
+        }
+
+        function openQrScanner() {
+            openModal("QR kod tara", body => {
+                body.innerHTML = `
+                    <div class="qr-code-box">
+                        <video id="qrScannerVideo" autoplay playsinline muted style="width:100%;max-height:320px;border-radius:14px;background:#000;object-fit:cover"></video>
+                    </div>
+                    <input id="manualQrTokenInput" placeholder="Kamera desteklenmezse QR metnini buraya yapıştır">
+                    <div class="qr-code-meta">Kareyi bilgisayardaki QR koda tut. Okununca web otomatik giriş yapar.</div>
+                `;
+                setTimeout(startQrScannerLoop, 0);
+            }, [
+                { label: "Kodu Bağla", primary: true, onClick: () => confirmQrPayload($("manualQrTokenInput").value) },
+                { label: "Kapat", onClick: closeModal }
+            ]);
+        }
+
+        async function startQrScannerLoop() {
+            const video = $("qrScannerVideo");
+            if (!video) return;
+            if (!("BarcodeDetector" in window)) {
+                showToast("Bu tarayıcı otomatik QR okumayı desteklemiyor. QR metnini elle yapıştırabilirsin.");
+                return;
+            }
+            if (!navigator.mediaDevices?.getUserMedia) {
+                showToast("Kamera erişimi bu cihazda desteklenmiyor.");
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+                state.qrScan.stream = stream;
+                video.srcObject = stream;
+                await video.play().catch(() => {});
+                const detector = new BarcodeDetector({ formats: ["qr_code"] });
+                state.qrScan.timer = setInterval(async () => {
+                    if (!video.videoWidth || state.qrScan.busy) return;
+                    try {
+                        const codes = await detector.detect(video);
+                        const value = codes[0]?.rawValue;
+                        if (value) {
+                            confirmQrPayload(value);
+                        }
+                    } catch (_error) {}
+                }, 700);
+            } catch (_error) {
+                showToast("Kamera açılamadı. İzinleri kontrol et veya QR metnini elle gir.");
+            }
+        }
+
         function titleCaseNamePart(value) {
             return value
                 .toLocaleLowerCase("tr-TR")
@@ -5135,10 +5440,15 @@
             return `${normalizeGivenNames(firstName)} ${normalizeSurname(lastName)}`.trim();
         }
 
+        function normalizeRegisterUsername(value) {
+            return value.trim().toLocaleLowerCase("tr-TR").replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24);
+        }
+
         async function submitRegisterStep() {
             const firstName = normalizeGivenNames($("username").value);
             const lastName = normalizeSurname($("lastName").value);
             const displayName = buildDisplayName(firstName, lastName);
+            const registerUsername = normalizeRegisterUsername($("registerUsername").value);
             const email = $("email").value.trim();
             const code = $("verificationCode").value.trim();
             const password = $("password").value;
@@ -5161,18 +5471,32 @@
             }
 
             if (state.registerStep === 1) {
-                const generated = email
-                    .split("@")[0]
-                    .toLowerCase()
-                    .replace(/[^a-z0-9_]/g, "_")
-                    .replace(/_+/g, "_")
-                    .replace(/^_+|_+$/g, "")
-                    .slice(0, 18) || "nexaline";
+                $("registerUsername").value = registerUsername;
+                if (registerUsername.length < 3) {
+                    $("authStatus").textContent = "Kullanıcı adı en az 3 karakter olmalı.";
+                    return;
+                }
+                const response = await fetch("/register/check-username", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: registerUsername })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("authStatus").textContent = data.message;
+                    return;
+                }
+                state.pendingRegister = { ...(state.pendingRegister || {}), firstName, lastName, displayName, username: registerUsername };
+                setRegisterStep(2);
+                return;
+            }
+
+            if (state.registerStep === 2) {
                 const payload = {
                     firstName: state.pendingRegister?.firstName || firstName,
                     lastName: state.pendingRegister?.lastName || lastName,
                     displayName: state.pendingRegister?.displayName || displayName,
-                    username: `${generated}${Date.now().toString().slice(-5)}`,
+                    username: state.pendingRegister?.username || registerUsername,
                     email
                 };
                 const response = await fetch("/register", {
@@ -5192,7 +5516,7 @@
                 return;
             }
 
-            if (state.registerStep === 2) {
+            if (state.registerStep === 3) {
                 const response = await fetch("/register/verify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -5204,7 +5528,7 @@
                     return;
                 }
                 state.registerVerifiedCode = code;
-                setRegisterStep(3);
+                setRegisterStep(4);
                 $("authStatus").textContent = data.message;
                 return;
             }
@@ -5331,6 +5655,7 @@
             $("meName").onclick = openProfileSettings;
             $("meStatus").textContent = "";
             $("meStatus").classList.add("hidden");
+            $("pointsRailButton").title = `${Number(state.me.points || 0)} Nexa puan`;
             updateAiAssistantVisibility();
             updateNotificationButton();
         }
@@ -5338,6 +5663,26 @@
         function openProfileSettings() {
             openSettings();
             setSettingsView("profile");
+        }
+
+        function openPointsPanel() {
+            const points = Number(state.me?.points || 0);
+            openModal("Nexa Puan", body => {
+                body.innerHTML = `
+                    <div class="profile-hero">
+                        <div class="avatar">${escapeHtml(initials(state.me?.displayName || "NL"))}</div>
+                        <div class="profile-title">
+                            <h2>${points} puan</h2>
+                            <p>Paylaş, mesajlaş, arkadaş ekle; NexaLine içinde görünürlüğün artsın.</p>
+                        </div>
+                    </div>
+                    <div class="profile-grid">
+                        <div class="profile-stat"><span>Durum</span><strong>+5</strong><small>Her paylaşım</small></div>
+                        <div class="profile-stat"><span>Mesaj</span><strong>+1</strong><small>Gönderilen/alınan</small></div>
+                        <div class="profile-stat"><span>Arkadaş</span><strong>+3</strong><small>Yeni bağlantı</small></div>
+                    </div>
+                `;
+            }, [{ label: "Kapat", primary: true, onClick: closeModal }]);
         }
 
         function updateAiAssistantVisibility() {
@@ -5563,8 +5908,10 @@
             chatList.innerHTML = "";
 
             const aiName = aiDisplayName();
+            const aiSearchText = `${aiName} nexa ai next ai yapay zeka asistan aslanım al ali ${aiLastText()}`.toLocaleLowerCase("tr-TR");
             const showAiChat = state.aiSettings.enabled
-                && (!filter || aiName.toLowerCase().includes(filter) || aiLastText().toLowerCase().includes(filter) || "next ai yapay zeka asistan".includes(filter));
+                && filter
+                && aiSearchText.includes(filter.toLocaleLowerCase("tr-TR"));
             if (showAiChat) {
                 const button = document.createElement("button");
                 button.className = "chat-item" + (state.activeChatId === AI_CHAT_ID ? " active" : "");
@@ -5584,11 +5931,8 @@
                 body.append(title, last);
 
                 const side = document.createElement("span");
-                side.className = "chat-side";
-                const pinned = document.createElement("span");
-                pinned.className = "flag-pill";
-                pinned.textContent = "S";
-                side.appendChild(pinned);
+                side.className = "chat-time";
+                side.textContent = "AI";
 
                 button.append(avatar, body, side);
                 chatList.appendChild(button);
@@ -7989,6 +8333,7 @@
             $("settingsPrivacySection").classList.toggle("hidden", view !== "privacy");
             $("settingsAppearanceSection").classList.toggle("hidden", view !== "appearance");
             $("settingsAiSection").classList.toggle("hidden", view !== "ai");
+            $("settingsDeviceSection").classList.toggle("hidden", view !== "device");
             $("settingsAccountSection").classList.toggle("hidden", view !== "account");
             $("settingsEmail").textContent = view === "menu"
                 ? (state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış")
@@ -8000,7 +8345,9 @@
                             ? "Görünüm ve kilit"
                             : view === "ai"
                                 ? "Nexa AI ayarları"
-                                : "Hesap işlemleri";
+                                : view === "device"
+                                    ? "QR cihaz bağlantısı"
+                                    : "Hesap işlemleri";
             $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
         }
 
@@ -9051,7 +9398,8 @@
         $("registerTab").onclick = () => setAuthMode("register");
         $("authBackButton").onclick = goBackAuthStep;
         $("authButton").onclick = submitAuth;
-        ["username", "lastName", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
+        $("qrLoginStartButton").onclick = startQrLogin;
+        ["username", "lastName", "registerUsername", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
             $(id).addEventListener("keydown", event => {
                 if (event.key === "Enter") {
                     event.preventDefault();
@@ -9113,12 +9461,14 @@
             renderSections();
             renderChats();
         };
+        $("pointsRailButton").onclick = openPointsPanel;
         $("newChatFab").onclick = openNewChatFromFriends;
         $("closeSettingsButton").onclick = closeSettings;
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
         $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
         $("settingsAppearanceTab").onclick = () => setSettingsView("appearance");
         $("settingsAiTab").onclick = () => setSettingsView("ai");
+        $("settingsDeviceTab").onclick = () => setSettingsView("device");
         $("settingsAccountTab").onclick = () => setSettingsView("account");
         document.querySelectorAll("[data-settings-back]").forEach(button => {
             button.onclick = () => setSettingsView("menu");
@@ -9139,6 +9489,7 @@
         };
         $("nextAiImageInput").onchange = handleNextAiImage;
         $("saveNextAiButton").onclick = saveNextAiSettings;
+        $("startQrScannerButton").onclick = openQrScanner;
         $("changeEmailButton").onclick = changeAccountEmail;
         $("changePasswordButton").onclick = changeAccountPassword;
         $("settingsDeleteButton").onclick = deleteAccount;
