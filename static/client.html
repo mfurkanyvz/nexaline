@@ -1116,6 +1116,136 @@
             background: rgba(47, 140, 255, 0.16);
         }
 
+        .ai-fab {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 24;
+            width: 54px;
+            height: 54px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 50%;
+            color: #fff;
+            background: linear-gradient(135deg, var(--blue), var(--red));
+            box-shadow: var(--shadow);
+            font-weight: 900;
+        }
+
+        .ai-panel {
+            position: fixed;
+            right: 18px;
+            bottom: 84px;
+            z-index: 24;
+            display: grid;
+            width: min(420px, calc(100vw - 28px));
+            max-height: min(680px, calc(100dvh - 112px));
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .ai-panel.hidden {
+            display: none;
+        }
+
+        .ai-head,
+        .ai-composer {
+            display: grid;
+            gap: 8px;
+            padding: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .ai-head {
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+        }
+
+        .ai-head small {
+            display: block;
+            color: var(--muted);
+            overflow-wrap: anywhere;
+        }
+
+        .ai-messages {
+            display: flex;
+            min-height: 260px;
+            overflow: auto;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+        }
+
+        .ai-bubble {
+            max-width: 92%;
+            padding: 10px 11px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .ai-bubble.user {
+            align-self: flex-end;
+            color: #fff;
+            background: rgba(47, 140, 255, 0.28);
+        }
+
+        .ai-actions,
+        .ai-quick {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 8px;
+        }
+
+        .ai-actions button,
+        .ai-quick button {
+            padding: 7px 9px;
+            border-radius: 8px;
+            color: var(--text);
+            background: rgba(47, 140, 255, 0.18);
+        }
+
+        .ai-composer {
+            grid-template-columns: minmax(0, 1fr) auto;
+            border-top: 1px solid var(--line);
+            border-bottom: 0;
+        }
+
+        .ai-composer textarea {
+            min-height: 42px;
+            max-height: 110px;
+            resize: vertical;
+            padding: 10px 11px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            background: #090c13;
+        }
+
+        .censored-message {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border: 1px solid rgba(245, 196, 81, 0.28);
+            border-radius: 8px;
+            color: #ffe3a3;
+            background: rgba(245, 196, 81, 0.10);
+        }
+
+        .censored-message button {
+            width: max-content;
+            padding: 7px 9px;
+            border-radius: 8px;
+            color: #07101d;
+            background: var(--yellow);
+            font-weight: 800;
+        }
+
         .icon-btn.active-tool {
             color: #06100a;
             background: var(--green);
@@ -1933,6 +2063,19 @@
                 width: calc(100vw - 20px);
             }
 
+            .ai-fab {
+                right: 14px;
+                bottom: calc(74px + env(safe-area-inset-bottom));
+                width: 48px;
+                height: 48px;
+            }
+
+            .ai-panel {
+                inset: auto 8px calc(130px + env(safe-area-inset-bottom)) 8px;
+                width: auto;
+                max-height: min(72dvh, 620px);
+            }
+
             .modal-panel {
                 align-items: end;
                 padding: 10px;
@@ -2137,6 +2280,22 @@
         </section>
     </main>
 
+    <button id="aiAssistantButton" class="ai-fab hidden" type="button" title="Nexa AI">AI</button>
+    <section id="aiPanel" class="ai-panel hidden">
+        <div class="ai-head">
+            <div>
+                <strong>Nexa AI</strong>
+                <small id="aiStatus">Uygulama asistanı hazır</small>
+            </div>
+            <button id="aiCloseButton" class="icon-btn" type="button">×</button>
+        </div>
+        <div id="aiMessages" class="ai-messages"></div>
+        <div class="ai-composer">
+            <textarea id="aiInput" placeholder="Nexa AI'ya yaz..."></textarea>
+            <button id="aiSendButton" class="send-btn" type="button">➤</button>
+        </div>
+    </section>
+
     <section id="storyPanel" class="story-panel hidden">
         <div class="story-box">
             <div class="story-head">
@@ -2247,6 +2406,10 @@
                         <span>Gizli sohbetleri göster</span>
                         <input id="unlockSecretChatsInput" type="checkbox">
                     </label>
+                    <label class="toggle-row">
+                        <span>AI +18/küfür filtresi</span>
+                        <input id="aiCensorInput" type="checkbox">
+                    </label>
                 </div>
                 <input id="secretPinInput" type="password" inputmode="numeric" maxlength="12" placeholder="Gizli sohbet PIN">
                 <button id="saveAppearanceButton" class="primary" type="button">Görünümü Kaydet</button>
@@ -2342,6 +2505,8 @@
         const THEME_KEY = "nexalineTheme";
         const SECRET_PIN_KEY = "nexalineSecretPin";
         const NOTIFICATION_LOG_KEY = "nexalineNotificationLog";
+        const AI_HISTORY_KEY = "nexalineAiHistory";
+        const AI_CENSOR_KEY = "nexalineAiCensor";
         const MESSAGE_TONES = {
             classic: [[660, 70], [880, 80]],
             soft: [[520, 110], [640, 80]],
@@ -2384,6 +2549,11 @@
             notifications: readStoredJson(NOTIFICATION_LOG_KEY, []),
             theme: localStorage.getItem(THEME_KEY) || "dark",
             lockedChatsUnlocked: false,
+            aiBusy: false,
+            aiMessages: readStoredJson(AI_HISTORY_KEY, []),
+            aiCensorEnabled: localStorage.getItem(AI_CENSOR_KEY) !== "off",
+            aiRevealedMessages: {},
+            aiStatus: null,
             disappearingSeconds: Number(localStorage.getItem("nexalineDisappearSeconds") || 0),
             chatPreferences: readStoredJson("nexalineChatPreferences", {}),
             outbox: readStoredJson("nexalineOutbox", []),
@@ -2537,6 +2707,10 @@
         }
 
         function closeTopLayerFromBack() {
+            if (!$("aiPanel").classList.contains("hidden")) {
+                closeAiPanel();
+                return true;
+            }
             if (!$("modalPanel").classList.contains("hidden")) {
                 closeModal();
                 return true;
@@ -2871,6 +3045,210 @@
             ]);
         }
 
+        function saveAiHistory() {
+            localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(state.aiMessages.slice(-40)));
+        }
+
+        function addAiMessage(role, text, actions = []) {
+            state.aiMessages.push({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                role,
+                text,
+                actions,
+                createdAt: new Date().toISOString()
+            });
+            saveAiHistory();
+            renderAiPanel();
+        }
+
+        function renderAiPanel() {
+            const list = $("aiMessages");
+            if (!list) return;
+            if (!state.aiMessages.length) {
+                list.innerHTML = `
+                    <div class="ai-bubble">Merhaba, ben Nexa AI. Sohbetleri özetleyebilir, mesaj taslağı hazırlayabilir, tema/sohbet ayarlarını düzenleyebilir ve riskli mesajları gizleyebilirim.</div>
+                    <div class="ai-quick">
+                        <button data-ai-quick="Bu sohbeti kısaca özetle">Sohbeti özetle</button>
+                        <button data-ai-quick="Son mesaja kısa ve kibar cevap hazırla">Cevap hazırla</button>
+                        <button data-ai-quick="AI sansür filtresini aç">Sansürü aç</button>
+                        <button data-ai-quick="Temayı açık tema yap">Açık tema</button>
+                    </div>
+                `;
+            } else {
+                list.innerHTML = state.aiMessages.map(message => `
+                    <div class="ai-bubble ${message.role === "user" ? "user" : ""}">
+                        ${escapeHtml(message.text)}
+                        ${message.actions?.length ? `<div class="ai-actions">${message.actions.map((action, index) => `<button data-ai-action="${escapeHtml(message.id)}:${index}" type="button">${escapeHtml(action.label || action.type)}</button>`).join("")}</div>` : ""}
+                    </div>
+                `).join("");
+            }
+            list.querySelectorAll("[data-ai-quick]").forEach(button => {
+                button.onclick = () => {
+                    $("aiInput").value = button.dataset.aiQuick;
+                    sendAiPrompt();
+                };
+            });
+            list.querySelectorAll("[data-ai-action]").forEach(button => {
+                button.onclick = () => {
+                    const [messageId, index] = button.dataset.aiAction.split(":");
+                    const message = state.aiMessages.find(item => item.id === messageId);
+                    const action = message?.actions?.[Number(index)];
+                    if (action) applyAiAction(action);
+                };
+            });
+            list.scrollTop = list.scrollHeight;
+            $("aiStatus").textContent = state.aiStatus
+                ? `${state.aiStatus.provider} • ${state.aiStatus.model}`
+                : "Uygulama asistanı hazır";
+            $("aiSendButton").disabled = state.aiBusy;
+        }
+
+        async function loadAiStatus() {
+            try {
+                const response = await fetch("/ai/status");
+                const data = await response.json();
+                if (data.ok) {
+                    state.aiStatus = data.ai;
+                    renderAiPanel();
+                }
+            } catch (error) {
+                state.aiStatus = { provider: "local", model: "nexaline-local" };
+            }
+        }
+
+        function openAiPanel() {
+            $("aiPanel").classList.remove("hidden");
+            pushAppHistory("ai");
+            loadAiStatus();
+            renderAiPanel();
+            setTimeout(() => $("aiInput").focus(), 80);
+        }
+
+        function closeAiPanel() {
+            $("aiPanel").classList.add("hidden");
+        }
+
+        function toggleAiPanel() {
+            if ($("aiPanel").classList.contains("hidden")) {
+                openAiPanel();
+            } else {
+                closeAiPanel();
+            }
+        }
+
+        async function sendAiPrompt() {
+            const input = $("aiInput");
+            const prompt = input.value.trim();
+            if (!prompt || state.aiBusy || !state.me) return;
+            input.value = "";
+            state.aiBusy = true;
+            addAiMessage("user", prompt);
+            renderAiPanel();
+            try {
+                const response = await fetch("/ai/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: state.me.username,
+                        prompt,
+                        chatId: state.activeChatId,
+                        timezoneOffsetMinutes: new Date().getTimezoneOffset()
+                    })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    addAiMessage("assistant", data.message || "AI yanıt veremedi.");
+                    return;
+                }
+                state.aiStatus = data.provider || state.aiStatus;
+                addAiMessage("assistant", data.reply || "Hazır.", data.actions || []);
+            } catch (error) {
+                addAiMessage("assistant", "AI bağlantısı kurulamadı. Yerel komutlar için tekrar deneyebilirsin.");
+            } finally {
+                state.aiBusy = false;
+                renderAiPanel();
+            }
+        }
+
+        function focusChatForAi(chatId) {
+            const chat = state.chats.find(item => item.id === chatId);
+            if (!chat) return null;
+            state.activeChatId = chat.id;
+            render();
+            openMobileChat();
+            return chat;
+        }
+
+        function applyAiAction(action) {
+            if (!action) return;
+            if (action.type === "set_theme") {
+                applyTheme(action.theme);
+                if ($("lightThemeInput")) $("lightThemeInput").checked = state.theme === "light";
+                showToast("Tema AI tarafından ayarlandı.");
+                return;
+            }
+            if (action.type === "set_censor") {
+                state.aiCensorEnabled = action.enabled !== false;
+                localStorage.setItem(AI_CENSOR_KEY, state.aiCensorEnabled ? "on" : "off");
+                renderActiveChat();
+                showToast(state.aiCensorEnabled ? "AI sansür filtresi açıldı." : "AI sansür filtresi kapandı.");
+                return;
+            }
+            if (action.type === "set_chat_pref") {
+                const chat = focusChatForAi(action.chatId);
+                if (!chat) return;
+                const prefs = chatPrefs(chat.id);
+                if (action.locked && !ensureSecretPin()) return;
+                ["pinned", "muted", "locked", "tone", "background"].forEach(key => {
+                    if (Object.prototype.hasOwnProperty.call(action, key)) prefs[key] = action[key];
+                });
+                saveChatPreferences();
+                render();
+                showToast("Sohbet ayarı AI önerisiyle uygulandı.");
+                return;
+            }
+            if (action.type === "draft_message") {
+                if (!focusChatForAi(action.chatId)) return;
+                $("messageInput").value = action.body || "";
+                $("messageInput").focus();
+                renderSmartReplies(activeChat());
+                showToast("Mesaj kutuya hazırlandı.");
+                return;
+            }
+            if (action.type === "schedule_message") {
+                const chat = focusChatForAi(action.chatId);
+                if (!chat) return;
+                const sendAt = new Date(action.sendAt);
+                if (Number.isNaN(sendAt.getTime())) {
+                    showToast("AI zaman bilgisini okuyamadı.");
+                    return;
+                }
+                socket.emit("message:schedule", {
+                    chatId: chat.id,
+                    body: action.body || "",
+                    sendAt: sendAt.toISOString(),
+                    expiresInSeconds: state.disappearingSeconds || 0
+                });
+                showToast("Zamanlı mesaj AI önerisiyle oluşturuldu.");
+            }
+        }
+
+        function aiModerationLabels(text) {
+            const lowered = (text || "").toLowerCase();
+            const labels = [];
+            if (/(\+18|porno|porn|cinsel|nude|nudes|seks|sex|erotik|onlyfans)/i.test(lowered)) labels.push("+18");
+            if (/(salak|aptal|gerizekalı|gerizekali|orospu|siktir|amk|\baq\b)/i.test(lowered)) labels.push("hakaret");
+            if (/https?:\/\//i.test(lowered) && /(bedava|kazand[ıi]n|t[ıi]kla|bonus)/i.test(lowered)) labels.push("spam");
+            return labels;
+        }
+
+        function shouldHideMessageWithAi(message) {
+            if (!state.aiCensorEnabled || !message?.body || message.sender === state.me?.username || state.aiRevealedMessages[message.id]) {
+                return [];
+            }
+            return aiModerationLabels(message.body);
+        }
+
         function createFilePicker({ label, accept, onFile }) {
             const wrap = document.createElement("div");
             wrap.className = "file-picker";
@@ -2995,6 +3373,8 @@
             state.bootReady = false;
             $("app").classList.add("hidden");
             $("app").classList.remove("chat-open", "keyboard-open");
+            $("aiAssistantButton").classList.add("hidden");
+            $("aiPanel").classList.add("hidden");
             $("authScreen").classList.remove("hidden");
             hideScreenTransition();
             updateAuthView();
@@ -3319,6 +3699,7 @@
             $("meAvatar").classList.add("online");
             $("meAvatar").onclick = () => showStoryForUser(state.me.username);
             $("meName").textContent = state.me.displayName;
+            $("aiAssistantButton").classList.remove("hidden");
             updateNotificationButton();
         }
 
@@ -4318,7 +4699,21 @@
                     bubble.appendChild(reply);
                 }
 
-                if (!message.deletedAt && message.body) {
+                const hiddenLabels = shouldHideMessageWithAi(message);
+                if (!message.deletedAt && hiddenLabels.length) {
+                    const warning = document.createElement("div");
+                    warning.className = "censored-message";
+                    warning.innerHTML = `<strong>AI bu mesajı gizledi</strong><span>${escapeHtml(hiddenLabels.join(", "))} içerik olabilir. İzin verirsen mesajı gösterebilirim.</span>`;
+                    const reveal = document.createElement("button");
+                    reveal.type = "button";
+                    reveal.textContent = "Mesajı göster";
+                    reveal.onclick = () => {
+                        state.aiRevealedMessages[message.id] = true;
+                        renderActiveChat();
+                    };
+                    warning.appendChild(reveal);
+                    bubble.appendChild(warning);
+                } else if (!message.deletedAt && message.body) {
                     const text = document.createElement("div");
                     text.textContent = message.body;
                     bubble.appendChild(text);
@@ -4328,7 +4723,7 @@
                     }
                 }
 
-                if (!message.deletedAt && message.attachment) {
+                if (!message.deletedAt && !hiddenLabels.length && message.attachment) {
                     bubble.appendChild(renderAttachment(message.attachment));
                 }
 
@@ -5175,6 +5570,7 @@
             $("hideEmailInput").checked = state.me.privacy?.emailHidden !== false;
             $("lightThemeInput").checked = state.theme === "light";
             $("unlockSecretChatsInput").checked = state.lockedChatsUnlocked;
+            $("aiCensorInput").checked = state.aiCensorEnabled;
             $("secretPinInput").value = "";
             $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
             state.profileImageDraft = state.me.profileImage || null;
@@ -5252,6 +5648,8 @@
 
         function saveAppearance() {
             applyTheme($("lightThemeInput").checked ? "light" : "dark");
+            state.aiCensorEnabled = $("aiCensorInput").checked;
+            localStorage.setItem(AI_CENSOR_KEY, state.aiCensorEnabled ? "on" : "off");
             const pin = $("secretPinInput").value.trim();
             let pinJustSaved = false;
             if (pin) {
@@ -6205,6 +6603,15 @@
         $("cameraButton").onclick = toggleCamera;
         $("switchCameraButton").onclick = switchCamera;
         $("modalCloseButton").onclick = closeModal;
+        $("aiAssistantButton").onclick = toggleAiPanel;
+        $("aiCloseButton").onclick = closeAiPanel;
+        $("aiSendButton").onclick = sendAiPrompt;
+        $("aiInput").addEventListener("keydown", event => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendAiPrompt();
+            }
+        });
         $("messageInput").addEventListener("input", () => {
             const chat = activeChat();
             if (chat) {
@@ -6477,6 +6884,7 @@
 
         applyTheme();
         updateNotificationButton();
+        renderAiPanel();
         updateAuthView();
         const rememberedUser = localStorage.getItem("nexalineUser");
         if (rememberedUser) {

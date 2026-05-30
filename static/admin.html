@@ -418,6 +418,7 @@
                 <div class="metric"><strong>${state.data.archives?.length || 0}</strong><small>Arşiv</small></div>
                 <div class="metric"><strong>${state.data.blocks?.length || 0}</strong><small>Engel</small></div>
                 <div class="metric"><strong>${(state.data.contactRequests?.length || 0) + (state.data.groupInvites?.length || 0)}</strong><small>İstek</small></div>
+                <div class="metric"><strong>${escapeHtml(state.data.ai?.provider || "local")}</strong><small>AI</small></div>
             `;
         }
 

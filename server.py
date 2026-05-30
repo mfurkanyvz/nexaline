@@ -1,5 +1,6 @@
 import os
 import ipaddress
+import json
 import re
 import socket
 import secrets
@@ -48,6 +49,9 @@ SCHEDULE_POLL_SECONDS = max(5, int(os.environ.get("SCHEDULE_POLL_SECONDS", "15")
 MAX_SCHEDULE_DAYS = max(1, int(os.environ.get("MAX_SCHEDULE_DAYS", "7")))
 MAX_ATTACHMENT_DATA_URL_CHARS = max(250_000, int(os.environ.get("MAX_ATTACHMENT_DATA_URL_CHARS", "5_500_000")))
 RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 3, int(os.environ.get("RECENT_MESSAGE_SCAN_LIMIT", "320")))
+AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "18")))
+AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "24")))
+AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
 scheduled_delivery_lock = threading.Lock()
 
 
@@ -1194,6 +1198,305 @@ def rtc_servers():
     return servers
 
 
+AI_SYSTEM_PROMPT = """Sen Nexa AI'sin. NexaLine mesajlasma uygulamasinin icinde calisan yardimci asistansin.
+Kullaniciya Turkce, kisa, net ve guvenli cevap ver. Sohbetleri ozetleyebilir, cevap taslagi hazirlayabilir,
+uygulama ayarlarini aciklayabilir ve izinli uygulama eylemleri onerebilirsin.
+Mesaj gonderme, silme, engelleme, kilitleme, tema degistirme ve zamanlama gibi islemleri kendin yaptigini soyleme;
+uygulama bunlari kullanici onayi ile calistirir. Bilmedigin veya internette dogrulanmasi gereken konuda eminmis gibi davranma."""
+
+ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex", "erotik", "onlyfans"}
+ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "siktir", "amk", "aq"}
+
+
+def ai_provider_status():
+    provider = (os.environ.get("AI_PROVIDER") or "auto").strip().lower()
+    if provider in {"gemini", "google"} or (provider == "auto" and os.environ.get("GEMINI_API_KEY")):
+        return {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"), "ready": bool(os.environ.get("GEMINI_API_KEY"))}
+    if provider in {"openai", "openai-compatible"} or (provider == "auto" and os.environ.get("OPENAI_API_KEY")):
+        return {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY"))}
+    if provider == "ollama" or os.environ.get("OLLAMA_BASE_URL"):
+        return {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": True}
+    return {"provider": "local", "model": "nexaline-local", "ready": True}
+
+
+def compact_ai_message(message):
+    attachment = message.get("attachment") if isinstance(message, dict) else None
+    attachment_label = None
+    if isinstance(attachment, dict):
+        attachment_label = attachment.get("transcript") or attachment.get("name") or attachment.get("type")
+    return {
+        "sender": message.get("sender"),
+        "body": (message.get("body") or "")[:900],
+        "attachment": attachment_label,
+        "createdAt": message.get("createdAt"),
+    }
+
+
+def ai_context_for_user(username, chat_id=None):
+    chats = visible_chats(username)
+    active = next((chat for chat in chats if chat["id"] == chat_id), None) if chat_id else None
+    if not active and chats:
+        active = chats[0]
+    return {
+        "user": {"username": username, "displayName": private_user(username).get("displayName")},
+        "activeChat": None if not active else {
+            "id": active["id"],
+            "title": active["title"],
+            "type": active["type"],
+            "members": [member["displayName"] for member in active.get("members", [])],
+            "messages": [compact_ai_message(message) for message in active.get("messages", [])[-AI_MAX_CONTEXT_MESSAGES:]],
+        },
+        "chats": [
+            {
+                "id": chat["id"],
+                "title": chat["title"],
+                "type": chat["type"],
+                "members": [member["displayName"] for member in chat.get("members", [])],
+                "lastMessage": compact_ai_message(chat["lastMessage"]) if chat.get("lastMessage") else None,
+            }
+            for chat in chats[:AI_MAX_CHATS]
+        ],
+        "capabilities": [
+            "sohbet ozeti",
+            "cevap taslagi",
+            "tema degistirme",
+            "sohbet sabitleme/sessize alma/gizleme",
+            "mesaj zamanlama",
+            "gelen mesaji +18/kufur/spam icin uyarmali gizleme",
+        ],
+    }
+
+
+def text_has_any(value, terms):
+    lowered = (value or "").lower()
+    return any(term in lowered for term in terms)
+
+
+def ai_moderation_labels(text_value):
+    labels = []
+    if text_has_any(text_value, ADULT_TERMS):
+        labels.append("adult")
+    if text_has_any(text_value, ABUSE_TERMS):
+        labels.append("abuse")
+    if re.search(r"https?://\S+", text_value or "", re.IGNORECASE) and re.search(r"bedava|kazand[ıi]n|t[ıi]kla|bonus", text_value or "", re.IGNORECASE):
+        labels.append("spam")
+    return labels
+
+
+def find_chat_for_ai(username, prompt, active_chat_id=None):
+    chats = visible_chats(username)
+    if active_chat_id:
+        active = next((chat for chat in chats if chat["id"] == active_chat_id), None)
+        if active:
+            return active
+    prompt_folded = (prompt or "").casefold()
+    for chat in chats:
+        title = (chat.get("title") or "").casefold()
+        if title and title in prompt_folded:
+            return chat
+        for member in chat.get("members", []):
+            name = (member.get("displayName") or member.get("username") or "").casefold()
+            if name and name in prompt_folded:
+                return chat
+    return None
+
+
+def extract_quoted_text(prompt):
+    match = re.search(r"[\"“']([^\"”']{1,1000})[\"”']", prompt or "")
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"(?:mesaj|de ki|şunu|sunu|bunu)\s*[:\-]\s*(.+)", prompt or "", re.IGNORECASE)
+    if match:
+        return match.group(1).strip()[:1000]
+    return ""
+
+
+def parse_ai_schedule(prompt, timezone_offset_minutes=0):
+    hour_match = re.search(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b", prompt or "")
+    if not hour_match:
+        return None
+    now_utc = datetime.now(timezone.utc)
+    local_tz = timezone(timedelta(minutes=-int(timezone_offset_minutes or 0)))
+    local_now = now_utc.astimezone(local_tz)
+    date_value = local_now.date()
+    lowered = (prompt or "").lower()
+    if "yarın" in lowered or "yarin" in lowered:
+        date_value = date_value + timedelta(days=1)
+    else:
+        date_match = re.search(r"\b(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?\b", prompt or "")
+        if date_match:
+            day = int(date_match.group(1))
+            month = int(date_match.group(2))
+            year = int(date_match.group(3) or local_now.year)
+            if year < 100:
+                year += 2000
+            try:
+                date_value = datetime(year, month, day).date()
+            except ValueError:
+                return None
+    scheduled = datetime(date_value.year, date_value.month, date_value.day, int(hour_match.group(1)), int(hour_match.group(2)), tzinfo=local_tz)
+    if scheduled <= local_now:
+        scheduled = scheduled + timedelta(days=1)
+    return scheduled.isoformat()
+
+
+def ai_detect_actions(prompt, username, active_chat_id=None, timezone_offset_minutes=0):
+    actions = []
+    lowered = (prompt or "").lower()
+    chat = find_chat_for_ai(username, prompt, active_chat_id)
+    if any(word in lowered for word in ["açık tema", "acik tema", "light theme", "beyaz tema"]):
+        actions.append({"type": "set_theme", "theme": "light", "label": "Temayı açık yap"})
+    if any(word in lowered for word in ["koyu tema", "dark theme", "gece modu", "siyah tema"]):
+        actions.append({"type": "set_theme", "theme": "dark", "label": "Temayı koyu yap"})
+    if any(word in lowered for word in ["sansür", "sansur", "+18", "filtre"]):
+        actions.append({"type": "set_censor", "enabled": True, "label": "AI sansür filtresini aç"})
+    if chat and any(word in lowered for word in ["sabitle", "pinle"]):
+        actions.append({"type": "set_chat_pref", "chatId": chat["id"], "pinned": True, "label": f"{chat['title']} sohbetini sabitle"})
+    if chat and any(word in lowered for word in ["sessize al", "sustur", "bildirim kapat"]):
+        actions.append({"type": "set_chat_pref", "chatId": chat["id"], "muted": True, "label": f"{chat['title']} sohbetini sessize al"})
+    if chat and any(word in lowered for word in ["gizli sohbet", "kilitle", "sakla"]):
+        actions.append({"type": "set_chat_pref", "chatId": chat["id"], "locked": True, "label": f"{chat['title']} sohbetini kilitle"})
+    body = extract_quoted_text(prompt)
+    wants_message = any(word in lowered for word in ["mesaj at", "mesaj gönder", "mesaj gonder", "yaz", "cevap hazırla", "cevap hazirla"])
+    if chat and wants_message:
+        body = body or "Mesaj taslağını buraya yazabilirsin."
+        send_at = parse_ai_schedule(prompt, timezone_offset_minutes)
+        if send_at:
+            actions.append({"type": "schedule_message", "chatId": chat["id"], "body": body, "sendAt": send_at, "label": f"{chat['title']} için zamanlı mesaj hazırla"})
+        else:
+            actions.append({"type": "draft_message", "chatId": chat["id"], "body": body, "label": f"{chat['title']} için mesajı kutuya hazırla"})
+    return actions
+
+
+def local_ai_reply(prompt, context, actions):
+    active = context.get("activeChat") or {}
+    messages = active.get("messages") or []
+    lowered = (prompt or "").lower()
+    if "özet" in lowered or "ozet" in lowered:
+        if not messages:
+            return "Bu sohbet için özet çıkaracak kadar mesaj yok."
+        lines = [f"{item.get('sender')}: {item.get('body') or item.get('attachment') or 'medya'}" for item in messages[-8:]]
+        return "Kısa özet: " + " | ".join(lines)[:1200]
+    if "ne dedi" in lowered or "anlat" in lowered:
+        last = next((item for item in reversed(messages) if item.get("sender") != context.get("user", {}).get("username")), None)
+        if last:
+            return f"Son mesajın kısa anlamı: {last.get('body') or last.get('attachment') or 'medya gönderilmiş'}"
+    labels = ai_moderation_labels(prompt)
+    if labels:
+        return "Bu metinde AI filtresine takılabilecek içerik var: " + ", ".join(labels) + ". İstersen gizleme/uyarı modunu açabilirim."
+    if actions:
+        return "Bunu uygulayabilirim. Güvenlik için aşağıdaki eylemi onaylaman yeterli."
+    return "AI çekirdeği hazır. Daha derin genel bilgi ve araştırma için GEMINI_API_KEY, OPENAI_API_KEY veya OLLAMA_BASE_URL eklenirse ChatGPT/Gemini benzeri cevap kalitesi açılır. Şu an uygulama komutları, özet, taslak ve sansür tarafını yerel modda yapabiliyorum."
+
+
+def web_research_if_requested(prompt):
+    if not re.search(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", prompt or "", re.IGNORECASE):
+        return []
+    query = re.sub(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", " ", prompt or "", flags=re.IGNORECASE).strip()
+    if len(query) < 3:
+        return []
+    try:
+        response = requests.get("https://api.duckduckgo.com/", params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"}, timeout=6)
+        response.raise_for_status()
+        data = response.json()
+    except Exception:
+        return []
+    results = []
+    if data.get("AbstractText"):
+        results.append({"title": data.get("Heading") or query, "snippet": data.get("AbstractText"), "url": data.get("AbstractURL")})
+    for item in data.get("RelatedTopics", [])[:6]:
+        if isinstance(item, dict) and item.get("Text"):
+            results.append({"title": item.get("FirstURL") or "Kaynak", "snippet": item.get("Text"), "url": item.get("FirstURL")})
+    return results[:5]
+
+
+def call_gemini_ai(prompt, context_text, research):
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY missing")
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    response = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        params={"key": key},
+        json={
+            "systemInstruction": {"parts": [{"text": AI_SYSTEM_PROMPT}]},
+            "contents": [{"role": "user", "parts": [{"text": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"}]}],
+            "generationConfig": {"temperature": 0.45, "maxOutputTokens": 900},
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    parts = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
+    return "\n".join(part.get("text", "") for part in parts).strip()
+
+
+def call_openai_ai(prompt, context_text, research):
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY missing")
+    base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    response = requests.post(
+        f"{base_url}/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "temperature": 0.45,
+            "max_tokens": 900,
+            "messages": [
+                {"role": "system", "content": AI_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"},
+            ],
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
+def call_ollama_ai(prompt, context_text, research):
+    base_url = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+    model = os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2"))
+    response = requests.post(
+        f"{base_url}/api/chat",
+        json={
+            "model": model,
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": AI_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"},
+            ],
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json().get("message", {}).get("content", "").strip()
+
+
+def generate_ai_reply(prompt, context, actions):
+    provider = ai_provider_status()
+    context_text = json.dumps(context, ensure_ascii=False, indent=2)
+    research = web_research_if_requested(prompt)
+    try:
+        if provider["provider"] == "gemini" and provider["ready"]:
+            reply = call_gemini_ai(prompt, context_text, research)
+        elif provider["provider"] == "openai" and provider["ready"]:
+            reply = call_openai_ai(prompt, context_text, research)
+        elif provider["provider"] == "ollama":
+            reply = call_ollama_ai(prompt, context_text, research)
+        else:
+            reply = local_ai_reply(prompt, context, actions)
+    except Exception as error:
+        app.logger.warning("AI provider failed: %s", error)
+        provider = {"provider": "local", "model": "nexaline-local", "ready": True}
+        reply = local_ai_reply(prompt, context, actions)
+    if research and "Kaynak" not in reply:
+        sources = "\n".join(f"- {item.get('title')}: {item.get('url')}" for item in research if item.get("url"))
+        if sources:
+            reply = f"{reply}\n\nKaynaklar:\n{sources}"
+    return reply, provider, research
+
+
 @app.route("/")
 def index():
     response = send_from_directory("static", "client.html")
@@ -1245,6 +1548,51 @@ def health():
 @app.route("/rtc-config")
 def rtc_config():
     return jsonify({"ok": True, "iceServers": rtc_servers(), "secureContext": request.is_secure})
+
+
+@app.route("/ai/status")
+def ai_status():
+    status = ai_provider_status()
+    return jsonify({"ok": True, "ai": status, "moderation": True, "actions": True})
+
+
+@app.route("/ai/chat", methods=["POST"])
+def ai_chat():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    prompt = (data.get("prompt") or "").strip()
+    chat_id = data.get("chatId")
+
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    if not prompt:
+        return jsonify({"ok": False, "message": "AI için bir şey yaz."}), 400
+    if len(prompt) > 2500:
+        return jsonify({"ok": False, "message": "AI isteği çok uzun."}), 400
+
+    context = ai_context_for_user(username, chat_id)
+    actions = ai_detect_actions(prompt, username, chat_id, data.get("timezoneOffsetMinutes", 0))
+    reply, provider, research = generate_ai_reply(prompt, context, actions)
+    return jsonify(
+        {
+            "ok": True,
+            "reply": reply,
+            "actions": actions,
+            "provider": provider,
+            "research": research,
+        }
+    )
+
+
+@app.route("/ai/moderate", methods=["POST"])
+def ai_moderate():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    text_value = (data.get("text") or "")[:4000]
+    labels = ai_moderation_labels(text_value)
+    return jsonify({"ok": True, "labels": labels, "blocked": bool(labels), "reason": ", ".join(labels)})
 
 
 @app.route("/register", methods=["POST"])
@@ -1844,6 +2192,7 @@ def admin_state():
             "contactRequests": contact_requests,
             "groupInvites": group_invites,
             "scheduledMessages": [admin_scheduled_message_to_dict(row) for row in ScheduledMessage.query.order_by(ScheduledMessage.send_at.asc()).all()],
+            "ai": ai_provider_status(),
             "serverIp": request.host,
             "yourIp": request_ip(),
             "localAdmin": is_local_admin_request(),
