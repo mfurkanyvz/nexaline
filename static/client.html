@@ -614,6 +614,7 @@
         }
 
         .nav-tab {
+            position: relative;
             display: flex;
             width: 48px;
             height: 48px;
@@ -651,6 +652,28 @@
             text-overflow: ellipsis;
             white-space: nowrap;
             line-height: 1.15;
+        }
+
+        .nav-badge {
+            position: absolute;
+            top: 4px;
+            right: 5px;
+            display: none;
+            min-width: 17px;
+            height: 17px;
+            place-items: center;
+            padding: 0 5px;
+            border-radius: 999px;
+            color: #fff;
+            background: linear-gradient(135deg, var(--red), var(--blue));
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+            box-shadow: 0 0 0 2px rgba(9, 12, 13, 0.9);
+        }
+
+        .nav-badge.visible {
+            display: grid;
         }
 
         body.show-desktop-nav-labels .nav-tab {
@@ -705,6 +728,15 @@
             font-weight: 800;
             text-transform: none;
             letter-spacing: 0;
+        }
+
+        .section-mini-title {
+            padding: 12px 10px 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .archive-shortcut {
@@ -795,6 +827,11 @@
 
         .chat-item.active {
             background: var(--panel-3);
+        }
+
+        .contact-item.active {
+            background: linear-gradient(135deg, color-mix(in srgb, var(--red), transparent 84%), color-mix(in srgb, var(--blue), transparent 88%));
+            box-shadow: inset 3px 0 0 var(--red);
         }
 
         .chat-item:hover,
@@ -922,6 +959,164 @@
             background:
                 linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(47, 140, 255, 0.05)),
                 rgba(3, 5, 9, 0.18);
+        }
+
+        .messages.profile-mode {
+            display: block;
+            padding: clamp(16px, 3vw, 34px);
+            background:
+                radial-gradient(circle at 20% 12%, color-mix(in srgb, var(--red), transparent 78%), transparent 28%),
+                radial-gradient(circle at 82% 18%, color-mix(in srgb, var(--blue), transparent 80%), transparent 30%),
+                linear-gradient(145deg, rgba(6, 8, 13, 0.88), rgba(15, 18, 24, 0.96));
+        }
+
+        .profile-page {
+            display: grid;
+            gap: 16px;
+            width: min(920px, 100%);
+            margin: 0 auto;
+            animation: panelEnter 260ms ease both;
+        }
+
+        .profile-hero {
+            position: relative;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 18px;
+            align-items: center;
+            overflow: hidden;
+            padding: clamp(16px, 3vw, 24px);
+            border: 1px solid color-mix(in srgb, var(--red), transparent 68%);
+            border-radius: 14px;
+            background:
+                linear-gradient(135deg, color-mix(in srgb, var(--red), transparent 82%), color-mix(in srgb, var(--blue), transparent 84%)),
+                rgba(255, 255, 255, 0.045);
+            box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+        }
+
+        .profile-hero::after {
+            position: absolute;
+            inset: auto -40px -70px auto;
+            width: 180px;
+            height: 180px;
+            content: "";
+            border-radius: 50%;
+            background: radial-gradient(circle, color-mix(in srgb, var(--red), transparent 62%), transparent 70%);
+            filter: blur(2px);
+        }
+
+        .profile-hero .avatar {
+            width: clamp(78px, 12vw, 124px);
+            height: clamp(78px, 12vw, 124px);
+            flex-basis: clamp(78px, 12vw, 124px);
+            font-size: clamp(24px, 4vw, 38px);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--red), transparent 62%), 0 18px 42px rgba(0, 0, 0, 0.32);
+        }
+
+        .profile-title {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 7px;
+            min-width: 0;
+        }
+
+        .profile-title h2 {
+            margin: 0;
+            overflow-wrap: anywhere;
+            color: #fff;
+            font-size: clamp(24px, 4vw, 38px);
+            line-height: 1.05;
+        }
+
+        .profile-title p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .profile-chip-row,
+        .profile-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .profile-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.10);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .profile-stat,
+        .profile-about {
+            min-width: 0;
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.055);
+        }
+
+        .profile-stat span,
+        .profile-about span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .profile-stat strong {
+            display: block;
+            margin-top: 7px;
+            overflow-wrap: anywhere;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .profile-about {
+            display: grid;
+            gap: 8px;
+        }
+
+        .profile-about p {
+            margin: 0;
+            overflow-wrap: anywhere;
+            line-height: 1.45;
+        }
+
+        .profile-actions {
+            padding: 4px 0 0;
+        }
+
+        .profile-action {
+            min-height: 42px;
+            padding: 0 14px;
+            border-radius: 999px;
+            color: var(--text);
+            background: var(--panel-2);
+            font-weight: 900;
+        }
+
+        .profile-action.primary {
+            color: #fff;
+            background: linear-gradient(135deg, var(--red), var(--blue));
+        }
+
+        .profile-action.danger {
+            color: #fff;
+            background: var(--red);
         }
 
         .bubble {
@@ -1245,6 +1440,30 @@
         .attachment-option small {
             color: var(--muted);
             font-size: 12px;
+        }
+
+        .poll-card {
+            display: grid;
+            gap: 8px;
+            min-width: min(280px, 100%);
+            margin-top: 6px;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.20);
+        }
+
+        .poll-option {
+            padding: 9px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            color: var(--text);
+            text-align: left;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .poll-option.selected {
+            border-color: var(--red);
+            background: color-mix(in srgb, var(--red), transparent 78%);
         }
 
         .smart-replies {
@@ -2232,6 +2451,26 @@
                 padding-bottom: 18px;
             }
 
+            .messages.profile-mode {
+                padding: 14px;
+            }
+
+            .profile-hero {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                text-align: center;
+                border-radius: 12px;
+            }
+
+            .profile-chip-row,
+            .profile-actions {
+                justify-content: center;
+            }
+
+            .profile-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .bubble {
                 max-width: 88%;
                 border-radius: var(--admin-mobile-bubble-radius);
@@ -2336,6 +2575,11 @@
 
             .nav-tab.active {
                 background: rgba(255, 255, 255, 0.15);
+            }
+
+            .nav-badge {
+                top: 2px;
+                right: 3px;
             }
 
             :root[data-theme="light"] .nav-tabs {
@@ -2882,7 +3126,27 @@
             classic: [[660, 70], [880, 80]],
             soft: [[520, 110], [640, 80]],
             bright: [[820, 80], [1100, 90]],
+            pulse: [[500, 60], [500, 60], [760, 90]],
+            ripple: [[620, 70], [720, 70], [840, 90]],
+            glass: [[980, 55], [1240, 70]],
+            deep: [[360, 120], [460, 100]],
+            neon: [[740, 55], [980, 55], [1320, 70]],
+            calm: [[440, 140]],
+            notify: [[700, 80], [540, 80], [700, 80]],
             silent: []
+        };
+        const TONE_LABELS = {
+            classic: "Klasik",
+            soft: "Yumuşak",
+            bright: "Parlak",
+            pulse: "Nabız",
+            ripple: "Dalga",
+            glass: "Cam",
+            deep: "Derin",
+            neon: "Neon",
+            calm: "Sakin",
+            notify: "Bildirim",
+            silent: "Sessiz"
         };
         const CHAT_BACKGROUNDS = {
             none: "Varsayılan",
@@ -2999,8 +3263,10 @@
             paneTransitionHideTimer: null,
             activeSection: "chats",
             activeChatId: null,
+            activeProfileUsername: null,
             newMessageMarkers: {},
             openNextChat: false,
+            pendingViewOnce: false,
             archiveUnlocked: false,
             archiveItems: [],
             settingsView: "menu",
@@ -3311,9 +3577,15 @@
                 closeMobileChat();
                 return true;
             }
+            if (state.activeProfileUsername) {
+                state.activeProfileUsername = null;
+                renderActiveChat();
+                return true;
+            }
             if (state.activeSection !== "chats") {
                 state.activeSection = "chats";
                 state.activeChatId = null;
+                state.activeProfileUsername = null;
                 render();
                 return true;
             }
@@ -3476,6 +3748,7 @@
             }
             clearActiveNewMarker();
             state.activeSection = "chats";
+            state.activeProfileUsername = null;
             state.activeChatId = AI_CHAT_ID;
             render();
             openMobileChat();
@@ -3908,6 +4181,7 @@
             const chat = state.chats.find(item => item.id === chatId);
             if (!chat) return null;
             state.activeSection = chat.type === "group" ? "groups" : "chats";
+            state.activeProfileUsername = null;
             state.activeChatId = chat.id;
             render();
             openMobileChat();
@@ -4335,6 +4609,29 @@
             return "none";
         }
 
+        function userByUsername(username) {
+            return state.users.find(user => user.username === username) || (state.me?.username === username ? state.me : null);
+        }
+
+        function directChatWith(username) {
+            return state.chats.find(chat => chat.type === "direct" && chat.members.some(member => member.username === username));
+        }
+
+        function openUserProfilePane(user) {
+            if (!user) return;
+            state.activeProfileUsername = user.username;
+            state.activeChatId = null;
+            clearActiveNewMarker();
+            renderSections();
+            renderActiveChat();
+            openMobileChat();
+        }
+
+        function closeProfilePane() {
+            state.activeProfileUsername = null;
+            renderActiveChat();
+        }
+
         function hydrateRealtimeState(data) {
             state.contactRequests = data.contactRequests || state.contactRequests || [];
             state.groupInvites = data.groupInvites || state.groupInvites || [];
@@ -4358,6 +4655,7 @@
         function closeMobileChat() {
             clearActiveNewMarker();
             state.activeChatId = null;
+            state.activeProfileUsername = null;
             $("app").classList.remove("chat-open");
             render();
         }
@@ -4377,6 +4675,7 @@
             state.aiSettings = defaultAiSettings();
             state.aiAvatarDraft = "";
             state.activeChatId = null;
+            state.activeProfileUsername = null;
             state.bootReady = false;
             $("app").classList.add("hidden");
             $("app").classList.remove("chat-open", "keyboard-open");
@@ -4761,6 +5060,37 @@
             return window.nexalineDesign?.logoUrl || DEFAULT_BRAND_LOGO;
         }
 
+        function setNavBadge(section, count) {
+            const tab = document.querySelector(`.nav-tab[data-section="${section}"]`);
+            if (!tab) return;
+            let badge = tab.querySelector(".nav-badge");
+            if (!badge) {
+                badge = document.createElement("span");
+                badge.className = "nav-badge";
+                tab.appendChild(badge);
+            }
+            badge.textContent = count > 99 ? "99+" : String(count || "");
+            badge.classList.toggle("visible", count > 0);
+        }
+
+        function updateNavBadges() {
+            const chatUnread = state.chats
+                .filter(chat => chat.type !== "group")
+                .reduce((total, chat) => total + unreadCount(chat), 0);
+            const groupUnread = state.chats
+                .filter(chat => chat.type === "group")
+                .reduce((total, chat) => total + unreadCount(chat), 0) + state.groupInvites.filter(invite => invite.status === "pending").length;
+            const incomingRequests = state.contactRequests.filter(item => item.status === "pending" && item.to?.username === state.me?.username).length;
+            const missedCalls = state.callLogs.filter(log => log.status === "missed").length;
+            const activeStories = state.stories.filter(story => story.username !== state.me?.username).length;
+            setNavBadge("chats", chatUnread);
+            setNavBadge("groups", groupUnread);
+            setNavBadge("friends", incomingRequests);
+            setNavBadge("calls", missedCalls);
+            setNavBadge("stories", activeStories);
+            setNavBadge("contacts", 0);
+        }
+
         function renderSections() {
             const labels = {
                 chats: designText("chats", "Sohbetler"),
@@ -4781,6 +5111,7 @@
             $("archiveShortcutButton").classList.toggle("hidden", state.activeSection !== "chats");
             $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
             $("newChatFab").classList.toggle("hidden", state.activeSection !== "chats");
+            updateNavBadges();
             updateAiAssistantVisibility();
         }
 
@@ -5009,6 +5340,7 @@
                         if (marker) {
                             state.newMessageMarkers[chat.id] = marker;
                         }
+                        state.activeProfileUsername = null;
                         state.activeChatId = chat.id;
                         render();
                         openMobileChat();
@@ -5118,6 +5450,7 @@
                         if (marker) {
                             state.newMessageMarkers[chat.id] = marker;
                         }
+                        state.activeProfileUsername = null;
                         state.activeChatId = chat.id;
                         render();
                         openMobileChat();
@@ -5408,15 +5741,98 @@
 
         function startChatWithUser(user) {
             if (!user) return;
+            state.activeProfileUsername = null;
             state.openNextChat = true;
             socket.emit("chat:create", { target: user.username });
+        }
+
+        function startProfileCall(user, audioOnly) {
+            if (contactStatus(user.username) !== "accepted") {
+                showToast("Arama için önce arkadaş olmalısın.");
+                return;
+            }
+            if (!user.online) {
+                showToast("Kişi çevrim dışı, arama başlatılamadı.");
+                return;
+            }
+            const chat = directChatWith(user.username);
+            if (!chat) {
+                state.openNextChat = true;
+                socket.emit("chat:create", { target: user.username });
+                showToast("Sohbet hazırlanıyor. Açılınca aramayı başlatabilirsin.");
+                return;
+            }
+            state.activeProfileUsername = null;
+            state.activeSection = "chats";
+            state.activeChatId = chat.id;
+            render();
+            openMobileChat();
+            setTimeout(() => startCall(audioOnly), 0);
+        }
+
+        function openFriendRemovalMenu(user) {
+            openModal("Arkadaşlıktan çıkar", body => {
+                const text = document.createElement("p");
+                text.textContent = `${user.displayName} ile arkadaşlığı kaldırmak istiyorsan eski sohbet için ne yapılacağını seç. Arkadaşlıktan çıktıktan sonra karşılıklı mesaj gönderimi kapanır.`;
+                body.appendChild(text);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Sohbet Kalsın",
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("contact:remove", { username: user.username, mode: "keep" });
+                    }
+                },
+                {
+                    label: "Arşive Al",
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("contact:remove", { username: user.username, mode: "archive" });
+                    }
+                },
+                {
+                    label: "Kalıcı Sil",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        socket.emit("contact:remove", { username: user.username, mode: "permanent" });
+                    }
+                }
+            ]);
         }
 
         function renderFriends() {
             const friendList = $("friendList");
             friendList.innerHTML = "";
+            const incoming = state.contactRequests
+                .filter(item => item.status === "pending" && item.to?.username === state.me.username)
+                .map(item => item.from)
+                .filter(Boolean);
             const friends = acceptedFriends();
-            if (!friends.length) {
+            if (incoming.length) {
+                const header = document.createElement("div");
+                header.className = "section-mini-title";
+                header.textContent = "Yeni istekler";
+                friendList.appendChild(header);
+                incoming.forEach(user => {
+                    const button = document.createElement("button");
+                    button.className = "contact-item" + (state.activeProfileUsername === user.username ? " active" : "");
+                    button.type = "button";
+                    button.onclick = () => openUserProfilePane(user);
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (user.online ? " online" : "");
+                    setAvatar(avatar, user, user.displayName);
+                    const body = document.createElement("div");
+                    body.innerHTML = `<strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">Profilini incele, kabul et veya reddet.</div>`;
+                    const badge = document.createElement("span");
+                    badge.className = "badge";
+                    badge.textContent = "!";
+                    button.append(avatar, body, badge);
+                    friendList.appendChild(button);
+                });
+            }
+            if (!friends.length && !incoming.length) {
                 const empty = document.createElement("button");
                 empty.className = "contact-item";
                 empty.type = "button";
@@ -5429,11 +5845,18 @@
                 friendList.appendChild(empty);
                 return;
             }
+            if (friends.length) {
+                const header = document.createElement("div");
+                header.className = "section-mini-title";
+                header.textContent = "Arkadaşlarım";
+                friendList.appendChild(header);
+            }
             friends.forEach(user => {
                 const button = document.createElement("button");
                 button.className = "contact-item";
                 button.type = "button";
-                button.onclick = () => startChatWithUser(user);
+                button.onclick = () => openUserProfilePane(user);
+                button.classList.toggle("active", state.activeProfileUsername === user.username);
 
                 const avatar = document.createElement("div");
                 avatar.className = "avatar" + (user.online ? " online" : "");
@@ -5507,6 +5930,7 @@
                     const button = document.createElement("button");
                     button.className = "contact-item";
                     button.onclick = () => handleContactAction(user);
+                    button.classList.toggle("active", state.activeProfileUsername === user.username);
 
                     const avatar = document.createElement("div");
                     avatar.className = "avatar" + (user.online ? " online" : "");
@@ -5552,7 +5976,7 @@
         }
 
         function handleContactAction(user) {
-            openUserDetail(user);
+            openUserProfilePane(user);
         }
 
         function openBlockMenu(user) {
@@ -5602,6 +6026,7 @@
                         row.append(avatar, text, document.createElement("span"));
                         row.onclick = () => {
                             state.activeChatId = chat.id;
+                            state.activeProfileUsername = null;
                             closeModal();
                             render();
                             startCall(true);
@@ -5812,9 +6237,128 @@
             wrap.classList.toggle("hidden", !wrap.children.length);
         }
 
-        function renderActiveChat() {
-            const chat = activeChat();
+        function renderProfilePane(user) {
             const messageBox = $("messages");
+            document.querySelector(".chat-top").classList.remove("empty-state");
+            $("emptyChat").classList.add("hidden");
+            document.querySelector(".composer").classList.add("hidden");
+            $("smartReplies").classList.add("hidden");
+            $("backButton").classList.remove("hidden");
+            $("groupMembersButton").classList.remove("visible");
+            $("leaveGroupButton").classList.add("hidden");
+            $("chatPrefsButton").classList.add("hidden");
+            $("callButton").classList.add("hidden");
+            $("videoButton").classList.add("hidden");
+            $("activeTitle").textContent = user.displayName;
+            $("activeStatus").textContent = contactLine(user);
+            $("activeStatus").onclick = null;
+            setAvatar($("activeAvatar"), user, user.displayName);
+            $("activeAvatar").classList.toggle("online", Boolean(user.online));
+            $("activeAvatar").onclick = () => showStoryForUser(user.username);
+            $("activeTitle").onclick = null;
+            messageBox.innerHTML = "";
+            messageBox.classList.add("profile-mode");
+            messageBox.dataset.bg = "none";
+
+            const status = contactStatus(user.username);
+            const requestRow = contactRequestWith(user.username);
+            const joinedText = user.createdAt ? new Date(user.createdAt).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }) : "Bilinmiyor";
+            const seenText = user.online
+                ? "Çevrim içi"
+                : user.lastSeen
+                    ? `Son görülme ${relativeTime(user.lastSeen)}`
+                    : "Son görülme kapalı";
+            const emailText = user.email || (user.privacy?.emailHidden ? "Gmail gizli" : "Gmail yok");
+            const relationText = {
+                accepted: "Arkadaşın",
+                incoming: "İstek geldi",
+                outgoing: "İstek bekliyor",
+                blocked: "Engellendi",
+                none: "Henüz arkadaş değil"
+            }[status] || "Henüz arkadaş değil";
+
+            const page = document.createElement("section");
+            page.className = "profile-page";
+
+            const hero = document.createElement("div");
+            hero.className = "profile-hero";
+            const heroAvatar = document.createElement("div");
+            heroAvatar.className = "avatar" + (user.online ? " online" : "");
+            setAvatar(heroAvatar, user, user.displayName);
+            const title = document.createElement("div");
+            title.className = "profile-title";
+            title.innerHTML = `
+                <h2>${escapeHtml(user.displayName)}</h2>
+                <p>${escapeHtml(user.about || "NexaLine kullanıyor.")}</p>
+                <div class="profile-chip-row">
+                    <span class="profile-chip">${escapeHtml(relationText)}</span>
+                    <span class="profile-chip">${Number(user.points || 0)} puan</span>
+                    <span class="profile-chip">${user.online ? "Aktif" : "Uygun değil"}</span>
+                </div>
+            `;
+            hero.append(heroAvatar, title);
+
+            const grid = document.createElement("div");
+            grid.className = "profile-grid";
+            [
+                ["Puan", `${Number(user.points || 0)} puan`],
+                ["Katılma", joinedText],
+                ["Son Görülme", seenText],
+                ["Gmail", emailText]
+            ].forEach(([label, value]) => {
+                const card = document.createElement("div");
+                card.className = "profile-stat";
+                card.innerHTML = `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`;
+                grid.appendChild(card);
+            });
+
+            const about = document.createElement("div");
+            about.className = "profile-about";
+            about.innerHTML = `<span>Hakkında</span><p>${escapeHtml(user.about || "Henüz hakkında yazısı yok.")}</p>`;
+
+            const actions = document.createElement("div");
+            actions.className = "profile-actions";
+            const addAction = (label, kind, handler) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `profile-action ${kind || ""}`.trim();
+                button.textContent = label;
+                button.onclick = handler;
+                actions.appendChild(button);
+            };
+
+            if (status === "accepted") {
+                addAction("Sohbeti Aç", "primary", () => startChatWithUser(user));
+                addAction("Sesli Ara", "", () => startProfileCall(user, true));
+                addAction("Görüntülü Ara", "", () => startProfileCall(user, false));
+                addAction("Arkadaşlıktan Çıkar", "danger", () => openFriendRemovalMenu(user));
+            } else if (status === "incoming" && requestRow) {
+                addAction("İsteği Kabul Et", "primary", () => socket.emit("contact:respond", { requestId: requestRow.id, accept: true }));
+                addAction("Reddet", "", () => socket.emit("contact:respond", { requestId: requestRow.id, accept: false }));
+            } else if (status === "outgoing") {
+                addAction("İstek Gönderildi", "", () => showToast("İstek zaten gönderildi."));
+            } else if (status === "blocked") {
+                addAction("Engeli Kaldır", "primary", () => socket.emit("user:block", { username: user.username, blocked: false }));
+            } else {
+                addAction("Arkadaşlık İsteği Gönder", "primary", () => socket.emit("chat:create", { target: user.username }));
+            }
+
+            page.append(hero, grid, about, actions);
+            messageBox.appendChild(page);
+            state.lastRenderedChatId = `profile:${user.username}`;
+        }
+
+        function renderActiveChat() {
+            const messageBox = $("messages");
+            const profileUser = state.activeProfileUsername ? userByUsername(state.activeProfileUsername) : null;
+            if (profileUser) {
+                renderProfilePane(profileUser);
+                return;
+            }
+            if (state.activeProfileUsername && !profileUser) {
+                state.activeProfileUsername = null;
+            }
+            const chat = activeChat();
             const preserveScroll = state.preserveScrollChatId === chat?.id;
             const chatChanged = state.lastRenderedChatId !== (chat?.id || null);
             const previousScrollHeight = messageBox.scrollHeight;
@@ -5837,6 +6381,7 @@
                 $("callButton").classList.add("hidden");
                 $("videoButton").classList.add("hidden");
                 messageBox.innerHTML = "";
+                messageBox.classList.remove("profile-mode");
                 messageBox.dataset.bg = "none";
                 $("emptyChat").classList.remove("hidden");
                 $("smartReplies").classList.add("hidden");
@@ -5871,6 +6416,7 @@
             $("groupMembersButton").classList.remove("visible");
             updateAiAssistantVisibility();
             messageBox.innerHTML = "";
+            messageBox.classList.remove("profile-mode");
             messageBox.dataset.bg = chatPrefs(chat.id).background || "none";
 
             const markerId = state.newMessageMarkers[chat.id];
@@ -6138,12 +6684,7 @@
                 `;
                 const tone = document.createElement("select");
                 tone.id = "chatToneInput";
-                tone.innerHTML = `
-                    <option value="classic">Bildirim sesi: Klasik</option>
-                    <option value="soft">Bildirim sesi: Yumuşak</option>
-                    <option value="bright">Bildirim sesi: Parlak</option>
-                    <option value="silent">Bildirim sesi: Sessiz</option>
-                `;
+                tone.innerHTML = Object.entries(TONE_LABELS).map(([value, label]) => `<option value="${value}">Bildirim sesi: ${label}</option>`).join("");
                 tone.value = prefs.tone || "classic";
                 const background = document.createElement("select");
                 background.id = "chatBackgroundInput";
@@ -6269,6 +6810,10 @@
                 return pill;
             }
 
+            if (attachment.viewOnce && (attachment.type?.startsWith("image/") || attachment.type?.startsWith("video/"))) {
+                return renderViewOnceAttachment(attachment);
+            }
+
             if (attachment.type && attachment.type.startsWith("audio/")) {
                 const wrap = document.createElement("div");
                 wrap.className = "list";
@@ -6280,7 +6825,7 @@
                 if (attachment.transcript) {
                     const transcript = document.createElement("div");
                     transcript.className = "voice-transcript";
-                    transcript.textContent = `Yaziya dokum: ${attachment.transcript}`;
+                    transcript.textContent = `Yazıya döküm: ${attachment.transcript}`;
                     wrap.appendChild(transcript);
                 }
                 return wrap;
@@ -6313,12 +6858,70 @@
                 return link;
             }
 
+            if (attachment.type === "contact") {
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = "file-pill";
+                const contact = attachment.contact || {};
+                card.textContent = `Kişi: ${contact.displayName || attachment.name || contact.username || "NexaLine"}`;
+                card.onclick = () => {
+                    const user = userByUsername(contact.username);
+                    if (user) openUserProfilePane(user);
+                };
+                return card;
+            }
+
+            if (attachment.type === "poll") {
+                const poll = attachment.poll || {};
+                const wrap = document.createElement("div");
+                wrap.className = "poll-card";
+                const key = `nexalinePoll:${attachment.pollId || poll.question}`;
+                const selected = localStorage.getItem(key);
+                const title = document.createElement("strong");
+                title.textContent = poll.question || "Anket";
+                wrap.appendChild(title);
+                (poll.options || []).forEach((option, index) => {
+                    const row = document.createElement("button");
+                    row.type = "button";
+                    row.className = "poll-option" + (selected === String(index) ? " selected" : "");
+                    row.textContent = option;
+                    row.onclick = () => {
+                        localStorage.setItem(key, String(index));
+                        renderActiveChat();
+                    };
+                    wrap.appendChild(row);
+                });
+                return wrap;
+            }
+
             const link = document.createElement("a");
             link.className = "file-pill";
             link.href = attachment.dataUrl;
             link.download = attachment.name;
             link.textContent = `Dosya: ${attachment.name}`;
             return link;
+        }
+
+        function renderViewOnceAttachment(attachment) {
+            const key = `nexalineViewOnce:${attachment.viewOnceId || attachment.dataUrl?.slice(0, 80)}`;
+            const opened = localStorage.getItem(key) === "opened";
+            const wrap = document.createElement("div");
+            wrap.className = "file-pill";
+            if (opened) {
+                wrap.textContent = "Tek açımlık medya açıldı";
+                return wrap;
+            }
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "profile-action primary";
+            button.textContent = "Tek Açımlık Medyayı Aç";
+            button.onclick = () => {
+                localStorage.setItem(key, "opened");
+                openMediaViewer(attachment);
+                renderActiveChat();
+            };
+            wrap.appendChild(button);
+            return wrap;
         }
 
         function saveOutbox() {
@@ -6347,10 +6950,18 @@
                 return;
             }
             openModal(attachment.name || "Medya", body => {
-                const image = document.createElement("img");
-                image.className = "media-viewer-image";
-                image.src = attachment.dataUrl;
-                image.alt = attachment.name || "Medya";
+                const media = attachment.type?.startsWith("video/")
+                    ? document.createElement("video")
+                    : document.createElement("img");
+                media.className = "media-viewer-image";
+                media.src = attachment.dataUrl;
+                if (media.tagName === "VIDEO") {
+                    media.controls = true;
+                    media.autoplay = true;
+                    media.playsInline = true;
+                } else {
+                    media.alt = attachment.name || "Medya";
+                }
                 const actions = document.createElement("div");
                 actions.className = "media-actions";
                 const download = document.createElement("a");
@@ -6358,7 +6969,7 @@
                 download.download = attachment.name || "nexaline-gorsel.jpg";
                 download.textContent = "İndir";
                 actions.appendChild(download);
-                body.append(image, actions);
+                body.append(media, actions);
             }, [{ label: "Kapat", onClick: closeModal }]);
         }
 
@@ -6412,10 +7023,11 @@
                 const items = [
                     ["Belge", "Dosya seç", () => $("fileInput").click()],
                     ["Fotoğraflar ve Videolar", "Galeri veya dosya", () => $("fileInput").click()],
+                    ["Tek Açımlık Medya", "Fotoğraf veya video bir kez açılsın", () => { state.pendingViewOnce = true; $("fileInput").click(); }],
                     ["Kamera", "Fotoğraf veya video çek", () => $("cameraInput").click()],
                     ["Ses", "Ses dosyası seç", () => $("fileInput").click()],
-                    ["Kişi", "Kişi paylaşımı yakında", () => showToast("Kişi paylaşımı için önce kişi seçme ekranı açılacak.")],
-                    ["Anket", "Anket yakında", () => showToast("Anket özelliği hazırlanıyor.")]
+                    ["Kişi", "Arkadaş profili paylaş", openContactSharePicker],
+                    ["Anket", "Soru ve seçeneklerle gönder", openPollCreator]
                 ];
                 items.forEach(([title, hint, action]) => {
                     const button = document.createElement("button");
@@ -6430,6 +7042,83 @@
                 });
                 body.appendChild(menu);
             }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        function openContactSharePicker() {
+            const friends = acceptedFriends();
+            openModal("Kişi paylaş", body => {
+                const list = document.createElement("div");
+                list.className = "check-list";
+                if (!friends.length) {
+                    list.innerHTML = "<p>Paylaşılacak arkadaş bulunamadı.</p>";
+                    body.appendChild(list);
+                    return;
+                }
+                friends.forEach(user => {
+                    const row = document.createElement("button");
+                    row.type = "button";
+                    row.className = "contact-item";
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (user.online ? " online" : "");
+                    setAvatar(avatar, user, user.displayName);
+                    const text = document.createElement("div");
+                    text.innerHTML = `<strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">${escapeHtml(user.username)}</div>`;
+                    row.append(avatar, text, document.createElement("span"));
+                    row.onclick = () => {
+                        state.attachment = {
+                            type: "contact",
+                            name: user.displayName,
+                            contact: {
+                                username: user.username,
+                                displayName: user.displayName,
+                                email: user.email || ""
+                            }
+                        };
+                        $("messageInput").placeholder = `${user.displayName} kişisi`;
+                        closeModal();
+                        updateComposerState();
+                    };
+                    list.appendChild(row);
+                });
+                body.appendChild(list);
+            }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        function openPollCreator() {
+            openModal("Anket oluştur", body => {
+                body.innerHTML = `
+                    <input id="pollQuestionInput" maxlength="120" placeholder="Anket sorusu">
+                    <input id="pollOptionOneInput" maxlength="80" placeholder="1. seçenek">
+                    <input id="pollOptionTwoInput" maxlength="80" placeholder="2. seçenek">
+                    <input id="pollOptionThreeInput" maxlength="80" placeholder="3. seçenek (isteğe bağlı)">
+                    <input id="pollOptionFourInput" maxlength="80" placeholder="4. seçenek (isteğe bağlı)">
+                `;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Mesaja Ekle",
+                    primary: true,
+                    onClick: () => {
+                        const question = $("pollQuestionInput").value.trim();
+                        const options = ["pollOptionOneInput", "pollOptionTwoInput", "pollOptionThreeInput", "pollOptionFourInput"]
+                            .map(id => $(id).value.trim())
+                            .filter(Boolean);
+                        if (!question || options.length < 2) {
+                            showToast("Anket için soru ve en az iki seçenek gerekli.");
+                            return;
+                        }
+                        state.attachment = {
+                            type: "poll",
+                            name: question,
+                            pollId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+                            poll: { question, options }
+                        };
+                        $("messageInput").placeholder = `Anket: ${question}`;
+                        closeModal();
+                        updateComposerState();
+                    }
+                }
+            ]);
         }
 
         function toggleEmojiPanel() {
@@ -7587,16 +8276,25 @@
 
             try {
                 state.attachment = await prepareAttachmentFile(file);
+                if (state.pendingViewOnce) {
+                    if (state.attachment?.type?.startsWith("image/") || state.attachment?.type?.startsWith("video/")) {
+                        state.attachment.viewOnce = true;
+                        state.attachment.viewOnceId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+                    } else {
+                        showToast("Tek açımlık medya sadece fotoğraf veya video için kullanılabilir.");
+                    }
+                }
                 if (state.attachment?.dataUrl?.length > MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS) {
                     state.attachment = null;
                     showToast("Dosya çok büyük kaldı. Daha küçük dosya seç.");
                     return;
                 }
-                $("messageInput").placeholder = state.attachment.name;
+                $("messageInput").placeholder = state.attachment.viewOnce ? `Tek açımlık: ${state.attachment.name}` : state.attachment.name;
                 updateComposerState();
             } catch (error) {
                 showToast("Dosya hazırlanamadı.");
             } finally {
+                state.pendingViewOnce = false;
                 event.target.value = "";
             }
         }
@@ -7979,6 +8677,7 @@
                 clearActiveNewMarker();
                 state.activeSection = tab.dataset.section;
                 state.activeChatId = null;
+                state.activeProfileUsername = null;
                 renderSections();
                 renderActiveChat();
             };
@@ -8142,6 +8841,7 @@
             upsertChat(chat);
             state.openNextChat = false;
             if (shouldOpen) {
+                state.activeProfileUsername = null;
                 state.activeChatId = chat.id;
             }
             requestRender();
@@ -8336,7 +9036,7 @@
             maybeNotifyCall(data);
             const chat = state.chats.find(item => item.id === data.chatId);
             const peer = chat?.members?.find(member => member.username === data.from) || { displayName: data.fromName || data.from };
-            openCallPanel(`${data.fromName || data.from} ariyor`, data.audioOnly ? "sesli arama" : "goruntulu arama", true, data.audioOnly, chat, peer);
+            openCallPanel(`${data.fromName || data.from} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly, chat, peer);
         });
         socket.on("call:answer", handleRemoteAnswer);
         socket.on("call:ice", handleRemoteIce);

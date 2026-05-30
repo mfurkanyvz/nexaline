@@ -1110,6 +1110,13 @@
         function renderAttachment(attachment) {
             if (!attachment) return "";
             const name = escapeAttr(attachment.name || "Dosya");
+            if (attachment.type === "contact") {
+                return `<div class="empty">Kişi: ${escapeHtml(attachment.contact?.displayName || attachment.contact?.username || attachment.name || "NexaLine")}</div>`;
+            }
+            if (attachment.type === "poll") {
+                const poll = attachment.poll || {};
+                return `<div class="empty">Anket: ${escapeHtml(poll.question || attachment.name || "Anket")}<br>${(poll.options || []).map(option => `• ${escapeHtml(option)}`).join("<br>")}</div>`;
+            }
             if (!attachment?.dataUrl) {
                 if (attachment?.dataUrlOmitted) {
                     return `<div class="empty">${name} önizlemesi hız için yüklenmedi.</div>`;
@@ -1123,7 +1130,7 @@
                 return `<video class="media" src="${escapeAttr(attachment.dataUrl)}" controls playsinline></video>`;
             }
             if (attachment.type?.startsWith("audio/")) {
-                return `<audio class="media" src="${escapeAttr(attachment.dataUrl)}" controls></audio>${attachment.transcript ? `<div class="empty">Yaziya dokum: ${escapeHtml(attachment.transcript)}</div>` : ""}`;
+                return `<audio class="media" src="${escapeAttr(attachment.dataUrl)}" controls></audio>${attachment.transcript ? `<div class="empty">Yazıya döküm: ${escapeHtml(attachment.transcript)}</div>` : ""}`;
             }
             return `<a class="meta" href="${escapeAttr(attachment.dataUrl)}" download="${name}">${name}</a>`;
         }

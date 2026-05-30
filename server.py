@@ -3164,6 +3164,40 @@ def handle_contact_respond(data):
     emit("notice", {"message": "İstek kabul edildi." if accept else "İstek reddedildi."})
 
 
+@socketio.on("contact:remove")
+def handle_contact_remove(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    target = (data.get("username") or "").strip().lower()
+    mode = data.get("mode") or "keep"
+
+    if not username or not db.session.get(User, target) or username == target:
+        return
+
+    request_row = contact_request_between(username, target)
+    if not request_row or request_row.status != "accepted":
+        emit("notice", {"message": "Bu kişi zaten arkadaş listende değil."})
+        return
+
+    if mode not in {"keep", "archive", "permanent"}:
+        mode = "keep"
+
+    request_row.status = "declined"
+    request_row.responded_at = datetime.now(timezone.utc)
+    chat = find_direct_chat(username, target)
+    if chat and mode == "archive":
+        archive_chat_for_user(chat, username, "deleted")
+        emit("chat:remove", {"chatId": chat.id}, room=request.sid)
+        emit("archive:update", visible_archives(username), room=request.sid)
+    elif chat and mode == "permanent":
+        hide_chat_messages_for_user(chat, username)
+        emit("chat:remove", {"chatId": chat.id}, room=request.sid)
+
+    db.session.commit()
+    emit_social_updates(username, target)
+    emit("notice", {"message": "Arkadaşlıktan çıkarıldı."})
+
+
 @socketio.on("user:block")
 def handle_user_block(data):
     username = connections.get(request.sid)
