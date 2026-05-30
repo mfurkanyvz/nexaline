@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v9";
+const CACHE_NAME = "nexaline-pwa-v14";
 const APP_SHELL = [
   "/",
   "/client.html",
@@ -58,6 +58,7 @@ self.addEventListener("fetch", event => {
   if (
     url.pathname.startsWith("/socket.io/") ||
     url.pathname.startsWith("/admin/") ||
+    url.pathname.startsWith("/ai/") ||
     url.pathname.startsWith("/bootstrap/") ||
     url.pathname.startsWith("/chat/") ||
     url.pathname.startsWith("/downloads/") ||

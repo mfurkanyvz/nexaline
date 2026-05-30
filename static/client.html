@@ -30,6 +30,11 @@
             --shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
             --app-height: 100vh;
             --keyboard-inset: 0px;
+            --admin-font-size: 16px;
+            --admin-sidebar-width: 380px;
+            --admin-bubble-radius: 8px;
+            --admin-message-font-size: 15px;
+            --admin-icon-size: 38px;
         }
 
         :root[data-theme="light"] {
@@ -62,6 +67,7 @@
             margin: 0;
             min-height: var(--app-height);
             color: var(--text);
+            font-size: var(--admin-font-size);
             font-family: Arial, Helvetica, sans-serif;
             background:
                 radial-gradient(circle at 15% 0%, rgba(240, 61, 84, 0.18), transparent 28%),
@@ -443,7 +449,7 @@
 
         .app {
             display: grid;
-            grid-template-columns: 380px minmax(0, 1fr);
+            grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
             height: var(--app-height);
             max-height: var(--app-height);
             min-height: 0;
@@ -452,6 +458,7 @@
         }
 
         .sidebar {
+            position: relative;
             display: flex;
             min-height: 0;
             min-width: 0;
@@ -470,6 +477,15 @@
             padding: 14px 16px;
             border-bottom: 1px solid var(--line);
             background: var(--panel);
+        }
+
+        .chat-top.empty-state {
+            display: none;
+        }
+
+        .chat-top #groupMembersButton,
+        .chat-top #leaveGroupButton {
+            display: none !important;
         }
 
         .avatar {
@@ -544,8 +560,8 @@
 
         .icon-btn {
             display: grid;
-            width: 38px;
-            height: 38px;
+            width: var(--admin-icon-size);
+            height: var(--admin-icon-size);
             flex: 0 0 auto;
             place-items: center;
             border-radius: 8px;
@@ -802,7 +818,8 @@
             max-width: min(72%, 680px);
             min-width: 0;
             padding: 10px 12px 8px;
-            border-radius: 8px;
+            border-radius: var(--admin-bubble-radius);
+            font-size: var(--admin-message-font-size);
             line-height: 1.35;
             white-space: pre-wrap;
             background: var(--panel-3);
@@ -1117,9 +1134,9 @@
         }
 
         .ai-fab {
-            position: fixed;
-            right: 18px;
-            bottom: 18px;
+            position: absolute;
+            right: 14px;
+            bottom: 14px;
             z-index: 24;
             width: 54px;
             height: 54px;
@@ -1131,13 +1148,19 @@
             font-weight: 900;
         }
 
+        .ai-fab img {
+            width: 88%;
+            height: 88%;
+            object-fit: contain;
+        }
+
         .ai-panel {
             position: fixed;
-            right: 18px;
+            right: 14px;
             bottom: 84px;
             z-index: 24;
             display: grid;
-            width: min(420px, calc(100vw - 28px));
+            width: min(360px, calc(100vw - 28px));
             max-height: min(680px, calc(100dvh - 112px));
             grid-template-rows: auto minmax(0, 1fr) auto;
             overflow: hidden;
@@ -1704,9 +1727,59 @@
         }
 
         .toggle-row input {
-            width: 20px;
-            height: 20px;
-            accent-color: var(--blue);
+            position: relative;
+            width: 54px;
+            height: 30px;
+            flex: 0 0 auto;
+            appearance: none;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            outline: none;
+            background: var(--panel-3);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+            transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .toggle-row input::before {
+            content: "OFF";
+            position: absolute;
+            top: 50%;
+            right: 7px;
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 800;
+            transform: translateY(-50%);
+        }
+
+        .toggle-row input::after {
+            content: "";
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--text);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
+            transition: transform 160ms ease, background 160ms ease;
+        }
+
+        .toggle-row input:checked {
+            border-color: var(--blue);
+            background: linear-gradient(135deg, var(--blue), var(--green));
+            box-shadow: 0 0 0 3px rgba(47, 140, 255, 0.22);
+        }
+
+        .toggle-row input:checked::before {
+            content: "ON";
+            left: 8px;
+            right: auto;
+            color: #fff;
+        }
+
+        .toggle-row input:checked::after {
+            background: #fff;
+            transform: translateX(24px);
         }
 
         .story-head {
@@ -1789,6 +1862,64 @@
 
         .hidden {
             display: none !important;
+        }
+
+        :root[data-theme="light"] .app {
+            background: #eef2f7;
+        }
+
+        :root[data-theme="light"] .sidebar,
+        :root[data-theme="light"] .topbar,
+        :root[data-theme="light"] .chat-top,
+        :root[data-theme="light"] .settings-box,
+        :root[data-theme="light"] .modal-box,
+        :root[data-theme="light"] .call-box,
+        :root[data-theme="light"] .ai-panel {
+            background: var(--panel);
+        }
+
+        :root[data-theme="light"] .nav-tabs,
+        :root[data-theme="light"] .search-box input,
+        :root[data-theme="light"] .composer,
+        :root[data-theme="light"] .ai-composer textarea,
+        :root[data-theme="light"] .settings-box input,
+        :root[data-theme="light"] .settings-box select,
+        :root[data-theme="light"] .settings-box textarea,
+        :root[data-theme="light"] .modal-body input,
+        :root[data-theme="light"] .modal-body textarea,
+        :root[data-theme="light"] .modal-body select {
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        :root[data-theme="light"] .chat-pane {
+            background:
+                linear-gradient(rgba(245, 248, 252, 0.92), rgba(245, 248, 252, 0.92)),
+                repeating-linear-gradient(45deg, rgba(30, 42, 62, 0.05) 0 1px, transparent 1px 18px);
+        }
+
+        :root[data-theme="light"] .empty-chat,
+        :root[data-theme="light"] .pane-transition {
+            background: rgba(238, 242, 247, 0.78);
+        }
+
+        :root[data-theme="light"] .bubble,
+        :root[data-theme="light"] .icon-btn,
+        :root[data-theme="light"] .emoji-panel,
+        :root[data-theme="light"] .emoji-panel button {
+            background: var(--panel-3);
+        }
+
+        :root[data-theme="light"] .chat-item:hover,
+        :root[data-theme="light"] .story-item:hover,
+        :root[data-theme="light"] .call-item:hover,
+        :root[data-theme="light"] .contact-item:hover {
+            background: rgba(30, 42, 62, 0.06);
+        }
+
+        :root[data-theme="light"] .nav-tab.active {
+            color: var(--text);
+            background: #dce6f3;
         }
 
         @media (max-width: 760px) {
@@ -2041,6 +2172,16 @@
                 background: rgba(255, 255, 255, 0.15);
             }
 
+            :root[data-theme="light"] .nav-tabs {
+                border-color: rgba(30, 42, 62, 0.12);
+                background: rgba(255, 255, 255, 0.94);
+                box-shadow: 0 12px 28px rgba(30, 42, 62, 0.16);
+            }
+
+            :root[data-theme="light"] .composer {
+                background: rgba(255, 255, 255, 0.96);
+            }
+
             .nav-icon {
                 font-size: 24px;
             }
@@ -2241,7 +2382,6 @@
                     <button class="icon-btn member-action" id="groupMembersButton" title="Üyeleri yönet">☰</button>
                     <button class="icon-btn hidden" id="leaveGroupButton" title="Gruptan çık">⇥</button>
                     <button class="icon-btn hidden" id="chatPrefsButton" title="Sohbet ayarları">⚙</button>
-                    <button class="icon-btn hidden" id="deleteChatButton" title="Sohbeti sil">⌫</button>
                     <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
                     <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
                 </div>
@@ -2280,7 +2420,6 @@
         </section>
     </main>
 
-    <button id="aiAssistantButton" class="ai-fab hidden" type="button" title="Nexa AI">AI</button>
     <section id="aiPanel" class="ai-panel hidden">
         <div class="ai-head">
             <div>
@@ -2332,6 +2471,11 @@
                 <button id="settingsAppearanceTab" class="settings-option" type="button">
                     <span class="option-icon">◒</span>
                     <span><strong>Görünüm</strong><small class="last-message">Tema ve gizli sohbet kilidi</small></span>
+                    <span>›</span>
+                </button>
+                <button id="settingsAiTab" class="settings-option" type="button">
+                    <span class="option-icon">N</span>
+                    <span><strong>Next AI</strong><small class="last-message">Asistan adı, fotoğrafı, sansür ve yetki</small></span>
                     <span>›</span>
                 </button>
                 <button id="settingsAccountTab" class="settings-option" type="button">
@@ -2406,14 +2550,43 @@
                         <span>Gizli sohbetleri göster</span>
                         <input id="unlockSecretChatsInput" type="checkbox">
                     </label>
-                    <label class="toggle-row">
-                        <span>AI +18/küfür filtresi</span>
-                        <input id="aiCensorInput" type="checkbox">
-                    </label>
                 </div>
                 <input id="secretPinInput" type="password" inputmode="numeric" maxlength="12" placeholder="Gizli sohbet PIN">
                 <button id="saveAppearanceButton" class="primary" type="button">Görünümü Kaydet</button>
                 <div id="lockedChatSummary" class="last-message"></div>
+            </div>
+
+            <div id="settingsAiSection" class="settings-section hidden">
+                <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Next AI</strong>
+                        <div class="last-message">Sohbet listesindeki kişisel asistanını buradan yönet</div>
+                    </div>
+                    <div id="nextAiAvatar" class="avatar">N</div>
+                </div>
+                <input id="nextAiImageInput" class="hidden" type="file" accept="image/*">
+                <div class="settings-row">
+                    <button id="nextAiImageButton" type="button">Fotoğraf Seç</button>
+                    <button id="removeNextAiImageButton" type="button">Varsayılan Logo</button>
+                </div>
+                <input id="nextAiNameInput" maxlength="40" placeholder="Asistan adı">
+                <div class="privacy-grid">
+                    <label class="toggle-row">
+                        <span>Next AI açık</span>
+                        <input id="nextAiEnabledInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>AI +18/küfür filtresi</span>
+                        <input id="nextAiCensorInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>Tam yetki: onaysız uygula</span>
+                        <input id="nextAiAutoApproveInput" type="checkbox">
+                    </label>
+                </div>
+                <div class="last-message">Tam yetki açılırsa mesaj gönderme, sohbet silme, arama ve ayar değiştirme komutlarını ayrıca onay istemeden uygular.</div>
+                <button id="saveNextAiButton" class="primary" type="button">Next AI Ayarlarını Kaydet</button>
             </div>
 
             <div id="settingsAccountSection" class="settings-section hidden">
@@ -2504,9 +2677,15 @@
         const MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS = 5_500_000;
         const THEME_KEY = "nexalineTheme";
         const SECRET_PIN_KEY = "nexalineSecretPin";
+        const ARCHIVE_PIN_KEY_PREFIX = "nexalineArchivePin";
         const NOTIFICATION_LOG_KEY = "nexalineNotificationLog";
         const AI_HISTORY_KEY = "nexalineAiHistory";
         const AI_CENSOR_KEY = "nexalineAiCensor";
+        const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
+        const AI_CHAT_ID = "__next_ai_chat__";
+        const AI_SENDER = "__next_ai__";
+        const DEFAULT_AI_NAME = "Next AI";
+        const DEFAULT_AI_AVATAR = "/static/nexaline-mark.png";
         const MESSAGE_TONES = {
             classic: [[660, 70], [880, 80]],
             soft: [[520, 110], [640, 80]],
@@ -2528,11 +2707,71 @@
             }
         }
 
+        function defaultAiSettings() {
+            return {
+                enabled: true,
+                name: DEFAULT_AI_NAME,
+                image: "",
+                autoApprove: false
+            };
+        }
+
+        function sanitizeAiHistory(messages) {
+            return (Array.isArray(messages) ? messages : []).filter(message => {
+                const text = String(message?.text || "");
+                return !text.includes("AI çekirdeği hazır") && !text.includes("GEMINI_API_KEY");
+            });
+        }
+
+        function aiSettingsKey() {
+            return `${AI_SETTINGS_KEY_PREFIX}:${state.me?.username || "guest"}`;
+        }
+
+        function aiCensorKey() {
+            return `${AI_CENSOR_KEY}:${state.me?.username || "guest"}`;
+        }
+
+        function aiHistoryKey() {
+            return `${AI_HISTORY_KEY}:${state.me?.username || "guest"}`;
+        }
+
+        function archivePinKey() {
+            return `${ARCHIVE_PIN_KEY_PREFIX}:${state.me?.username || "guest"}`;
+        }
+
+        function loadAiSettings() {
+            state.aiSettings = {
+                ...defaultAiSettings(),
+                ...readStoredJson(aiSettingsKey(), {})
+            };
+            if (!state.aiSettings.name?.trim()) {
+                state.aiSettings.name = DEFAULT_AI_NAME;
+            }
+            const userCensor = localStorage.getItem(aiCensorKey());
+            state.aiCensorEnabled = userCensor === null
+                ? localStorage.getItem(AI_CENSOR_KEY) !== "off"
+                : userCensor !== "off";
+            state.aiMessages = sanitizeAiHistory(readStoredJson(aiHistoryKey(), readStoredJson(AI_HISTORY_KEY, [])));
+            state.aiAvatarDraft = state.aiSettings.image || "";
+        }
+
+        function saveAiSettings() {
+            state.aiSettings.name = (state.aiSettings.name || DEFAULT_AI_NAME).trim().slice(0, 40) || DEFAULT_AI_NAME;
+            localStorage.setItem(aiSettingsKey(), JSON.stringify(state.aiSettings));
+        }
+
+        function saveAiCensorSetting() {
+            const value = state.aiCensorEnabled ? "on" : "off";
+            localStorage.setItem(AI_CENSOR_KEY, value);
+            localStorage.setItem(aiCensorKey(), value);
+        }
+
         const state = {
             mode: "login",
             registerStep: 0,
             registerVerifiedCode: "",
             awaitingRegisterVerification: false,
+            authBusy: false,
             pendingRegister: null,
             me: null,
             users: [],
@@ -2550,8 +2789,10 @@
             theme: localStorage.getItem(THEME_KEY) || "dark",
             lockedChatsUnlocked: false,
             aiBusy: false,
-            aiMessages: readStoredJson(AI_HISTORY_KEY, []),
+            aiMessages: sanitizeAiHistory(readStoredJson(AI_HISTORY_KEY, [])),
             aiCensorEnabled: localStorage.getItem(AI_CENSOR_KEY) !== "off",
+            aiSettings: defaultAiSettings(),
+            aiAvatarDraft: "",
             aiRevealedMessages: {},
             aiStatus: null,
             disappearingSeconds: Number(localStorage.getItem("nexalineDisappearSeconds") || 0),
@@ -2566,7 +2807,6 @@
             newMessageMarkers: {},
             openNextChat: false,
             archiveUnlocked: false,
-            archivePassword: "",
             archiveItems: [],
             settingsView: "menu",
             bootReady: false,
@@ -2609,10 +2849,44 @@
 
         const $ = (id) => document.getElementById(id);
         const EMOJIS = ["😀", "😂", "😍", "🥰", "😎", "😢", "😡", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "📍", "☕"];
+        loadAdminDesign();
+
+        function applyAdminDesign(design = {}) {
+            const root = document.documentElement;
+            const numeric = {
+                fontSize: ["--admin-font-size", "px"],
+                messageFontSize: ["--admin-message-font-size", "px"],
+                sidebarWidth: ["--admin-sidebar-width", "px"],
+                bubbleRadius: ["--admin-bubble-radius", "px"],
+                iconSize: ["--admin-icon-size", "px"]
+            };
+            Object.entries(numeric).forEach(([key, [variable, unit]]) => {
+                if (design[key] !== undefined && design[key] !== null && design[key] !== "") {
+                    root.style.setProperty(variable, `${Number(design[key])}${unit}`);
+                }
+            });
+            ["blue", "red", "green"].forEach(key => {
+                if (/^#[0-9a-f]{6}$/i.test(String(design[key] || ""))) {
+                    root.style.setProperty(`--${key}`, design[key]);
+                }
+            });
+            if (design.brandName) {
+                document.title = design.brandName;
+            }
+        }
+
+        async function loadAdminDesign() {
+            try {
+                const response = await fetch("/design", { cache: "no-store" });
+                const data = await response.json();
+                if (data.ok) applyAdminDesign(data.design || {});
+            } catch (_error) {}
+        }
 
         function applyTheme(theme = state.theme) {
             state.theme = theme === "light" ? "light" : "dark";
             document.documentElement.dataset.theme = state.theme;
+            document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.theme === "light" ? "#eef2f7" : "#10141d");
             localStorage.setItem(THEME_KEY, state.theme);
         }
 
@@ -2782,6 +3056,124 @@
 
         function lockedChatCount() {
             return state.chats.filter(chat => isChatLocked(chat.id)).length;
+        }
+
+        function appendLockedChatsUnlock(list) {
+            const count = lockedChatCount();
+            if (!count || state.lockedChatsUnlocked) {
+                return;
+            }
+            const button = document.createElement("button");
+            button.className = "chat-item";
+            button.type = "button";
+            button.innerHTML = `<div class="avatar">K</div><div><strong class="chat-title">Gizli sohbetler</strong><div class="last-message">${count} sohbet kilitli. PIN ile aç.</div></div><span class="chat-time"></span>`;
+            button.onclick = () => {
+                if (unlockSecretChats()) {
+                    render();
+                }
+            };
+            list.appendChild(button);
+        }
+
+        function isAiChatId(chatId) {
+            return chatId === AI_CHAT_ID;
+        }
+
+        function isAiChat(chat) {
+            return chat?.id === AI_CHAT_ID || chat?.type === "ai";
+        }
+
+        function aiDisplayName() {
+            return (state.aiSettings?.name || DEFAULT_AI_NAME).trim() || DEFAULT_AI_NAME;
+        }
+
+        function aiAvatarData() {
+            return state.aiSettings?.image || DEFAULT_AI_AVATAR;
+        }
+
+        function aiContact() {
+            return {
+                username: AI_SENDER,
+                displayName: aiDisplayName(),
+                profileImage: aiAvatarData(),
+                online: true,
+                privacy: {}
+            };
+        }
+
+        function aiMessagesAsChatMessages() {
+            if (!state.aiMessages.length) {
+                return [{
+                    id: "next-ai-welcome",
+                    chatId: AI_CHAT_ID,
+                    sender: AI_SENDER,
+                    senderName: aiDisplayName(),
+                    body: `Merhaba, ben ${aiDisplayName()}. Bana normal bir arkadaş gibi yazabilir ya da ayar, mesaj, arama ve sohbet işleri için komut verebilirsin.`,
+                    attachment: null,
+                    replyTo: null,
+                    reactions: {},
+                    readBy: [state.me.username, AI_SENDER],
+                    createdAt: new Date().toISOString(),
+                    editedAt: null,
+                    deletedAt: null,
+                    aiActions: []
+                }];
+            }
+            return state.aiMessages.map(message => {
+                const mine = message.role === "user";
+                return {
+                    id: message.id,
+                    chatId: AI_CHAT_ID,
+                    sender: mine ? state.me.username : AI_SENDER,
+                    senderName: mine ? state.me.displayName : aiDisplayName(),
+                    body: message.text || "",
+                    attachment: null,
+                    replyTo: null,
+                    reactions: {},
+                    readBy: [state.me.username, AI_SENDER],
+                    createdAt: message.createdAt || new Date().toISOString(),
+                    editedAt: null,
+                    deletedAt: null,
+                    aiActions: message.actions || []
+                };
+            });
+        }
+
+        function aiChatSummary() {
+            const messages = aiMessagesAsChatMessages();
+            const lastMessage = messages[messages.length - 1] || null;
+            return {
+                id: AI_CHAT_ID,
+                type: "ai",
+                title: aiDisplayName(),
+                image: aiAvatarData(),
+                members: [state.me, aiContact()],
+                messages,
+                messageCount: messages.length,
+                lastMessage,
+                aiChat: true
+            };
+        }
+
+        function aiLastText() {
+            if (!state.aiSettings.enabled) {
+                return "Kapalı. Ayarlar > Next AI ile açabilirsin.";
+            }
+            const last = state.aiMessages[state.aiMessages.length - 1];
+            return last?.text || "Arkadaş gibi yaz, asistan gibi yardım edeyim.";
+        }
+
+        function selectAiChat() {
+            if (!state.aiSettings.enabled) {
+                showToast("Next AI kapalı. Ayarlar > Next AI bölümünden açabilirsin.");
+                return;
+            }
+            clearActiveNewMarker();
+            state.activeSection = "chats";
+            state.activeChatId = AI_CHAT_ID;
+            render();
+            openMobileChat();
+            loadAiStatus();
         }
 
         async function requestNotificationPermission() {
@@ -3046,7 +3438,9 @@
         }
 
         function saveAiHistory() {
-            localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(state.aiMessages.slice(-40)));
+            const history = JSON.stringify(state.aiMessages.slice(-40));
+            localStorage.setItem(AI_HISTORY_KEY, history);
+            localStorage.setItem(aiHistoryKey(), history);
         }
 
         function addAiMessage(role, text, actions = []) {
@@ -3059,6 +3453,12 @@
             });
             saveAiHistory();
             renderAiPanel();
+            if (state.me) {
+                renderChats();
+                if (isAiChatId(state.activeChatId)) {
+                    renderActiveChat();
+                }
+            }
         }
 
         function renderAiPanel() {
@@ -3068,9 +3468,11 @@
                 list.innerHTML = `
                     <div class="ai-bubble">Merhaba, ben Nexa AI. Sohbetleri özetleyebilir, mesaj taslağı hazırlayabilir, tema/sohbet ayarlarını düzenleyebilir ve riskli mesajları gizleyebilirim.</div>
                     <div class="ai-quick">
+                        <button data-ai-quick="Merhaba">Merhaba</button>
                         <button data-ai-quick="Bu sohbeti kısaca özetle">Sohbeti özetle</button>
                         <button data-ai-quick="Son mesaja kısa ve kibar cevap hazırla">Cevap hazırla</button>
                         <button data-ai-quick="AI sansür filtresini aç">Sansürü aç</button>
+                        <button data-ai-quick="AI sansür filtresini kapat">Sansürü kapat</button>
                         <button data-ai-quick="Temayı açık tema yap">Açık tema</button>
                     </div>
                 `;
@@ -3112,7 +3514,7 @@
                     renderAiPanel();
                 }
             } catch (error) {
-                state.aiStatus = { provider: "local", model: "nexaline-local" };
+                state.aiStatus = { provider: "local", model: "nexaline-free-ai" };
             }
         }
 
@@ -3136,22 +3538,41 @@
             }
         }
 
-        async function sendAiPrompt() {
+        function promptTargetsAiName(prompt) {
+            const normalize = value => String(value || "")
+                .toLocaleLowerCase("tr-TR")
+                .replace(/[^\p{L}\p{N}\s]/gu, "")
+                .replace(/\s+/g, " ")
+                .trim();
+            return normalize(prompt) === normalize(aiDisplayName());
+        }
+
+        async function sendAiPrompt(promptOverride = null) {
             const input = $("aiInput");
-            const prompt = input.value.trim();
+            const prompt = (promptOverride ?? input?.value ?? "").trim();
             if (!prompt || state.aiBusy || !state.me) return;
-            input.value = "";
+            if (input && promptOverride === null) {
+                input.value = "";
+            }
+            if (!state.aiSettings.enabled) {
+                addAiMessage("assistant", "Next AI kapalı. Ayarlar > Next AI bölümünden açabilirsin.");
+                return;
+            }
             state.aiBusy = true;
             addAiMessage("user", prompt);
             renderAiPanel();
             try {
+                const promptForModel = promptTargetsAiName(prompt)
+                    ? `Kullanıcı sana verdiği isim olan "${prompt}" diye seslendi. Türkçe, sıcak ve kısa karşılık ver.`
+                    : prompt;
                 const response = await fetch("/ai/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         username: state.me.username,
-                        prompt,
-                        chatId: state.activeChatId,
+                        prompt: promptForModel,
+                        chatId: isAiChatId(state.activeChatId) ? null : state.activeChatId,
+                        assistantName: aiDisplayName(),
                         timezoneOffsetMinutes: new Date().getTimezoneOffset()
                     })
                 });
@@ -3161,25 +3582,113 @@
                     return;
                 }
                 state.aiStatus = data.provider || state.aiStatus;
-                addAiMessage("assistant", data.reply || "Hazır.", data.actions || []);
+                const actions = data.actions || [];
+                addAiMessage("assistant", data.reply || "Hazır.", actions);
+                if (state.aiSettings.autoApprove && actions.length) {
+                    actions.forEach(action => applyAiAction(action, true));
+                }
             } catch (error) {
                 addAiMessage("assistant", "AI bağlantısı kurulamadı. Yerel komutlar için tekrar deneyebilirsin.");
             } finally {
                 state.aiBusy = false;
                 renderAiPanel();
+                if (isAiChatId(state.activeChatId)) {
+                    renderActiveChat();
+                }
             }
         }
 
         function focusChatForAi(chatId) {
             const chat = state.chats.find(item => item.id === chatId);
             if (!chat) return null;
+            state.activeSection = chat.type === "group" ? "groups" : "chats";
             state.activeChatId = chat.id;
             render();
             openMobileChat();
             return chat;
         }
 
-        function applyAiAction(action) {
+        async function updateProfileFromAi(action) {
+            const displayName = action.displayName || state.me.displayName || "";
+            const about = action.about || state.me.about || "";
+            const response = await fetch(`/account/${state.me.username}/profile`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    displayName,
+                    about,
+                    profileImage: state.me.profileImage || null
+                })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Profil güncellenemedi.");
+                return;
+            }
+            state.me = data.user;
+            render();
+            showToast("Profil AI onayıyla güncellendi.");
+        }
+
+        async function updatePrivacyFromAi(action) {
+            const nextPrivacy = {
+                ...(state.me.privacy || {}),
+                ...(action.privacy || {})
+            };
+            const response = await fetch(`/account/${state.me.username}/privacy`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ privacy: nextPrivacy })
+            });
+            const data = await response.json();
+            showToast(data.message || "Gizlilik güncellendi.");
+            if (data.ok) {
+                state.me = data.user;
+                render();
+            }
+        }
+
+        function runAiActionWithPermission(title, message, autoApproved, onRun) {
+            if (autoApproved || state.aiSettings.autoApprove) {
+                onRun?.();
+                return;
+            }
+            confirmModal(title, message, onRun);
+        }
+
+        function aiTargetMessage(chat, messageId = null) {
+            if (!chat) return null;
+            if (messageId) {
+                const found = chat.messages.find(message => message.id === messageId);
+                if (found) return found;
+            }
+            return [...(chat.messages || [])]
+                .reverse()
+                .find(message => !message.deletedAt && message.sender !== state.me.username) || null;
+        }
+
+        function aiReplyPayload(message) {
+            if (!message) return null;
+            return {
+                id: message.id,
+                senderName: message.senderName,
+                body: message.body || "",
+                attachmentName: message.attachment?.name || "",
+                createdAt: message.createdAt
+            };
+        }
+
+        function userByAiName(value) {
+            const needle = String(value || "").toLocaleLowerCase("tr-TR").replace(/^@/, "").trim();
+            if (!needle) return null;
+            return state.users.find(user =>
+                user.username.toLocaleLowerCase("tr-TR") === needle
+                || user.displayName.toLocaleLowerCase("tr-TR") === needle
+                || user.displayName.toLocaleLowerCase("tr-TR").includes(needle)
+            ) || null;
+        }
+
+        function applyAiAction(action, autoApproved = false) {
             if (!action) return;
             if (action.type === "set_theme") {
                 applyTheme(action.theme);
@@ -3189,22 +3698,196 @@
             }
             if (action.type === "set_censor") {
                 state.aiCensorEnabled = action.enabled !== false;
-                localStorage.setItem(AI_CENSOR_KEY, state.aiCensorEnabled ? "on" : "off");
+                saveAiCensorSetting();
+                if ($("nextAiCensorInput")) $("nextAiCensorInput").checked = state.aiCensorEnabled;
                 renderActiveChat();
                 showToast(state.aiCensorEnabled ? "AI sansür filtresi açıldı." : "AI sansür filtresi kapandı.");
+                return;
+            }
+            if (action.type === "set_ai_enabled") {
+                state.aiSettings.enabled = action.enabled !== false;
+                saveAiSettings();
+                if ($("nextAiEnabledInput")) $("nextAiEnabledInput").checked = state.aiSettings.enabled;
+                if (!state.aiSettings.enabled && isAiChatId(state.activeChatId)) {
+                    state.activeChatId = null;
+                    closeMobileChat();
+                }
+                render();
+                showToast(state.aiSettings.enabled ? "Next AI açıldı." : "Next AI kapatıldı.");
+                return;
+            }
+            if (action.type === "set_ai_auto_approve") {
+                state.aiSettings.autoApprove = action.enabled !== false;
+                saveAiSettings();
+                if ($("nextAiAutoApproveInput")) $("nextAiAutoApproveInput").checked = state.aiSettings.autoApprove;
+                showToast(state.aiSettings.autoApprove ? "Next AI tam yetkiyle çalışacak." : "Next AI her işlemde onay isteyecek.");
+                return;
+            }
+            if (action.type === "set_ai_name") {
+                state.aiSettings.name = (action.name || DEFAULT_AI_NAME).trim() || DEFAULT_AI_NAME;
+                saveAiSettings();
+                if ($("nextAiNameInput")) $("nextAiNameInput").value = state.aiSettings.name;
+                if ($("nextAiAvatar")) setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
+                render();
+                showToast(`Next AI adı ${state.aiSettings.name} oldu.`);
+                return;
+            }
+            if (action.type === "update_profile") {
+                const summary = action.displayName
+                    ? `Adın “${action.displayName}” olarak güncellensin mi?`
+                    : `Hakkımda bilgisi güncellensin mi?`;
+                runAiActionWithPermission("AI profil güncellemesi", summary, autoApproved, () => updateProfileFromAi(action));
+                return;
+            }
+            if (action.type === "set_privacy") {
+                runAiActionWithPermission("AI gizlilik ayarı", action.label || "Gizlilik ayarı değişsin mi?", autoApproved, () => updatePrivacyFromAi(action));
                 return;
             }
             if (action.type === "set_chat_pref") {
                 const chat = focusChatForAi(action.chatId);
                 if (!chat) return;
-                const prefs = chatPrefs(chat.id);
-                if (action.locked && !ensureSecretPin()) return;
-                ["pinned", "muted", "locked", "tone", "background"].forEach(key => {
-                    if (Object.prototype.hasOwnProperty.call(action, key)) prefs[key] = action[key];
+                runAiActionWithPermission("AI sohbet ayarı", `${chat.title} sohbet ayarı değişsin mi?`, autoApproved, () => {
+                    const prefs = chatPrefs(chat.id);
+                    if (action.locked && !ensureSecretPin()) return;
+                    ["pinned", "muted", "locked", "tone", "background"].forEach(key => {
+                        if (Object.prototype.hasOwnProperty.call(action, key)) prefs[key] = action[key];
+                    });
+                    saveChatPreferences();
+                    if (prefs.locked && !state.lockedChatsUnlocked) {
+                        state.activeChatId = null;
+                        closeMobileChat();
+                    }
+                    render();
+                    showToast("Sohbet ayarı AI önerisiyle uygulandı.");
                 });
-                saveChatPreferences();
-                render();
-                showToast("Sohbet ayarı AI önerisiyle uygulandı.");
+                return;
+            }
+            if (action.type === "open_chat") {
+                const chat = focusChatForAi(action.chatId);
+                if (chat) showToast(`${chat.title} sohbeti açıldı.`);
+                return;
+            }
+            if (action.type === "delete_chat") {
+                const chat = state.chats.find(item => item.id === action.chatId);
+                if (!chat) return;
+                runAiActionWithPermission("AI sohbeti silsin mi?", `${chat.title} sohbeti listenden kaldırılsın mı?`, autoApproved, () => {
+                    socket.emit("chat:delete", { chatId: chat.id, mode: action.mode || "archive" });
+                    showToast("Sohbet silme isteği gönderildi.");
+                });
+                return;
+            }
+            if (action.type === "start_call") {
+                const chat = focusChatForAi(action.chatId);
+                if (!chat) return;
+                runAiActionWithPermission("AI arama başlatsın mı?", `${chat.title} için ${action.audioOnly === false ? "görüntülü" : "sesli"} arama başlatılsın mı?`, autoApproved, () => {
+                    startCall(action.audioOnly !== false);
+                });
+                return;
+            }
+            if (action.type === "end_call") {
+                runAiActionWithPermission("AI aramayı kapatsın mı?", "Aktif arama kapatılsın mı?", autoApproved, () => endCall(true));
+                return;
+            }
+            if (action.type === "schedule_call") {
+                const chat = focusChatForAi(action.chatId);
+                const callAt = new Date(action.callAt);
+                if (!chat || Number.isNaN(callAt.getTime())) return;
+                runAiActionWithPermission("AI planlı arama kursun mu?", `${chat.title} için ${callAt.toLocaleString("tr-TR")} araması planlansın mı?`, autoApproved, () => {
+                    const delay = Math.max(0, callAt.getTime() - Date.now());
+                    setTimeout(() => {
+                        focusChatForAi(chat.id);
+                        startCall(action.audioOnly !== false);
+                    }, Math.min(delay, 2_147_000_000));
+                    showToast("Planlı arama bu cihazda ayarlandı.");
+                });
+                return;
+            }
+            if (action.type === "open_settings") {
+                openSettings();
+                setSettingsView(action.section || "ai");
+                return;
+            }
+            if (action.type === "react_message") {
+                const chat = focusChatForAi(action.chatId);
+                const target = aiTargetMessage(chat, action.messageId);
+                if (!chat || !target) return;
+                runAiActionWithPermission("AI tepki bıraksın mı?", `${chat.title} son mesaja ${action.emoji || "👍"} bırakılsın mı?`, autoApproved, () => {
+                    socket.emit("message:react", { messageId: target.id, emoji: action.emoji || "👍" });
+                    showToast("Tepki gönderildi.");
+                });
+                return;
+            }
+            if (action.type === "reply_message") {
+                const chat = focusChatForAi(action.chatId);
+                const target = aiTargetMessage(chat, action.messageId);
+                if (!chat || !target || !action.body) return;
+                runAiActionWithPermission("AI yanıt göndersin mi?", `${chat.title}: “${action.body}”`, autoApproved, () => {
+                    socket.emit("message:send", {
+                        chatId: chat.id,
+                        body: action.body,
+                        replyTo: aiReplyPayload(target),
+                        expiresInSeconds: state.disappearingSeconds || 0
+                    });
+                    showToast("Yanıt gönderildi.");
+                });
+                return;
+            }
+            if (action.type === "create_group") {
+                const title = (action.title || "Yeni grup").trim();
+                const members = (action.members || []).map(item => userByAiName(item)?.username || item).filter(Boolean);
+                runAiActionWithPermission("AI grup oluştursun mu?", `${title} grubu oluşturulsun mu?`, autoApproved, () => {
+                    socket.emit("chat:group:create", { title, members });
+                    showToast("Grup oluşturma isteği gönderildi.");
+                });
+                return;
+            }
+            if (action.type === "update_group") {
+                const chat = focusChatForAi(action.chatId);
+                if (!chat || chat.type !== "group") return;
+                runAiActionWithPermission("AI grubu düzenlesin mi?", `${chat.title} grup bilgileri güncellensin mi?`, autoApproved, () => {
+                    if (action.title) {
+                        socket.emit("chat:group:update", { chatId: chat.id, title: action.title });
+                    }
+                    (action.members || []).forEach(item => {
+                        const user = userByAiName(item);
+                        if (user) socket.emit("chat:group:add", { chatId: chat.id, username: user.username });
+                    });
+                    showToast("Grup yönetim isteği gönderildi.");
+                });
+                return;
+            }
+            if (action.type === "create_story") {
+                if (!action.body) return;
+                runAiActionWithPermission("AI güncelleme paylaşsın mı?", `Güncelleme: “${action.body}”`, autoApproved, () => {
+                    socket.emit("story:create", { body: action.body });
+                    showToast("Güncelleme paylaşıldı.");
+                });
+                return;
+            }
+            if (action.type === "delete_story") {
+                const ownStories = state.stories.filter(story => story.username === state.me.username);
+                const story = action.storyId ? ownStories.find(item => item.id === action.storyId) : ownStories[ownStories.length - 1];
+                if (!story) {
+                    showToast("Silinecek güncelleme bulunamadı.");
+                    return;
+                }
+                runAiActionWithPermission("AI güncellemeyi silsin mi?", "Son güncellemen silinsin mi?", autoApproved, () => {
+                    socket.emit("story:delete", { storyId: story.id });
+                    showToast("Güncelleme silindi.");
+                });
+                return;
+            }
+            if (action.type === "contact_request") {
+                const user = userByAiName(action.username || action.name);
+                if (!user) return;
+                runAiActionWithPermission("AI istek göndersin mi?", `${user.displayName} kişisine mesajlaşma isteği gönderilsin mi?`, autoApproved, () => {
+                    socket.emit("chat:create", { target: user.username });
+                    showToast("Mesajlaşma isteği gönderildi.");
+                });
+                return;
+            }
+            if (action.type === "open_notifications") {
+                openNotificationPanel();
                 return;
             }
             if (action.type === "draft_message") {
@@ -3215,6 +3898,19 @@
                 showToast("Mesaj kutuya hazırlandı.");
                 return;
             }
+            if (action.type === "send_message") {
+                const chat = focusChatForAi(action.chatId);
+                if (!chat || !action.body) return;
+                runAiActionWithPermission("AI mesaj göndersin mi?", `${chat.title}: “${action.body}”`, autoApproved, () => {
+                    socket.emit("message:send", {
+                        chatId: chat.id,
+                        body: action.body,
+                        expiresInSeconds: state.disappearingSeconds || 0
+                    });
+                    showToast("Mesaj gönderildi.");
+                });
+                return;
+            }
             if (action.type === "schedule_message") {
                 const chat = focusChatForAi(action.chatId);
                 if (!chat) return;
@@ -3223,13 +3919,15 @@
                     showToast("AI zaman bilgisini okuyamadı.");
                     return;
                 }
-                socket.emit("message:schedule", {
-                    chatId: chat.id,
-                    body: action.body || "",
-                    sendAt: sendAt.toISOString(),
-                    expiresInSeconds: state.disappearingSeconds || 0
+                runAiActionWithPermission("AI zamanlı mesaj kursun mu?", `${chat.title}: “${action.body || ""}”`, autoApproved, () => {
+                    socket.emit("message:schedule", {
+                        chatId: chat.id,
+                        body: action.body || "",
+                        sendAt: sendAt.toISOString(),
+                        expiresInSeconds: state.disappearingSeconds || 0
+                    });
+                    showToast("Zamanlı mesaj AI önerisiyle oluşturuldu.");
                 });
-                showToast("Zamanlı mesaj AI önerisiyle oluşturuldu.");
             }
         }
 
@@ -3243,7 +3941,7 @@
         }
 
         function shouldHideMessageWithAi(message) {
-            if (!state.aiCensorEnabled || !message?.body || message.sender === state.me?.username || state.aiRevealedMessages[message.id]) {
+            if (!state.aiCensorEnabled || !message?.body || message.sender === state.me?.username || message.sender === AI_SENDER || state.aiRevealedMessages[message.id]) {
                 return [];
             }
             return aiModerationLabels(message.body);
@@ -3347,6 +4045,7 @@
             if (isMobileView()) {
                 $("app").classList.add("chat-open");
                 pushAppHistory("chat");
+                updateAiAssistantVisibility();
             }
         }
 
@@ -3369,11 +4068,13 @@
             state.contactRequests = [];
             state.groupInvites = [];
             state.blockedUsers = [];
+            state.aiSettings = defaultAiSettings();
+            state.aiAvatarDraft = "";
             state.activeChatId = null;
             state.bootReady = false;
             $("app").classList.add("hidden");
             $("app").classList.remove("chat-open", "keyboard-open");
-            $("aiAssistantButton").classList.add("hidden");
+            $("aiAssistantButton")?.classList.add("hidden");
             $("aiPanel").classList.add("hidden");
             $("authScreen").classList.remove("hidden");
             hideScreenTransition();
@@ -3468,29 +4169,44 @@
             }
         }
 
+        function setAuthBusy(busy) {
+            state.authBusy = busy;
+            $("authButton").disabled = busy;
+        }
+
         async function submitAuth() {
-            if (state.mode === "register") {
-                await submitRegisterStep();
+            if (state.authBusy) {
                 return;
             }
+            setAuthBusy(true);
+            try {
+                if (state.mode === "register") {
+                    await submitRegisterStep();
+                    return;
+                }
 
-            const email = $("username").value.trim();
-            const password = $("password").value;
-            const response = await fetch("/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
-            });
-            const data = await response.json();
+                const email = $("username").value.trim();
+                const password = $("password").value;
+                const response = await fetch("/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
 
-            if (!data.ok) {
-                $("authStatus").textContent = data.message;
-                return;
+                if (!data.ok) {
+                    $("authStatus").textContent = data.message;
+                    return;
+                }
+
+                state.me = data.user;
+                localStorage.setItem("nexalineUser", data.user.username);
+                openApp();
+            } catch (error) {
+                $("authStatus").textContent = "Sunucuya bağlanılamadı. İnternetini kontrol edip tekrar dene.";
+            } finally {
+                setAuthBusy(false);
             }
-
-            state.me = data.user;
-            localStorage.setItem("nexalineUser", data.user.username);
-            openApp();
         }
 
         function titleCaseNamePart(value) {
@@ -3545,7 +4261,13 @@
             }
 
             if (state.registerStep === 1) {
-                const generated = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 36) || "nexaline";
+                const generated = email
+                    .split("@")[0]
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "_")
+                    .replace(/_+/g, "_")
+                    .replace(/^_+|_+$/g, "")
+                    .slice(0, 18) || "nexaline";
                 const payload = {
                     firstName: state.pendingRegister?.firstName || firstName,
                     lastName: state.pendingRegister?.lastName || lastName,
@@ -3613,17 +4335,20 @@
             openApp();
         }
 
+        function joinRealtime() {
+            if (state.me?.username && socket.connected) {
+                socket.emit("user:join", { username: state.me.username, includeState: false });
+            }
+        }
+
         async function openApp() {
-            showScreenTransition("NexaLine aciliyor", 900);
+            loadAiSettings();
+            showScreenTransition("NexaLine açılıyor", 0);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
-            socket.emit("user:join", { username: state.me.username });
+            joinRealtime();
             loadRtcConfig();
-            setTimeout(() => {
-                if (!state.bootReady) {
-                    loadBootstrap();
-                }
-            }, 450);
+            loadBootstrap();
         }
 
         async function loadRtcConfig() {
@@ -3661,6 +4386,7 @@
             if (data.ok) {
                 const currentChatId = state.activeChatId;
                 state.me = data.user;
+                loadAiSettings();
                 state.users = data.users;
                 state.chats = data.chats;
                 state.generalGroup = data.generalGroup;
@@ -3668,7 +4394,7 @@
                 state.callLogs = data.callLogs || [];
                 state.scheduledMessages = data.scheduledMessages || [];
                 hydrateRealtimeState(data);
-                state.activeChatId = currentChatId && state.chats.some(chat => chat.id === currentChatId) ? currentChatId : null;
+                state.activeChatId = currentChatId && ((isAiChatId(currentChatId) && state.aiSettings.enabled) || state.chats.some(chat => chat.id === currentChatId)) ? currentChatId : null;
                 state.bootReady = true;
                 render();
                 hideScreenTransition();
@@ -3692,6 +4418,7 @@
             renderContacts();
             renderArchives();
             renderActiveChat();
+            updateAiAssistantVisibility();
         }
 
         function renderProfile() {
@@ -3699,8 +4426,15 @@
             $("meAvatar").classList.add("online");
             $("meAvatar").onclick = () => showStoryForUser(state.me.username);
             $("meName").textContent = state.me.displayName;
-            $("aiAssistantButton").classList.remove("hidden");
+            updateAiAssistantVisibility();
             updateNotificationButton();
+        }
+
+        function updateAiAssistantVisibility() {
+            const button = $("aiAssistantButton");
+            if (!button) return;
+            button.classList.add("hidden");
+            closeAiPanel();
         }
 
         function renderSections() {
@@ -3719,6 +4453,7 @@
             ["chatList", "groupList", "storyList", "callList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
             const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", contacts: "contactList", archives: "archiveList" };
             $(map[state.activeSection]).classList.remove("hidden");
+            updateAiAssistantVisibility();
         }
 
         function renderStories() {
@@ -3873,6 +4608,40 @@
             const chatList = $("chatList");
             chatList.innerHTML = "";
 
+            const aiName = aiDisplayName();
+            const showAiChat = state.aiSettings.enabled
+                && (!filter || aiName.toLowerCase().includes(filter) || aiLastText().toLowerCase().includes(filter) || "next ai yapay zeka asistan".includes(filter));
+            if (showAiChat) {
+                const button = document.createElement("button");
+                button.className = "chat-item" + (state.activeChatId === AI_CHAT_ID ? " active" : "");
+                button.onclick = selectAiChat;
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar online";
+                setAvatar(avatar, aiContact(), aiName);
+
+                const body = document.createElement("div");
+                const title = document.createElement("strong");
+                title.className = "chat-title";
+                title.textContent = aiName;
+                const last = document.createElement("div");
+                last.className = "last-message";
+                last.textContent = aiLastText();
+                body.append(title, last);
+
+                const side = document.createElement("span");
+                side.className = "chat-side";
+                const pinned = document.createElement("span");
+                pinned.className = "flag-pill";
+                pinned.textContent = "S";
+                side.appendChild(pinned);
+
+                button.append(avatar, body, side);
+                chatList.appendChild(button);
+            }
+
+            appendLockedChatsUnlock(chatList);
+
             if (state.generalGroup && !state.generalGroup.joined) {
                 const button = document.createElement("button");
                 button.className = "chat-item";
@@ -3913,10 +4682,8 @@
                             state.newMessageMarkers[chat.id] = marker;
                         }
                         state.activeChatId = chat.id;
-                        transitionThen(() => {
-                            render();
-                            openMobileChat();
-                        }, "Sohbet aciliyor", 1050);
+                        render();
+                        openMobileChat();
                     };
 
                     const avatar = document.createElement("div");
@@ -3969,6 +4736,7 @@
             const filter = $("searchInput").value.trim().toLowerCase();
             const groupList = $("groupList");
             groupList.innerHTML = "";
+            appendLockedChatsUnlock(groupList);
 
             const create = document.createElement("button");
             create.className = "chat-item";
@@ -4023,10 +4791,8 @@
                             state.newMessageMarkers[chat.id] = marker;
                         }
                         state.activeChatId = chat.id;
-                        transitionThen(() => {
-                            render();
-                            openMobileChat();
-                        }, "Grup aciliyor", 1050);
+                        render();
+                        openMobileChat();
                     };
 
                     const avatar = document.createElement("div");
@@ -4080,7 +4846,7 @@
             callList.appendChild(create);
 
             if (!state.callLogs.length) {
-                callList.insertAdjacentHTML("beforeend", `<button class="call-item"><div class="avatar">☎</div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`);
+                callList.insertAdjacentHTML("beforeend", `<button class="call-item"><div class="avatar"><img src="/static/nexaline-mark.png" alt=""></div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`);
                 return;
             }
 
@@ -4092,14 +4858,16 @@
                     button.onclick = () => {
                         clearActiveNewMarker();
                         state.activeChatId = log.chatId;
-                        transitionThen(() => {
-                            render();
-                            openMobileChat();
-                        }, "Arama kaydi aciliyor", 900);
+                        render();
+                        openMobileChat();
                     };
                     const avatar = document.createElement("div");
                     avatar.className = "avatar";
-                    avatar.textContent = log.kind === "video" ? "▣" : "☎";
+                    const chat = state.chats.find(item => item.id === log.chatId);
+                    const callUser = chat?.type === "direct"
+                        ? (log.caller === state.me.username ? otherMember(chat) : chat.members.find(member => member.username === log.caller))
+                        : state.users.find(user => user.username === log.caller);
+                    setAvatar(avatar, callUser || { displayName: log.callerName }, log.callerName || log.chatTitle);
                     const body = document.createElement("div");
                     const title = document.createElement("strong");
                     title.className = "chat-title";
@@ -4122,17 +4890,18 @@
             archiveList.innerHTML = "";
 
             if (!state.archiveUnlocked) {
+                const hasPin = Boolean(localStorage.getItem(archivePinKey()));
                 const lock = document.createElement("div");
                 lock.className = "archive-lock";
                 lock.innerHTML = `
-                    <strong>Arşivi görüntülemek için şifre girin</strong>
-                    <div class="last-message">Silinen ve engellenirken saklanan sohbetler şifreyle açılır.</div>
-                    <input id="archiveUnlockPassword" type="password" placeholder="Hesap şifresi">
-                    <button id="archiveUnlockButton" class="primary" type="button">Arşivi Aç</button>
+                    <strong>${hasPin ? "Arşivi açmak için PIN gir" : "Arşiv için 4 haneli PIN oluştur"}</strong>
+                    <div class="last-message">Hesap şifresi yerine bu cihazda saklanan 4 haneli arşiv PIN'i kullanılır.</div>
+                    <input id="archiveUnlockPin" type="password" inputmode="numeric" maxlength="4" placeholder="4 haneli PIN">
+                    <button id="archiveUnlockButton" class="primary" type="button">${hasPin ? "Arşivi Aç" : "PIN Oluştur ve Aç"}</button>
                 `;
                 archiveList.appendChild(lock);
                 $("archiveUnlockButton").onclick = unlockArchives;
-                $("archiveUnlockPassword").addEventListener("keydown", event => {
+                $("archiveUnlockPin").addEventListener("keydown", event => {
                     if (event.key === "Enter") {
                         event.preventDefault();
                         unlockArchives();
@@ -4150,7 +4919,6 @@
             archiveList.appendChild(header);
             $("archiveLockButton").onclick = () => {
                 state.archiveUnlocked = false;
-                state.archivePassword = "";
                 state.archiveItems = [];
                 renderArchives();
             };
@@ -4167,7 +4935,7 @@
                 .forEach(item => {
                     const button = document.createElement("button");
                     button.className = "chat-item";
-                    button.onclick = () => renderArchiveModal(item, state.archivePassword);
+                    button.onclick = () => loadArchive(item);
                     const avatar = document.createElement("div");
                     avatar.className = "avatar";
                     avatar.textContent = item.reason === "blocked" ? "!" : "A";
@@ -4188,11 +4956,23 @@
         }
 
         async function unlockArchives() {
-            const password = $("archiveUnlockPassword")?.value || "";
+            const pin = ($("archiveUnlockPin")?.value || "").trim();
+            if (!/^\d{4}$/.test(pin)) {
+                showToast("Arşiv PIN'i 4 rakam olmalı.");
+                return;
+            }
+            const savedPin = localStorage.getItem(archivePinKey());
+            if (savedPin && pin !== savedPin) {
+                showToast("PIN hatalı.");
+                return;
+            }
+            if (!savedPin) {
+                localStorage.setItem(archivePinKey(), pin);
+            }
             const response = await fetch(`/account/${state.me.username}/archives/unlock`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({})
             });
             const data = await response.json();
             if (!data.ok) {
@@ -4200,42 +4980,25 @@
                 return;
             }
             state.archiveUnlocked = true;
-            state.archivePassword = password;
             state.archiveItems = data.archives || [];
             renderArchives();
         }
 
-        function openArchivePassword(item) {
-            openModal("Arşiv şifresi", body => {
-                const note = document.createElement("p");
-                note.textContent = `${item.chatTitle} arşivini görmek için hesap şifreni gir.`;
-                const input = document.createElement("input");
-                input.id = "archivePasswordInput";
-                input.type = "password";
-                input.placeholder = "Şifre";
-                body.append(note, input);
-                setTimeout(() => input.focus(), 60);
-            }, [
-                { label: "Vazgeç", onClick: closeModal },
-                { label: "Aç", primary: true, onClick: () => loadArchive(item, $("archivePasswordInput").value) }
-            ]);
-        }
-
-        async function loadArchive(item, password) {
+        async function loadArchive(item) {
             const response = await fetch(`/account/${state.me.username}/archives/${item.id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({})
             });
             const data = await response.json();
             if (!data.ok) {
                 showToast(data.message || "Arşiv açılamadı.");
                 return;
             }
-            renderArchiveModal(data.archive, password);
+            renderArchiveModal(data.archive);
         }
 
-        function renderArchiveModal(archive, password) {
+        function renderArchiveModal(archive) {
             openModal(archive.chatTitle, body => {
                 const info = document.createElement("div");
                 info.className = "last-message";
@@ -4262,16 +5025,16 @@
                 body.append(info, list);
             }, [
                 { label: "Kapat", onClick: closeModal },
-                { label: "Arşivden çıkar", onClick: () => restoreArchive(archive.id, password) },
-                { label: "Kalıcı sil", primary: true, onClick: () => deleteArchive(archive.id, password) }
+                { label: "Arşivden çıkar", onClick: () => restoreArchive(archive.id) },
+                { label: "Kalıcı sil", primary: true, onClick: () => deleteArchive(archive.id) }
             ]);
         }
 
-        async function restoreArchive(archiveId, password) {
+        async function restoreArchive(archiveId) {
             const response = await fetch(`/account/${state.me.username}/archives/${archiveId}/restore`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({})
             });
             const data = await response.json();
             if (!data.ok) {
@@ -4288,11 +5051,11 @@
             showToast(data.message || "Sohbet arşivden çıkarıldı.");
         }
 
-        async function deleteArchive(archiveId, password) {
+        async function deleteArchive(archiveId) {
             const response = await fetch(`/account/${state.me.username}/archives/${archiveId}`, {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({})
             });
             const data = await response.json();
             if (!data.ok) {
@@ -4440,7 +5203,12 @@
                         const row = document.createElement("button");
                         row.className = "contact-item";
                         row.type = "button";
-                        row.innerHTML = `<div class="avatar">${escapeHtml(initials(user.displayName))}</div><div><strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">${user.online ? "çevrim içi" : user.lastSeen ? `son görülme ${relativeTime(user.lastSeen)}` : "son görülme kapalı"}</div></div><span></span>`;
+                        const avatar = document.createElement("div");
+                        avatar.className = "avatar" + (user.online ? " online" : "");
+                        setAvatar(avatar, user, user.displayName);
+                        const text = document.createElement("div");
+                        text.innerHTML = `<strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">${user.online ? "çevrim içi" : user.lastSeen ? `son görülme ${relativeTime(user.lastSeen)}` : "son görülme kapalı"}</div>`;
+                        row.append(avatar, text, document.createElement("span"));
                         row.onclick = () => {
                             state.activeChatId = chat.id;
                             closeModal();
@@ -4615,8 +5383,9 @@
             const wasNearBottom = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight < 140;
 
             if (!chat) {
+                document.querySelector(".chat-top").classList.add("empty-state");
                 state.lastRenderedChatId = null;
-                $("activeTitle").textContent = "NexaLine";
+                $("activeTitle").textContent = "";
                 $("activeStatus").textContent = "";
                 setAvatar($("activeAvatar"), "NexaLine", "NexaLine");
                 $("activeAvatar").classList.remove("online");
@@ -4626,7 +5395,6 @@
                 $("groupMembersButton").classList.remove("visible");
                 $("leaveGroupButton").classList.add("hidden");
                 $("chatPrefsButton").classList.add("hidden");
-                $("deleteChatButton").classList.add("hidden");
                 $("callButton").classList.add("hidden");
                 $("videoButton").classList.add("hidden");
                 messageBox.innerHTML = "";
@@ -4634,25 +5402,35 @@
                 $("emptyChat").classList.remove("hidden");
                 $("smartReplies").classList.add("hidden");
                 document.querySelector(".composer").classList.add("hidden");
+                updateAiAssistantVisibility();
                 return;
             }
 
+            document.querySelector(".chat-top").classList.remove("empty-state");
             $("emptyChat").classList.add("hidden");
             document.querySelector(".composer").classList.remove("hidden");
+            const aiMode = isAiChat(chat);
+            $("attachButton").classList.toggle("hidden", aiMode);
+            $("locationButton").classList.toggle("hidden", aiMode);
+            $("voiceButton").classList.toggle("hidden", aiMode);
+            $("sendToolsButton").classList.toggle("hidden", aiMode);
+            $("cancelVoiceButton").classList.add("hidden");
+            $("messageInput").placeholder = aiMode ? `${aiDisplayName()} ile konuş` : "Mesaj";
             $("activeTitle").textContent = chat.title;
-            setAvatar($("activeAvatar"), chat.type === "direct" ? otherMember(chat) : chat, chat.title);
-            $("activeAvatar").classList.toggle("online", isChatOnline(chat));
-            $("activeAvatar").onclick = () => chat.type === "direct" ? openUserDetail(otherMember(chat)) : showActiveMembers();
-            $("activeTitle").onclick = () => chat.type === "direct" ? openUserDetail(otherMember(chat)) : showActiveMembers();
-            $("activeStatus").textContent = statusText(chat);
+            const chatSettingsHandler = aiMode ? () => { openSettings(); setSettingsView("ai"); } : openChatPreferences;
+            setAvatar($("activeAvatar"), aiMode ? aiContact() : chat.type === "direct" ? otherMember(chat) : chat, chat.title);
+            $("activeAvatar").classList.toggle("online", aiMode || isChatOnline(chat));
+            $("activeAvatar").onclick = chatSettingsHandler;
+            $("activeTitle").onclick = chatSettingsHandler;
+            $("activeStatus").onclick = chatSettingsHandler;
+            $("activeStatus").textContent = aiMode ? "çevrimiçi • kişisel asistan" : statusText(chat);
             $("backButton").classList.remove("hidden");
-            $("callButton").classList.remove("hidden");
-            $("videoButton").classList.remove("hidden");
-            $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
+            $("callButton").classList.toggle("hidden", aiMode);
+            $("videoButton").classList.toggle("hidden", aiMode);
+            $("leaveGroupButton").classList.add("hidden");
             $("chatPrefsButton").classList.remove("hidden");
-            $("deleteChatButton").classList.remove("hidden");
-            const me = chat.members.find(member => member.username === state.me.username);
-            $("groupMembersButton").classList.toggle("visible", chat.type === "group" && chat.id !== "lobby" && Boolean(me?.isAdmin));
+            $("groupMembersButton").classList.remove("visible");
+            updateAiAssistantVisibility();
             messageBox.innerHTML = "";
             messageBox.dataset.bg = chatPrefs(chat.id).background || "none";
 
@@ -4734,27 +5512,49 @@
                     bubble.appendChild(reactions);
                 }
 
+                if (message.aiActions?.length) {
+                    const actionWrap = document.createElement("div");
+                    actionWrap.className = "ai-actions";
+                    message.aiActions.forEach(action => {
+                        const actionButton = document.createElement("button");
+                        actionButton.type = "button";
+                        actionButton.textContent = action.label || "Uygula";
+                        actionButton.onclick = event => {
+                            event.stopPropagation();
+                            applyAiAction(action);
+                        };
+                        actionWrap.appendChild(actionButton);
+                    });
+                    bubble.appendChild(actionWrap);
+                }
+
                 const meta = document.createElement("div");
                 meta.className = "message-meta";
                 const read = !state.me?.privacy?.readReceiptsOff && chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
                 const delivered = mine && !read && isDelivered(chat, message);
                 const edited = message.editedAt ? " · düzenlendi" : "";
                 const expires = message.expiresAt ? ` · ${formatTime(message.expiresAt)} silinir` : "";
-                meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}${edited}${expires}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
-                meta.querySelector(".reply-action").onclick = event => {
-                    event.stopPropagation();
-                    setReplyTo(message);
-                };
-                meta.querySelector(".message-menu").onclick = event => {
-                    event.stopPropagation();
-                    openMessageMenu(message);
-                };
-                meta.querySelector(".react-action").onclick = event => {
-                    event.stopPropagation();
-                    openReactionMenu(message);
-                };
+                if (isAiChat(chat)) {
+                    meta.innerHTML = `<span>${formatTime(message.createdAt)}</span>`;
+                } else {
+                    meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}${edited}${expires}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
+                    meta.querySelector(".reply-action").onclick = event => {
+                        event.stopPropagation();
+                        setReplyTo(message);
+                    };
+                    meta.querySelector(".message-menu").onclick = event => {
+                        event.stopPropagation();
+                        openMessageMenu(message);
+                    };
+                    meta.querySelector(".react-action").onclick = event => {
+                        event.stopPropagation();
+                        openReactionMenu(message);
+                    };
+                }
                 bubble.appendChild(meta);
-                attachSwipeReply(bubble, message);
+                if (!isAiChat(chat)) {
+                    attachSwipeReply(bubble, message);
+                }
                 messageBox.appendChild(bubble);
             });
 
@@ -4768,8 +5568,13 @@
             renderSmartReplies(chat);
             $("sendToolsButton").classList.toggle("active-tool", Boolean(state.disappearingSeconds));
             const readableSection = state.activeSection === "chats" || state.activeSection === "groups";
-            if (document.visibilityState === "visible" && readableSection && chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
-                socket.emit("message:read", { chatId: chat.id });
+            if (!isAiChat(chat) && document.visibilityState === "visible" && readableSection && chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
+                const unreadIds = visibleMessages
+                    .filter(message => message.sender !== state.me.username && !message.readBy.includes(state.me.username))
+                    .map(message => message.id);
+                if (unreadIds.length) {
+                    socket.emit("message:read", { chatId: chat.id, messageIds: unreadIds });
+                }
             }
         }
 
@@ -4796,7 +5601,12 @@
         function unlockSecretChats() {
             const saved = localStorage.getItem(SECRET_PIN_KEY);
             if (!saved) {
-                return ensureSecretPin();
+                const created = ensureSecretPin();
+                if (created) {
+                    state.lockedChatsUnlocked = true;
+                    render();
+                }
+                return created;
             }
             const pin = prompt("Gizli sohbet PIN");
             if (pin !== saved) {
@@ -4811,30 +5621,13 @@
         function openChatPreferences() {
             const chat = activeChat();
             if (!chat) return;
+            if (isAiChat(chat)) {
+                openSettings();
+                setSettingsView("ai");
+                return;
+            }
             const prefs = chatPrefs(chat.id);
-            openModal("Sohbet ayarları", body => {
-                const toggles = document.createElement("div");
-                toggles.className = "privacy-grid";
-                toggles.innerHTML = `
-                    <label class="toggle-row"><span>Sohbeti sabitle</span><input id="chatPinnedInput" type="checkbox" ${prefs.pinned ? "checked" : ""}></label>
-                    <label class="toggle-row"><span>Sessize al</span><input id="chatMutedInput" type="checkbox" ${prefs.muted ? "checked" : ""}></label>
-                    <label class="toggle-row"><span>Gizli sohbet yap</span><input id="chatLockedInput" type="checkbox" ${prefs.locked ? "checked" : ""}></label>
-                `;
-                const tone = document.createElement("select");
-                tone.id = "chatToneInput";
-                tone.innerHTML = `
-                    <option value="classic">Bildirim sesi: Klasik</option>
-                    <option value="soft">Bildirim sesi: Yumuşak</option>
-                    <option value="bright">Bildirim sesi: Parlak</option>
-                    <option value="silent">Bildirim sesi: Sessiz</option>
-                `;
-                tone.value = prefs.tone || "classic";
-                const background = document.createElement("select");
-                background.id = "chatBackgroundInput";
-                background.innerHTML = Object.entries(CHAT_BACKGROUNDS).map(([value, label]) => `<option value="${value}">Arka plan: ${label}</option>`).join("");
-                background.value = prefs.background || "none";
-                body.append(toggles, tone, background);
-            }, [
+            const actions = [
                 { label: "Sesi dene", onClick: () => playMessageSound(chat.id) },
                 { label: "Sohbeti sil", onClick: openDeleteChatMenu },
                 {
@@ -4860,7 +5653,65 @@
                         showToast("Sohbet ayarları kaydedildi.");
                     }
                 }
-            ]);
+            ];
+            if (chat.type === "group") {
+                actions.splice(1, 0,
+                    { label: "Grup bilgisi", onClick: () => { closeModal(); showActiveMembers(); } },
+                    { label: "Gruptan çık", onClick: () => { closeModal(); leaveCurrentGroup(); } }
+                );
+            }
+            openModal("Sohbet ayarları", body => {
+                const detail = document.createElement("div");
+                detail.className = "profile-preview";
+                const detailAvatar = document.createElement("div");
+                detailAvatar.className = "avatar" + (isChatOnline(chat) ? " online" : "");
+                const detailText = document.createElement("div");
+                if (chat.type === "direct") {
+                    const user = otherMember(chat);
+                    setAvatar(detailAvatar, user, chat.title);
+                    const emailText = user?.email || (user?.privacy?.emailHidden ? "Gmail gizli" : "Gmail yok");
+                    const seenText = user?.online
+                        ? "çevrim içi"
+                        : user?.lastSeen
+                            ? `son görülme ${relativeTime(user.lastSeen)}`
+                            : "son görülme kapalı";
+                    detailText.innerHTML = `
+                        <strong>${escapeHtml(user?.displayName || chat.title)}</strong>
+                        <div class="last-message">${escapeHtml(seenText)}</div>
+                        <div class="last-message">${escapeHtml(emailText)}</div>
+                        <div class="last-message">${escapeHtml(user?.about || "Hakkında bilgisi yok.")}</div>
+                    `;
+                } else {
+                    setAvatar(detailAvatar, chat, chat.title);
+                    detailText.innerHTML = `
+                        <strong>${escapeHtml(chat.title)}</strong>
+                        <div class="last-message">${chat.members.length} kişi</div>
+                        <div class="last-message">Grup bilgileri ve sohbet davranışı burada yönetilir.</div>
+                    `;
+                }
+                detail.append(detailAvatar, detailText);
+                const toggles = document.createElement("div");
+                toggles.className = "privacy-grid";
+                toggles.innerHTML = `
+                    <label class="toggle-row"><span>Sohbeti sabitle</span><input id="chatPinnedInput" type="checkbox" ${prefs.pinned ? "checked" : ""}></label>
+                    <label class="toggle-row"><span>Sessize al</span><input id="chatMutedInput" type="checkbox" ${prefs.muted ? "checked" : ""}></label>
+                    <label class="toggle-row"><span>Gizli sohbet yap</span><input id="chatLockedInput" type="checkbox" ${prefs.locked ? "checked" : ""}></label>
+                `;
+                const tone = document.createElement("select");
+                tone.id = "chatToneInput";
+                tone.innerHTML = `
+                    <option value="classic">Bildirim sesi: Klasik</option>
+                    <option value="soft">Bildirim sesi: Yumuşak</option>
+                    <option value="bright">Bildirim sesi: Parlak</option>
+                    <option value="silent">Bildirim sesi: Sessiz</option>
+                `;
+                tone.value = prefs.tone || "classic";
+                const background = document.createElement("select");
+                background.id = "chatBackgroundInput";
+                background.innerHTML = Object.entries(CHAT_BACKGROUNDS).map(([value, label]) => `<option value="${value}">Arka plan: ${label}</option>`).join("");
+                background.value = prefs.background || "none";
+                body.append(detail, toggles, tone, background);
+            }, actions);
         }
 
         function openDeleteChatMenu() {
@@ -5078,6 +5929,18 @@
             const chat = activeChat();
 
             if (!chat || (!body && !state.attachment)) {
+                return;
+            }
+
+            if (isAiChat(chat)) {
+                if (state.attachment) {
+                    showToast("Next AI şu an dosya almıyor, metin olarak yazabilirsin.");
+                    return;
+                }
+                input.value = "";
+                input.placeholder = "Mesaj";
+                clearReply();
+                sendAiPrompt(body);
                 return;
             }
 
@@ -5570,11 +6433,16 @@
             $("hideEmailInput").checked = state.me.privacy?.emailHidden !== false;
             $("lightThemeInput").checked = state.theme === "light";
             $("unlockSecretChatsInput").checked = state.lockedChatsUnlocked;
-            $("aiCensorInput").checked = state.aiCensorEnabled;
+            $("nextAiEnabledInput").checked = state.aiSettings.enabled;
+            $("nextAiCensorInput").checked = state.aiCensorEnabled;
+            $("nextAiAutoApproveInput").checked = state.aiSettings.autoApprove;
+            $("nextAiNameInput").value = aiDisplayName();
             $("secretPinInput").value = "";
             $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
             state.profileImageDraft = state.me.profileImage || null;
+            state.aiAvatarDraft = state.aiSettings.image || "";
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
+            setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
             setSettingsView("menu");
             $("settingsPanel").classList.remove("hidden");
             pushAppHistory("settings");
@@ -5590,6 +6458,7 @@
             $("settingsProfileSection").classList.toggle("hidden", view !== "profile");
             $("settingsPrivacySection").classList.toggle("hidden", view !== "privacy");
             $("settingsAppearanceSection").classList.toggle("hidden", view !== "appearance");
+            $("settingsAiSection").classList.toggle("hidden", view !== "ai");
             $("settingsAccountSection").classList.toggle("hidden", view !== "account");
             $("settingsEmail").textContent = view === "menu"
                 ? (state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış")
@@ -5599,7 +6468,9 @@
                         ? "Gizlilik seçenekleri"
                         : view === "appearance"
                             ? "Görünüm ve kilit"
-                            : "Hesap işlemleri";
+                            : view === "ai"
+                                ? "Next AI ayarları"
+                                : "Hesap işlemleri";
             $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
         }
 
@@ -5648,8 +6519,6 @@
 
         function saveAppearance() {
             applyTheme($("lightThemeInput").checked ? "light" : "dark");
-            state.aiCensorEnabled = $("aiCensorInput").checked;
-            localStorage.setItem(AI_CENSOR_KEY, state.aiCensorEnabled ? "on" : "off");
             const pin = $("secretPinInput").value.trim();
             let pinJustSaved = false;
             if (pin) {
@@ -5675,6 +6544,36 @@
             $("secretPinInput").value = "";
             $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
             showToast("Görünüm kaydedildi.");
+        }
+
+        function chooseNextAiImage() {
+            $("nextAiImageInput").value = "";
+            $("nextAiImageInput").click();
+        }
+
+        function handleNextAiImage(event) {
+            readImageFile(event.target.files[0], dataUrl => {
+                if (!dataUrl) return;
+                state.aiAvatarDraft = dataUrl;
+                setAvatar($("nextAiAvatar"), { profileImage: dataUrl, displayName: $("nextAiNameInput").value || aiDisplayName() }, $("nextAiNameInput").value || aiDisplayName());
+            });
+        }
+
+        function saveNextAiSettings() {
+            state.aiSettings.enabled = $("nextAiEnabledInput").checked;
+            state.aiSettings.autoApprove = $("nextAiAutoApproveInput").checked;
+            state.aiSettings.name = $("nextAiNameInput").value.trim() || DEFAULT_AI_NAME;
+            state.aiSettings.image = state.aiAvatarDraft || "";
+            state.aiCensorEnabled = $("nextAiCensorInput").checked;
+            saveAiSettings();
+            saveAiCensorSetting();
+            if (!state.aiSettings.enabled && isAiChatId(state.activeChatId)) {
+                state.activeChatId = null;
+                $("app").classList.remove("chat-open");
+            }
+            setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
+            render();
+            showToast("Next AI ayarları kaydedildi.");
         }
 
         function chooseProfileImage() {
@@ -5803,6 +6702,9 @@
         function activeChat() {
             if (!state.activeChatId) {
                 return null;
+            }
+            if (isAiChatId(state.activeChatId)) {
+                return state.aiSettings.enabled ? aiChatSummary() : null;
             }
             return state.chats.find(chat => chat.id === state.activeChatId) || null;
         }
@@ -6260,6 +7162,10 @@
                 showToast("Önce bir sohbet seçmelisin.");
                 return null;
             }
+            if (isAiChat(chat)) {
+                showToast("Next AI sohbetinden arama başlatmak için kişiyi yazarak söyleyebilirsin.");
+                return null;
+            }
 
             return chat;
         }
@@ -6563,6 +7469,7 @@
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
         $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
         $("settingsAppearanceTab").onclick = () => setSettingsView("appearance");
+        $("settingsAiTab").onclick = () => setSettingsView("ai");
         $("settingsAccountTab").onclick = () => setSettingsView("account");
         document.querySelectorAll("[data-settings-back]").forEach(button => {
             button.onclick = () => setSettingsView("menu");
@@ -6576,6 +7483,13 @@
         $("saveProfileButton").onclick = saveProfile;
         $("savePrivacyButton").onclick = savePrivacy;
         $("saveAppearanceButton").onclick = saveAppearance;
+        $("nextAiImageButton").onclick = chooseNextAiImage;
+        $("removeNextAiImageButton").onclick = () => {
+            state.aiAvatarDraft = "";
+            setAvatar($("nextAiAvatar"), { profileImage: DEFAULT_AI_AVATAR, displayName: $("nextAiNameInput").value || DEFAULT_AI_NAME }, $("nextAiNameInput").value || DEFAULT_AI_NAME);
+        };
+        $("nextAiImageInput").onchange = handleNextAiImage;
+        $("saveNextAiButton").onclick = saveNextAiSettings;
         $("changeEmailButton").onclick = changeAccountEmail;
         $("changePasswordButton").onclick = changeAccountPassword;
         $("settingsDeleteButton").onclick = deleteAccount;
@@ -6585,16 +7499,9 @@
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
         $("chatPrefsButton").onclick = openChatPreferences;
-        $("deleteChatButton").onclick = openDeleteChatMenu;
         $("leaveGroupButton").onclick = leaveCurrentGroup;
         $("groupMembersButton").onclick = showActiveMembers;
-        $("activeStatus").onclick = () => {
-            const chat = activeChat();
-            if (!chat) {
-                return;
-            }
-            chat.type === "direct" ? openUserDetail(otherMember(chat)) : showActiveMembers();
-        };
+        $("activeStatus").onclick = openChatPreferences;
         $("callButton").onclick = () => startCall(true);
         $("videoButton").onclick = () => startCall(false);
         $("acceptCallButton").onclick = acceptCall;
@@ -6603,7 +7510,7 @@
         $("cameraButton").onclick = toggleCamera;
         $("switchCameraButton").onclick = switchCamera;
         $("modalCloseButton").onclick = closeModal;
-        $("aiAssistantButton").onclick = toggleAiPanel;
+        if ($("aiAssistantButton")) $("aiAssistantButton").onclick = toggleAiPanel;
         $("aiCloseButton").onclick = closeAiPanel;
         $("aiSendButton").onclick = sendAiPrompt;
         $("aiInput").addEventListener("keydown", event => {
@@ -6614,7 +7521,7 @@
         });
         $("messageInput").addEventListener("input", () => {
             const chat = activeChat();
-            if (chat) {
+            if (chat && !isAiChat(chat)) {
                 socket.emit("typing", { chatId: chat.id, typing: $("messageInput").value.length > 0 });
             }
             renderSmartReplies(chat);
@@ -6639,8 +7546,11 @@
 
         socket.on("connect", () => {
             if (state.me?.username) {
-                socket.emit("user:join", { username: state.me.username });
+                joinRealtime();
                 flushOutbox();
+                if (!state.bootReady && !state.bootstrapLoading) {
+                    loadBootstrap().catch(() => {});
+                }
             }
         });
 
@@ -6651,6 +7561,7 @@
         socket.on("app:state", data => {
             const currentChatId = state.activeChatId;
             state.me = data.user;
+            loadAiSettings();
             state.users = data.users;
             state.chats = data.chats;
             state.generalGroup = data.generalGroup;
@@ -6658,7 +7569,7 @@
             state.callLogs = data.callLogs || [];
             state.scheduledMessages = data.scheduledMessages || [];
             hydrateRealtimeState(data);
-            state.activeChatId = currentChatId && state.chats.some(chat => chat.id === currentChatId) ? currentChatId : null;
+            state.activeChatId = currentChatId && ((isAiChatId(currentChatId) && state.aiSettings.enabled) || state.chats.some(chat => chat.id === currentChatId)) ? currentChatId : null;
             state.bootReady = true;
             render();
             hideScreenTransition();

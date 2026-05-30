@@ -204,6 +204,14 @@
             margin-bottom: 14px;
         }
 
+        .form-grid label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
         textarea {
             width: 100%;
             min-height: 120px;
@@ -299,6 +307,7 @@
                 <button class="tab" data-view="scheduled" type="button">Zamanlı</button>
                 <button class="tab" data-view="archives" type="button">Arşivler</button>
                 <button class="tab" data-view="social" type="button">Engel/İstek</button>
+                <button class="tab" data-view="design" type="button">Tasarım</button>
                 <button class="tab" data-view="create" type="button">Hesap Aç</button>
             </nav>
         </aside>
@@ -403,6 +412,7 @@
             if (state.view === "scheduled") renderScheduled();
             if (state.view === "archives") renderArchives();
             if (state.view === "social") renderSocial();
+            if (state.view === "design") renderDesign();
             if (state.view === "create") renderCreateUsers();
         }
 
@@ -641,7 +651,7 @@
         function renderSocial() {
             const blocks = (state.data.blocks || []).filter(item => matchesSearch(item.blocker?.displayName, item.blocked?.displayName, item.blocker?.username, item.blocked?.username));
             const contactRequests = (state.data.contactRequests || []).filter(item => matchesSearch(item.from?.displayName, item.to?.displayName, item.status));
-            const groupInvites = (state.data.groupInvites || []).filter(item => matchesSearch(item.groupTitle, item.inviter?.displayName, item.invitee?.displayName, item.status));
+            const groupInvites = (state.data.groupInvites || []).filter(item => matchesSearch(item.chatTitle, item.inviter?.displayName, item.invitee?.displayName, item.status));
             $("view").innerHTML = `
                 <h2>Engel ve İstekler</h2>
                 <div class="grid">
@@ -666,11 +676,49 @@
             `).join("") : empty("Mesaj isteği yok.");
             $("adminGroupInvites").innerHTML = groupInvites.length ? groupInvites.map(item => `
                 <div class="message">
-                    <strong>${escapeHtml(item.groupTitle || "Grup")}</strong>
+                    <strong>${escapeHtml(item.chatTitle || "Grup")}</strong>
                     <p>${escapeHtml(item.inviter?.displayName || "?")} → ${escapeHtml(item.invitee?.displayName || "?")} • ${escapeHtml(item.status || "bekliyor")}</p>
                     <small class="meta">${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
                 </div>
             `).join("") : empty("Grup isteği yok.");
+        }
+
+        function renderDesign() {
+            const design = state.data.design || {};
+            $("view").innerHTML = `
+                <h2>Tasarım Kontrolü</h2>
+                <article class="card">
+                    <h3>Genel görünüm</h3>
+                    <div class="form-grid">
+                        <label>Site adı<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
+                        <label>Genel yazı boyutu<input id="designFontSize" type="number" min="12" max="22" value="${Number(design.fontSize || 16)}"></label>
+                        <label>Mesaj yazı boyutu<input id="designMessageFontSize" type="number" min="12" max="22" value="${Number(design.messageFontSize || 15)}"></label>
+                        <label>Sohbet listesi genişliği<input id="designSidebarWidth" type="number" min="300" max="520" value="${Number(design.sidebarWidth || 380)}"></label>
+                        <label>Baloncuk yuvarlaklığı<input id="designBubbleRadius" type="number" min="0" max="24" value="${Number(design.bubbleRadius || 8)}"></label>
+                        <label>Simge buton boyutu<input id="designIconSize" type="number" min="30" max="54" value="${Number(design.iconSize || 38)}"></label>
+                        <label>Mavi tema rengi<input id="designBlue" type="color" value="${escapeAttr(design.blue || "#2f8cff")}"></label>
+                        <label>Kırmızı tema rengi<input id="designRed" type="color" value="${escapeAttr(design.red || "#f03d54")}"></label>
+                        <label>Yeşil tema rengi<input id="designGreen" type="color" value="${escapeAttr(design.green || "#2bd576")}"></label>
+                    </div>
+                    <div class="card-row">
+                        <button id="saveDesignButton" class="primary" type="button">Tasarımı Kaydet</button>
+                        <button id="resetDesignButton" type="button">Varsayılana Yaklaştır</button>
+                    </div>
+                    <p class="meta">Bu ayarlar site açılırken herkese uygulanır. Daha ince metin/simge isimleri için buraya yeni alan ekleyebiliriz.</p>
+                </article>
+            `;
+            $("saveDesignButton").onclick = saveDesign;
+            $("resetDesignButton").onclick = () => {
+                $("designBrandName").value = "NexaLine";
+                $("designFontSize").value = 16;
+                $("designMessageFontSize").value = 15;
+                $("designSidebarWidth").value = 380;
+                $("designBubbleRadius").value = 8;
+                $("designIconSize").value = 38;
+                $("designBlue").value = "#2f8cff";
+                $("designRed").value = "#f03d54";
+                $("designGreen").value = "#2bd576";
+            };
         }
 
         function renderCreateUsers() {
@@ -737,6 +785,24 @@
                 throw new Error("İsim, soyisim, e-posta ve şifre gerekli.");
             }
             return api("/admin/user", { method: "POST", body: JSON.stringify(payload) });
+        }
+
+        async function saveDesign() {
+            const design = {
+                brandName: $("designBrandName").value.trim(),
+                fontSize: Number($("designFontSize").value),
+                messageFontSize: Number($("designMessageFontSize").value),
+                sidebarWidth: Number($("designSidebarWidth").value),
+                bubbleRadius: Number($("designBubbleRadius").value),
+                iconSize: Number($("designIconSize").value),
+                blue: $("designBlue").value,
+                red: $("designRed").value,
+                green: $("designGreen").value
+            };
+            const data = await api("/admin/design", { method: "POST", body: JSON.stringify({ design }) });
+            state.data.design = data.design;
+            setStatus(data.message || "Tasarım kaydedildi.", "ok");
+            renderDesign();
         }
 
         async function editUserPrivacy(username) {

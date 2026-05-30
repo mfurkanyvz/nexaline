@@ -15,6 +15,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
+from sqlalchemy.orm import joinedload, selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -41,16 +42,16 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_h
 connections = {}
 typing_users = {}
 DEV_ADMIN_TOKEN = "NexaLineAdmin2026!"
-MAX_BOOTSTRAP_MESSAGES = max(30, int(os.environ.get("MAX_BOOTSTRAP_MESSAGES", "80")))
+MAX_BOOTSTRAP_MESSAGES = max(20, int(os.environ.get("MAX_BOOTSTRAP_MESSAGES", "35")))
 ADMIN_MESSAGE_LIMIT_PER_CHAT = max(20, int(os.environ.get("ADMIN_MESSAGE_LIMIT_PER_CHAT", "40")))
 ADMIN_ARCHIVE_MESSAGE_LIMIT = max(10, int(os.environ.get("ADMIN_ARCHIVE_MESSAGE_LIMIT", "30")))
 ADMIN_ATTACHMENT_INLINE_LIMIT = max(20_000, int(os.environ.get("ADMIN_ATTACHMENT_INLINE_LIMIT", "160000")))
 SCHEDULE_POLL_SECONDS = max(5, int(os.environ.get("SCHEDULE_POLL_SECONDS", "15")))
 MAX_SCHEDULE_DAYS = max(1, int(os.environ.get("MAX_SCHEDULE_DAYS", "7")))
 MAX_ATTACHMENT_DATA_URL_CHARS = max(250_000, int(os.environ.get("MAX_ATTACHMENT_DATA_URL_CHARS", "5_500_000")))
-RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 3, int(os.environ.get("RECENT_MESSAGE_SCAN_LIMIT", "320")))
-AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "18")))
-AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "24")))
+RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 2, int(os.environ.get("RECENT_MESSAGE_SCAN_LIMIT", "120")))
+AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "12")))
+AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "16")))
 AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
 scheduled_delivery_lock = threading.Lock()
 
@@ -239,6 +240,57 @@ class ChatArchive(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
 
 
+class AppSetting(db.Model):
+    key = db.Column(db.String(80), primary_key=True)
+    value = db.Column(db.JSON, nullable=False, default=dict)
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+DEFAULT_DESIGN_SETTINGS = {
+    "fontSize": 16,
+    "messageFontSize": 15,
+    "sidebarWidth": 380,
+    "bubbleRadius": 8,
+    "iconSize": 38,
+    "blue": "#2f8cff",
+    "red": "#f03d54",
+    "green": "#2bd576",
+    "brandName": "NexaLine",
+}
+
+
+def design_settings():
+    row = db.session.get(AppSetting, "design")
+    data = row.value if row and isinstance(row.value, dict) else {}
+    return {**DEFAULT_DESIGN_SETTINGS, **data}
+
+
+def sanitize_design_settings(data):
+    current = design_settings()
+    next_settings = dict(current)
+    numeric_ranges = {
+        "fontSize": (12, 22),
+        "messageFontSize": (12, 22),
+        "sidebarWidth": (300, 520),
+        "bubbleRadius": (0, 24),
+        "iconSize": (30, 54),
+    }
+    for key, (minimum, maximum) in numeric_ranges.items():
+        if key in data:
+            try:
+                next_settings[key] = max(minimum, min(maximum, int(data.get(key))))
+            except (TypeError, ValueError):
+                pass
+    for key in ["blue", "red", "green"]:
+        value = str(data.get(key, next_settings[key])).strip()
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+            next_settings[key] = value
+    if "brandName" in data:
+        brand = re.sub(r"\s+", " ", str(data.get("brandName") or "")).strip()
+        next_settings["brandName"] = brand[:40] or DEFAULT_DESIGN_SETTINGS["brandName"]
+    return next_settings
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -351,10 +403,13 @@ def attachment_error(attachment):
 
 
 def recent_visible_messages(chat_id, username=None, limit=MAX_BOOTSTRAP_MESSAGES):
+    limit = max(1, int(limit or MAX_BOOTSTRAP_MESSAGES))
+    scan_limit = min(RECENT_MESSAGE_SCAN_LIMIT, max(limit, limit * 2))
     rows = (
-        Message.query.filter_by(chat_id=chat_id)
+        Message.query.options(joinedload(Message.sender_user))
+        .filter_by(chat_id=chat_id)
         .order_by(Message.created_at.desc())
-        .limit(max(limit, RECENT_MESSAGE_SCAN_LIMIT))
+        .limit(scan_limit)
         .all()
     )
     visible = [
@@ -365,8 +420,11 @@ def recent_visible_messages(chat_id, username=None, limit=MAX_BOOTSTRAP_MESSAGES
     return list(reversed(visible[:limit]))
 
 
-def visible_message_count(chat_id, username=None):
+def visible_message_count(chat_id, username=None, exact=False):
     if not username:
+        return Message.query.filter_by(chat_id=chat_id).count()
+
+    if not exact:
         return Message.query.filter_by(chat_id=chat_id).count()
 
     rows = Message.query.filter_by(chat_id=chat_id).with_entities(Message.deleted_for).all()
@@ -718,7 +776,10 @@ def general_group_state(username):
 
 
 def chat_for_user(chat, username):
-    visible_messages = recent_visible_messages(chat.id, username)
+    visible_messages = recent_visible_messages(chat.id, username, MAX_BOOTSTRAP_MESSAGES + 1)
+    has_more_messages = len(visible_messages) > MAX_BOOTSTRAP_MESSAGES
+    if has_more_messages:
+        visible_messages = visible_messages[-MAX_BOOTSTRAP_MESSAGES:]
     last_message = message_to_dict(visible_messages[-1]) if visible_messages else None
     messages = [message_to_dict(message) for message in visible_messages]
     member_names = chat_member_names(chat)
@@ -740,7 +801,7 @@ def chat_for_user(chat, username):
         ],
         "lastMessage": last_message,
         "messages": messages,
-        "messageCount": visible_message_count(chat.id, username),
+        "messageCount": len(messages) + (1 if has_more_messages else 0),
         "sendBlockedReason": send_error,
     }
 
@@ -750,17 +811,43 @@ def visible_chats(username):
     expire_due_messages(notify=False)
     purge_expired_archives()
     result = []
+    hidden_by_chat = {
+        row.chat_id: row.hidden_at
+        for row in HiddenChat.query.filter_by(username=username).all()
+    }
+    chats = (
+        Chat.query.join(ChatMember, ChatMember.chat_id == Chat.id)
+        .filter(ChatMember.username == username)
+        .options(selectinload(Chat.members).selectinload(ChatMember.user))
+        .order_by(Chat.created_at)
+        .all()
+    )
 
-    for chat in Chat.query.order_by(Chat.created_at).all():
-        if user_can_see_chat(chat, username):
-            hidden = HiddenChat.query.filter_by(username=username, chat_id=chat.id).first()
-            if hidden and not chat_has_visible_messages_after(chat, username, hidden.hidden_at):
-                continue
-            chat_data = chat_for_user(chat, username)
-            if chat_data:
-                result.append(chat_data)
+    for chat in chats:
+        hidden_at = hidden_by_chat.get(chat.id)
+        if hidden_at and not chat_has_visible_messages_after(chat, username, hidden_at):
+            continue
+        chat_data = chat_for_user(chat, username)
+        if chat_data:
+            result.append(chat_data)
 
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
+
+
+def app_state_for_user(username):
+    return {
+        "user": private_user(username),
+        "users": public_users_for(username),
+        "chats": visible_chats(username),
+        "generalGroup": general_group_state(username),
+        "stories": active_stories(username),
+        "callLogs": visible_call_logs(username),
+        "contactRequests": visible_contact_requests(username),
+        "groupInvites": visible_group_invites(username),
+        "blockedUsers": blocked_users_for(username),
+        "archives": visible_archives(username),
+        "scheduledMessages": visible_scheduled_messages(username),
+    }
 
 
 def visible_call_logs(username):
@@ -794,7 +881,7 @@ def accepted_contact(first_username, second_username):
     if request_row and request_row.status == "accepted":
         return True
 
-    legacy_chat = find_direct_chat(first_username, second_username)
+    legacy_chat = db.session.get(Chat, direct_chat_id(first_username, second_username))
     return bool(legacy_chat and legacy_chat.messages)
 
 
@@ -1198,11 +1285,12 @@ def rtc_servers():
     return servers
 
 
-AI_SYSTEM_PROMPT = """Sen Nexa AI'sin. NexaLine mesajlasma uygulamasinin icinde calisan yardimci asistansin.
-Kullaniciya Turkce, kisa, net ve guvenli cevap ver. Sohbetleri ozetleyebilir, cevap taslagi hazirlayabilir,
-uygulama ayarlarini aciklayabilir ve izinli uygulama eylemleri onerebilirsin.
-Mesaj gonderme, silme, engelleme, kilitleme, tema degistirme ve zamanlama gibi islemleri kendin yaptigini soyleme;
-uygulama bunlari kullanici onayi ile calistirir. Bilmedigin veya internette dogrulanmasi gereken konuda eminmis gibi davranma."""
+AI_SYSTEM_PROMPT = """Sen NexaLine icinde calisan kisilestirilebilir Next AI asistansin.
+Kullanici sana hangi ismi verdiyse o isimle davran; yeri geldiginde sicak bir arkadas, yeri geldiginde net bir asistan ol.
+Turkce, dogal, kisa ve guvenli cevap ver. Sohbetleri ozetleyebilir, cevap taslagi hazirlayabilir, uygulama ayarlarini
+aciklayabilir ve izinli uygulama eylemleri onerebilirsin. Mesaj gonderme, sohbet silme, arama baslatma, kilitleme,
+tema/gizlilik/AI ayari degistirme ve zamanlama gibi islemler uygulama tarafindan kullanicinin onay ayarina gore calistirilir.
+Bilmedigin veya internette dogrulanmasi gereken konuda eminmis gibi davranma."""
 
 ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex", "erotik", "onlyfans"}
 ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "siktir", "amk", "aq"}
@@ -1216,7 +1304,7 @@ def ai_provider_status():
         return {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY"))}
     if provider == "ollama" or os.environ.get("OLLAMA_BASE_URL"):
         return {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": True}
-    return {"provider": "local", "model": "nexaline-local", "ready": True}
+    return {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
 
 
 def compact_ai_message(message):
@@ -1237,6 +1325,8 @@ def ai_context_for_user(username, chat_id=None):
     active = next((chat for chat in chats if chat["id"] == chat_id), None) if chat_id else None
     if not active and chats:
         active = chats[0]
+    stories = active_stories(username)
+    own_stories = [story for story in stories if story.get("username") == username]
     return {
         "user": {"username": username, "displayName": private_user(username).get("displayName")},
         "activeChat": None if not active else {
@@ -1256,14 +1346,34 @@ def ai_context_for_user(username, chat_id=None):
             }
             for chat in chats[:AI_MAX_CHATS]
         ],
+        "stories": {
+            "ownActiveCount": len(own_stories),
+            "ownActive": [
+                {
+                    "id": story.get("id"),
+                    "body": story.get("body"),
+                    "createdAt": story.get("createdAt"),
+                    "expiresAt": story.get("expiresAt"),
+                }
+                for story in own_stories[:5]
+            ],
+        },
+        "notifications": "Kullanıcının eski bildirimleri tarayıcı içinde tutulur; AI onları uygulamada Bildirimler panelini açarak gösterebilir.",
         "capabilities": [
             "sohbet ozeti",
             "cevap taslagi",
+            "onayli mesaj gonderme",
+            "profil adi ve hakkimda guncelleme",
             "tema degistirme",
             "sohbet sabitleme/sessize alma/gizleme",
+            "AI sansur filtresini acma/kapatma",
+            "Next AI acma/kapatma, isim ve onay yetkisi ayarlama",
+            "gizlilik ayarlarini onayli degistirme",
+            "sohbet acma, sohbet silme ve arama baslatma",
             "mesaj zamanlama",
             "gelen mesaji +18/kufur/spam icin uyarmali gizleme",
         ],
+        "privacy": "Sifreler ve sifre hashleri AI baglamina eklenmez.",
     }
 
 
@@ -1308,10 +1418,59 @@ def extract_quoted_text(prompt):
     match = re.search(r"(?:mesaj|de ki|şunu|sunu|bunu)\s*[:\-]\s*(.+)", prompt or "", re.IGNORECASE)
     if match:
         return match.group(1).strip()[:1000]
+    match = re.search(r"(?:mesaj at|mesaj gönder|mesaj gonder|de ki)\s*[:\-]?\s+(.+)", prompt or "", re.IGNORECASE)
+    if match:
+        return match.group(1).strip()[:1000]
     return ""
 
 
+def extract_value_after_phrases(prompt, phrases, max_length=120):
+    text_value = re.sub(r"\s+", " ", prompt or "").strip()
+    for phrase in phrases:
+        pattern = rf"{phrase}\s*(?:[:\-]|olarak|olsun|yap|yapabilir misin|değiştir|degistir)?\s+(.+)"
+        match = re.search(pattern, text_value, re.IGNORECASE)
+        if not match:
+            continue
+        value = match.group(1).strip(" .!?\"'“”")
+        value = re.sub(r"\b(yap|olsun|değiştir|degistir|lütfen|lutfen)$", "", value, flags=re.IGNORECASE).strip()
+        value = re.sub(r"\b(olarak|diye)$", "", value, flags=re.IGNORECASE).strip()
+        if value:
+            return value[:max_length]
+    return ""
+
+
+def ai_mentioned_usernames(prompt, current_username):
+    folded = (prompt or "").casefold()
+    result = []
+    for user in User.query.order_by(User.display_name).all():
+        if user.username == current_username:
+            continue
+        names = {user.username.casefold(), (user.display_name or "").casefold()}
+        first_name = (user.display_name or "").split(" ")[0].casefold()
+        if first_name:
+            names.add(first_name)
+        if any(name and name in folded for name in names):
+            result.append(user.username)
+    return result[:20]
+
+
+def ai_last_target_message(chat, username):
+    for message in reversed(chat.get("messages") or []):
+        if message.get("sender") != username and not message.get("deletedAt"):
+            return message
+    for message in reversed(chat.get("messages") or []):
+        if not message.get("deletedAt"):
+            return message
+    return None
+
+
 def parse_ai_schedule(prompt, timezone_offset_minutes=0):
+    relative_match = re.search(r"\b(\d{1,3})\s*(dakika|dk|saat)\s*(?:sonra|içinde|icinde)\b", prompt or "", re.IGNORECASE)
+    if relative_match:
+        amount = int(relative_match.group(1))
+        unit = relative_match.group(2).casefold()
+        delta = timedelta(hours=amount) if "saat" in unit else timedelta(minutes=amount)
+        return (datetime.now(timezone.utc) + delta).isoformat()
     hour_match = re.search(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b", prompt or "")
     if not hour_match:
         return None
@@ -1344,53 +1503,347 @@ def ai_detect_actions(prompt, username, active_chat_id=None, timezone_offset_min
     actions = []
     lowered = (prompt or "").lower()
     chat = find_chat_for_ai(username, prompt, active_chat_id)
+    mentioned_users = ai_mentioned_usernames(prompt, username)
     if any(word in lowered for word in ["açık tema", "acik tema", "light theme", "beyaz tema"]):
         actions.append({"type": "set_theme", "theme": "light", "label": "Temayı açık yap"})
     if any(word in lowered for word in ["koyu tema", "dark theme", "gece modu", "siyah tema"]):
         actions.append({"type": "set_theme", "theme": "dark", "label": "Temayı koyu yap"})
-    if any(word in lowered for word in ["sansür", "sansur", "+18", "filtre"]):
+    wants_censor_off = (
+        any(word in lowered for word in ["sansürü kapat", "sansuru kapat", "sansür filtresini kapat", "sansur filtresini kapat", "filtreyi kapat", "sansür kapansın", "sansur kapansin"])
+        or (("sansür" in lowered or "sansur" in lowered or "filtre" in lowered) and any(word in lowered for word in ["kapat", "kapalı", "kapali", "kapansın", "kapansin"]))
+    )
+    wants_censor_on = (
+        any(word in lowered for word in ["sansürü aç", "sansuru ac", "sansür aç", "sansur ac", "+18 filtre", "filtreyi aç", "filtreyi ac"])
+        or (("sansür" in lowered or "sansur" in lowered or "filtre" in lowered) and any(word in lowered for word in ["aç", "ac", "açık", "acik", "açılsın", "acilsin"]))
+    )
+    if wants_censor_off:
+        actions.append({"type": "set_censor", "enabled": False, "label": "AI sansür filtresini kapat"})
+    elif wants_censor_on or ("sansür" in lowered or "sansur" in lowered or "+18" in lowered or "filtre" in lowered):
         actions.append({"type": "set_censor", "enabled": True, "label": "AI sansür filtresini aç"})
+    if any(word in lowered for word in ["next ai kapat", "nex ai kapat", "asistanı kapat", "asistani kapat", "yapay zekayı kapat", "yapay zekayi kapat"]):
+        actions.append({"type": "set_ai_enabled", "enabled": False, "label": "Next AI'ı kapat"})
+    if any(word in lowered for word in ["next ai aç", "next ai ac", "nex ai aç", "nex ai ac", "asistanı aç", "asistani ac", "yapay zekayı aç", "yapay zekayi ac"]):
+        actions.append({"type": "set_ai_enabled", "enabled": True, "label": "Next AI'ı aç"})
+    if any(word in lowered for word in ["tam yetki ver", "tam erişim ver", "tam erisim ver", "onaysız yap", "onaysiz yap", "izin almadan yap", "direkt yap"]):
+        actions.append({"type": "set_ai_auto_approve", "enabled": True, "label": "Next AI tam yetkisini aç"})
+    if any(word in lowered for word in ["tam yetki kapat", "tam erişimi kapat", "tam erisimi kapat", "onay al", "önce onay", "once onay"]):
+        actions.append({"type": "set_ai_auto_approve", "enabled": False, "label": "Next AI her işlemde onay alsın"})
+    ai_name = extract_value_after_phrases(
+        prompt,
+        [
+            r"(?:next ai adını|next ai adini|nex ai adını|nex ai adini|asistan adını|asistan adini|senin adın|senin adin|adını|adini)",
+        ],
+        40,
+    )
+    if ai_name and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun"]):
+        actions.append({"type": "set_ai_name", "name": ai_name, "label": f"Next AI adını “{ai_name}” yap"})
+    settings_section = None
+    if "next ai ayar" in lowered or "ai ayar" in lowered or "asistan ayar" in lowered:
+        settings_section = "ai"
+    elif "gizlilik ayar" in lowered:
+        settings_section = "privacy"
+    elif "görünüm ayar" in lowered or "gorunum ayar" in lowered or "tema ayar" in lowered:
+        settings_section = "appearance"
+    elif "profil ayar" in lowered:
+        settings_section = "profile"
+    elif "hesap ayar" in lowered:
+        settings_section = "account"
+    elif "ayarları aç" in lowered or "ayarlari ac" in lowered or "ayarları göster" in lowered or "ayarlari goster" in lowered:
+        settings_section = "menu"
+    if settings_section:
+        actions.append({"type": "open_settings", "section": settings_section, "label": "Ayarları aç"})
+    privacy = {}
+    if ("son görülme" in lowered or "son gorulme" in lowered) and any(word in lowered for word in ["gizle", "kapat", "kapalı", "kapali"]):
+        privacy["lastSeenHidden"] = True
+    if ("son görülme" in lowered or "son gorulme" in lowered) and any(word in lowered for word in ["göster", "goster", "aç", "ac", "açık", "acik"]):
+        privacy["lastSeenHidden"] = False
+    if ("çevrim içi" in lowered or "cevrim ici" in lowered or "online" in lowered) and any(word in lowered for word in ["gizle", "kapat", "kapalı", "kapali"]):
+        privacy["onlineHidden"] = True
+    if ("çevrim içi" in lowered or "cevrim ici" in lowered or "online" in lowered) and any(word in lowered for word in ["göster", "goster", "aç", "ac", "açık", "acik"]):
+        privacy["onlineHidden"] = False
+    if ("okundu" in lowered or "mavi tik" in lowered) and any(word in lowered for word in ["kapat", "kapalı", "kapali", "gizle"]):
+        privacy["readReceiptsOff"] = True
+    if ("okundu" in lowered or "mavi tik" in lowered) and any(word in lowered for word in ["aç", "ac", "açık", "acik", "göster", "goster"]):
+        privacy["readReceiptsOff"] = False
+    if "gmail" in lowered and any(word in lowered for word in ["gizle", "kapat", "kapalı", "kapali"]):
+        privacy["emailHidden"] = True
+    if "gmail" in lowered and any(word in lowered for word in ["göster", "goster", "aç", "ac", "açık", "acik"]):
+        privacy["emailHidden"] = False
+    if privacy:
+        actions.append({"type": "set_privacy", "privacy": privacy, "label": "Gizlilik ayarlarını güncelle"})
+    new_name = extract_value_after_phrases(
+        prompt,
+        [
+            r"(?:ismimi|adımı|adimi|profil adımı|profil adimi)",
+            r"(?:görünen adımı|gorunen adimi|kullanıcı adımı değil ismimi|kullanici adimi degil ismimi)",
+        ],
+        80,
+    )
+    if new_name and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun"]):
+        actions.append({"type": "update_profile", "displayName": new_name, "label": f"Adımı “{new_name}” yap"})
+    new_about = extract_value_after_phrases(prompt, [r"(?:hakkımda|hakkimda|bio|biyografi)"], 180)
+    if new_about and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun", "yaz"]):
+        actions.append({"type": "update_profile", "about": new_about, "label": "Hakkımda bilgisini güncelle"})
     if chat and any(word in lowered for word in ["sabitle", "pinle"]):
         actions.append({"type": "set_chat_pref", "chatId": chat["id"], "pinned": True, "label": f"{chat['title']} sohbetini sabitle"})
     if chat and any(word in lowered for word in ["sessize al", "sustur", "bildirim kapat"]):
         actions.append({"type": "set_chat_pref", "chatId": chat["id"], "muted": True, "label": f"{chat['title']} sohbetini sessize al"})
     if chat and any(word in lowered for word in ["gizli sohbet", "kilitle", "sakla"]):
         actions.append({"type": "set_chat_pref", "chatId": chat["id"], "locked": True, "label": f"{chat['title']} sohbetini kilitle"})
+    if chat and any(word in lowered for word in ["sohbeti aç", "sohbeti ac", "sohbet aç", "sohbet ac", "mesaj kutusunu aç", "mesaj kutusunu ac", "chat aç", "chat ac"]):
+        actions.append({"type": "open_chat", "chatId": chat["id"], "label": f"{chat['title']} sohbetini aç"})
+    if chat and any(word in lowered for word in ["sohbeti sil", "sohbet sil", "konuşmayı sil", "konusmayi sil", "listemden kaldır", "listemden kaldir"]):
+        delete_mode = "permanent" if any(word in lowered for word in ["kalıcı", "kalici", "tamamen"]) else "archive"
+        actions.append({"type": "delete_chat", "chatId": chat["id"], "mode": delete_mode, "label": f"{chat['title']} sohbetini sil"})
+    wants_call = chat and not any(word in lowered for word in ["araştır", "arastir", "webde ara", "internette ara"]) and any(
+        word in lowered for word in ["arama yap", "sesli ara", "görüntülü ara", "goruntulu ara", "telefon et", "kameralı ara", "kamerali ara"]
+    )
+    if wants_call:
+        video_call = any(word in lowered for word in ["görüntülü", "goruntulu", "kamera", "kameralı", "kamerali", "video"])
+        call_at = parse_ai_schedule(prompt, timezone_offset_minutes)
+        if call_at:
+            actions.append({"type": "schedule_call", "chatId": chat["id"], "audioOnly": not video_call, "callAt": call_at, "label": f"{chat['title']} için planlı arama başlat"})
+        else:
+            actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": not video_call, "label": f"{chat['title']} için {'görüntülü' if video_call else 'sesli'} arama başlat"})
+    if any(word in lowered for word in ["aramayı kapat", "aramayi kapat", "aramayı bitir", "aramayi bitir", "çağrıyı kapat", "cagriyi kapat"]):
+        actions.append({"type": "end_call", "label": "Aktif aramayı kapat"})
+    if chat and any(word in lowered for word in ["ifade bırak", "ifade birak", "tepki bırak", "tepki birak", "reaksiyon", "emoji bırak", "emoji birak"]):
+        target = ai_last_target_message(chat, username)
+        emoji = "❤️" if any(word in lowered for word in ["kalp", "beğen", "begen", "sevgi"]) else "👍"
+        if target:
+            actions.append({"type": "react_message", "chatId": chat["id"], "messageId": target["id"], "emoji": emoji, "label": f"{chat['title']} son mesaja tepki bırak"})
+    if chat and any(word in lowered for word in ["yanıtla", "yanitla", "cevap ver", "reply"]):
+        target = ai_last_target_message(chat, username)
+        reply_body = extract_quoted_text(prompt) or "Tamam, gördüm. Birazdan net döneceğim."
+        if target:
+            actions.append({"type": "reply_message", "chatId": chat["id"], "messageId": target["id"], "body": reply_body, "label": f"{chat['title']} son mesaja yanıt ver"})
+    if any(word in lowered for word in ["grup aç", "grup ac", "grup oluştur", "grup olustur", "yeni grup"]):
+        title = extract_quoted_text(prompt) or extract_value_after_phrases(prompt, [r"(?:grup adı|grup adi|grubun adı|grubun adi)"], 80) or "Yeni grup"
+        actions.append({"type": "create_group", "title": title, "members": mentioned_users, "label": f"“{title}” grubunu oluştur"})
+    if chat and chat.get("type") == "group" and any(word in lowered for word in ["grup adını", "grup adini", "grubun adını", "grubun adini", "gruba ekle", "gruba kişi ekle", "gruba kisi ekle"]):
+        title = extract_value_after_phrases(prompt, [r"(?:grup adını|grup adini|grubun adını|grubun adini)"], 80)
+        action = {"type": "update_group", "chatId": chat["id"], "members": mentioned_users, "label": f"{chat['title']} grubunu yönet"}
+        if title:
+            action["title"] = title
+        actions.append(action)
+    if any(word in lowered for word in ["güncelleme paylaş", "guncelleme paylas", "durum paylaş", "durum paylas", "story paylaş", "story paylas"]):
+        body_text = extract_quoted_text(prompt) or extract_value_after_phrases(prompt, [r"(?:güncelleme|guncelleme|durum|story)"], 220)
+        if body_text:
+            actions.append({"type": "create_story", "body": body_text, "label": "Yeni güncelleme paylaş"})
+    if any(word in lowered for word in ["güncellemeyi sil", "guncellemeyi sil", "durumu sil", "story sil", "eski güncellemeyi sil", "eski guncellemeyi sil"]):
+        actions.append({"type": "delete_story", "label": "Son güncellemeyi sil"})
+    if mentioned_users and any(word in lowered for word in ["istek at", "istek gönder", "istek gonder", "mesajlaşma isteği", "mesajlasma istegi", "sohbet isteği", "sohbet istegi"]):
+        actions.append({"type": "contact_request", "username": mentioned_users[0], "label": "Mesajlaşma isteği gönder"})
+    if any(word in lowered for word in ["bildirimleri aç", "bildirimleri ac", "eski bildirim", "bildirim geçmişi", "bildirim gecmisi"]):
+        actions.append({"type": "open_notifications", "label": "Bildirimleri aç"})
     body = extract_quoted_text(prompt)
-    wants_message = any(word in lowered for word in ["mesaj at", "mesaj gönder", "mesaj gonder", "yaz", "cevap hazırla", "cevap hazirla"])
+    wants_send_message = any(word in lowered for word in ["mesaj at", "mesaj gönder", "mesaj gonder", "gönder", "gonder"])
+    wants_draft_message = any(word in lowered for word in ["yaz", "cevap hazırla", "cevap hazirla", "taslak"])
+    wants_message = wants_send_message or wants_draft_message
     if chat and wants_message:
-        body = body or "Mesaj taslağını buraya yazabilirsin."
         send_at = parse_ai_schedule(prompt, timezone_offset_minutes)
         if send_at:
+            body = body or "Mesaj taslağını buraya yazabilirsin."
             actions.append({"type": "schedule_message", "chatId": chat["id"], "body": body, "sendAt": send_at, "label": f"{chat['title']} için zamanlı mesaj hazırla"})
+        elif wants_send_message and body:
+            actions.append({"type": "send_message", "chatId": chat["id"], "body": body, "label": f"{chat['title']} sohbetine mesajı gönder"})
         else:
+            body = body or "Mesaj taslağını buraya yazabilirsin."
             actions.append({"type": "draft_message", "chatId": chat["id"], "body": body, "label": f"{chat['title']} için mesajı kutuya hazırla"})
     return actions
 
 
-def local_ai_reply(prompt, context, actions):
+LOCAL_AI_STOPWORDS = {
+    "acaba", "ama", "bana", "beni", "benim", "bir", "bunu", "bunun", "böyle", "çok",
+    "daha", "diye", "gibi", "için", "ile", "mi", "mı", "mu", "mü", "nasıl", "neden",
+    "nedir", "nerede", "ne", "olur", "olan", "olarak", "şey", "şu", "ve", "veya", "ya",
+}
+
+
+def ai_prompt_keywords(prompt):
+    words = re.findall(r"[\wçğıöşüÇĞİÖŞÜ]{3,}", (prompt or "").casefold())
+    return [word for word in words if word not in LOCAL_AI_STOPWORDS][:8]
+
+
+def local_chat_summary(messages):
+    if not messages:
+        return "Bu sohbet için özet çıkaracak kadar mesaj yok."
+    recent = messages[-12:]
+    speakers = []
+    highlights = []
+    for item in recent:
+        sender = item.get("sender") or "kişi"
+        if sender not in speakers:
+            speakers.append(sender)
+        text = (item.get("body") or item.get("attachment") or "medya").strip()
+        if text:
+            highlights.append(f"{sender}: {text[:140]}")
+    return (
+        f"Kısa özet: Son konuşmada {', '.join(speakers[:4])} yer alıyor. "
+        + " Ana akış: "
+        + " | ".join(highlights[-8:])[:1200]
+    )
+
+
+def local_reply_draft(context):
+    active = context.get("activeChat") or {}
+    username = (context.get("user") or {}).get("username")
+    messages = active.get("messages") or []
+    last = next((item for item in reversed(messages) if item.get("sender") != username and not item.get("deletedAt")), None)
+    if not last:
+        return "Tabii. Kısa ve doğal bir cevap taslağı: “Tamamdır, sana birazdan net dönüş yapayım.”"
+    body = (last.get("body") or last.get("attachment") or "").strip()
+    if "?" in body:
+        return "Cevap taslağı: “Gördüm, kontrol edip sana net cevap vereyim. Birazdan yazıyorum.”"
+    if any(word in body.casefold() for word in ["tamam", "olur", "ok", "peki"]):
+        return "Cevap taslağı: “Süper, anlaştık.”"
+    return "Cevap taslağı: “Mesajını gördüm. Bana çok kısa zaman ver, düzgünce cevaplayayım.”"
+
+
+def local_app_help(prompt):
+    lowered = (prompt or "").casefold()
+    help_items = [
+        (["şifre", "sifre"], "Şifre için Ayarlar > Hesap bölümünden değiştirme, giriş ekranından da “Şifremi unuttum” akışı var."),
+        (["gizlilik", "son görülme", "online", "gmail"], "Gizlilik ayarlarında son görülme, çevrim içi durum, okundu bilgisi ve Gmail görünürlüğünü yönetebilirsin."),
+        (["grup"], "Grup oluşturabilir, davet gönderebilir, yönetici olarak üye çıkarabilir ve grup bilgisini düzenleyebilirsin."),
+        (["durum", "story", "hikaye"], "Güncellemeler bölümünden 24 saatlik durum paylaşabilir, gelen durumlara cevap verebilirsin."),
+        (["arama", "sesli", "görüntülü"], "Sohbet içindeki telefon ve kamera düğmeleriyle sesli ya da görüntülü arama başlatabilirsin."),
+        (["arşiv", "arsiv", "sil"], "Sohbet silerken arşive alma veya kalıcı gizleme seçenekleri var; arşivler 3 gün içinde temizlenir."),
+    ]
+    for words, answer in help_items:
+        if any(word in lowered for word in words):
+            return answer
+    return ""
+
+
+def local_research_answer(prompt, research):
+    snippets = [item for item in (research or []) if item.get("snippet")]
+    if not snippets:
+        return ""
+    bullets = []
+    for item in snippets[:3]:
+        title = item.get("title") or "Kaynak"
+        snippet = re.sub(r"\s+", " ", item.get("snippet") or "").strip()
+        bullets.append(f"- {title}: {snippet[:280]}")
+    return (
+        "Ücretsiz web aramasıyla bulabildiğim kısa cevap:\n"
+        + "\n".join(bullets)
+        + "\n\nBu cevap canlı web özetidir; kritik bir karar için kaynağı açıp kontrol etmeni öneririm."
+    )
+
+
+def local_should_research(prompt):
+    lowered = (prompt or "").casefold()
+    if len(lowered) < 12:
+        return False
+    research_words = [
+        "bugün", "bugun", "güncel", "guncel", "haber", "son dakika", "fiyat", "kaç tl",
+        "kimdir", "nedir", "ne zaman", "nerede", "hangi", "kaç", "kac",
+    ]
+    app_words = ["sohbet", "mesaj", "tema", "gizlilik", "şifre", "sifre", "grup", "arama", "durum"]
+    return any(word in lowered for word in research_words) and not any(word in lowered for word in app_words)
+
+
+def live_info_for_prompt(prompt, timezone_offset_minutes=0):
+    lowered = (prompt or "").casefold()
+    local_tz = timezone(timedelta(minutes=-int(timezone_offset_minutes or 0)))
+    now = datetime.now(timezone.utc).astimezone(local_tz)
+    info = {
+        "now": now.isoformat(),
+        "date": now.strftime("%d.%m.%Y"),
+        "time": now.strftime("%H:%M"),
+    }
+    if not any(word in lowered for word in ["hava", "weather", "sıcaklık", "sicaklik", "yağmur", "yagmur"]):
+        return info
+
+    location = "İstanbul"
+    location_match = re.search(r"(?:hava|weather|sıcaklık|sicaklik)\s+(?:durumu|nasıl|nasil)?\s*(?:için|icin|de|da)?\s*([\wçğıöşüÇĞİÖŞÜ\s]{3,40})", prompt or "", re.IGNORECASE)
+    if location_match:
+        candidate = re.sub(r"\b(nasıl|nasil|kaç|kac|derece|bugün|bugun)\b", " ", location_match.group(1), flags=re.IGNORECASE).strip()
+        if candidate:
+            location = candidate
+    try:
+        geo = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": location, "count": 1, "language": "tr", "format": "json"},
+            timeout=5,
+        )
+        geo.raise_for_status()
+        first = (geo.json().get("results") or [])[0]
+        weather = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": first["latitude"],
+                "longitude": first["longitude"],
+                "current": "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code",
+                "timezone": "auto",
+            },
+            timeout=5,
+        )
+        weather.raise_for_status()
+        current = weather.json().get("current") or {}
+        info["weather"] = {
+            "location": f"{first.get('name')}, {first.get('country')}",
+            "temperatureC": current.get("temperature_2m"),
+            "humidityPercent": current.get("relative_humidity_2m"),
+            "precipitationMm": current.get("precipitation"),
+            "windKmh": current.get("wind_speed_10m"),
+        }
+    except Exception as error:
+        info["weatherError"] = str(error)
+    return info
+
+
+def local_ai_reply(prompt, context, actions, research=None):
     active = context.get("activeChat") or {}
     messages = active.get("messages") or []
-    lowered = (prompt or "").lower()
+    assistant_name = (context.get("assistant") or {}).get("name") or "Next AI"
+    lowered = (prompt or "").casefold()
+    tokens = set(re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", lowered))
+    research_answer = local_research_answer(prompt, research)
+    if research_answer:
+        return research_answer
+    live_info = context.get("liveInfo") or {}
+    if any(word in lowered for word in ["saat kaç", "saat kac", "saat ne", "bugün tarih", "bugun tarih"]):
+        return f"Şu an saat {live_info.get('time')}, tarih {live_info.get('date')}."
+    if any(word in lowered for word in ["hava", "weather", "sıcaklık", "sicaklik"]):
+        weather = live_info.get("weather")
+        if weather:
+            return f"{weather.get('location')} için hava: {weather.get('temperatureC')}°C, nem %{weather.get('humidityPercent')}, rüzgar {weather.get('windKmh')} km/sa."
+        return "Hava durumu bilgisini şu an alamadım; bağlantı veya konum servisi yanıt vermemiş olabilir."
+    if "sana verdiği isim" in lowered or "sana verdigi isim" in lowered:
+        return f"Buradayım, ben {assistant_name}. Ne yapalım?"
+    if (tokens.intersection({"merhaba", "selam", "hello", "slm"}) and len(tokens) <= 3) or lowered.strip() in {"sa", "s.a", "s.a."}:
+        return f"Merhaba, ben {assistant_name}. Buradayım; sohbeti özetleyebilir, cevap taslağı yazabilir, uygulama ayarlarını yönetebilir veya sadece normal şekilde sohbet edebilirim."
     if "özet" in lowered or "ozet" in lowered:
-        if not messages:
-            return "Bu sohbet için özet çıkaracak kadar mesaj yok."
-        lines = [f"{item.get('sender')}: {item.get('body') or item.get('attachment') or 'medya'}" for item in messages[-8:]]
-        return "Kısa özet: " + " | ".join(lines)[:1200]
+        return local_chat_summary(messages)
+    if "cevap hazırla" in lowered or "cevap hazirla" in lowered or "ne yazayım" in lowered or "ne yazayim" in lowered:
+        return local_reply_draft(context)
     if "ne dedi" in lowered or "anlat" in lowered:
         last = next((item for item in reversed(messages) if item.get("sender") != context.get("user", {}).get("username")), None)
         if last:
             return f"Son mesajın kısa anlamı: {last.get('body') or last.get('attachment') or 'medya gönderilmiş'}"
+    app_help = local_app_help(prompt)
+    if app_help:
+        return app_help
     labels = ai_moderation_labels(prompt)
     if labels:
         return "Bu metinde AI filtresine takılabilecek içerik var: " + ", ".join(labels) + ". İstersen gizleme/uyarı modunu açabilirim."
     if actions:
         return "Bunu uygulayabilirim. Güvenlik için aşağıdaki eylemi onaylaman yeterli."
-    return "AI çekirdeği hazır. Daha derin genel bilgi ve araştırma için GEMINI_API_KEY, OPENAI_API_KEY veya OLLAMA_BASE_URL eklenirse ChatGPT/Gemini benzeri cevap kalitesi açılır. Şu an uygulama komutları, özet, taslak ve sansür tarafını yerel modda yapabiliyorum."
+    keywords = ai_prompt_keywords(prompt)
+    if keywords:
+        return (
+            "Bunu şöyle ele alırım: "
+            + ", ".join(keywords[:4])
+            + " başlıklarını netleştirip küçük adımlara bölelim. "
+            "İstersen bana hedefini, mevcut durumu ve takıldığın noktayı yaz; buna göre daha iyi bir taslak veya çözüm planı çıkarırım."
+        )
+    return f"{assistant_name} ücretsiz yerel modda hazır. Uygulama içi komutlar, sohbet özeti, cevap taslağı, basit web özeti ve güvenlik filtresi çalışıyor."
 
 
-def web_research_if_requested(prompt):
-    if not re.search(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", prompt or "", re.IGNORECASE):
+def web_research_if_requested(prompt, force=False):
+    if not force and not re.search(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", prompt or "", re.IGNORECASE):
         return []
     query = re.sub(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", " ", prompt or "", flags=re.IGNORECASE).strip()
     if len(query) < 3:
@@ -1477,6 +1930,8 @@ def generate_ai_reply(prompt, context, actions):
     provider = ai_provider_status()
     context_text = json.dumps(context, ensure_ascii=False, indent=2)
     research = web_research_if_requested(prompt)
+    if provider["provider"] == "local" and not research and local_should_research(prompt):
+        research = web_research_if_requested(prompt, force=True)
     try:
         if provider["provider"] == "gemini" and provider["ready"]:
             reply = call_gemini_ai(prompt, context_text, research)
@@ -1485,11 +1940,11 @@ def generate_ai_reply(prompt, context, actions):
         elif provider["provider"] == "ollama":
             reply = call_ollama_ai(prompt, context_text, research)
         else:
-            reply = local_ai_reply(prompt, context, actions)
+            reply = local_ai_reply(prompt, context, actions, research)
     except Exception as error:
         app.logger.warning("AI provider failed: %s", error)
-        provider = {"provider": "local", "model": "nexaline-local", "ready": True}
-        reply = local_ai_reply(prompt, context, actions)
+        provider = {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
+        reply = local_ai_reply(prompt, context, actions, research)
     if research and "Kaynak" not in reply:
         sources = "\n".join(f"- {item.get('title')}: {item.get('url')}" for item in research if item.get("url"))
         if sources:
@@ -1535,6 +1990,33 @@ def admin_page():
     return response
 
 
+@app.route("/design")
+def public_design():
+    return jsonify({"ok": True, "design": design_settings()})
+
+
+@app.route("/admin/design", methods=["GET", "POST"])
+def admin_design():
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    if request.method == "GET":
+        return jsonify({"ok": True, "design": design_settings()})
+
+    data = request.get_json() or {}
+    settings = sanitize_design_settings(data.get("design") or data)
+    row = db.session.get(AppSetting, "design")
+    if not row:
+        row = AppSetting(key="design", value=settings)
+        db.session.add(row)
+    else:
+        row.value = settings
+        row.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({"ok": True, "design": settings, "message": "Tasarım ayarları kaydedildi."})
+
+
 @app.route("/health")
 def health():
     try:
@@ -1562,6 +2044,7 @@ def ai_chat():
     username = (data.get("username") or "").strip().lower()
     prompt = (data.get("prompt") or "").strip()
     chat_id = data.get("chatId")
+    assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Next AI").strip())[:40] or "Next AI"
 
     if not username or not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
@@ -1571,6 +2054,8 @@ def ai_chat():
         return jsonify({"ok": False, "message": "AI isteği çok uzun."}), 400
 
     context = ai_context_for_user(username, chat_id)
+    context["assistant"] = {"name": assistant_name}
+    context["liveInfo"] = live_info_for_prompt(prompt, data.get("timezoneOffsetMinutes", 0))
     actions = ai_detect_actions(prompt, username, chat_id, data.get("timezoneOffsetMinutes", 0))
     reply, provider, research = generate_ai_reply(prompt, context, actions)
     return jsonify(
@@ -1952,10 +2437,7 @@ def update_privacy(username):
 
 @app.route("/account/<username>/archives/<archive_id>", methods=["POST"])
 def read_archive(username, archive_id):
-    data = request.get_json() or {}
     username = username.strip().lower()
-    if not verify_user_password(username, data.get("password") or ""):
-        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
 
     purge_expired_archives()
     archive = db.session.get(ChatArchive, archive_id)
@@ -1975,20 +2457,14 @@ def read_archive(username, archive_id):
 
 @app.route("/account/<username>/archives/unlock", methods=["POST"])
 def unlock_archives(username):
-    data = request.get_json() or {}
     username = username.strip().lower()
-    if not verify_user_password(username, data.get("password") or ""):
-        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
 
     return jsonify({"ok": True, "archives": archives_with_messages(username)})
 
 
 @app.route("/account/<username>/archives/<archive_id>/restore", methods=["POST"])
 def restore_archive(username, archive_id):
-    data = request.get_json() or {}
     username = username.strip().lower()
-    if not verify_user_password(username, data.get("password") or ""):
-        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
 
     purge_expired_archives()
     archive = db.session.get(ChatArchive, archive_id)
@@ -2013,10 +2489,7 @@ def restore_archive(username, archive_id):
 
 @app.route("/account/<username>/archives/<archive_id>", methods=["DELETE"])
 def delete_archive(username, archive_id):
-    data = request.get_json() or {}
     username = username.strip().lower()
-    if not verify_user_password(username, data.get("password") or ""):
-        return jsonify({"ok": False, "message": "Sifre hatali."}), 401
 
     archive = db.session.get(ChatArchive, archive_id)
     if not archive or archive.username != username:
@@ -2193,6 +2666,7 @@ def admin_state():
             "groupInvites": group_invites,
             "scheduledMessages": [admin_scheduled_message_to_dict(row) for row in ScheduledMessage.query.order_by(ScheduledMessage.send_at.asc()).all()],
             "ai": ai_provider_status(),
+            "design": design_settings(),
             "serverIp": request.host,
             "yourIp": request_ip(),
             "localAdmin": is_local_admin_request(),
@@ -2447,22 +2921,7 @@ def bootstrap(username):
     if not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
-    return jsonify(
-        {
-            "ok": True,
-            "user": private_user(username),
-            "users": public_users_for(username),
-            "chats": visible_chats(username),
-            "generalGroup": general_group_state(username),
-            "stories": active_stories(username),
-            "callLogs": visible_call_logs(username),
-            "contactRequests": visible_contact_requests(username),
-            "groupInvites": visible_group_invites(username),
-            "blockedUsers": blocked_users_for(username),
-            "archives": visible_archives(username),
-            "scheduledMessages": visible_scheduled_messages(username),
-        }
-    )
+    return jsonify({"ok": True, **app_state_for_user(username)})
 
 
 @app.route("/chat/<chat_id>/messages")
@@ -2507,6 +2966,7 @@ def handle_connect():
 @socketio.on("user:join")
 def handle_user_join(data):
     username = (data or {}).get("username", "").strip().lower()
+    include_state = (data or {}).get("includeState", True) is not False
     expire_due_messages(notify=True)
     deliver_due_scheduled_messages()
 
@@ -2520,26 +2980,15 @@ def handle_user_join(data):
         user.last_seen = datetime.now(timezone.utc)
         db.session.commit()
 
-    for chat in Chat.query.all():
-        if user_can_see_chat(chat, username):
-            join_room(chat.id)
+    chat_ids = [
+        row.chat_id
+        for row in ChatMember.query.filter_by(username=username).with_entities(ChatMember.chat_id).all()
+    ]
+    for chat_id in chat_ids:
+        join_room(chat_id)
 
-    emit(
-        "app:state",
-        {
-            "user": private_user(username),
-            "users": public_users_for(username),
-            "chats": visible_chats(username),
-            "generalGroup": general_group_state(username),
-            "stories": active_stories(username),
-            "callLogs": visible_call_logs(username),
-            "contactRequests": visible_contact_requests(username),
-            "groupInvites": visible_group_invites(username),
-            "blockedUsers": blocked_users_for(username),
-            "archives": visible_archives(username),
-            "scheduledMessages": visible_scheduled_messages(username),
-        },
-    )
+    if include_state:
+        emit("app:state", app_state_for_user(username))
     broadcast_presence()
     emit_general_group_updates()
 
@@ -3036,8 +3485,18 @@ def handle_message_read(data):
     if user and user.disable_read_receipts:
         return
 
+    message_ids = [
+        str(message_id)
+        for message_id in ((data or {}).get("messageIds") or [])
+        if message_id
+    ][:200]
+    if message_ids:
+        rows = Message.query.filter(Message.chat_id == chat.id, Message.id.in_(message_ids)).all()
+    else:
+        rows = recent_visible_messages(chat.id, username, MAX_BOOTSTRAP_MESSAGES)
+
     updated_ids = []
-    for message in chat.messages:
+    for message in rows:
         read_by = list(message.read_by or [])
         if username not in read_by:
             read_by.append(username)
