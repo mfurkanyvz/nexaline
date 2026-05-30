@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#111722">
+    <meta name="theme-color" content="#10131b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="NexaLine Admin">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,16 +13,16 @@
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
     <style>
         :root {
-            --bg: #070a10;
-            --panel: #121722;
-            --panel-2: #181f2b;
-            --line: #303848;
-            --text: #eef4ff;
-            --muted: #8f99ac;
-            --red: #e23a4f;
-            --blue: #357fef;
-            --green: #24c872;
-            --yellow: #e7b84d;
+            --bg: #10131b;
+            --panel: #171b25;
+            --panel-2: #202631;
+            --line: #323946;
+            --text: #eef1f6;
+            --muted: #8b95a6;
+            --red: #d83b4b;
+            --blue: #3577d9;
+            --green: #28c76f;
+            --yellow: #d7b35a;
         }
 
         * { box-sizing: border-box; min-width: 0; }
@@ -322,6 +322,141 @@
         .status-warn { color: var(--yellow); }
         .status-error { color: var(--red); }
 
+        body {
+            background:
+                radial-gradient(circle at 12% 0%, rgba(216, 59, 75, 0.16), transparent 28%),
+                radial-gradient(circle at 90% 18%, rgba(53, 119, 217, 0.14), transparent 32%),
+                var(--bg);
+            font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+        }
+
+        .shell {
+            grid-template-columns: 330px minmax(0, 1fr);
+        }
+
+        .side {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow: auto;
+            background: rgba(23, 27, 37, 0.94);
+            backdrop-filter: blur(18px);
+        }
+
+        .brand img {
+            width: 44px;
+            height: 44px;
+            border-radius: 16px;
+            filter: drop-shadow(0 0 18px rgba(216, 59, 75, 0.42));
+        }
+
+        button {
+            border: 1px solid transparent;
+            border-radius: 14px;
+            background: var(--panel-2);
+            transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+        }
+
+        button:hover {
+            border-color: rgba(216, 59, 75, 0.28);
+            transform: translateY(-1px);
+        }
+
+        input,
+        textarea {
+            border-radius: 14px;
+            background: var(--panel-2);
+        }
+
+        input:focus,
+        textarea:focus {
+            border-color: var(--red);
+            box-shadow: 0 0 0 3px rgba(216, 59, 75, 0.15);
+        }
+
+        .primary,
+        .tab.active {
+            background: linear-gradient(135deg, var(--red), #a92d3c);
+            box-shadow: 0 0 18px rgba(216, 59, 75, 0.26);
+        }
+
+        .tabs {
+            gap: 10px;
+        }
+
+        .tab {
+            min-height: 44px;
+            text-align: left;
+            color: var(--muted);
+            background: transparent;
+        }
+
+        .tab.active {
+            color: #fff;
+        }
+
+        .content {
+            padding: 22px;
+        }
+
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: rgba(23, 27, 37, 0.90);
+            backdrop-filter: blur(16px);
+        }
+
+        .metric,
+        .card,
+        .message,
+        .conversation-view,
+        .empty {
+            border-radius: 18px;
+            background: rgba(23, 27, 37, 0.92);
+        }
+
+        .card {
+            padding: 18px;
+            box-shadow: 0 16px 44px rgba(0, 0, 0, 0.18);
+        }
+
+        .conversation-view {
+            background:
+                radial-gradient(circle at 16% 12%, rgba(216, 59, 75, 0.10), transparent 28%),
+                radial-gradient(circle at 85% 72%, rgba(53, 119, 217, 0.10), transparent 30%),
+                #11151d;
+        }
+
+        .admin-bubble {
+            border-radius: 16px;
+            background: #202631;
+        }
+
+        .admin-bubble.outgoing {
+            background: #0c5d4e;
+        }
+
+        .design-tabs button.active {
+            background: linear-gradient(135deg, var(--red), #a92d3c);
+        }
+
+        .logo-preview {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: var(--panel-2);
+        }
+
+        .logo-preview img {
+            background: #10131b;
+            filter: drop-shadow(0 0 16px rgba(216, 59, 75, 0.30));
+        }
+
         .hidden { display: none !important; }
 
         @media (max-width: 760px) {
@@ -329,7 +464,7 @@
                 grid-template-columns: 1fr;
                 min-height: 0;
             }
-            .side { border-right: 0; border-bottom: 1px solid var(--line); }
+            .side { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
             .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .content { padding: 12px; }
             .toolbar { grid-template-columns: 1fr; }
@@ -875,19 +1010,19 @@
                     <div class="form-grid">
                         <label>Site adi<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
                         <label>Logo URL veya data<input id="designLogoUrl" value="${escapeAttr(design.logoUrl || "/static/nexaline-mark.png")}"></label>
-                        <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#0b1117")}"></label>
-                        <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#111814")}"></label>
-                        <label>Ikincil panel<input id="designPanel2" type="color" value="${escapeAttr(colors.panel2 || "#1f2724")}"></label>
-                        <label>Aktif kart/input<input id="designPanel3" type="color" value="${escapeAttr(colors.panel3 || "#2a3330")}"></label>
-                        <label>Cizgi<input id="designLine" type="color" value="${escapeAttr(colors.line || "#2a3430")}"></label>
-                        <label>Yazi<input id="designTextColor" type="color" value="${escapeAttr(colors.text || "#eef4f1")}"></label>
-                        <label>Soluk yazı<input id="designMuted" type="color" value="${escapeAttr(colors.muted || "#9aa6a1")}"></label>
-                        <label>Mavi<input id="designBlue" type="color" value="${escapeAttr(colors.blue || design.blue || "#2f8cff")}"></label>
-                        <label>Kırmızı<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#f03d54")}"></label>
-                        <label>Yeşil<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#20d66b")}"></label>
-                        <label>Gelen mesaj<input id="designIncoming" type="color" value="${escapeAttr(colors.incoming || "#1f2724")}"></label>
-                        <label>Giden mesaj<input id="designOutgoing" type="color" value="${escapeAttr(colors.outgoing || "#075e54")}"></label>
-                        <label>Sohbet zemini<input id="designChatBackground" type="color" value="${escapeAttr(colors.chatBackground || "#101713")}"></label>
+                        <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#10131b")}"></label>
+                        <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#171b25")}"></label>
+                        <label>Ikincil panel<input id="designPanel2" type="color" value="${escapeAttr(colors.panel2 || "#202631")}"></label>
+                        <label>Aktif kart/input<input id="designPanel3" type="color" value="${escapeAttr(colors.panel3 || "#2a313d")}"></label>
+                        <label>Cizgi<input id="designLine" type="color" value="${escapeAttr(colors.line || "#323946")}"></label>
+                        <label>Yazi<input id="designTextColor" type="color" value="${escapeAttr(colors.text || "#eef1f6")}"></label>
+                        <label>Soluk yazı<input id="designMuted" type="color" value="${escapeAttr(colors.muted || "#8b95a6")}"></label>
+                        <label>Mavi<input id="designBlue" type="color" value="${escapeAttr(colors.blue || design.blue || "#3577d9")}"></label>
+                        <label>Kırmızı<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#d83b4b")}"></label>
+                        <label>Yeşil<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#28c76f")}"></label>
+                        <label>Gelen mesaj<input id="designIncoming" type="color" value="${escapeAttr(colors.incoming || "#202631")}"></label>
+                        <label>Giden mesaj<input id="designOutgoing" type="color" value="${escapeAttr(colors.outgoing || "#0c5d4e")}"></label>
+                        <label>Sohbet zemini<input id="designChatBackground" type="color" value="${escapeAttr(colors.chatBackground || "#11151d")}"></label>
                     </div>
                     <div class="logo-preview">
                         <img id="designLogoPreview" src="${escapeAttr(design.logoUrl || "/static/nexaline-mark.png")}" alt="Logo">
@@ -923,12 +1058,12 @@
                     <div class="form-grid">
                         <label>Genel yazı boyutu<input id="designFontSize" type="number" min="12" max="22" value="${Number(screen.fontSize || 16)}"></label>
                         <label>Mesaj yazı boyutu<input id="designMessageFontSize" type="number" min="12" max="22" value="${Number(screen.messageFontSize || 15)}"></label>
-                        ${device === "desktop" ? `<label>Sol panel genişliği<input id="designSidebarWidth" type="number" min="360" max="820" value="${Number(screen.sidebarWidth || 700)}"></label><label>Sol ikon rayı<input id="designRailWidth" type="number" min="56" max="112" value="${Number(screen.railWidth || 80)}"></label>` : ""}
-                        <label>Simge boyutu<input id="designIconSize" type="number" min="30" max="58" value="${Number(screen.iconSize || 42)}"></label>
-                        <label>Başlık yüksekliği<input id="designHeaderHeight" type="number" min="54" max="96" value="${Number(screen.headerHeight || 72)}"></label>
-                        <label>Mesaj balonu yuvarlaklığı<input id="designBubbleRadius" type="number" min="0" max="24" value="${Number(screen.bubbleRadius || 9)}"></label>
-                        <label>Liste kart yuvarlaklığı<input id="designListItemRadius" type="number" min="0" max="24" value="${Number(screen.listItemRadius || 12)}"></label>
-                        <label>Mesaj kutusu yuvarlaklığı<input id="designComposerRadius" type="number" min="8" max="40" value="${Number(screen.composerRadius || 30)}"></label>
+                        ${device === "desktop" ? `<label>Sol panel genişliği<input id="designSidebarWidth" type="number" min="360" max="820" value="${Number(screen.sidebarWidth || 430)}"></label><label>Sol ikon rayı<input id="designRailWidth" type="number" min="56" max="112" value="${Number(screen.railWidth || 82)}"></label>` : ""}
+                        <label>Simge boyutu<input id="designIconSize" type="number" min="30" max="58" value="${Number(screen.iconSize || 40)}"></label>
+                        <label>Başlık yüksekliği<input id="designHeaderHeight" type="number" min="54" max="96" value="${Number(screen.headerHeight || 64)}"></label>
+                        <label>Mesaj balonu yuvarlaklığı<input id="designBubbleRadius" type="number" min="0" max="24" value="${Number(screen.bubbleRadius || 14)}"></label>
+                        <label>Liste kart yuvarlaklığı<input id="designListItemRadius" type="number" min="0" max="24" value="${Number(screen.listItemRadius || 16)}"></label>
+                        <label>Mesaj kutusu yuvarlaklığı<input id="designComposerRadius" type="number" min="8" max="40" value="${Number(screen.composerRadius || 34)}"></label>
                         <label>Sol menüde yazı<input id="designShowNavLabels" type="checkbox" ${screen.showNavLabels ? "checked" : ""}></label>
                         <label>Sol menü sırası<input id="designNavOrder" value="${escapeAttr((screen.navOrder || []).join(","))}"></label>
                         <label>Mesaj kutusu sırası<input id="designComposerOrder" value="${escapeAttr((screen.composerOrder || []).join(","))}"></label>
@@ -1104,19 +1239,19 @@
         function resetDesignForm() {
             $("designBrandName").value = "NexaLine";
             $("designLogoUrl").value = "/static/nexaline-mark.png";
-            $("designBackground").value = "#0b1117";
-            $("designPanel").value = "#111814";
-            $("designPanel2").value = "#1f2724";
-            $("designPanel3").value = "#2a3330";
-            $("designLine").value = "#2a3430";
-            $("designTextColor").value = "#eef4f1";
-            $("designMuted").value = "#9aa6a1";
-            $("designBlue").value = "#2f8cff";
-            $("designRed").value = "#f03d54";
-            $("designGreen").value = "#20d66b";
-            $("designIncoming").value = "#1f2724";
-            $("designOutgoing").value = "#075e54";
-            $("designChatBackground").value = "#101713";
+            $("designBackground").value = "#10131b";
+            $("designPanel").value = "#171b25";
+            $("designPanel2").value = "#202631";
+            $("designPanel3").value = "#2a313d";
+            $("designLine").value = "#323946";
+            $("designTextColor").value = "#eef1f6";
+            $("designMuted").value = "#8b95a6";
+            $("designBlue").value = "#3577d9";
+            $("designRed").value = "#d83b4b";
+            $("designGreen").value = "#28c76f";
+            $("designIncoming").value = "#202631";
+            $("designOutgoing").value = "#0c5d4e";
+            $("designChatBackground").value = "#11151d";
         }
 
         function handleDesignLogoFile(event) {
