@@ -961,6 +961,14 @@
                 rgba(3, 5, 9, 0.18);
         }
 
+        .messages[data-theme] {
+            background-color: var(--chat-theme-bg, transparent);
+            background-image: var(--chat-theme-image, none);
+            background-size: var(--chat-theme-size, auto);
+            background-repeat: var(--chat-theme-repeat, repeat);
+            transition: background-color 220ms ease, background-image 220ms ease;
+        }
+
         .messages.profile-mode {
             display: block;
             padding: clamp(16px, 3vw, 34px);
@@ -1167,6 +1175,18 @@
         .bubble.mine {
             align-self: flex-end;
             background: var(--outgoing);
+        }
+
+        .messages[data-theme] .bubble {
+            color: var(--chat-theme-incoming-text, var(--text));
+            border: 1px solid var(--chat-theme-border, transparent);
+            background: var(--chat-theme-incoming, var(--incoming));
+        }
+
+        .messages[data-theme] .bubble.mine {
+            color: var(--chat-theme-outgoing-text, #fff);
+            border-color: var(--chat-theme-border, transparent);
+            background: var(--chat-theme-outgoing, var(--outgoing));
         }
 
         .sender {
@@ -1824,6 +1844,119 @@
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        .chat-pref-section {
+            display: grid;
+            gap: 10px;
+        }
+
+        .chat-pref-title {
+            color: var(--green);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .theme-card {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--text);
+            text-align: left;
+            background: rgba(255, 255, 255, 0.04);
+            transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .theme-card:hover,
+        .theme-card.active {
+            transform: translateY(-1px);
+            border-color: var(--theme-accent, var(--red));
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, var(--red)), transparent 72%);
+        }
+
+        .theme-preview {
+            position: relative;
+            display: block;
+            height: 58px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            background-color: var(--preview-bg, #0b141a);
+            background-image: var(--preview-image, none);
+            background-size: var(--preview-size, auto);
+            background-repeat: var(--preview-repeat, repeat);
+        }
+
+        .theme-preview::before,
+        .theme-preview::after {
+            position: absolute;
+            width: 54%;
+            height: 14px;
+            content: "";
+            border-radius: 999px;
+            background: var(--preview-incoming, var(--incoming));
+        }
+
+        .theme-preview::before {
+            left: 10px;
+            top: 12px;
+        }
+
+        .theme-preview::after {
+            right: 10px;
+            bottom: 12px;
+            background: var(--preview-outgoing, var(--outgoing));
+        }
+
+        .theme-card strong {
+            font-size: 13px;
+        }
+
+        .sound-panel {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .sound-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .sound-row:last-child {
+            border-bottom: 0;
+        }
+
+        .sound-row small {
+            display: block;
+            margin-top: 2px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .sound-test-button {
+            width: 38px;
+            height: 38px;
+            border-radius: 999px;
+            color: #fff;
+            background: linear-gradient(135deg, var(--red), var(--blue));
         }
 
         .file-picker {
@@ -2645,6 +2778,11 @@
                 max-height: calc(100dvh - 20px);
             }
 
+            .theme-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
             .settings-panel {
                 align-items: stretch;
                 padding: 10px;
@@ -2664,6 +2802,14 @@
 
             .auth-card {
                 padding: 22px;
+            }
+
+            .theme-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .theme-preview {
+                height: 50px;
             }
 
             .identity strong,
@@ -3114,6 +3260,7 @@
         const SECRET_PIN_KEY = "nexalineSecretPin";
         const ARCHIVE_PIN_KEY_PREFIX = "nexalineArchivePin";
         const NOTIFICATION_LOG_KEY = "nexalineNotificationLog";
+        const SYSTEM_SOUND_KEY = "nexalineSystemSound";
         const AI_HISTORY_KEY = "nexalineAiHistory";
         const AI_CENSOR_KEY = "nexalineAiCensor";
         const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
@@ -3153,6 +3300,92 @@
             ocean: "Okyanus",
             rose: "Gün batımı",
             graphite: "Grafit"
+        };
+        const CHAT_THEME_DEFAULT = "whatsapp-classic";
+        const CHAT_BACKGROUND_THEME_MAP = {
+            none: "whatsapp-classic",
+            ocean: "deep-ocean",
+            rose: "nexa-sunset",
+            graphite: "minimal-pitch-black"
+        };
+        const CHAT_THEMES = {
+            "whatsapp-classic": {
+                label: "WhatsApp Klasik",
+                backgroundColor: "#0b141a",
+                backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
+                backgroundSize: "360px auto",
+                backgroundRepeat: "repeat",
+                incoming: "#202c33",
+                outgoing: "#005c4b",
+                incomingText: "#e9edef",
+                outgoingText: "#e9edef",
+                border: "rgba(255,255,255,0.04)",
+                accent: "#00a884"
+            },
+            "cyberpunk-neon": {
+                label: "Siber Neon",
+                backgroundColor: "#0f051d",
+                backgroundImage: "none",
+                backgroundSize: "auto",
+                backgroundRepeat: "repeat",
+                incoming: "#261745",
+                outgoing: "#45062e",
+                incomingText: "#00ffcc",
+                outgoingText: "#ff8fbb",
+                border: "rgba(255,0,85,0.28)",
+                accent: "#ff0055"
+            },
+            "deep-ocean": {
+                label: "Derin Okyanus",
+                backgroundColor: "#030f26",
+                backgroundImage: "radial-gradient(circle at 18% 20%, rgba(0,119,255,0.22), transparent 28%), radial-gradient(circle at 80% 70%, rgba(0,255,204,0.12), transparent 30%)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "#07214a",
+                outgoing: "#004494",
+                incomingText: "#e9edef",
+                outgoingText: "#ffffff",
+                border: "rgba(0,119,255,0.20)",
+                accent: "#0077ff"
+            },
+            "minimal-pitch-black": {
+                label: "Saf Gece (OLED)",
+                backgroundColor: "#000000",
+                backgroundImage: "none",
+                backgroundSize: "auto",
+                backgroundRepeat: "repeat",
+                incoming: "#161616",
+                outgoing: "#222222",
+                incomingText: "#ffffff",
+                outgoingText: "#00a884",
+                border: "rgba(255,255,255,0.10)",
+                accent: "#ffffff"
+            },
+            "nexa-sunset": {
+                label: "Nexa Kırmızı",
+                backgroundColor: "#15070b",
+                backgroundImage: "radial-gradient(circle at 14% 18%, rgba(240,61,84,0.24), transparent 30%), radial-gradient(circle at 84% 72%, rgba(47,140,255,0.14), transparent 32%)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "#24141a",
+                outgoing: "#8d1d31",
+                incomingText: "#fff1f4",
+                outgoingText: "#ffffff",
+                border: "rgba(240,61,84,0.18)",
+                accent: "#f03d54"
+            }
+        };
+        const SYSTEM_SOUND_LABELS = {
+            classic: "Klasik Bip",
+            notify: "Nexa Pop",
+            glass: "Kristal Damla",
+            ripple: "Dalga",
+            neon: "Neon",
+            soft: "Yumuşak",
+            bright: "Parlak",
+            deep: "Derin",
+            calm: "Sakin",
+            pulse: "Nabız"
         };
         function readStoredJson(key, fallback) {
             try {
@@ -3614,11 +3847,73 @@
                 muted: false,
                 tone: "classic",
                 background: "none",
+                theme: "",
                 locked: false,
                 ...(state.chatPreferences[chatId] || {})
             };
             return state.chatPreferences[chatId];
         }
+
+        function chatThemeKey(chatId) {
+            const prefs = chatPrefs(chatId || "default");
+            if (CHAT_THEMES[prefs.theme]) {
+                return prefs.theme;
+            }
+            if (CHAT_THEMES[prefs.background]) {
+                return prefs.background;
+            }
+            return CHAT_BACKGROUND_THEME_MAP[prefs.background] || CHAT_THEME_DEFAULT;
+        }
+
+        function clearChatThemeStyles(messageBox) {
+            if (!messageBox) return;
+            delete messageBox.dataset.theme;
+            ["--chat-theme-bg", "--chat-theme-image", "--chat-theme-size", "--chat-theme-repeat", "--chat-theme-incoming", "--chat-theme-outgoing", "--chat-theme-incoming-text", "--chat-theme-outgoing-text", "--chat-theme-border", "--chat-theme-accent"].forEach(property => {
+                messageBox.style.removeProperty(property);
+            });
+        }
+
+        function applyChatThemeToMessageBox(chat) {
+            const messageBox = $("messages");
+            if (!messageBox || !chat) return;
+            const key = chatThemeKey(chat.id);
+            const theme = CHAT_THEMES[key] || CHAT_THEMES[CHAT_THEME_DEFAULT];
+            messageBox.dataset.theme = key;
+            messageBox.dataset.bg = key;
+            messageBox.style.setProperty("--chat-theme-bg", theme.backgroundColor);
+            messageBox.style.setProperty("--chat-theme-image", theme.backgroundImage);
+            messageBox.style.setProperty("--chat-theme-size", theme.backgroundSize);
+            messageBox.style.setProperty("--chat-theme-repeat", theme.backgroundRepeat);
+            messageBox.style.setProperty("--chat-theme-incoming", theme.incoming);
+            messageBox.style.setProperty("--chat-theme-outgoing", theme.outgoing);
+            messageBox.style.setProperty("--chat-theme-incoming-text", theme.incomingText);
+            messageBox.style.setProperty("--chat-theme-outgoing-text", theme.outgoingText);
+            messageBox.style.setProperty("--chat-theme-border", theme.border);
+            messageBox.style.setProperty("--chat-theme-accent", theme.accent);
+        }
+
+        function applyThemeToActiveChat(themeKey) {
+            const chat = activeChat();
+            const resolved = CHAT_THEMES[themeKey] ? themeKey : CHAT_THEME_DEFAULT;
+            if (!chat || isAiChat(chat)) {
+                return;
+            }
+            const prefs = chatPrefs(chat.id);
+            prefs.theme = resolved;
+            prefs.background = resolved;
+            saveChatPreferences();
+            applyChatThemeToMessageBox(chat);
+        }
+
+        function loadChatSpecificTheme(chatId) {
+            const chat = state.chats.find(item => item.id === chatId);
+            if (chat) {
+                applyChatThemeToMessageBox(chat);
+            }
+        }
+
+        window.applyThemeToActiveChat = applyThemeToActiveChat;
+        window.loadChatSpecificTheme = loadChatSpecificTheme;
 
         function isChatMuted(chatId) {
             return Boolean(chatPrefs(chatId).muted);
@@ -6259,6 +6554,7 @@
             messageBox.innerHTML = "";
             messageBox.classList.add("profile-mode");
             messageBox.dataset.bg = "none";
+            clearChatThemeStyles(messageBox);
 
             const status = contactStatus(user.username);
             const requestRow = contactRequestWith(user.username);
@@ -6383,6 +6679,7 @@
                 messageBox.innerHTML = "";
                 messageBox.classList.remove("profile-mode");
                 messageBox.dataset.bg = "none";
+                clearChatThemeStyles(messageBox);
                 $("emptyChat").classList.remove("hidden");
                 $("smartReplies").classList.add("hidden");
                 document.querySelector(".composer").classList.add("hidden");
@@ -6417,7 +6714,7 @@
             updateAiAssistantVisibility();
             messageBox.innerHTML = "";
             messageBox.classList.remove("profile-mode");
-            messageBox.dataset.bg = chatPrefs(chat.id).background || "none";
+            applyChatThemeToMessageBox(chat);
 
             const markerId = state.newMessageMarkers[chat.id];
             const limit = messageRenderLimit(chat.id);
@@ -6613,7 +6910,6 @@
             }
             const prefs = chatPrefs(chat.id);
             const actions = [
-                { label: "Sesi dene", onClick: () => playMessageSound(chat.id) },
                 { label: "Sohbeti sil", onClick: openDeleteChatMenu },
                 {
                     label: "Kaydet",
@@ -6627,7 +6923,9 @@
                         prefs.muted = $("chatMutedInput").checked;
                         prefs.locked = wantsLock;
                         prefs.tone = $("chatToneInput").value;
-                        prefs.background = $("chatBackgroundInput").value;
+                        prefs.theme = $("chatThemeInput").value || CHAT_THEME_DEFAULT;
+                        prefs.background = prefs.theme;
+                        localStorage.setItem(SYSTEM_SOUND_KEY, $("systemSoundInput").value);
                         saveChatPreferences();
                         if (prefs.locked && !state.lockedChatsUnlocked) {
                             state.activeChatId = null;
@@ -6640,12 +6938,12 @@
                 }
             ];
             if (chat.type === "group") {
-                actions.splice(1, 0,
+                actions.splice(0, 0,
                     { label: "Grup bilgisi", onClick: () => { closeModal(); showActiveMembers(); } },
                     { label: "Gruptan çık", onClick: () => { closeModal(); leaveCurrentGroup(); } }
                 );
             }
-            openModal("Sohbet ayarları", body => {
+            openModal("Sohbet ayarları ve temalar", body => {
                 const detail = document.createElement("div");
                 detail.className = "profile-preview";
                 const detailAvatar = document.createElement("div");
@@ -6682,15 +6980,82 @@
                     <label class="toggle-row"><span>Sessize al</span><input id="chatMutedInput" type="checkbox" ${prefs.muted ? "checked" : ""}></label>
                     <label class="toggle-row"><span>Gizli sohbet yap</span><input id="chatLockedInput" type="checkbox" ${prefs.locked ? "checked" : ""}></label>
                 `;
+                const themeSection = document.createElement("section");
+                themeSection.className = "chat-pref-section";
+                const themeTitle = document.createElement("div");
+                themeTitle.className = "chat-pref-title";
+                themeTitle.textContent = "Sohbete özel tema";
+                const themeInput = document.createElement("input");
+                themeInput.type = "hidden";
+                themeInput.id = "chatThemeInput";
+                themeInput.value = chatThemeKey(chat.id);
+                const themeGrid = document.createElement("div");
+                themeGrid.className = "theme-grid";
+                Object.entries(CHAT_THEMES).forEach(([key, theme]) => {
+                    const card = document.createElement("button");
+                    card.type = "button";
+                    card.className = "theme-card" + (key === themeInput.value ? " active" : "");
+                    card.style.setProperty("--theme-accent", theme.accent);
+                    const preview = document.createElement("span");
+                    preview.className = "theme-preview";
+                    preview.style.setProperty("--preview-bg", theme.backgroundColor);
+                    preview.style.setProperty("--preview-image", theme.backgroundImage);
+                    preview.style.setProperty("--preview-size", theme.backgroundSize);
+                    preview.style.setProperty("--preview-repeat", theme.backgroundRepeat);
+                    preview.style.setProperty("--preview-incoming", theme.incoming);
+                    preview.style.setProperty("--preview-outgoing", theme.outgoing);
+                    const label = document.createElement("strong");
+                    label.textContent = theme.label;
+                    card.append(preview, label);
+                    card.onclick = () => {
+                        themeInput.value = key;
+                        themeGrid.querySelectorAll(".theme-card").forEach(item => item.classList.remove("active"));
+                        card.classList.add("active");
+                        applyThemeToActiveChat(key);
+                        showToast(`${theme.label} uygulandı.`);
+                    };
+                    themeGrid.appendChild(card);
+                });
+                themeSection.append(themeTitle, themeGrid, themeInput);
+
+                const soundSection = document.createElement("section");
+                soundSection.className = "chat-pref-section";
+                const soundTitle = document.createElement("div");
+                soundTitle.className = "chat-pref-title";
+                soundTitle.textContent = "Uygulama içi sesler";
+                const soundPanel = document.createElement("div");
+                soundPanel.className = "sound-panel";
+                const makeSoundRow = (title, hint, onClick) => {
+                    const row = document.createElement("div");
+                    row.className = "sound-row";
+                    const text = document.createElement("div");
+                    text.innerHTML = `<strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "sound-test-button";
+                    button.textContent = "▶";
+                    button.onclick = onClick;
+                    row.append(text, button);
+                    return row;
+                };
                 const tone = document.createElement("select");
                 tone.id = "chatToneInput";
-                tone.innerHTML = Object.entries(TONE_LABELS).map(([value, label]) => `<option value="${value}">Bildirim sesi: ${label}</option>`).join("");
+                tone.innerHTML = Object.entries(TONE_LABELS).map(([value, label]) => `<option value="${value}">Gelen mesaj sesi: ${label}</option>`).join("");
                 tone.value = prefs.tone || "classic";
-                const background = document.createElement("select");
-                background.id = "chatBackgroundInput";
-                background.innerHTML = Object.entries(CHAT_BACKGROUNDS).map(([value, label]) => `<option value="${value}">Arka plan: ${label}</option>`).join("");
-                background.value = prefs.background || "none";
-                body.append(detail, toggles, tone, background);
+                const systemSound = document.createElement("select");
+                systemSound.id = "systemSoundInput";
+                systemSound.innerHTML = Object.entries(SYSTEM_SOUND_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+                systemSound.value = localStorage.getItem(SYSTEM_SOUND_KEY) || "classic";
+                systemSound.onchange = () => NexaAudio.changeSystemSound(systemSound.value);
+                soundPanel.append(
+                    makeSoundRow("Mesaj gönderme sesi", "Mesaj başarıyla gönderildiğinde çalar.", () => NexaAudio.play("outgoing")),
+                    makeSoundRow("Mesaj alma sesi", "Bu sohbete yeni mesaj geldiğinde çalar.", () => NexaAudio.play(tone.value, chat.id)),
+                    tone,
+                    systemSound
+                );
+                soundSection.append(soundTitle, soundPanel);
+
+                body.append(detail, toggles, themeSection, soundSection);
             }, actions);
         }
 
@@ -7001,6 +7366,7 @@
             } else {
                 queueMessage(payload);
             }
+            NexaAudio.play("outgoing");
             socket.emit("typing", { chatId: chat.id, typing: false });
             delete state.newMessageMarkers[chat.id];
             input.value = "";
@@ -8041,11 +8407,44 @@
             }
         }
 
-        function playMessageSound(chatId = state.activeChatId) {
-            const sequence = MESSAGE_TONES[chatPrefs(chatId || "default").tone] || MESSAGE_TONES.classic;
+        function playToneSequence(sequence, spacing = 100) {
+            if (!Array.isArray(sequence) || !sequence.length) {
+                return;
+            }
             sequence.forEach(([frequency, duration], index) => {
-                setTimeout(() => playTone(frequency, duration / 1000), index * 100);
+                setTimeout(() => playTone(frequency, duration / 1000), index * spacing);
             });
+        }
+
+        const NexaAudio = {
+            channels: {
+                outgoing: [[980, 45], [1320, 55]],
+                fallbackIncoming: [[660, 70], [880, 80]]
+            },
+            play(type, chatId = state.activeChatId) {
+                if (type === "outgoing") {
+                    playToneSequence(this.channels.outgoing, 72);
+                    return;
+                }
+                if (type === "incoming") {
+                    if (chatId && isChatMuted(chatId)) {
+                        return;
+                    }
+                    const toneKey = chatId ? chatPrefs(chatId).tone : localStorage.getItem(SYSTEM_SOUND_KEY) || "classic";
+                    playToneSequence(MESSAGE_TONES[toneKey] || this.channels.fallbackIncoming);
+                    return;
+                }
+                playToneSequence(MESSAGE_TONES[type] || MESSAGE_TONES[localStorage.getItem(SYSTEM_SOUND_KEY) || "classic"] || this.channels.fallbackIncoming);
+            },
+            changeSystemSound(soundKey) {
+                localStorage.setItem(SYSTEM_SOUND_KEY, soundKey);
+                this.play(soundKey);
+            }
+        };
+        window.NexaAudio = NexaAudio;
+
+        function playMessageSound(chatId = state.activeChatId) {
+            NexaAudio.play("incoming", chatId);
         }
 
         function playCallSound() {
@@ -8922,7 +9321,7 @@
             }
 
             if (message.sender !== state.me.username) {
-                playMessageSound(chat.id);
+                NexaAudio.play("incoming", chat.id);
             }
             chat.messages.push(message);
             chat.messageCount = Math.max((chat.messageCount || 0) + 1, chat.messages.length);
