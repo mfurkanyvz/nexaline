@@ -1,20 +1,41 @@
-const CACHE_NAME = "nexaline-pwa-v3";
+const CACHE_NAME = "nexaline-pwa-v8";
 const APP_SHELL = [
   "/",
   "/client.html",
   "/manifest.webmanifest",
   "/static/client.html",
   "/static/admin.html",
+  "/static/vendor/socket.io.min.js",
   "/static/nexaline-mark.png",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
   "/static/icons/maskable-512.png",
   "/static/icons/apple-touch-icon.png"
 ];
+const NETWORK_FIRST_PATHS = new Set([
+  "/",
+  "/client.html",
+  "/static/client.html",
+  "/static/admin.html",
+  "/sw.js"
+]);
 
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
+      const target = clientList.find(client => "focus" in client);
+      if (target) {
+        return target.focus();
+      }
+      return clients.openWindow("/");
+    })
   );
 });
 
@@ -38,13 +59,15 @@ self.addEventListener("fetch", event => {
     url.pathname.startsWith("/socket.io/") ||
     url.pathname.startsWith("/admin/") ||
     url.pathname.startsWith("/bootstrap/") ||
+    url.pathname.startsWith("/chat/") ||
+    url.pathname.startsWith("/downloads/") ||
     ["/health", "/login", "/register", "/rtc-config"].includes(url.pathname)
   ) {
     event.respondWith(fetch(request));
     return;
   }
 
-  if (request.mode === "navigate") {
+  if (request.mode === "navigate" || NETWORK_FIRST_PATHS.has(url.pathname)) {
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -52,7 +75,7 @@ self.addEventListener("fetch", event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match("/") || caches.match("/client.html"))
+        .catch(() => caches.match(request).then(cached => cached || caches.match("/").then(root => root || caches.match("/client.html"))))
     );
     return;
   }

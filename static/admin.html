@@ -25,9 +25,11 @@
             --yellow: #f5c451;
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; min-width: 0; }
         body {
             margin: 0;
+            max-width: 100vw;
+            overflow-x: hidden;
             color: var(--text);
             font-family: Arial, Helvetica, sans-serif;
             background: var(--bg);
@@ -42,7 +44,14 @@
             background: var(--panel-2);
             min-height: 38px;
             padding: 9px 12px;
-            white-space: nowrap;
+            line-height: 1.15;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        input, textarea, p, small, strong, h1, h2, h3, .message, .card, .chip {
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         button:disabled {
@@ -54,6 +63,7 @@
             display: grid;
             grid-template-columns: 320px minmax(0, 1fr);
             min-height: 100vh;
+            max-width: 100vw;
         }
 
         .side {
@@ -80,6 +90,7 @@
         h2 { font-size: 20px; }
         h3 { font-size: 15px; }
         p, small { color: var(--muted); }
+        h1, h2, h3 { line-height: 1.2; }
 
         .token-box {
             display: grid;
@@ -164,6 +175,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             gap: 10px;
             margin-top: 10px;
         }
@@ -224,6 +236,7 @@
             margin-top: 8px;
             border-radius: 8px;
             background: #000;
+            object-fit: contain;
         }
 
         .meta {
@@ -283,6 +296,7 @@
                 <button class="tab" data-view="messages" type="button">Mesajlar</button>
                 <button class="tab" data-view="stories" type="button">Durumlar</button>
                 <button class="tab" data-view="calls" type="button">Aramalar</button>
+                <button class="tab" data-view="scheduled" type="button">Zamanlı</button>
                 <button class="tab" data-view="archives" type="button">Arşivler</button>
                 <button class="tab" data-view="social" type="button">Engel/İstek</button>
                 <button class="tab" data-view="create" type="button">Hesap Aç</button>
@@ -309,6 +323,7 @@
         }
 
         const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "" };
+        const ADMIN_LOAD_TIMEOUT_MS = 15000;
         const $ = id => document.getElementById(id);
         $("tokenInput").value = state.token;
 
@@ -317,10 +332,27 @@
         }
 
         async function api(path, options = {}) {
-            const response = await fetch(path, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), ADMIN_LOAD_TIMEOUT_MS);
+            let response;
+            try {
+                response = await fetch(path, {
+                    ...options,
+                    cache: "no-store",
+                    signal: controller.signal,
+                    headers: { ...headers(), ...(options.headers || {}) }
+                });
+            } catch (error) {
+                if (error.name === "AbortError") {
+                    throw new Error("Panel çok geç cevap verdi. Sunucu çalışıyor mu kontrol et.");
+                }
+                throw new Error("Sunucuya bağlanılamadı. Sayfa açık ama arka uç cevap vermiyor.");
+            } finally {
+                clearTimeout(timer);
+            }
             const data = await response.json().catch(() => ({ ok: false, message: "Sunucu cevabı okunamadı." }));
             if (!data.ok) {
-                throw new Error(data.message || "İşlem başarısız.");
+                throw new Error(data.message || (response.ok ? "İşlem başarısız." : `Sunucu hata verdi (${response.status}).`));
             }
             return data;
         }
@@ -334,6 +366,8 @@
             state.token = $("tokenInput").value.trim();
             localStorage.setItem("nexalineAdminToken", state.token);
             setStatus("Yükleniyor...", "warn");
+            $("loadButton").disabled = true;
+            $("refreshButton").disabled = true;
             try {
                 state.data = await api("/admin/state");
                 $("ipInfo").textContent = `Sen: ${state.data.yourIp} • Sunucu: ${state.data.serverIp}`;
@@ -343,8 +377,13 @@
                 setStatus("Hazır", "ok");
                 render();
             } catch (error) {
+                state.data = null;
                 setStatus(error.message, "error");
                 $("summary").innerHTML = "";
+                $("view").innerHTML = `<div class="empty">${escapeHtml(error.message)}<br>Yerel bilgisayardan açmıyorsan ADMIN_TOKEN girip tekrar dene.</div>`;
+            } finally {
+                $("loadButton").disabled = false;
+                $("refreshButton").disabled = false;
             }
         }
 
@@ -361,19 +400,21 @@
             if (state.view === "messages") renderMessages();
             if (state.view === "stories") renderStories();
             if (state.view === "calls") renderCalls();
+            if (state.view === "scheduled") renderScheduled();
             if (state.view === "archives") renderArchives();
             if (state.view === "social") renderSocial();
             if (state.view === "create") renderCreateUsers();
         }
 
         function renderSummary() {
-            const messageCount = state.data.chats.reduce((total, chat) => total + chat.messages.length, 0);
+            const messageCount = state.data.chats.reduce((total, chat) => total + (chat.messageCount || chat.messages.length), 0);
             $("summary").innerHTML = `
                 <div class="metric"><strong>${state.data.users.length}</strong><small>Kullanıcı</small></div>
                 <div class="metric"><strong>${state.data.chats.length}</strong><small>Sohbet</small></div>
                 <div class="metric"><strong>${messageCount}</strong><small>Mesaj</small></div>
                 <div class="metric"><strong>${state.data.stories.length}</strong><small>Durum</small></div>
                 <div class="metric"><strong>${state.data.calls.length}</strong><small>Arama</small></div>
+                <div class="metric"><strong>${state.data.scheduledMessages?.length || 0}</strong><small>Zamanlı</small></div>
                 <div class="metric"><strong>${state.data.archives?.length || 0}</strong><small>Arşiv</small></div>
                 <div class="metric"><strong>${state.data.blocks?.length || 0}</strong><small>Engel</small></div>
                 <div class="metric"><strong>${(state.data.contactRequests?.length || 0) + (state.data.groupInvites?.length || 0)}</strong><small>İstek</small></div>
@@ -443,7 +484,7 @@
                     <h3>${escapeHtml(chat.title)} (${chat.type})</h3>
                     <p>${chat.members.map(member => `${escapeHtml(member.displayName)}${member.isAdmin ? " - Yönetici" : ""}`).join(", ") || "Üye yok"}</p>
                     <div class="card-row">
-                        <small>${chat.messages.length} mesaj</small>
+                        <small>${chat.messageCount || chat.messages.length} mesaj${chat.messageCount > chat.messages.length ? ` - son ${chat.messages.length} yüklendi` : ""}</small>
                         ${chat.id === "lobby" ? "" : `<button class="danger" data-chat="${escapeAttr(chat.id)}" type="button">Sohbeti Sil</button>`}
                     </div>
                 `;
@@ -457,6 +498,7 @@
             state.data.chats.forEach(chat => {
                 chat.messages.forEach(message => messages.push({ chat, message }));
             });
+            const totalMessages = state.data.chats.reduce((total, chat) => total + (chat.messageCount || chat.messages.length), 0);
             const filtered = messages.filter(({ chat, message }) => matchesSearch(
                 chat.title,
                 message.sender,
@@ -465,7 +507,7 @@
                 message.attachment?.name,
                 message.attachment?.type
             ));
-            $("view").innerHTML = `<h2>Mesajlar (${filtered.length}/${messages.length})</h2><div class="list"></div>`;
+            $("view").innerHTML = `<h2>Mesajlar (${filtered.length}/${messages.length} yüklendi, toplam ${totalMessages})</h2><div class="list"></div>`;
             const list = $("view").querySelector(".list");
             if (!filtered.length) {
                 list.innerHTML = empty(messages.length ? "Aramana uygun mesaj yok." : "Henüz mesaj yok.");
@@ -477,6 +519,7 @@
                 item.innerHTML = `
                     <strong>${escapeHtml(chat.title)} • ${escapeHtml(message.senderName)}</strong>
                     <p>${escapeHtml(message.deletedAt ? "Bu mesaj kullanıcı tarafından geri çekildi." : (message.body || message.attachment?.name || message.attachment?.type || "Dosya"))}</p>
+                    ${renderLinkPreview(message.body)}
                     ${renderAttachment(message.attachment)}
                     <div class="card-row">
                         <span class="meta">${new Date(message.createdAt).toLocaleString("tr-TR")}${message.deletedAt ? " • silindi" : ""}</span>
@@ -530,6 +573,27 @@
                     <small>${new Date(call.startedAt).toLocaleString("tr-TR")}</small>
                 `;
                 list.appendChild(item);
+            });
+        }
+
+        function renderScheduled() {
+            const items = (state.data.scheduledMessages || []).filter(item => matchesSearch(item.chatTitle, item.sender, item.senderName, item.body, item.attachment?.name));
+            $("view").innerHTML = `<h2>Zamanlanmış Mesajlar (${items.length}/${state.data.scheduledMessages?.length || 0})</h2><div class="list"></div>`;
+            const list = $("view").querySelector(".list");
+            if (!items.length) {
+                list.innerHTML = empty((state.data.scheduledMessages || []).length ? "Aramana uygun zamanlı mesaj yok." : "Zamanlanmış mesaj yok.");
+                return;
+            }
+            items.forEach(item => {
+                const row = document.createElement("article");
+                row.className = "card";
+                row.innerHTML = `
+                    <h3>${escapeHtml(item.chatTitle)} • ${escapeHtml(item.senderName)}</h3>
+                    <p>${escapeHtml(item.body || item.attachment?.name || "Dosya")}</p>
+                    ${renderAttachment(item.attachment)}
+                    <small>${new Date(item.sendAt).toLocaleString("tr-TR")} gönderilecek${item.expiresInSeconds ? ` • ${item.expiresInSeconds} sn sonra silinir` : ""}</small>
+                `;
+                list.appendChild(row);
             });
         }
 
@@ -614,7 +678,8 @@
                 <article class="card">
                     <h3>Tek hesap</h3>
                     <div class="form-grid">
-                        <input id="newDisplayName" placeholder="İsim soyisim">
+                        <input id="newFirstName" placeholder="İSİM">
+                        <input id="newLastName" placeholder="SOYİSİM">
                         <input id="newEmail" placeholder="E-posta (sahte olabilir ama formatlı olsun)">
                         <input id="newUsername" placeholder="Kullanıcı adı (boş kalırsa otomatik)">
                         <input id="newPassword" type="password" placeholder="Güçlü şifre">
@@ -631,12 +696,14 @@
             `;
             $("createUserButton").onclick = async () => {
                 await createAdminUser({
-                    displayName: $("newDisplayName").value.trim(),
+                    firstName: $("newFirstName").value.trim(),
+                    lastName: $("newLastName").value.trim(),
                     email: $("newEmail").value.trim(),
                     username: $("newUsername").value.trim(),
                     password: $("newPassword").value
                 });
-                $("newDisplayName").value = "";
+                $("newFirstName").value = "";
+                $("newLastName").value = "";
                 $("newEmail").value = "";
                 $("newUsername").value = "";
                 $("newPassword").value = "";
@@ -665,8 +732,8 @@
         }
 
         async function createAdminUser(payload) {
-            if (!payload.displayName || !payload.email || !payload.password) {
-                throw new Error("İsim, e-posta ve şifre gerekli.");
+            if (!(payload.displayName || (payload.firstName && payload.lastName)) || !payload.email || !payload.password) {
+                throw new Error("İsim, soyisim, e-posta ve şifre gerekli.");
             }
             return api("/admin/user", { method: "POST", body: JSON.stringify(payload) });
         }
@@ -747,17 +814,35 @@
             return escapeHtml(value).replace(/`/g, "&#096;");
         }
 
+        function renderLinkPreview(text) {
+            const url = (String(text || "").match(/https?:\/\/[^\s<>"']+/i) || [])[0];
+            if (!url) return "";
+            let parsed;
+            try {
+                parsed = new URL(url);
+            } catch (_error) {
+                return "";
+            }
+            return `<a class="empty" href="${escapeAttr(parsed.href)}" target="_blank" rel="noreferrer">${escapeHtml(parsed.hostname.replace(/^www\./, ""))}<br><small>${escapeHtml(parsed.href)}</small></a>`;
+        }
+
         function renderAttachment(attachment) {
-            if (!attachment?.dataUrl) return "";
+            if (!attachment) return "";
             const name = escapeAttr(attachment.name || "Dosya");
+            if (!attachment?.dataUrl) {
+                if (attachment?.dataUrlOmitted) {
+                    return `<div class="empty">${name} önizlemesi hız için yüklenmedi.</div>`;
+                }
+                return "";
+            }
             if (attachment.type?.startsWith("image/")) {
-                return `<img class="media" src="${escapeAttr(attachment.dataUrl)}" alt="${name}">`;
+                return `<img class="media" src="${escapeAttr(attachment.dataUrl)}" alt="${name}" loading="lazy">`;
             }
             if (attachment.type?.startsWith("video/")) {
                 return `<video class="media" src="${escapeAttr(attachment.dataUrl)}" controls playsinline></video>`;
             }
             if (attachment.type?.startsWith("audio/")) {
-                return `<audio class="media" src="${escapeAttr(attachment.dataUrl)}" controls></audio>`;
+                return `<audio class="media" src="${escapeAttr(attachment.dataUrl)}" controls></audio>${attachment.transcript ? `<div class="empty">Yaziya dokum: ${escapeHtml(attachment.transcript)}</div>` : ""}`;
             }
             return `<a class="meta" href="${escapeAttr(attachment.dataUrl)}" download="${name}">${name}</a>`;
         }

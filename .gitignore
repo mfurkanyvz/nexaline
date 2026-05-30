@@ -8,3 +8,11 @@ instance/
 venv/
 env/
 .DS_Store
+server-test*.log
+tools/
+desktop-app/node_modules/
+desktop-app/dist/
+android-app/.gradle/
+android-app/build/
+android-app/app/build/
+static/downloads/NexaLine-PC/

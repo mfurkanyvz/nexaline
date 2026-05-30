@@ -1,0 +1,10 @@
+{
+  "name": "nexaline-packaging",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "desktop:install": "npm --prefix desktop-app install",
+    "desktop:pack": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-desktop.ps1",
+    "android:assemble": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android.ps1"
+  }
+}

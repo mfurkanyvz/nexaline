@@ -14,7 +14,7 @@
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/vendor/socket.io.min.js"></script>
     <style>
         :root {
             --ink: #06080d;
@@ -32,8 +32,23 @@
             --keyboard-inset: 0px;
         }
 
+        :root[data-theme="light"] {
+            --ink: #eef2f7;
+            --panel: #ffffff;
+            --panel-2: #f3f6fb;
+            --panel-3: #e6edf7;
+            --line: #cfd7e6;
+            --text: #101722;
+            --muted: #5f6b7f;
+            --shadow: 0 20px 60px rgba(30, 42, 62, 0.18);
+        }
+
         * {
             box-sizing: border-box;
+        }
+
+        * {
+            min-width: 0;
         }
 
         html,
@@ -54,6 +69,13 @@
                 linear-gradient(145deg, #030408, #10131b 55%, #05070c);
         }
 
+        :root[data-theme="light"] body {
+            background:
+                radial-gradient(circle at 10% 0%, rgba(240, 61, 84, 0.10), transparent 28%),
+                radial-gradient(circle at 88% 10%, rgba(47, 140, 255, 0.12), transparent 30%),
+                linear-gradient(145deg, #f7f9fc, #e8eef7);
+        }
+
         button,
         input,
         textarea {
@@ -63,6 +85,22 @@
         button {
             border: 0;
             cursor: pointer;
+            min-width: 0;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        input,
+        textarea,
+        .toast,
+        .modal-body,
+        .settings-box,
+        .bubble,
+        .reply-preview,
+        .reply-context,
+        .file-pill {
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .auth-screen {
@@ -420,6 +458,7 @@
             flex-direction: column;
             border-right: 1px solid var(--line);
             background: rgba(16, 20, 29, 0.96);
+            container-type: inline-size;
         }
 
         .topbar,
@@ -477,19 +516,43 @@
             font-size: 12px;
         }
 
+        .last-message,
+        .chat-time {
+            display: block;
+            overflow: hidden;
+            max-width: 100%;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .icon-row {
             display: flex;
+            flex: 0 0 auto;
             gap: 8px;
+            min-width: 0;
+        }
+
+        .chat-top .icon-row {
+            max-width: min(300px, 46vw);
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .chat-top .icon-row::-webkit-scrollbar {
+            display: none;
         }
 
         .icon-btn {
             display: grid;
             width: 38px;
             height: 38px;
+            flex: 0 0 auto;
             place-items: center;
             border-radius: 8px;
             color: var(--text);
             background: var(--panel-3);
+            overflow: hidden;
+            white-space: nowrap;
         }
 
         .search-box {
@@ -501,20 +564,22 @@
 
         .nav-tabs {
             display: grid;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
-            gap: 4px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
             padding: 8px;
             border-bottom: 1px solid var(--line);
             background: #090c13;
         }
 
         .nav-tab {
-            display: grid;
-            grid-template-columns: auto minmax(0, auto);
+            display: flex;
+            min-height: 54px;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             min-width: 0;
+            overflow: hidden;
             padding: 9px 4px;
             border-radius: 7px;
             color: var(--muted);
@@ -533,6 +598,15 @@
             place-items: center;
             font-size: 17px;
             line-height: 1;
+            flex: 0 0 auto;
+        }
+
+        .nav-label {
+            overflow: hidden;
+            max-width: 100%;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.15;
         }
 
         .nav-tab.active {
@@ -626,6 +700,28 @@
         .chat-time {
             color: var(--muted);
             font-size: 12px;
+            max-width: 72px;
+        }
+
+        .chat-flags {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 4px;
+            max-width: 112px;
+        }
+
+        .flag-pill {
+            display: inline-grid;
+            min-width: 20px;
+            height: 20px;
+            place-items: center;
+            padding: 0 5px;
+            border-radius: 999px;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.10);
+            font-size: 11px;
+            font-weight: 800;
         }
 
         .badge {
@@ -645,6 +741,7 @@
             display: grid;
             justify-items: end;
             gap: 6px;
+            max-width: 112px;
         }
 
         .online-dot {
@@ -682,16 +779,44 @@
             overscroll-behavior: contain;
         }
 
+        .messages[data-bg="ocean"] {
+            background:
+                linear-gradient(135deg, rgba(47, 140, 255, 0.16), rgba(43, 213, 118, 0.08)),
+                rgba(3, 5, 9, 0.10);
+        }
+
+        .messages[data-bg="rose"] {
+            background:
+                linear-gradient(135deg, rgba(240, 61, 84, 0.15), rgba(245, 196, 81, 0.08)),
+                rgba(3, 5, 9, 0.10);
+        }
+
+        .messages[data-bg="graphite"] {
+            background:
+                linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(47, 140, 255, 0.05)),
+                rgba(3, 5, 9, 0.18);
+        }
+
         .bubble {
             position: relative;
             max-width: min(72%, 680px);
+            min-width: 0;
             padding: 10px 12px 8px;
             border-radius: 8px;
             line-height: 1.35;
+            white-space: pre-wrap;
             background: var(--panel-3);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
             transition: transform 160ms ease, box-shadow 160ms ease;
             touch-action: pan-y;
+        }
+
+        .bubble > div,
+        .bubble a,
+        .message-meta span {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .bubble.swiping {
@@ -763,11 +888,18 @@
             background: rgba(0, 0, 0, 0.22);
         }
 
+        .install-grid {
+            display: grid;
+            gap: 10px;
+        }
+
         .message-meta {
             display: flex;
+            flex-wrap: wrap;
             justify-content: flex-end;
             align-items: center;
             gap: 6px;
+            min-width: 0;
             margin-top: 4px;
             color: rgba(255, 255, 255, 0.72);
             font-size: 11px;
@@ -833,6 +965,14 @@
             background: rgba(47, 140, 255, 0.12);
         }
 
+        .load-more-messages {
+            align-self: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: var(--text);
+            background: rgba(47, 140, 255, 0.18);
+        }
+
         .archive-view {
             display: grid;
             gap: 10px;
@@ -859,7 +999,7 @@
             display: grid;
             align-items: end;
             min-height: 0;
-            grid-template-columns: 44px 44px 44px 44px 44px minmax(0, 1fr) 44px;
+            grid-template-columns: 44px 44px 44px 44px 44px 44px minmax(0, 1fr) 44px;
             gap: 10px;
             padding: 12px;
             border-top: 1px solid var(--line);
@@ -871,7 +1011,7 @@
         }
 
         .composer textarea {
-            grid-column: 5 / 7;
+            grid-column: 7;
             min-height: 44px;
             max-height: 120px;
             resize: none;
@@ -884,11 +1024,11 @@
         }
 
         #cancelVoiceButton:not(.hidden) ~ #messageInput {
-            grid-column: 6 / 7;
+            grid-column: 7;
         }
 
         #sendButton {
-            grid-column: 7;
+            grid-column: 8;
         }
 
         .send-btn {
@@ -949,6 +1089,36 @@
             height: 34px;
             border-radius: 7px;
             background: var(--panel-3);
+        }
+
+        .smart-replies {
+            display: flex;
+            grid-column: 1 / -1;
+            gap: 7px;
+            overflow-x: auto;
+            padding: 2px 0 4px;
+            scrollbar-width: none;
+        }
+
+        .smart-replies::-webkit-scrollbar {
+            display: none;
+        }
+
+        .smart-replies button {
+            flex: 0 0 auto;
+            max-width: min(220px, 68vw);
+            overflow: hidden;
+            padding: 8px 10px;
+            border-radius: 999px;
+            color: var(--text);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: rgba(47, 140, 255, 0.16);
+        }
+
+        .icon-btn.active-tool {
+            color: #06100a;
+            background: var(--green);
         }
 
         .location-pill {
@@ -1030,6 +1200,7 @@
 
         .modal-actions {
             justify-content: flex-end;
+            flex-wrap: wrap;
             border-top: 1px solid var(--line);
             border-bottom: 0;
         }
@@ -1040,9 +1211,56 @@
             padding: 14px;
         }
 
+        .form-grid,
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .message {
+            display: grid;
+            gap: 6px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .link-preview {
+            display: grid;
+            gap: 4px;
+            margin-top: 8px;
+            padding: 10px;
+            border-left: 3px solid var(--blue);
+            border-radius: 8px;
+            color: var(--text);
+            text-decoration: none;
+            background: rgba(47, 140, 255, 0.12);
+        }
+
+        .link-preview small {
+            color: var(--muted);
+        }
+
+        .voice-transcript {
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: var(--muted);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
         .modal-body input,
+        .modal-body select,
         .modal-body textarea,
         .settings-box input,
+        .settings-box select,
         .settings-box textarea {
             width: 100%;
             padding: 11px 12px;
@@ -1185,6 +1403,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             gap: 12px;
         }
 
@@ -1229,6 +1448,25 @@
             place-items: center;
             border-radius: 8px;
             background: var(--panel-3);
+        }
+
+        .settings-option > span {
+            display: grid;
+            min-width: 0;
+            gap: 3px;
+        }
+
+        .settings-option strong,
+        .settings-option small {
+            display: block;
+            min-width: 0;
+            line-height: 1.25;
+        }
+
+        .settings-option .last-message {
+            overflow: visible;
+            text-overflow: clip;
+            white-space: normal;
         }
 
         .settings-back {
@@ -1489,6 +1727,10 @@
                 flex: 0 0 auto;
             }
 
+            .chat-top .icon-row {
+                max-width: 44vw;
+            }
+
             .avatar {
                 width: 40px;
                 height: 40px;
@@ -1586,6 +1828,7 @@
             #voiceButton { grid-column: 2; grid-row: 1; }
             #emojiButton { grid-column: 4; grid-row: 1; }
             #locationButton { grid-column: 1; grid-row: 2; }
+            #sendToolsButton { grid-column: 4; grid-row: 2; }
             #cancelVoiceButton { grid-column: 2; grid-row: 2; }
 
             #cancelVoiceButton:not(.hidden) ~ #messageInput {
@@ -1657,8 +1900,8 @@
             .nav-tab[data-section="archives"] { order: 6; }
 
             .nav-tab {
-                grid-template-columns: 1fr;
                 min-width: 58px;
+                min-height: 48px;
                 padding: 8px 7px;
                 border-radius: 24px;
                 font-size: 11px;
@@ -1673,6 +1916,10 @@
             }
 
             .nav-label {
+                overflow: hidden;
+                max-width: 100%;
+                text-overflow: ellipsis;
+                white-space: nowrap;
                 line-height: 1.1;
             }
 
@@ -1735,6 +1982,14 @@
                 height: 31px;
             }
 
+            .chat-top .icon-row {
+                max-width: 40vw;
+            }
+
+            .nav-label {
+                display: none;
+            }
+
             .identity small,
             .last-message,
             .section-label,
@@ -1776,6 +2031,7 @@
 
             <div id="authFields" class="auth-fields">
                 <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
+                <input id="lastName" class="field hidden" autocomplete="family-name" placeholder="SOYİSİM">
                 <input id="email" class="field hidden" autocomplete="email" placeholder="Gmail adresi">
                 <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
                 <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
@@ -1800,7 +2056,9 @@
                     <small id="meStatus">çevrimiçi</small>
                 </div>
                 <div class="icon-row">
+                    <button class="icon-btn" id="installButton" title="Uygulamayı indir">⇩</button>
                     <button class="icon-btn" id="storyButton" title="Durum ekle">◉</button>
+                    <button class="icon-btn" id="notificationButton" title="Bildirimler">!</button>
                     <button class="icon-btn" id="newGroupButton" title="Grup oluştur">＋</button>
                     <button class="icon-btn" id="settingsButton" title="Ayarlar">⚙</button>
                 </div>
@@ -1839,6 +2097,7 @@
                 <div class="icon-row">
                     <button class="icon-btn member-action" id="groupMembersButton" title="Üyeleri yönet">☰</button>
                     <button class="icon-btn hidden" id="leaveGroupButton" title="Gruptan çık">⇥</button>
+                    <button class="icon-btn hidden" id="chatPrefsButton" title="Sohbet ayarları">⚙</button>
                     <button class="icon-btn hidden" id="deleteChatButton" title="Sohbeti sil">⌫</button>
                     <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
                     <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
@@ -1860,6 +2119,7 @@
             </div>
 
             <footer class="composer">
+                <div id="smartReplies" class="smart-replies hidden"></div>
                 <div id="replyPreview" class="reply-preview hidden"></div>
                 <div id="voiceWave" class="voice-wave"></div>
                 <div id="emojiPanel" class="emoji-panel hidden"></div>
@@ -1867,6 +2127,7 @@
                 <button id="voiceButton" class="icon-btn" title="Sesli mesaj">●</button>
                 <button id="emojiButton" class="icon-btn" title="Emoji">☺</button>
                 <button id="locationButton" class="icon-btn" title="Konum">⌖</button>
+                <button id="sendToolsButton" class="icon-btn" title="Zamanla ve kaybolan mesaj">⏱</button>
                 <button id="cancelVoiceButton" class="icon-btn danger hidden" title="Kaydı iptal et">×</button>
                 <input id="fileInput" class="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
                 <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
@@ -1907,6 +2168,11 @@
                 <button id="settingsPrivacyTab" class="settings-option" type="button">
                     <span class="option-icon">▣</span>
                     <span><strong>Gizlilik</strong><small class="last-message">Son görülme, çevrim içi, okundu ve Gmail</small></span>
+                    <span>›</span>
+                </button>
+                <button id="settingsAppearanceTab" class="settings-option" type="button">
+                    <span class="option-icon">◒</span>
+                    <span><strong>Görünüm</strong><small class="last-message">Tema ve gizli sohbet kilidi</small></span>
                     <span>›</span>
                 </button>
                 <button id="settingsAccountTab" class="settings-option" type="button">
@@ -1962,6 +2228,29 @@
                     </label>
                 </div>
                 <button id="savePrivacyButton" class="primary" type="button">Gizliliği Kaydet</button>
+            </div>
+
+            <div id="settingsAppearanceSection" class="settings-section hidden">
+                <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
+                <div class="settings-row">
+                    <div>
+                        <strong>Görünüm</strong>
+                        <div class="last-message">Tema, bildirim geçmişi ve gizli sohbetler</div>
+                    </div>
+                </div>
+                <div class="privacy-grid">
+                    <label class="toggle-row">
+                        <span>Açık tema</span>
+                        <input id="lightThemeInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>Gizli sohbetleri göster</span>
+                        <input id="unlockSecretChatsInput" type="checkbox">
+                    </label>
+                </div>
+                <input id="secretPinInput" type="password" inputmode="numeric" maxlength="12" placeholder="Gizli sohbet PIN">
+                <button id="saveAppearanceButton" class="primary" type="button">Görünümü Kaydet</button>
+                <div id="lockedChatSummary" class="last-message"></div>
             </div>
 
             <div id="settingsAccountSection" class="settings-section hidden">
@@ -2032,8 +2321,48 @@
             });
         }
 
-        const socket = io();
+        window.addEventListener("beforeinstallprompt", event => {
+            event.preventDefault();
+            state.deferredInstallPrompt = event;
+        });
+
+        const socket = io({
+            transports: ["websocket", "polling"],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 400,
+            reconnectionDelayMax: 2400,
+            timeout: 8000
+        });
         let rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+        const INITIAL_MESSAGE_RENDER_LIMIT = 70;
+        const MESSAGE_RENDER_STEP = 70;
+        const MAX_CLIENT_ATTACHMENT_BYTES = 4_000_000;
+        const MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS = 5_500_000;
+        const THEME_KEY = "nexalineTheme";
+        const SECRET_PIN_KEY = "nexalineSecretPin";
+        const NOTIFICATION_LOG_KEY = "nexalineNotificationLog";
+        const MESSAGE_TONES = {
+            classic: [[660, 70], [880, 80]],
+            soft: [[520, 110], [640, 80]],
+            bright: [[820, 80], [1100, 90]],
+            silent: []
+        };
+        const CHAT_BACKGROUNDS = {
+            none: "Varsayılan",
+            ocean: "Okyanus",
+            rose: "Gün batımı",
+            graphite: "Grafit"
+        };
+        function readStoredJson(key, fallback) {
+            try {
+                return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+            } catch (error) {
+                localStorage.removeItem(key);
+                return fallback;
+            }
+        }
+
         const state = {
             mode: "login",
             registerStep: 0,
@@ -2046,9 +2375,18 @@
             stories: [],
             callLogs: [],
             archives: [],
+            scheduledMessages: [],
             contactRequests: [],
             groupInvites: [],
             blockedUsers: [],
+            deferredInstallPrompt: null,
+            notificationReady: false,
+            notifications: readStoredJson(NOTIFICATION_LOG_KEY, []),
+            theme: localStorage.getItem(THEME_KEY) || "dark",
+            lockedChatsUnlocked: false,
+            disappearingSeconds: Number(localStorage.getItem("nexalineDisappearSeconds") || 0),
+            chatPreferences: readStoredJson("nexalineChatPreferences", {}),
+            outbox: readStoredJson("nexalineOutbox", []),
             transitionTimer: null,
             transitionHideTimer: null,
             paneTransitionTimer: null,
@@ -2062,6 +2400,13 @@
             archiveItems: [],
             settingsView: "menu",
             bootReady: false,
+            bootstrapLoading: false,
+            renderQueued: false,
+            messageRenderLimits: {},
+            loadingOlder: {},
+            preserveScrollChatId: null,
+            lastRenderedChatId: null,
+            historyArmed: false,
             typing: {},
             attachment: null,
             replyTo: null,
@@ -2074,6 +2419,8 @@
             recorder: null,
             recordedChunks: [],
             cancelRecording: false,
+            speechRecognition: null,
+            voiceTranscript: "",
             profileImageDraft: null,
             profileCrop: null,
             call: {
@@ -2092,6 +2439,12 @@
 
         const $ = (id) => document.getElementById(id);
         const EMOJIS = ["😀", "😂", "😍", "🥰", "😎", "😢", "😡", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "📍", "☕"];
+
+        function applyTheme(theme = state.theme) {
+            state.theme = theme === "light" ? "light" : "dark";
+            document.documentElement.dataset.theme = state.theme;
+            localStorage.setItem(THEME_KEY, state.theme);
+        }
 
         function updateAppViewportHeight() {
             const viewport = window.visualViewport;
@@ -2123,6 +2476,294 @@
             item.textContent = message;
             $("toastStack").appendChild(item);
             setTimeout(() => item.remove(), 3600);
+        }
+
+        function requestRender() {
+            if (state.renderQueued) {
+                return;
+            }
+            state.renderQueued = true;
+            requestAnimationFrame(() => {
+                state.renderQueued = false;
+                render();
+            });
+        }
+
+        function messageRenderLimit(chatId) {
+            state.messageRenderLimits[chatId] = state.messageRenderLimits[chatId] || INITIAL_MESSAGE_RENDER_LIMIT;
+            return state.messageRenderLimits[chatId];
+        }
+
+        async function showOlderMessages(chatId) {
+            const chat = state.chats.find(item => item.id === chatId);
+            if (!chat || state.loadingOlder[chatId]) {
+                return;
+            }
+
+            if ((chat.messageCount || chat.messages.length) > chat.messages.length) {
+                state.loadingOlder[chatId] = true;
+                try {
+                    const before = encodeURIComponent(chat.messages[0]?.createdAt || new Date().toISOString());
+                    const response = await fetch(`/chat/${encodeURIComponent(chatId)}/messages?username=${encodeURIComponent(state.me.username)}&before=${before}`);
+                    const data = await response.json();
+                    if (data.ok) {
+                        const seen = new Set(chat.messages.map(message => message.id));
+                        const older = (data.messages || []).filter(message => !seen.has(message.id));
+                        chat.messages = [...older, ...chat.messages];
+                        chat.messageCount = data.messageCount || chat.messageCount;
+                    } else {
+                        showToast(data.message || "Eski mesajlar alınamadı.");
+                    }
+                } catch (error) {
+                    showToast("Eski mesajlar alınamadı.");
+                }
+                state.loadingOlder[chatId] = false;
+            }
+
+            state.messageRenderLimits[chatId] = messageRenderLimit(chatId) + MESSAGE_RENDER_STEP;
+            state.preserveScrollChatId = chatId;
+            renderActiveChat();
+        }
+
+        function pushAppHistory(view) {
+            if (!state.me || state.historyArmed) {
+                return;
+            }
+            state.historyArmed = true;
+            history.pushState({ nexaline: true, view }, "", location.href);
+            setTimeout(() => {
+                state.historyArmed = false;
+            }, 120);
+        }
+
+        function closeTopLayerFromBack() {
+            if (!$("modalPanel").classList.contains("hidden")) {
+                closeModal();
+                return true;
+            }
+            if (!$("settingsPanel").classList.contains("hidden")) {
+                closeSettings();
+                return true;
+            }
+            if (!$("storyPanel").classList.contains("hidden")) {
+                closeStoryPanel();
+                return true;
+            }
+            if (!$("callPanel").classList.contains("hidden")) {
+                endCall(true);
+                return true;
+            }
+            if (isMobileView() && $("app").classList.contains("chat-open")) {
+                closeMobileChat();
+                return true;
+            }
+            if (state.activeSection !== "chats") {
+                state.activeSection = "chats";
+                state.activeChatId = null;
+                render();
+                return true;
+            }
+            return false;
+        }
+
+        window.addEventListener("error", () => {
+            if (state.me) {
+                showToast("Uygulama toparlandı. Sayfayı yenilemeden devam edebilirsin.");
+            }
+        });
+
+        window.addEventListener("unhandledrejection", () => {
+            if (state.me) {
+                showToast("Bağlantı veya izin işlemi tamamlanamadı.");
+            }
+        });
+
+        function saveChatPreferences() {
+            localStorage.setItem("nexalineChatPreferences", JSON.stringify(state.chatPreferences));
+        }
+
+        function chatPrefs(chatId) {
+            state.chatPreferences[chatId] = {
+                pinned: false,
+                muted: false,
+                tone: "classic",
+                background: "none",
+                locked: false,
+                ...(state.chatPreferences[chatId] || {})
+            };
+            return state.chatPreferences[chatId];
+        }
+
+        function isChatMuted(chatId) {
+            return Boolean(chatPrefs(chatId).muted);
+        }
+
+        function isChatLocked(chatId) {
+            return Boolean(chatPrefs(chatId).locked);
+        }
+
+        function visibleChatItems(chats) {
+            return chats.filter(chat => !isChatLocked(chat.id) || state.lockedChatsUnlocked);
+        }
+
+        function lockedChatCount() {
+            return state.chats.filter(chat => isChatLocked(chat.id)).length;
+        }
+
+        async function requestNotificationPermission() {
+            if (window.NexaLineNative?.canNotify?.()) {
+                state.notificationReady = true;
+                return true;
+            }
+            if (!("Notification" in window)) {
+                return false;
+            }
+            if (Notification.permission === "granted") {
+                state.notificationReady = true;
+                return true;
+            }
+            if (Notification.permission === "denied") {
+                return false;
+            }
+            const permission = await Notification.requestPermission();
+            state.notificationReady = permission === "granted";
+            return state.notificationReady;
+        }
+
+        async function showSystemNotification(title, body, tag, data = {}) {
+            if (window.NexaLineNative?.notify) {
+                window.NexaLineNative.notify(title, body, tag || "nexaline");
+                return;
+            }
+            if (!("Notification" in window) || Notification.permission !== "granted") {
+                return;
+            }
+            const options = {
+                body,
+                tag: tag || "nexaline",
+                icon: "/static/icons/icon-192.png",
+                badge: "/static/icons/icon-192.png",
+                data
+            };
+            const registration = await navigator.serviceWorker?.ready.catch(() => null);
+            if (registration?.showNotification) {
+                registration.showNotification(title, options);
+            } else {
+                new Notification(title, options);
+            }
+        }
+
+        function saveNotificationLog() {
+            localStorage.setItem(NOTIFICATION_LOG_KEY, JSON.stringify(state.notifications.slice(0, 80)));
+        }
+
+        function addNotificationLog(item) {
+            state.notifications = [{
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                createdAt: new Date().toISOString(),
+                read: false,
+                ...item
+            }, ...state.notifications].slice(0, 80);
+            saveNotificationLog();
+            updateNotificationButton();
+        }
+
+        function unreadNotificationCount() {
+            return state.notifications.filter(item => !item.read).length;
+        }
+
+        function updateNotificationButton() {
+            const button = $("notificationButton");
+            if (!button) return;
+            const count = unreadNotificationCount();
+            button.textContent = count ? (count > 9 ? "9+" : String(count)) : "!";
+            button.classList.toggle("active-tool", Boolean(count));
+        }
+
+        function openNotificationPanel() {
+            openModal("Bildirimler", body => {
+                if (!state.notifications.length) {
+                    body.innerHTML = `<div class="last-message">Bildirim yok.</div>`;
+                    return;
+                }
+                const list = document.createElement("div");
+                list.className = "list";
+                state.notifications.forEach(item => {
+                    const row = document.createElement("button");
+                    row.className = "chat-item";
+                    row.type = "button";
+                    row.innerHTML = `<div class="avatar">${item.kind === "call" ? "A" : "M"}</div><div><strong class="chat-title">${escapeHtml(item.title || "NexaLine")}</strong><div class="last-message">${escapeHtml(item.body || "")}</div></div><span class="chat-time">${relativeTime(item.createdAt)}</span>`;
+                    row.onclick = () => {
+                        item.read = true;
+                        saveNotificationLog();
+                        if (item.chatId && state.chats.some(chat => chat.id === item.chatId)) {
+                            const chat = state.chats.find(row => row.id === item.chatId);
+                            state.activeChatId = item.chatId;
+                            state.activeSection = chat?.type === "group" ? "groups" : "chats";
+                            closeModal();
+                            render();
+                            openMobileChat();
+                        } else {
+                            updateNotificationButton();
+                        }
+                    };
+                    list.appendChild(row);
+                });
+                body.appendChild(list);
+            }, [
+                { label: "Temizle", onClick: () => { state.notifications = []; saveNotificationLog(); updateNotificationButton(); closeModal(); } },
+                { label: "Kapat", primary: true, onClick: closeModal }
+            ]);
+            state.notifications.forEach(item => item.read = true);
+            saveNotificationLog();
+            updateNotificationButton();
+        }
+
+        function maybeNotifyMessage(chat, message) {
+            if (!chat || message.sender === state.me?.username || isChatMuted(chat.id)) {
+                return;
+            }
+            const hidden = document.visibilityState !== "visible";
+            const otherChat = state.activeChatId !== chat.id || (isMobileView() && !$("app").classList.contains("chat-open"));
+            if (!hidden && !otherChat) {
+                return;
+            }
+            const body = message.body || message.attachment?.name || "Yeni mesaj";
+            addNotificationLog({ kind: "message", title: chat.title || "NexaLine", body, chatId: chat.id });
+            showSystemNotification(chat.title || "NexaLine", body, `chat-${chat.id}`, { chatId: chat.id });
+        }
+
+        function maybeNotifyCall(data) {
+            requestNotificationPermission();
+            addNotificationLog({ kind: "call", title: "NexaLine arama", body: `${data.fromName || data.from} arıyor`, chatId: data.chatId });
+            showSystemNotification("NexaLine arama", `${data.fromName || data.from} arıyor`, `call-${data.chatId}`, { chatId: data.chatId, call: true });
+        }
+
+        function openInstallPanel() {
+            openModal("NexaLine uygulamaları", body => {
+                const wrap = document.createElement("div");
+                wrap.className = "install-grid";
+                wrap.innerHTML = `
+                    <a class="file-pill" href="/downloads/nexaline.apk" download>Android APK indir</a>
+                    <a class="file-pill" href="/downloads/NexaLine-PC.zip" download>PC uygulamasını indir</a>
+                    <button id="pwaInstallAction" class="file-pill" type="button">Telefona/PC'ye kur</button>
+                    <button id="notificationAction" class="file-pill" type="button">Bildirimleri aç</button>
+                `;
+                body.appendChild(wrap);
+                $("pwaInstallAction").onclick = async () => {
+                    if (state.deferredInstallPrompt) {
+                        state.deferredInstallPrompt.prompt();
+                        await state.deferredInstallPrompt.userChoice.catch(() => null);
+                        state.deferredInstallPrompt = null;
+                    } else {
+                        showToast("Tarayıcı menüsünden Ana ekrana ekle seçeneğini de kullanabilirsin.");
+                    }
+                };
+                $("notificationAction").onclick = async () => {
+                    const ok = await requestNotificationPermission();
+                    showToast(ok ? "Bildirimler açıldı." : "Bildirim izni alınamadı.");
+                };
+            }, [{ label: "Kapat", onClick: closeModal }]);
         }
 
         function showScreenTransition(label = "NexaLine hazirlaniyor", duration = 900) {
@@ -2216,6 +2857,7 @@
                 actionBar.appendChild(button);
             });
             $("modalPanel").classList.remove("hidden");
+            pushAppHistory("modal");
         }
 
         function confirmModal(title, message, onConfirm) {
@@ -2316,6 +2958,7 @@
             state.groupInvites = data.groupInvites || state.groupInvites || [];
             state.blockedUsers = data.blockedUsers || state.blockedUsers || [];
             state.archives = data.archives || state.archives || [];
+            state.scheduledMessages = data.scheduledMessages || state.scheduledMessages || [];
         }
 
         function isMobileView() {
@@ -2325,6 +2968,7 @@
         function openMobileChat() {
             if (isMobileView()) {
                 $("app").classList.add("chat-open");
+                pushAppHistory("chat");
             }
         }
 
@@ -2343,6 +2987,7 @@
             state.stories = [];
             state.callLogs = [];
             state.archives = [];
+            state.scheduledMessages = [];
             state.contactRequests = [];
             state.groupInvites = [];
             state.blockedUsers = [];
@@ -2364,6 +3009,7 @@
             state.registerVerifiedCode = "";
             state.awaitingRegisterVerification = false;
             state.pendingRegister = null;
+            $("lastName").value = "";
             $("verificationCode").value = "";
             $("confirmPassword").value = "";
             $("authStatus").textContent = "";
@@ -2377,10 +3023,11 @@
 
             $("loginTab").classList.toggle("active", !isRegister);
             $("registerTab").classList.toggle("active", isRegister);
-            $("username").placeholder = isRegister ? "İsim soyisim" : "Gmail adresi";
-            $("username").autocomplete = isRegister ? "name" : "email";
+            $("username").placeholder = isRegister ? "İSİM" : "Gmail adresi";
+            $("username").autocomplete = isRegister ? "given-name" : "email";
             show("registerProgress", isRegister);
             show("username", !isRegister || step === 0);
+            show("lastName", isRegister && step === 0);
             show("email", isRegister && step === 1);
             show("verificationCode", isRegister && step === 2);
             show("password", !isRegister || step === 3);
@@ -2466,19 +3113,53 @@
             openApp();
         }
 
+        function titleCaseNamePart(value) {
+            return value
+                .toLocaleLowerCase("tr-TR")
+                .split(/([ \-'])/)
+                .map(part => /^[\p{L}]/u.test(part) ? part[0].toLocaleUpperCase("tr-TR") + part.slice(1) : part)
+                .join("");
+        }
+
+        function normalizeGivenNames(value) {
+            return value
+                .trim()
+                .replace(/\s+/g, " ")
+                .split(" ")
+                .filter(Boolean)
+                .map(titleCaseNamePart)
+                .join(" ");
+        }
+
+        function normalizeSurname(value) {
+            return value.trim().replace(/\s+/g, " ").toLocaleUpperCase("tr-TR");
+        }
+
+        function buildDisplayName(firstName, lastName) {
+            return `${normalizeGivenNames(firstName)} ${normalizeSurname(lastName)}`.trim();
+        }
+
         async function submitRegisterStep() {
-            const displayName = $("username").value.trim();
+            const firstName = normalizeGivenNames($("username").value);
+            const lastName = normalizeSurname($("lastName").value);
+            const displayName = buildDisplayName(firstName, lastName);
             const email = $("email").value.trim();
             const code = $("verificationCode").value.trim();
             const password = $("password").value;
             const confirmPassword = $("confirmPassword").value;
 
             if (state.registerStep === 0) {
-                if (displayName.length < 2 || displayName.length > 80 || !displayName.includes(" ")) {
-                    $("authStatus").textContent = "İsim ve soyisim yazmalısın.";
+                if (firstName.length < 2 || firstName.length > 60) {
+                    $("authStatus").textContent = "İsim en az 2 karakter olmalı.";
                     return;
                 }
-                state.pendingRegister = { displayName, username: "", email: "" };
+                if (lastName.length < 2 || lastName.length > 60) {
+                    $("authStatus").textContent = "Soyisim en az 2 karakter olmalı.";
+                    return;
+                }
+                $("username").value = firstName;
+                $("lastName").value = lastName;
+                state.pendingRegister = { firstName, lastName, displayName, username: "", email: "" };
                 setRegisterStep(1);
                 return;
             }
@@ -2486,6 +3167,8 @@
             if (state.registerStep === 1) {
                 const generated = email.split("@")[0].toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 36) || "nexaline";
                 const payload = {
+                    firstName: state.pendingRegister?.firstName || firstName,
+                    lastName: state.pendingRegister?.lastName || lastName,
                     displayName: state.pendingRegister?.displayName || displayName,
                     username: `${generated}${Date.now().toString().slice(-5)}`,
                     email
@@ -2551,11 +3234,16 @@
         }
 
         async function openApp() {
-            showScreenTransition("NexaLine açılıyor", 7000);
+            showScreenTransition("NexaLine aciliyor", 900);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
             socket.emit("user:join", { username: state.me.username });
-            await Promise.allSettled([loadRtcConfig(), loadBootstrap()]);
+            loadRtcConfig();
+            setTimeout(() => {
+                if (!state.bootReady) {
+                    loadBootstrap();
+                }
+            }, 450);
         }
 
         async function loadRtcConfig() {
@@ -2571,10 +3259,11 @@
         }
 
         async function loadBootstrap() {
-            if (!state.me) {
+            if (!state.me || state.bootstrapLoading) {
                 return;
             }
 
+            state.bootstrapLoading = true;
             let response;
             let data;
             try {
@@ -2585,6 +3274,7 @@
                     hideScreenTransition();
                     $("authStatus").textContent = "Sunucuya bağlanılamadı. Birazdan tekrar dene.";
                 }
+                state.bootstrapLoading = false;
                 return;
             }
 
@@ -2596,6 +3286,7 @@
                 state.generalGroup = data.generalGroup;
                 state.stories = data.stories || [];
                 state.callLogs = data.callLogs || [];
+                state.scheduledMessages = data.scheduledMessages || [];
                 hydrateRealtimeState(data);
                 state.activeChatId = currentChatId && state.chats.some(chat => chat.id === currentChatId) ? currentChatId : null;
                 state.bootReady = true;
@@ -2608,6 +3299,7 @@
                 hideScreenTransition();
                 $("authStatus").textContent = data.message || "Başlangıç verileri alınamadı.";
             }
+            state.bootstrapLoading = false;
         }
 
         function render() {
@@ -2627,6 +3319,7 @@
             $("meAvatar").classList.add("online");
             $("meAvatar").onclick = () => showStoryForUser(state.me.username);
             $("meName").textContent = state.me.displayName;
+            updateNotificationButton();
         }
 
         function renderSections() {
@@ -2744,6 +3437,7 @@
                 $("storyReplyInput").onclick = event => event.stopPropagation();
             }
             $("storyPanel").classList.remove("hidden");
+            pushAppHistory("story");
         }
 
         function closeStoryPanel() {
@@ -2823,10 +3517,11 @@
                 chatList.appendChild(button);
             }
 
-            state.chats
+            visibleChatItems(state.chats)
                 .filter(chat => chat.type !== "group")
                 .filter(chat => !otherMember(chat) || !state.blockedUsers.includes(otherMember(chat).username))
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
+                .sort((a, b) => Number(chatPrefs(b.id).pinned) - Number(chatPrefs(a.id).pinned))
                 .forEach(chat => {
                     const button = document.createElement("button");
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
@@ -2869,6 +3564,13 @@
                     time.className = "chat-time";
                     time.textContent = chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : "";
                     side.appendChild(time);
+                    const prefs = chatPrefs(chat.id);
+                    if (prefs.pinned || prefs.muted || prefs.locked) {
+                        const flags = document.createElement("span");
+                        flags.className = "chat-flags";
+                        flags.innerHTML = `${prefs.pinned ? '<span class="flag-pill">P</span>' : ""}${prefs.muted ? '<span class="flag-pill">S</span>' : ""}${prefs.locked ? '<span class="flag-pill">K</span>' : ""}`;
+                        side.appendChild(flags);
+                    }
                     const unread = unreadCount(chat);
                     if (unread) {
                         const badge = document.createElement("span");
@@ -2926,9 +3628,10 @@
                     groupList.appendChild(button);
                 });
 
-            state.chats
+            visibleChatItems(state.chats)
                 .filter(chat => chat.type === "group")
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
+                .sort((a, b) => Number(chatPrefs(b.id).pinned) - Number(chatPrefs(a.id).pinned))
                 .forEach(chat => {
                     const button = document.createElement("button");
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
@@ -2964,6 +3667,13 @@
                     time.className = "chat-time";
                     time.textContent = chat.lastMessage ? relativeTime(chat.lastMessage.createdAt) : "";
                     side.appendChild(time);
+                    const prefs = chatPrefs(chat.id);
+                    if (prefs.pinned || prefs.muted || prefs.locked) {
+                        const flags = document.createElement("span");
+                        flags.className = "chat-flags";
+                        flags.innerHTML = `${prefs.pinned ? '<span class="flag-pill">P</span>' : ""}${prefs.muted ? '<span class="flag-pill">S</span>' : ""}${prefs.locked ? '<span class="flag-pill">K</span>' : ""}`;
+                        side.appendChild(flags);
+                    }
                     const unread = unreadCount(chat);
                     if (unread) {
                         const badge = document.createElement("span");
@@ -3456,11 +4166,75 @@
             bubble.addEventListener("pointercancel", reset);
         }
 
+        function smartReplyOptions(chat) {
+            if (!chat?.messages?.length) {
+                return ["Merhaba", "Müsait misin?", "Tamamdır"];
+            }
+            const last = [...chat.messages].reverse().find(message => message.sender !== state.me.username && !message.deletedAt);
+            const text = (last?.body || "").toLocaleLowerCase("tr-TR");
+            if (text.includes("?")) {
+                return ["Evet, uygun.", "Birazdan döneceğim.", "Detay verir misin?"];
+            }
+            if (text.includes("teşekkür") || text.includes("sağ ol")) {
+                return ["Rica ederim.", "Ne demek.", "Her zaman."];
+            }
+            if (text.includes("ara") || text.includes("arama")) {
+                return ["Şimdi arayabilirim.", "Birazdan arayayım.", "Mesajdan devam edelim."];
+            }
+            return ["Tamamdır.", "Birazdan döneceğim.", "Harika."];
+        }
+
+        function firstUrl(text = "") {
+            return (String(text).match(/https?:\/\/[^\s<>"']+/i) || [])[0] || "";
+        }
+
+        function renderLinkPreview(url) {
+            let parsed;
+            try {
+                parsed = new URL(url);
+            } catch (_error) {
+                return null;
+            }
+            const card = document.createElement("a");
+            card.className = "link-preview";
+            card.href = parsed.href;
+            card.target = "_blank";
+            card.rel = "noreferrer";
+            card.innerHTML = `<strong>${escapeHtml(parsed.hostname.replace(/^www\./, ""))}</strong><small>${escapeHtml(parsed.href)}</small>`;
+            return card;
+        }
+
+        function renderSmartReplies(chat) {
+            const wrap = $("smartReplies");
+            wrap.innerHTML = "";
+            if (!chat || document.activeElement !== $("messageInput")) {
+                wrap.classList.add("hidden");
+                return;
+            }
+            smartReplyOptions(chat).forEach(text => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = text;
+                button.onclick = () => {
+                    $("messageInput").value = text;
+                    $("messageInput").focus();
+                };
+                wrap.appendChild(button);
+            });
+            wrap.classList.toggle("hidden", !wrap.children.length);
+        }
+
         function renderActiveChat() {
             const chat = activeChat();
             const messageBox = $("messages");
+            const preserveScroll = state.preserveScrollChatId === chat?.id;
+            const chatChanged = state.lastRenderedChatId !== (chat?.id || null);
+            const previousScrollHeight = messageBox.scrollHeight;
+            const previousScrollTop = messageBox.scrollTop;
+            const wasNearBottom = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight < 140;
 
             if (!chat) {
+                state.lastRenderedChatId = null;
                 $("activeTitle").textContent = "NexaLine";
                 $("activeStatus").textContent = "";
                 setAvatar($("activeAvatar"), "NexaLine", "NexaLine");
@@ -3470,11 +4244,14 @@
                 $("backButton").classList.add("hidden");
                 $("groupMembersButton").classList.remove("visible");
                 $("leaveGroupButton").classList.add("hidden");
+                $("chatPrefsButton").classList.add("hidden");
                 $("deleteChatButton").classList.add("hidden");
                 $("callButton").classList.add("hidden");
                 $("videoButton").classList.add("hidden");
                 messageBox.innerHTML = "";
+                messageBox.dataset.bg = "none";
                 $("emptyChat").classList.remove("hidden");
+                $("smartReplies").classList.add("hidden");
                 document.querySelector(".composer").classList.add("hidden");
                 return;
             }
@@ -3491,13 +4268,28 @@
             $("callButton").classList.remove("hidden");
             $("videoButton").classList.remove("hidden");
             $("leaveGroupButton").classList.toggle("hidden", chat.type !== "group");
+            $("chatPrefsButton").classList.remove("hidden");
             $("deleteChatButton").classList.remove("hidden");
             const me = chat.members.find(member => member.username === state.me.username);
             $("groupMembersButton").classList.toggle("visible", chat.type === "group" && chat.id !== "lobby" && Boolean(me?.isAdmin));
             messageBox.innerHTML = "";
+            messageBox.dataset.bg = chatPrefs(chat.id).background || "none";
 
             const markerId = state.newMessageMarkers[chat.id];
-            chat.messages.forEach(message => {
+            const limit = messageRenderLimit(chat.id);
+            const totalMessages = chat.messageCount || chat.messages.length;
+            const hiddenCount = Math.max(0, totalMessages - Math.min(chat.messages.length, limit));
+            const visibleMessages = chat.messages.slice(-limit);
+            if (hiddenCount) {
+                const more = document.createElement("button");
+                more.className = "load-more-messages";
+                more.type = "button";
+                more.textContent = state.loadingOlder[chat.id] ? "Yükleniyor..." : `${hiddenCount} eski mesajı göster`;
+                more.onclick = () => showOlderMessages(chat.id);
+                messageBox.appendChild(more);
+            }
+
+            visibleMessages.forEach(message => {
                 if (markerId && message.id === markerId) {
                     const divider = document.createElement("div");
                     divider.className = "new-message-divider";
@@ -3530,6 +4322,10 @@
                     const text = document.createElement("div");
                     text.textContent = message.body;
                     bubble.appendChild(text);
+                    const preview = renderLinkPreview(firstUrl(message.body));
+                    if (preview) {
+                        bubble.appendChild(preview);
+                    }
                 }
 
                 if (!message.deletedAt && message.attachment) {
@@ -3547,7 +4343,9 @@
                 meta.className = "message-meta";
                 const read = !state.me?.privacy?.readReceiptsOff && chat.members.some(member => member.username !== state.me.username && message.readBy.includes(member.username));
                 const delivered = mine && !read && isDelivered(chat, message);
-                meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
+                const edited = message.editedAt ? " · düzenlendi" : "";
+                const expires = message.expiresAt ? ` · ${formatTime(message.expiresAt)} silinir` : "";
+                meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}${edited}${expires}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
                 meta.querySelector(".reply-action").onclick = event => {
                     event.stopPropagation();
                     setReplyTo(message);
@@ -3565,7 +4363,15 @@
                 messageBox.appendChild(bubble);
             });
 
-            messageBox.scrollTop = messageBox.scrollHeight;
+            if (preserveScroll) {
+                messageBox.scrollTop = Math.max(0, messageBox.scrollHeight - previousScrollHeight + previousScrollTop);
+                state.preserveScrollChatId = null;
+            } else if (chatChanged || wasNearBottom) {
+                messageBox.scrollTop = messageBox.scrollHeight;
+            }
+            state.lastRenderedChatId = chat.id;
+            renderSmartReplies(chat);
+            $("sendToolsButton").classList.toggle("active-tool", Boolean(state.disappearingSeconds));
             const readableSection = state.activeSection === "chats" || state.activeSection === "groups";
             if (document.visibilityState === "visible" && readableSection && chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
                 socket.emit("message:read", { chatId: chat.id });
@@ -3577,6 +4383,89 @@
                 return chat.members.some(member => member.username !== state.me.username && member.online);
             }
             return chat.members.some(member => member.username !== state.me.username && member.online);
+        }
+
+        function ensureSecretPin() {
+            if (localStorage.getItem(SECRET_PIN_KEY)) {
+                return true;
+            }
+            const pin = prompt("Gizli sohbetler için bir PIN belirle");
+            if (!pin || pin.trim().length < 4) {
+                showToast("PIN en az 4 karakter olmalı.");
+                return false;
+            }
+            localStorage.setItem(SECRET_PIN_KEY, pin.trim());
+            return true;
+        }
+
+        function unlockSecretChats() {
+            const saved = localStorage.getItem(SECRET_PIN_KEY);
+            if (!saved) {
+                return ensureSecretPin();
+            }
+            const pin = prompt("Gizli sohbet PIN");
+            if (pin !== saved) {
+                showToast("PIN hatalı.");
+                return false;
+            }
+            state.lockedChatsUnlocked = true;
+            render();
+            return true;
+        }
+
+        function openChatPreferences() {
+            const chat = activeChat();
+            if (!chat) return;
+            const prefs = chatPrefs(chat.id);
+            openModal("Sohbet ayarları", body => {
+                const toggles = document.createElement("div");
+                toggles.className = "privacy-grid";
+                toggles.innerHTML = `
+                    <label class="toggle-row"><span>Sohbeti sabitle</span><input id="chatPinnedInput" type="checkbox" ${prefs.pinned ? "checked" : ""}></label>
+                    <label class="toggle-row"><span>Sessize al</span><input id="chatMutedInput" type="checkbox" ${prefs.muted ? "checked" : ""}></label>
+                    <label class="toggle-row"><span>Gizli sohbet yap</span><input id="chatLockedInput" type="checkbox" ${prefs.locked ? "checked" : ""}></label>
+                `;
+                const tone = document.createElement("select");
+                tone.id = "chatToneInput";
+                tone.innerHTML = `
+                    <option value="classic">Bildirim sesi: Klasik</option>
+                    <option value="soft">Bildirim sesi: Yumuşak</option>
+                    <option value="bright">Bildirim sesi: Parlak</option>
+                    <option value="silent">Bildirim sesi: Sessiz</option>
+                `;
+                tone.value = prefs.tone || "classic";
+                const background = document.createElement("select");
+                background.id = "chatBackgroundInput";
+                background.innerHTML = Object.entries(CHAT_BACKGROUNDS).map(([value, label]) => `<option value="${value}">Arka plan: ${label}</option>`).join("");
+                background.value = prefs.background || "none";
+                body.append(toggles, tone, background);
+            }, [
+                { label: "Sesi dene", onClick: () => playMessageSound(chat.id) },
+                { label: "Sohbeti sil", onClick: openDeleteChatMenu },
+                {
+                    label: "Kaydet",
+                    primary: true,
+                    onClick: () => {
+                        const wantsLock = $("chatLockedInput").checked;
+                        if (wantsLock && !ensureSecretPin()) {
+                            return;
+                        }
+                        prefs.pinned = $("chatPinnedInput").checked;
+                        prefs.muted = $("chatMutedInput").checked;
+                        prefs.locked = wantsLock;
+                        prefs.tone = $("chatToneInput").value;
+                        prefs.background = $("chatBackgroundInput").value;
+                        saveChatPreferences();
+                        if (prefs.locked && !state.lockedChatsUnlocked) {
+                            state.activeChatId = null;
+                            closeMobileChat();
+                        }
+                        closeModal();
+                        render();
+                        showToast("Sohbet ayarları kaydedildi.");
+                    }
+                }
+            ]);
         }
 
         function openDeleteChatMenu() {
@@ -3619,6 +4508,12 @@
                     }
                 }
             ];
+            if (mine && !message.deletedAt) {
+                actions.unshift({
+                    label: "Düzenle",
+                    onClick: () => editMessage(message)
+                });
+            }
             if (mine || activeChat()?.members.find(member => member.username === state.me.username)?.isAdmin) {
                 actions.push({
                     label: "Herkesten sil",
@@ -3634,6 +4529,30 @@
                 text.textContent = message.deletedAt ? "Silinmiş mesaj" : (message.body || message.attachment?.name || "Mesaj");
                 body.appendChild(text);
             }, actions);
+        }
+
+        function editMessage(message) {
+            openModal("Mesajı düzenle", body => {
+                const input = document.createElement("textarea");
+                input.id = "editMessageInput";
+                input.value = message.body || "";
+                body.appendChild(input);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Kaydet",
+                    primary: true,
+                    onClick: () => {
+                        const body = $("editMessageInput").value.trim();
+                        if (!body) {
+                            showToast("Mesaj boş olamaz.");
+                            return;
+                        }
+                        socket.emit("message:edit", { messageId: message.id, body });
+                        closeModal();
+                    }
+                }
+            ]);
         }
 
         function openReactionMenu(message) {
@@ -3666,11 +4585,20 @@
             }
 
             if (attachment.type && attachment.type.startsWith("audio/")) {
+                const wrap = document.createElement("div");
+                wrap.className = "list";
                 const audio = document.createElement("audio");
                 audio.className = "voice-message";
                 audio.controls = true;
                 audio.src = attachment.dataUrl;
-                return audio;
+                wrap.appendChild(audio);
+                if (attachment.transcript) {
+                    const transcript = document.createElement("div");
+                    transcript.className = "voice-transcript";
+                    transcript.textContent = `Yaziya dokum: ${attachment.transcript}`;
+                    wrap.appendChild(transcript);
+                }
+                return wrap;
             }
 
             if (attachment.type?.startsWith("video/")) {
@@ -3708,6 +4636,27 @@
             return link;
         }
 
+        function saveOutbox() {
+            localStorage.setItem("nexalineOutbox", JSON.stringify(state.outbox.slice(-40)));
+        }
+
+        function queueMessage(payload) {
+            state.outbox.push({ ...payload, queuedAt: Date.now() });
+            saveOutbox();
+            showToast("Bağlantı yok. Mesaj internet gelince gönderilecek.");
+        }
+
+        function flushOutbox() {
+            if (!socket.connected || !state.outbox.length) {
+                return;
+            }
+            const queued = [...state.outbox];
+            state.outbox = [];
+            saveOutbox();
+            queued.forEach(item => socket.emit("message:send", item));
+            showToast(`${queued.length} bekleyen mesaj gönderildi.`);
+        }
+
         function openMediaViewer(attachment) {
             if (!attachment?.dataUrl) {
                 return;
@@ -3737,7 +4686,12 @@
                 return;
             }
 
-            socket.emit("message:send", { chatId: chat.id, body, attachment: state.attachment, replyTo: state.replyTo });
+            const payload = { chatId: chat.id, body, attachment: state.attachment, replyTo: state.replyTo, expiresInSeconds: state.disappearingSeconds || 0 };
+            if (socket.connected) {
+                socket.emit("message:send", payload);
+            } else {
+                queueMessage(payload);
+            }
             socket.emit("typing", { chatId: chat.id, typing: false });
             delete state.newMessageMarkers[chat.id];
             input.value = "";
@@ -3763,6 +4717,104 @@
             panel.classList.toggle("hidden");
         }
 
+        function expiryLabel(seconds = state.disappearingSeconds) {
+            const labels = {
+                0: "Kapalı",
+                300: "5 dk",
+                3600: "1 saat",
+                86400: "1 gün",
+                604800: "1 hafta"
+            };
+            return labels[seconds] || "Kapalı";
+        }
+
+        function setDisappearingSeconds(seconds) {
+            state.disappearingSeconds = Number(seconds) || 0;
+            localStorage.setItem("nexalineDisappearSeconds", String(state.disappearingSeconds));
+            $("sendToolsButton").classList.toggle("active-tool", Boolean(state.disappearingSeconds));
+            showToast(`Kaybolan mesaj: ${expiryLabel()}`);
+        }
+
+        function openSendTools() {
+            const chat = activeChat();
+            openModal("Gönderim seçenekleri", body => {
+                const info = document.createElement("div");
+                info.className = "last-message";
+                info.textContent = `Kaybolan mesaj: ${expiryLabel()}`;
+                const expiry = document.createElement("div");
+                expiry.className = "chip-row";
+                [
+                    ["Kapalı", 0],
+                    ["5 dk", 300],
+                    ["1 saat", 3600],
+                    ["1 gün", 86400],
+                    ["1 hafta", 604800]
+                ].forEach(([label, value]) => {
+                    const button = document.createElement("button");
+                    button.className = "mini-btn";
+                    button.type = "button";
+                    button.textContent = label;
+                    button.onclick = () => {
+                        setDisappearingSeconds(value);
+                        info.textContent = `Kaybolan mesaj: ${expiryLabel()}`;
+                    };
+                    expiry.appendChild(button);
+                });
+
+                const scheduleWrap = document.createElement("div");
+                scheduleWrap.className = "form-grid";
+                scheduleWrap.innerHTML = `
+                    <input id="scheduleDateTime" type="datetime-local">
+                    <button id="scheduleNowButton" class="primary" type="button">Mesajı zamanla</button>
+                `;
+                const scheduled = document.createElement("div");
+                scheduled.className = "list";
+                const rows = state.scheduledMessages.filter(item => !chat || item.chatId === chat.id);
+                scheduled.innerHTML = rows.length
+                    ? rows.map(item => `<div class="message"><strong>${escapeHtml(item.chatTitle || "Sohbet")}</strong><p>${escapeHtml(item.body || item.attachment?.name || "Dosya")}</p><small>${new Date(item.sendAt).toLocaleString("tr-TR")}</small><button class="mini-btn" data-scheduled="${escapeHtml(item.id)}" type="button">İptal</button></div>`).join("")
+                    : `<div class="last-message">Zamanlanmış mesaj yok.</div>`;
+                body.append(info, expiry, scheduleWrap, scheduled);
+
+                $("scheduleNowButton").onclick = () => scheduleCurrentMessage();
+                scheduled.querySelectorAll("[data-scheduled]").forEach(button => {
+                    button.onclick = () => socket.emit("message:scheduled:delete", { scheduledId: button.dataset.scheduled });
+                });
+            }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        function scheduleCurrentMessage() {
+            const input = $("messageInput");
+            const body = input.value.trim();
+            const chat = activeChat();
+            const dateInput = $("scheduleDateTime");
+            if (!chat || (!body && !state.attachment)) {
+                showToast("Zamanlamak için mesaj veya dosya seç.");
+                return;
+            }
+            if (!dateInput?.value) {
+                showToast("Gönderim saatini seç.");
+                return;
+            }
+            const sendAt = new Date(dateInput.value);
+            if (!Number.isFinite(sendAt.getTime()) || sendAt.getTime() <= Date.now() + 10000) {
+                showToast("Saat en az birkaç saniye sonrası olmalı.");
+                return;
+            }
+            socket.emit("message:schedule", {
+                chatId: chat.id,
+                body,
+                attachment: state.attachment,
+                replyTo: state.replyTo,
+                expiresInSeconds: state.disappearingSeconds || 0,
+                sendAt: sendAt.toISOString()
+            });
+            input.value = "";
+            input.placeholder = "Mesaj";
+            state.attachment = null;
+            clearReply();
+            closeModal();
+        }
+
         function sendCurrentLocation() {
             const chat = activeChat();
             if (!chat || !navigator.geolocation) {
@@ -3783,7 +4835,8 @@
                         lng,
                         url: `https://www.google.com/maps?q=${lat},${lng}`
                     },
-                    replyTo: state.replyTo
+                    replyTo: state.replyTo,
+                    expiresInSeconds: state.disappearingSeconds || 0
                 });
                 clearReply();
             }, () => showToast("Konum izni alınamadı."), { enableHighAccuracy: true, timeout: 12000 });
@@ -3880,19 +4933,17 @@
                         showToast("Durum için sadece resim veya video seçebilirsin.");
                         return;
                     }
-                    if (file.size > 8_000_000) {
-                        showToast("Durum dosyası 8 MB altında olmalı.");
+                    if (file.size > MAX_CLIENT_ATTACHMENT_BYTES) {
+                        showToast("Durum dosyası 4 MB altında olmalı.");
                         return;
                     }
-                    const reader = new FileReader();
-                    reader.onload = () => {
+                    prepareAttachmentFile(file).then(attachment => {
                         socket.emit("story:create", {
                             body: bodyText,
-                            attachment: { name: file.name, type: file.type, dataUrl: reader.result }
+                            attachment
                         });
                         closeModal();
-                    };
-                    reader.readAsDataURL(file);
+                    }).catch(() => showToast("Durum dosyası hazırlanamadı."));
                 } }
             ]);
         }
@@ -4012,6 +5063,7 @@
                 $("voiceButton").textContent = "●";
                 $("cancelVoiceButton").classList.add("hidden");
                 stopVoiceWave();
+                stopVoiceTranscript();
                 return;
             }
 
@@ -4031,6 +5083,7 @@
             state.cancelRecording = false;
             state.recorder = new MediaRecorder(stream);
             startVoiceWave(stream);
+            startVoiceTranscript();
             state.recorder.ondataavailable = event => {
                 if (event.data.size > 0) {
                     state.recordedChunks.push(event.data);
@@ -4039,6 +5092,7 @@
             state.recorder.onstop = () => {
                 stream.getTracks().forEach(track => track.stop());
                 stopVoiceWave();
+                stopVoiceTranscript();
                 $("cancelVoiceButton").classList.add("hidden");
                 if (state.cancelRecording) {
                     state.recordedChunks = [];
@@ -4046,14 +5100,21 @@
                     return;
                 }
                 const blob = new Blob(state.recordedChunks, { type: "audio/webm" });
+                if (blob.size > MAX_CLIENT_ATTACHMENT_BYTES) {
+                    showToast("Ses kaydı çok uzun. Daha kısa kayıt al.");
+                    state.recordedChunks = [];
+                    $("messageInput").placeholder = "Mesaj";
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = () => {
                     state.attachment = {
                         name: `sesli-mesaj-${Date.now()}.webm`,
                         type: "audio/webm",
-                        dataUrl: reader.result
+                        dataUrl: reader.result,
+                        transcript: state.voiceTranscript
                     };
-                    $("messageInput").placeholder = "Sesli mesaj hazır";
+                    $("messageInput").placeholder = state.voiceTranscript ? "Sesli mesaj ve metin hazir" : "Sesli mesaj hazir";
                 };
                 reader.readAsDataURL(blob);
             };
@@ -4071,6 +5132,7 @@
                 $("voiceButton").textContent = "●";
                 $("cancelVoiceButton").classList.add("hidden");
                 stopVoiceWave();
+                stopVoiceTranscript();
                 showToast("Ses kaydı iptal edildi.");
             }
         }
@@ -4111,10 +5173,15 @@
             $("hideOnlineInput").checked = Boolean(state.me.privacy?.onlineHidden);
             $("readReceiptsInput").checked = Boolean(state.me.privacy?.readReceiptsOff);
             $("hideEmailInput").checked = state.me.privacy?.emailHidden !== false;
+            $("lightThemeInput").checked = state.theme === "light";
+            $("unlockSecretChatsInput").checked = state.lockedChatsUnlocked;
+            $("secretPinInput").value = "";
+            $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
             state.profileImageDraft = state.me.profileImage || null;
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
             setSettingsView("menu");
             $("settingsPanel").classList.remove("hidden");
+            pushAppHistory("settings");
         }
 
         function closeSettings() {
@@ -4126,6 +5193,7 @@
             $("settingsMenu").classList.toggle("hidden", view !== "menu");
             $("settingsProfileSection").classList.toggle("hidden", view !== "profile");
             $("settingsPrivacySection").classList.toggle("hidden", view !== "privacy");
+            $("settingsAppearanceSection").classList.toggle("hidden", view !== "appearance");
             $("settingsAccountSection").classList.toggle("hidden", view !== "account");
             $("settingsEmail").textContent = view === "menu"
                 ? (state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış")
@@ -4133,7 +5201,9 @@
                     ? "Profil bilgileri"
                     : view === "privacy"
                         ? "Gizlilik seçenekleri"
-                        : "Hesap işlemleri";
+                        : view === "appearance"
+                            ? "Görünüm ve kilit"
+                            : "Hesap işlemleri";
             $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
         }
 
@@ -4178,6 +5248,35 @@
                 state.me = data.user;
                 renderProfile();
             }
+        }
+
+        function saveAppearance() {
+            applyTheme($("lightThemeInput").checked ? "light" : "dark");
+            const pin = $("secretPinInput").value.trim();
+            let pinJustSaved = false;
+            if (pin) {
+                if (pin.length < 4) {
+                    showToast("PIN en az 4 karakter olmalı.");
+                    return;
+                }
+                localStorage.setItem(SECRET_PIN_KEY, pin);
+                pinJustSaved = true;
+            }
+            const wantsUnlocked = $("unlockSecretChatsInput").checked;
+            if (wantsUnlocked && !state.lockedChatsUnlocked) {
+                if (pinJustSaved) {
+                    state.lockedChatsUnlocked = true;
+                    render();
+                } else if (!unlockSecretChats()) {
+                    $("unlockSecretChatsInput").checked = false;
+                }
+            } else if (!wantsUnlocked) {
+                state.lockedChatsUnlocked = false;
+                render();
+            }
+            $("secretPinInput").value = "";
+            $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
+            showToast("Görünüm kaydedildi.");
         }
 
         function chooseProfileImage() {
@@ -4368,20 +5467,22 @@
         }
 
         function relativeTime(value) {
-            const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+            const diff = Date.now() - new Date(value).getTime();
+            const suffix = diff >= 0 ? "önce" : "sonra";
+            const seconds = Math.max(0, Math.floor(Math.abs(diff) / 1000));
             if (seconds < 60) {
-                return `${seconds || 1} sn önce`;
+                return `${seconds || 1} sn ${suffix}`;
             }
             const minutes = Math.floor(seconds / 60);
             if (minutes < 60) {
-                return `${minutes} dk önce`;
+                return `${minutes} dk ${suffix}`;
             }
             const hours = Math.floor(minutes / 60);
             if (hours < 24) {
-                return `${hours} saat önce`;
+                return `${hours} saat ${suffix}`;
             }
             const days = Math.floor(hours / 24);
-            return `${days} gün önce`;
+            return `${days} gün ${suffix}`;
         }
 
         function formatDuration(seconds) {
@@ -4424,6 +5525,40 @@
             $("voiceWave").classList.remove("active");
         }
 
+        function startVoiceTranscript() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            state.voiceTranscript = "";
+            if (!SpeechRecognition) {
+                return;
+            }
+            try {
+                const recognition = new SpeechRecognition();
+                recognition.lang = "tr-TR";
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.onresult = event => {
+                    state.voiceTranscript = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
+                    if (state.voiceTranscript) {
+                        $("messageInput").placeholder = `Yazıya dökülüyor: ${state.voiceTranscript.slice(0, 42)}`;
+                    }
+                };
+                recognition.onerror = () => {};
+                recognition.start();
+                state.speechRecognition = recognition;
+            } catch (_error) {
+                state.speechRecognition = null;
+            }
+        }
+
+        function stopVoiceTranscript() {
+            if (state.speechRecognition) {
+                try {
+                    state.speechRecognition.stop();
+                } catch (_error) {}
+                state.speechRecognition = null;
+            }
+        }
+
         function playTone(frequency, duration) {
             try {
                 const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -4442,9 +5577,11 @@
             }
         }
 
-        function playMessageSound() {
-            playTone(740, 0.08);
-            setTimeout(() => playTone(980, 0.08), 95);
+        function playMessageSound(chatId = state.activeChatId) {
+            const sequence = MESSAGE_TONES[chatPrefs(chatId || "default").tone] || MESSAGE_TONES.classic;
+            sequence.forEach(([frequency, duration], index) => {
+                setTimeout(() => playTone(frequency, duration / 1000), index * 100);
+            });
         }
 
         function playCallSound() {
@@ -4482,6 +5619,58 @@
             const reader = new FileReader();
             reader.onload = () => onLoad(reader.result);
             reader.readAsDataURL(file);
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function prepareAttachmentFile(file) {
+            if (!file) {
+                return null;
+            }
+
+            if (file.type?.startsWith("image/")) {
+                const source = await readFileAsDataUrl(file);
+                const image = new Image();
+                await new Promise((resolve, reject) => {
+                    image.onload = resolve;
+                    image.onerror = reject;
+                    image.src = source;
+                });
+
+                const maxSide = 1600;
+                const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+                canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+                const context = canvas.getContext("2d");
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+                if (dataUrl.length > MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS) {
+                    throw new Error("attachment-too-large");
+                }
+                return {
+                    name: file.name.replace(/\.[^.]+$/, "") + ".jpg",
+                    type: "image/jpeg",
+                    dataUrl
+                };
+            }
+
+            const dataUrl = await readFileAsDataUrl(file);
+            if (dataUrl.length > MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS) {
+                throw new Error("attachment-too-large");
+            }
+            return {
+                name: file.name,
+                type: file.type || "application/octet-stream",
+                dataUrl
+            };
         }
 
         function clamp(value, min, max) {
@@ -4609,31 +5798,34 @@
             showToast("Profil fotoğrafı hazır. Kaydetmeyi unutma.");
         }
 
-        function handleFile(event) {
+        async function handleFile(event) {
             const file = event.target.files[0];
             if (!file) {
                 return;
             }
 
-            if (file.size > 5_000_000) {
-                showToast("Dosya boyutu 5 MB altında olmalı.");
+            if (file.size > MAX_CLIENT_ATTACHMENT_BYTES) {
+                showToast("Dosya boyutu 4 MB altında olmalı.");
                 event.target.value = "";
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                state.attachment = {
-                    name: file.name,
-                    type: file.type || "application/octet-stream",
-                    dataUrl: reader.result
-                };
-                $("messageInput").placeholder = file.name;
-            };
-            reader.readAsDataURL(file);
+            try {
+                state.attachment = await prepareAttachmentFile(file);
+                if (state.attachment?.dataUrl?.length > MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS) {
+                    state.attachment = null;
+                    showToast("Dosya çok büyük kaldı. Daha küçük dosya seç.");
+                    return;
+                }
+                $("messageInput").placeholder = state.attachment.name;
+            } catch (error) {
+                showToast("Dosya hazırlanamadı.");
+            } finally {
+                event.target.value = "";
+            }
         }
 
-        function handleStoryFile(event) {
+        async function handleStoryFile(event) {
             const file = event.target.files[0];
             const body = state.pendingStoryBody || "";
             state.pendingStoryBody = "";
@@ -4647,22 +5839,21 @@
                 showToast("Durum için sadece resim veya video seçebilirsin.");
                 return;
             }
-            if (file.size > 2500000) {
-                showToast("Durum dosyası 2.5 MB altında olmalı.");
+            if (file.size > MAX_CLIENT_ATTACHMENT_BYTES) {
+                showToast("Durum dosyası 4 MB altında olmalı.");
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = () => {
+            try {
+                const attachment = await prepareAttachmentFile(file);
                 socket.emit("story:create", {
                     body,
-                    attachment: {
-                        name: file.name,
-                        type: file.type,
-                        dataUrl: reader.result
-                    }
+                    attachment
                 });
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                showToast("Durum dosyası hazırlanamadı.");
+            } finally {
+                event.target.value = "";
+            }
         }
 
         function ensureCallChat() {
@@ -4786,6 +5977,7 @@
             $("cameraButton").classList.toggle("hidden", audioOnly);
             $("switchCameraButton").classList.toggle("hidden", audioOnly);
             $("callPanel").classList.remove("hidden");
+            pushAppHistory("call");
         }
 
         async function acceptCall() {
@@ -4923,7 +6115,7 @@
         $("registerTab").onclick = () => setAuthMode("register");
         $("authBackButton").onclick = goBackAuthStep;
         $("authButton").onclick = submitAuth;
-        ["username", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
+        ["username", "lastName", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
             $(id).addEventListener("keydown", event => {
                 if (event.key === "Enter") {
                     event.preventDefault();
@@ -4956,6 +6148,9 @@
         $("locationButton").onclick = sendCurrentLocation;
         $("fileInput").onchange = handleFile;
         $("storyFileInput").onchange = handleStoryFile;
+        $("installButton").onclick = openInstallPanel;
+        $("notificationButton").onclick = openNotificationPanel;
+        $("sendToolsButton").onclick = openSendTools;
         $("closeStoryButton").onclick = closeStoryPanel;
         $("storyPanel").onclick = event => {
             if (event.target.closest("button, input, textarea, a, video")) {
@@ -4969,6 +6164,7 @@
         $("closeSettingsButton").onclick = closeSettings;
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
         $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
+        $("settingsAppearanceTab").onclick = () => setSettingsView("appearance");
         $("settingsAccountTab").onclick = () => setSettingsView("account");
         document.querySelectorAll("[data-settings-back]").forEach(button => {
             button.onclick = () => setSettingsView("menu");
@@ -4981,6 +6177,7 @@
         $("profileImageInput").onchange = handleProfileImage;
         $("saveProfileButton").onclick = saveProfile;
         $("savePrivacyButton").onclick = savePrivacy;
+        $("saveAppearanceButton").onclick = saveAppearance;
         $("changeEmailButton").onclick = changeAccountEmail;
         $("changePasswordButton").onclick = changeAccountPassword;
         $("settingsDeleteButton").onclick = deleteAccount;
@@ -4989,6 +6186,7 @@
         $("storyButton").onclick = createStory;
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
+        $("chatPrefsButton").onclick = openChatPreferences;
         $("deleteChatButton").onclick = openDeleteChatMenu;
         $("leaveGroupButton").onclick = leaveCurrentGroup;
         $("groupMembersButton").onclick = showActiveMembers;
@@ -5012,14 +6210,17 @@
             if (chat) {
                 socket.emit("typing", { chatId: chat.id, typing: $("messageInput").value.length > 0 });
             }
+            renderSmartReplies(chat);
         });
         $("messageInput").addEventListener("focus", () => {
             $("app").classList.add("keyboard-open");
+            renderSmartReplies(activeChat());
             setTimeout(updateAppViewportHeight, 80);
             setTimeout(updateAppViewportHeight, 320);
         });
         $("messageInput").addEventListener("blur", () => {
             $("app").classList.remove("keyboard-open");
+            setTimeout(() => $("smartReplies").classList.add("hidden"), 180);
             setTimeout(updateAppViewportHeight, 120);
         });
         $("messageInput").addEventListener("keydown", event => {
@@ -5027,6 +6228,17 @@
                 event.preventDefault();
                 sendMessage();
             }
+        });
+
+        socket.on("connect", () => {
+            if (state.me?.username) {
+                socket.emit("user:join", { username: state.me.username });
+                flushOutbox();
+            }
+        });
+
+        socket.on("disconnect", () => {
+            showToast("Bağlantı koptu, yeniden bağlanıyor...");
         });
 
         socket.on("app:state", data => {
@@ -5037,6 +6249,7 @@
             state.generalGroup = data.generalGroup;
             state.stories = data.stories || [];
             state.callLogs = data.callLogs || [];
+            state.scheduledMessages = data.scheduledMessages || [];
             hydrateRealtimeState(data);
             state.activeChatId = currentChatId && state.chats.some(chat => chat.id === currentChatId) ? currentChatId : null;
             state.bootReady = true;
@@ -5051,7 +6264,7 @@
                 ...chat,
                 members: chat.members.map(member => users.find(user => user.username === member.username) || member)
             }));
-            render();
+            requestRender();
         });
 
         socket.on("chat:upsert", chat => {
@@ -5061,7 +6274,7 @@
             if (shouldOpen) {
                 state.activeChatId = chat.id;
             }
-            render();
+            requestRender();
             if (shouldOpen) {
                 openMobileChat();
             }
@@ -5071,7 +6284,7 @@
             state.chats = state.chats.filter(chat => chat.id !== data.chatId);
             delete state.newMessageMarkers[data.chatId];
             state.activeChatId = null;
-            render();
+            requestRender();
             closeMobileChat();
         });
 
@@ -5082,7 +6295,7 @@
                 lobby.title = data.title;
                 lobby.members = data.members;
             }
-            render();
+            requestRender();
         });
 
         socket.on("stories:update", stories => {
@@ -5116,6 +6329,10 @@
             renderArchives();
         });
 
+        socket.on("scheduled:update", items => {
+            state.scheduledMessages = items || [];
+        });
+
         socket.on("account:deleted", () => {
             localStorage.removeItem("nexalineUser");
             location.reload();
@@ -5134,12 +6351,14 @@
             }
 
             if (message.sender !== state.me.username) {
-                playMessageSound();
+                playMessageSound(chat.id);
             }
             chat.messages.push(message);
+            chat.messageCount = Math.max((chat.messageCount || 0) + 1, chat.messages.length);
             chat.lastMessage = message;
             state.chats = [chat, ...state.chats.filter(item => item.id !== chat.id)];
-            render();
+            maybeNotifyMessage(chat, message);
+            requestRender();
         });
 
         socket.on("typing:update", data => {
@@ -5176,7 +6395,35 @@
             if (chat.lastMessage?.id === message.id) {
                 chat.lastMessage = message;
             }
-            render();
+            requestRender();
+        });
+
+        socket.on("message:edited", message => {
+            const chat = state.chats.find(item => item.id === message.chatId);
+            if (!chat) {
+                return;
+            }
+            const index = chat.messages.findIndex(item => item.id === message.id);
+            if (index >= 0) {
+                chat.messages[index] = message;
+            }
+            if (chat.lastMessage?.id === message.id) {
+                chat.lastMessage = message;
+            }
+            requestRender();
+        });
+
+        socket.on("message:expired", data => {
+            const chat = state.chats.find(item => item.id === data.chatId);
+            if (!chat) {
+                return;
+            }
+            const ids = new Set(data.messageIds || []);
+            chat.messages = chat.messages.filter(message => !ids.has(message.id));
+            if (chat.lastMessage && ids.has(chat.lastMessage.id)) {
+                chat.lastMessage = chat.messages[chat.messages.length - 1] || null;
+            }
+            requestRender();
         });
 
         socket.on("message:remove-local", data => {
@@ -5186,7 +6433,7 @@
             }
             chat.messages = chat.messages.filter(message => message.id !== data.messageId);
             chat.lastMessage = chat.messages[chat.messages.length - 1] || null;
-            render();
+            requestRender();
         });
 
         socket.on("message:reaction", data => {
@@ -5212,12 +6459,24 @@
             state.call.chatId = data.chatId;
             state.call.audioOnly = Boolean(data.audioOnly);
             startCallRingtone();
+            maybeNotifyCall(data);
             openCallPanel(`${data.fromName} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly);
         });
         socket.on("call:answer", handleRemoteAnswer);
         socket.on("call:ice", handleRemoteIce);
         socket.on("call:end", () => endCall(false));
 
+        window.addEventListener("popstate", event => {
+            if (!state.me) {
+                return;
+            }
+            if (closeTopLayerFromBack()) {
+                event.preventDefault();
+            }
+        });
+
+        applyTheme();
+        updateNotificationButton();
         updateAuthView();
         const rememberedUser = localStorage.getItem("nexalineUser");
         if (rememberedUser) {
@@ -5240,11 +6499,32 @@
         $("messageInput").addEventListener("blur", () => {
             setTimeout(updateAppViewportHeight, 180);
         });
-        setInterval(() => {
-            if (state.me?.username && state.bootReady && $("modalPanel").classList.contains("hidden")) {
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && state.me?.username) {
                 loadBootstrap().catch(() => {});
             }
-        }, 5000);
+        });
+
+        window.addEventListener("nexaline:resume", () => {
+            if (state.me?.username) {
+                flushOutbox();
+                loadBootstrap().catch(() => {});
+            }
+        });
+
+        window.addEventListener("online", () => {
+            showToast("Bağlantı geri geldi.");
+            flushOutbox();
+            if (state.me?.username) {
+                loadBootstrap().catch(() => {});
+            }
+        });
+
+        setInterval(() => {
+            if (state.me?.username && state.bootReady && document.visibilityState === "visible" && $("modalPanel").classList.contains("hidden")) {
+                loadBootstrap().catch(() => {});
+            }
+        }, 30000);
     </script>
 </body>
 </html>

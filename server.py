@@ -4,6 +4,7 @@ import re
 import socket
 import secrets
 import smtplib
+import threading
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from uuid import uuid4
@@ -34,11 +35,20 @@ app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_http_buffer_size=8_000_000)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_http_buffer_size=10_000_000)
 
 connections = {}
 typing_users = {}
 DEV_ADMIN_TOKEN = "NexaLineAdmin2026!"
+MAX_BOOTSTRAP_MESSAGES = max(30, int(os.environ.get("MAX_BOOTSTRAP_MESSAGES", "80")))
+ADMIN_MESSAGE_LIMIT_PER_CHAT = max(20, int(os.environ.get("ADMIN_MESSAGE_LIMIT_PER_CHAT", "40")))
+ADMIN_ARCHIVE_MESSAGE_LIMIT = max(10, int(os.environ.get("ADMIN_ARCHIVE_MESSAGE_LIMIT", "30")))
+ADMIN_ATTACHMENT_INLINE_LIMIT = max(20_000, int(os.environ.get("ADMIN_ATTACHMENT_INLINE_LIMIT", "160000")))
+SCHEDULE_POLL_SECONDS = max(5, int(os.environ.get("SCHEDULE_POLL_SECONDS", "15")))
+MAX_SCHEDULE_DAYS = max(1, int(os.environ.get("MAX_SCHEDULE_DAYS", "7")))
+MAX_ATTACHMENT_DATA_URL_CHARS = max(250_000, int(os.environ.get("MAX_ATTACHMENT_DATA_URL_CHARS", "5_500_000")))
+RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 3, int(os.environ.get("RECENT_MESSAGE_SCAN_LIMIT", "320")))
+scheduled_delivery_lock = threading.Lock()
 
 
 class IPv4SMTP(smtplib.SMTP):
@@ -114,8 +124,25 @@ class Message(db.Model):
     deleted_for = db.Column(db.JSON, nullable=False, default=list)
     deleted_at = db.Column(db.DateTime, nullable=True)
     deleted_by = db.Column(db.String(80), nullable=True)
+    edited_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
+    sender_user = db.relationship("User")
+
+
+class ScheduledMessage(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
+    sender = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    body = db.Column(db.Text, nullable=False, default="")
+    attachment = db.Column(db.JSON, nullable=True)
+    reply_to = db.Column(db.JSON, nullable=True)
+    expires_in_seconds = db.Column(db.Integer, nullable=True)
+    send_at = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    chat = db.relationship("Chat")
     sender_user = db.relationship("User")
 
 
@@ -228,6 +255,18 @@ def is_past(value):
     return value < datetime.now(timezone.utc)
 
 
+def parse_expiry_seconds(value):
+    try:
+        seconds = int(value or 0)
+    except (TypeError, ValueError):
+        return None
+
+    if seconds <= 0:
+        return None
+
+    return min(seconds, MAX_SCHEDULE_DAYS * 24 * 60 * 60)
+
+
 def public_user(username, viewer=None):
     user = db.session.get(User, username)
     is_self = viewer == username
@@ -294,6 +333,42 @@ def active_stories(viewer=None):
     return [story_to_dict(story, viewer) for story in stories]
 
 
+def attachment_error(attachment):
+    if not attachment:
+        return None
+    if not isinstance(attachment, dict):
+        return "Dosya bilgisi okunamadı."
+
+    data_url = attachment.get("dataUrl") or ""
+    if data_url and len(str(data_url)) > MAX_ATTACHMENT_DATA_URL_CHARS:
+        return "Dosya çok büyük. Daha küçük dosya seç veya resmi sıkıştır."
+
+    return None
+
+
+def recent_visible_messages(chat_id, username=None, limit=MAX_BOOTSTRAP_MESSAGES):
+    rows = (
+        Message.query.filter_by(chat_id=chat_id)
+        .order_by(Message.created_at.desc())
+        .limit(max(limit, RECENT_MESSAGE_SCAN_LIMIT))
+        .all()
+    )
+    visible = [
+        message
+        for message in rows
+        if not username or username not in (message.deleted_for or [])
+    ]
+    return list(reversed(visible[:limit]))
+
+
+def visible_message_count(chat_id, username=None):
+    if not username:
+        return Message.query.filter_by(chat_id=chat_id).count()
+
+    rows = Message.query.filter_by(chat_id=chat_id).with_entities(Message.deleted_for).all()
+    return sum(1 for (deleted_for,) in rows if username not in (deleted_for or []))
+
+
 def message_to_dict(message):
     deleted_at = to_iso(message.deleted_at) if message.deleted_at else None
     return {
@@ -305,6 +380,8 @@ def message_to_dict(message):
         "attachment": None if message.deleted_at else message.attachment,
         "replyTo": message.reply_to,
         "createdAt": to_iso(message.created_at),
+        "editedAt": to_iso(message.edited_at) if message.edited_at else None,
+        "expiresAt": to_iso(message.expires_at) if message.expires_at else None,
         "status": "sent",
         "readBy": message.read_by or [],
         "reactions": message.reactions or {},
@@ -312,6 +389,83 @@ def message_to_dict(message):
         "deletedBy": message.deleted_by,
         "deletedFor": message.deleted_for or [],
     }
+
+
+def compact_attachment_for_admin(attachment):
+    if not attachment or not isinstance(attachment, dict):
+        return attachment
+
+    compact = dict(attachment)
+    data_url = str(compact.get("dataUrl") or "")
+    if data_url:
+        compact.setdefault("dataUrlLength", len(data_url))
+        if len(data_url) > ADMIN_ATTACHMENT_INLINE_LIMIT:
+            compact.pop("dataUrl", None)
+            compact["dataUrlOmitted"] = True
+            compact["previewMessage"] = "Dosya çok büyük olduğu için admin özetinde önizleme kapatıldı."
+    return compact
+
+
+def admin_message_to_dict(message):
+    data = message_to_dict(message)
+    data["attachment"] = compact_attachment_for_admin(data.get("attachment"))
+    return data
+
+
+def compact_archive_messages_for_admin(messages):
+    compacted = []
+    for message in (messages or [])[-ADMIN_ARCHIVE_MESSAGE_LIMIT:]:
+        item = dict(message or {})
+        item["attachment"] = compact_attachment_for_admin(item.get("attachment"))
+        compacted.append(item)
+    return compacted
+
+
+def admin_story_to_dict(story):
+    data = story_to_dict(story)
+    data["attachment"] = compact_attachment_for_admin(data.get("attachment"))
+    return data
+
+
+def admin_scheduled_message_to_dict(row):
+    data = scheduled_message_to_dict(row)
+    data["attachment"] = compact_attachment_for_admin(data.get("attachment"))
+    return data
+
+
+def scheduled_message_to_dict(row):
+    return {
+        "id": row.id,
+        "chatId": row.chat_id,
+        "chatTitle": row.chat.title if row.chat else "Sohbet",
+        "sender": row.sender,
+        "senderName": row.sender_user.display_name if row.sender_user else row.sender,
+        "body": row.body,
+        "attachment": row.attachment,
+        "replyTo": row.reply_to,
+        "sendAt": to_iso(row.send_at),
+        "createdAt": to_iso(row.created_at),
+        "expiresInSeconds": row.expires_in_seconds,
+    }
+
+
+def expire_due_messages(notify=True):
+    now = datetime.now(timezone.utc)
+    rows = Message.query.filter(Message.expires_at.isnot(None), Message.expires_at <= now).all()
+    if not rows:
+        return []
+
+    expired_by_chat = {}
+    for message in rows:
+        expired_by_chat.setdefault(message.chat_id, []).append(message.id)
+        db.session.delete(message)
+    db.session.commit()
+
+    if notify:
+        for chat_id, message_ids in expired_by_chat.items():
+            socketio.emit("message:expired", {"chatId": chat_id, "messageIds": message_ids}, room=chat_id)
+
+    return list(expired_by_chat)
 
 
 def purge_expired_archives():
@@ -350,6 +504,20 @@ def visible_archives(username):
     return [archive_to_summary(row) for row in rows]
 
 
+def visible_scheduled_messages(username):
+    rows = (
+        ScheduledMessage.query.filter_by(sender=username)
+        .order_by(ScheduledMessage.send_at.asc())
+        .limit(80)
+        .all()
+    )
+    return [
+        scheduled_message_to_dict(row)
+        for row in rows
+        if row.chat and user_can_see_chat(row.chat, username)
+    ]
+
+
 def verify_user_password(username, password):
     user = db.session.get(User, username)
     return bool(user and password and check_password_hash(user.password_hash, password))
@@ -380,14 +548,17 @@ def hide_chat_messages_for_user(chat, username):
 def chat_has_visible_messages_after(chat, username, hidden_at):
     if hidden_at.tzinfo is None:
         hidden_at = hidden_at.replace(tzinfo=timezone.utc)
-    for message in chat.messages:
+    rows = (
+        Message.query.filter_by(chat_id=chat.id)
+        .filter(Message.created_at > hidden_at)
+        .order_by(Message.created_at.desc())
+        .limit(80)
+        .all()
+    )
+    for message in rows:
         if username in (message.deleted_for or []):
             continue
-        created_at = message.created_at
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
-        if created_at > hidden_at:
-            return True
+        return True
     return False
 
 
@@ -543,14 +714,12 @@ def general_group_state(username):
 
 
 def chat_for_user(chat, username):
-    messages = [
-        message_to_dict(message)
-        for message in chat.messages
-        if username not in (message.deleted_for or [])
-    ]
-    last_message = messages[-1] if messages else None
+    visible_messages = recent_visible_messages(chat.id, username)
+    last_message = message_to_dict(visible_messages[-1]) if visible_messages else None
+    messages = [message_to_dict(message) for message in visible_messages]
     member_names = chat_member_names(chat)
     title = chat.title
+    send_error = chat_send_error(username, chat)
 
     if chat.type == "direct":
         other_users = [member for member in member_names if member != username]
@@ -567,11 +736,14 @@ def chat_for_user(chat, username):
         ],
         "lastMessage": last_message,
         "messages": messages,
+        "messageCount": visible_message_count(chat.id, username),
+        "sendBlockedReason": send_error,
     }
 
 
 def visible_chats(username):
     ensure_lobby()
+    expire_due_messages(notify=False)
     purge_expired_archives()
     result = []
 
@@ -580,7 +752,9 @@ def visible_chats(username):
             hidden = HiddenChat.query.filter_by(username=username, chat_id=chat.id).first()
             if hidden and not chat_has_visible_messages_after(chat, username, hidden.hidden_at):
                 continue
-            result.append(chat_for_user(chat, username))
+            chat_data = chat_for_user(chat, username)
+            if chat_data:
+                result.append(chat_data)
 
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
 
@@ -618,6 +792,22 @@ def accepted_contact(first_username, second_username):
 
     legacy_chat = find_direct_chat(first_username, second_username)
     return bool(legacy_chat and legacy_chat.messages)
+
+
+def chat_send_error(username, chat):
+    if not username or not chat or not user_can_see_chat(chat, username):
+        return "Sohbet bulunamadÄ±."
+
+    if chat.type != "direct":
+        return None
+
+    others = [member for member in chat_member_names(chat) if member != username]
+    if any(is_blocked_between(username, other) for other in others):
+        return "Bu kiÅŸiyle mesajlaÅŸma veya arama engellenmiÅŸ."
+    if any(not accepted_contact(username, other) for other in others):
+        return "Mesaj gÃ¶ndermek iÃ§in Ã¶nce istek kabul edilmeli."
+
+    return None
 
 
 def contact_request_to_dict(request_row, viewer=None):
@@ -692,6 +882,7 @@ def emit_social_updates(*usernames):
                     "groupInvites": visible_group_invites(username),
                     "blockedUsers": blocked_users_for(username),
                     "archives": visible_archives(username),
+                    "scheduledMessages": visible_scheduled_messages(username),
                 },
                 room=sid,
             )
@@ -765,6 +956,48 @@ def password_error(username, password):
 
 def display_name_exists(display_name):
     return User.query.filter(db.func.lower(User.display_name) == display_name.lower()).first() is not None
+
+
+TR_LOWER_MAP = str.maketrans("IİĞÜŞÖÇ", "ıiğüşöç")
+TR_UPPER_MAP = str.maketrans("iıüğşöç", "İIÜĞŞÖÇ")
+
+
+def tr_lower(value):
+    return (value or "").translate(TR_LOWER_MAP).lower()
+
+
+def tr_upper(value):
+    return (value or "").translate(TR_UPPER_MAP).upper()
+
+
+def title_case_name(value):
+    parts = []
+    for token in re.split(r"([ \-'])", re.sub(r"\s+", " ", (value or "").strip())):
+        if token and re.match(r"[^\W\d_]", token[0], re.UNICODE):
+            lowered = tr_lower(token)
+            token = tr_upper(lowered[0]) + lowered[1:]
+        parts.append(token)
+    return "".join(parts).strip()
+
+
+def normalize_display_name(data):
+    first_name = title_case_name(data.get("firstName") or "")
+    last_name = tr_upper(re.sub(r"\s+", " ", (data.get("lastName") or "").strip()))
+
+    if not first_name or not last_name:
+        display_name = re.sub(r"\s+", " ", (data.get("displayName") or "").strip())
+        pieces = display_name.split(" ")
+        if len(pieces) >= 2:
+            first_name = title_case_name(" ".join(pieces[:-1]))
+            last_name = tr_upper(pieces[-1])
+
+    display_name = f"{first_name} {last_name}".strip()
+    if len(first_name) < 2 or len(last_name) < 2:
+        return None, "İsim ve soyisim ayrı ayrı en az 2 karakter olmalı."
+    if len(display_name) > 80:
+        return None, "İsim ve soyisim toplam 80 karakteri geçmemeli."
+
+    return display_name, None
 
 
 def username_error(username):
@@ -963,12 +1196,16 @@ def rtc_servers():
 
 @app.route("/")
 def index():
-    return send_from_directory("static", "client.html")
+    response = send_from_directory("static", "client.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.route("/client.html")
 def client():
-    return send_from_directory("static", "client.html")
+    response = send_from_directory("static", "client.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.route("/manifest.webmanifest")
@@ -983,9 +1220,16 @@ def service_worker():
     return response
 
 
+@app.route("/downloads/<path:filename>")
+def downloads(filename):
+    return send_from_directory(os.path.join(app.root_path, "static", "downloads"), filename, as_attachment=True)
+
+
 @app.route("/admin")
 def admin_page():
-    return send_from_directory("static", "admin.html")
+    response = send_from_directory("static", "admin.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.route("/health")
@@ -1071,7 +1315,9 @@ def register_verify():
         code = (data.get("code") or "").strip()
         password = data.get("password") or ""
         confirm_password = data.get("confirmPassword")
-        display_name = (data.get("displayName") or username).strip()
+        display_name, display_name_error = normalize_display_name(data)
+        if display_name_error:
+            return jsonify({"ok": False, "message": display_name_error}), 400
 
         email_problem = email_error(email)
         if email_problem:
@@ -1128,7 +1374,7 @@ def register_verify():
                 email=verification.email,
                 email_normalized=verification.email_normalized,
                 email_verified=True,
-                avatar=(display_name or username)[:2].upper(),
+                avatar=tr_upper((display_name or username)[:2]),
                 about="NexaLine kullanıyorum.",
             )
         )
@@ -1304,18 +1550,20 @@ def update_profile(username):
     if not user:
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
-    display_name = (data.get("displayName") or user.display_name).strip()
+    display_name, display_name_error = normalize_display_name({**data, "displayName": data.get("displayName") or user.display_name})
+    if display_name_error:
+        return jsonify({"ok": False, "message": display_name_error}), 400
     about = (data.get("about") or user.about or "").strip()
     profile_image = data.get("profileImage")
 
-    if len(display_name) < 2 or len(display_name) > 40:
+    if len(display_name) < 2 or len(display_name) > 80:
         return jsonify({"ok": False, "message": "Görünen ad 2-40 karakter olmalı."}), 400
 
     if len(about) > 180:
         return jsonify({"ok": False, "message": "Hakkımda yazısı en fazla 180 karakter olmalı."}), 400
 
     user.display_name = display_name
-    user.avatar = display_name[:2].upper()
+    user.avatar = tr_upper(display_name[:2])
     user.about = about or "NexaLine kullanıyorum."
     if isinstance(profile_image, str):
         if profile_image and not profile_image.startswith("data:image/"):
@@ -1410,6 +1658,7 @@ def restore_archive(username, archive_id):
             "message": "Sohbet arsivden cikarildi.",
             "chat": chat_for_user(chat, username),
             "archives": visible_archives(username),
+            "scheduledMessages": visible_scheduled_messages(username),
         }
     )
 
@@ -1451,6 +1700,7 @@ def delete_account(username):
         BlockedUser.query.filter(db.or_(BlockedUser.blocker == username, BlockedUser.blocked == username)).delete(synchronize_session=False)
         ContactRequest.query.filter(db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username)).delete(synchronize_session=False)
         GroupInvite.query.filter(db.or_(GroupInvite.inviter == username, GroupInvite.invitee == username)).delete(synchronize_session=False)
+        ScheduledMessage.query.filter_by(sender=username).delete(synchronize_session=False)
         HiddenChat.query.filter_by(username=username).delete(synchronize_session=False)
         ChatArchive.query.filter_by(username=username).delete(synchronize_session=False)
         if direct_chat_ids:
@@ -1499,6 +1749,7 @@ def delete_all_users():
         BlockedUser.query.delete(synchronize_session=False)
         ContactRequest.query.delete(synchronize_session=False)
         GroupInvite.query.delete(synchronize_session=False)
+        ScheduledMessage.query.delete(synchronize_session=False)
         HiddenChat.query.delete(synchronize_session=False)
         ChatArchive.query.delete(synchronize_session=False)
         ChatMember.query.delete(synchronize_session=False)
@@ -1542,6 +1793,7 @@ def admin_state():
     ]
     chats = []
     for chat in Chat.query.order_by(Chat.created_at.desc()).all():
+        visible_messages = recent_visible_messages(chat.id, None, ADMIN_MESSAGE_LIMIT_PER_CHAT)
         chats.append(
             {
                 "id": chat.id,
@@ -1549,7 +1801,8 @@ def admin_state():
                 "title": chat.title,
                 "createdAt": to_iso(chat.created_at),
                 "members": [{**public_user(member.username), "isAdmin": member.is_admin} for member in chat.members],
-                "messages": [message_to_dict(message) for message in chat.messages],
+                "messages": [admin_message_to_dict(message) for message in visible_messages],
+                "messageCount": visible_message_count(chat.id),
             }
         )
 
@@ -1557,7 +1810,7 @@ def admin_state():
         {
             **archive_to_summary(archive),
             "username": archive.username,
-            "messages": archive.messages or [],
+            "messages": compact_archive_messages_for_admin(archive.messages),
         }
         for archive in ChatArchive.query.order_by(ChatArchive.created_at.desc()).all()
     ]
@@ -1584,12 +1837,13 @@ def admin_state():
             "ok": True,
             "users": users,
             "chats": chats,
-            "stories": active_stories(),
+            "stories": [admin_story_to_dict(story) for story in Story.query.filter(Story.expires_at > datetime.now(timezone.utc)).order_by(Story.created_at.desc()).all()],
             "calls": [call_log_to_dict(log, log.caller) for log in CallLog.query.order_by(CallLog.started_at.desc()).all()],
             "archives": archives,
             "blocks": blocks,
             "contactRequests": contact_requests,
             "groupInvites": group_invites,
+            "scheduledMessages": [admin_scheduled_message_to_dict(row) for row in ScheduledMessage.query.order_by(ScheduledMessage.send_at.asc()).all()],
             "serverIp": request.host,
             "yourIp": request_ip(),
             "localAdmin": is_local_admin_request(),
@@ -1604,13 +1858,13 @@ def admin_create_user():
         return admin_error
 
     data = request.get_json() or {}
-    display_name = (data.get("displayName") or "").strip()
+    display_name, display_name_error = normalize_display_name(data)
     email, email_normalized = normalize_email(data.get("email") or "")
     username = (data.get("username") or "").strip().lower()
     password = data.get("password") or ""
 
-    if len(display_name) < 2 or len(display_name) > 80:
-        return jsonify({"ok": False, "message": "Isim soyisim 2-80 karakter olmali."}), 400
+    if display_name_error:
+        return jsonify({"ok": False, "message": display_name_error}), 400
 
     if display_name_exists(display_name):
         return jsonify({"ok": False, "message": "Bu isim zaten kayitli."}), 400
@@ -1649,7 +1903,7 @@ def admin_create_user():
         email=email,
         email_normalized=email_normalized,
         email_verified=True,
-        avatar=display_name[:2].upper(),
+        avatar=tr_upper(display_name[:2]),
     )
     db.session.add(user)
     db.session.commit()
@@ -1673,6 +1927,7 @@ def admin_delete_user(username):
     BlockedUser.query.filter(db.or_(BlockedUser.blocker == user.username, BlockedUser.blocked == user.username)).delete(synchronize_session=False)
     ContactRequest.query.filter(db.or_(ContactRequest.from_username == user.username, ContactRequest.to_username == user.username)).delete(synchronize_session=False)
     GroupInvite.query.filter(db.or_(GroupInvite.inviter == user.username, GroupInvite.invitee == user.username)).delete(synchronize_session=False)
+    ScheduledMessage.query.filter_by(sender=user.username).delete(synchronize_session=False)
     HiddenChat.query.filter_by(username=user.username).delete(synchronize_session=False)
     ChatArchive.query.filter_by(username=user.username).delete(synchronize_session=False)
     member_rows = ChatMember.query.filter_by(username=user.username).all()
@@ -1681,6 +1936,7 @@ def admin_delete_user(username):
     if direct_chat_ids:
         CallLog.query.filter(CallLog.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
         HiddenChat.query.filter(HiddenChat.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
+        ScheduledMessage.query.filter(ScheduledMessage.chat_id.in_(direct_chat_ids)).delete(synchronize_session=False)
     for member in member_rows:
         db.session.delete(member)
     for chat_id in direct_chat_ids:
@@ -1823,6 +2079,7 @@ def admin_delete_chat(chat_id):
     affected_members = chat_member_names(chat)
     GroupInvite.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
     HiddenChat.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
+    ScheduledMessage.query.filter_by(chat_id=chat_id).delete(synchronize_session=False)
     db.session.delete(chat)
     db.session.commit()
 
@@ -1835,6 +2092,8 @@ def admin_delete_chat(chat_id):
 
 @app.route("/bootstrap/<username>")
 def bootstrap(username):
+    expire_due_messages(notify=False)
+    deliver_due_scheduled_messages()
     username = username.strip().lower()
     if not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
@@ -1852,6 +2111,41 @@ def bootstrap(username):
             "groupInvites": visible_group_invites(username),
             "blockedUsers": blocked_users_for(username),
             "archives": visible_archives(username),
+            "scheduledMessages": visible_scheduled_messages(username),
+        }
+    )
+
+
+@app.route("/chat/<chat_id>/messages")
+def chat_messages(chat_id):
+    username = (request.args.get("username") or "").strip().lower()
+    chat = db.session.get(Chat, chat_id)
+    if not username or not chat or not user_can_see_chat(chat, username):
+        return jsonify({"ok": False, "message": "Sohbet bulunamadı."}), 404
+
+    query = Message.query.filter_by(chat_id=chat.id)
+    before = request.args.get("before")
+    if before:
+        try:
+            before_date = datetime.fromisoformat(before.replace("Z", "+00:00"))
+            if before_date.tzinfo is None:
+                before_date = before_date.replace(tzinfo=timezone.utc)
+            query = query.filter(Message.created_at < before_date)
+        except ValueError:
+            pass
+
+    rows = query.order_by(Message.created_at.desc()).limit(RECENT_MESSAGE_SCAN_LIMIT).all()
+    visible = [
+        message
+        for message in rows
+        if username not in (message.deleted_for or [])
+    ][:MAX_BOOTSTRAP_MESSAGES]
+
+    return jsonify(
+        {
+            "ok": True,
+            "messages": [message_to_dict(message) for message in reversed(visible)],
+            "messageCount": visible_message_count(chat.id, username),
         }
     )
 
@@ -1864,6 +2158,8 @@ def handle_connect():
 @socketio.on("user:join")
 def handle_user_join(data):
     username = (data or {}).get("username", "").strip().lower()
+    expire_due_messages(notify=True)
+    deliver_due_scheduled_messages()
 
     if not db.session.get(User, username):
         emit("auth:error", {"message": "Önce giriş yapmalısın."})
@@ -1892,6 +2188,7 @@ def handle_user_join(data):
             "groupInvites": visible_group_invites(username),
             "blockedUsers": blocked_users_for(username),
             "archives": visible_archives(username),
+            "scheduledMessages": visible_scheduled_messages(username),
         },
     )
     broadcast_presence()
@@ -2236,6 +2533,7 @@ def handle_chat_delete(data):
         hide_chat_messages_for_user(chat, username)
         message = "Sohbet kalici olarak silindi."
 
+    ScheduledMessage.query.filter_by(sender=username, chat_id=chat.id).delete(synchronize_session=False)
     db.session.commit()
     emit("chat:remove", {"chatId": chat.id}, room=request.sid)
     emit("archive:update", visible_archives(username), room=request.sid)
@@ -2251,7 +2549,12 @@ def handle_message_send(data):
     attachment = data.get("attachment")
     reply_to = data.get("replyTo")
 
-    if not username or not chat or not user_can_see_chat(chat, username):
+    if not username or not chat:
+        return
+
+    send_error = chat_send_error(username, chat)
+    if send_error:
+        emit("notice", {"message": send_error})
         return
 
     if chat.type == "direct":
@@ -2263,19 +2566,88 @@ def handle_message_send(data):
     if not body and not attachment:
         return
 
-    message = Message(
+    error = attachment_error(attachment)
+    if error:
+        emit("notice", {"message": error})
+        return
+
+    message = create_chat_message(chat, username, body, attachment, reply_to, data.get("expiresInSeconds"))
+    db.session.commit()
+    emit("message:new", message_to_dict(message), room=chat.id)
+
+
+@socketio.on("message:schedule")
+def handle_message_schedule(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    chat = db.session.get(Chat, data.get("chatId"))
+    body = (data.get("body") or "").strip()
+    attachment = data.get("attachment")
+    reply_to = data.get("replyTo")
+
+    if not username or not chat:
+        return
+
+    send_error = chat_send_error(username, chat)
+    if send_error:
+        emit("notice", {"message": send_error})
+        return
+
+    if not body and not attachment:
+        return
+
+    error = attachment_error(attachment)
+    if error:
+        emit("notice", {"message": error})
+        return
+
+    try:
+        send_at = datetime.fromisoformat(str(data.get("sendAt")).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        emit("notice", {"message": "Zamanlanacak saat okunamadÄ±."})
+        return
+
+    if send_at.tzinfo is None:
+        send_at = send_at.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    if send_at <= now + timedelta(seconds=10):
+        message = create_chat_message(chat, username, body, attachment, reply_to, data.get("expiresInSeconds"))
+        db.session.commit()
+        emit("message:new", message_to_dict(message), room=chat.id)
+        return
+
+    if send_at > now + timedelta(days=MAX_SCHEDULE_DAYS):
+        emit("notice", {"message": f"Mesaj en fazla {MAX_SCHEDULE_DAYS} gÃ¼n sonrasÄ±na zamanlanabilir."})
+        return
+
+    row = ScheduledMessage(
         id=uuid4().hex,
         chat_id=chat.id,
         sender=username,
         body=body,
         attachment=attachment,
         reply_to=reply_to if isinstance(reply_to, dict) else None,
-        read_by=[username],
+        expires_in_seconds=parse_expiry_seconds(data.get("expiresInSeconds")),
+        send_at=send_at,
     )
-    db.session.add(message)
-    HiddenChat.query.filter_by(username=username, chat_id=chat.id).delete(synchronize_session=False)
+    db.session.add(row)
     db.session.commit()
-    emit("message:new", message_to_dict(message), room=chat.id)
+    emit_scheduled_update(username)
+    emit("notice", {"message": "Mesaj zamanlandÄ±."})
+
+
+@socketio.on("message:scheduled:delete")
+def handle_scheduled_delete(data):
+    username = connections.get(request.sid)
+    row = db.session.get(ScheduledMessage, (data or {}).get("scheduledId"))
+    if not username or not row or row.sender != username:
+        return
+
+    db.session.delete(row)
+    db.session.commit()
+    emit_scheduled_update(username)
+    emit("notice", {"message": "ZamanlÄ± mesaj iptal edildi."})
 
 
 @socketio.on("typing")
@@ -2363,6 +2735,26 @@ def handle_message_delete(data):
     emit("message:remove-local", {"chatId": chat.id, "messageId": message.id}, room=request.sid)
 
 
+@socketio.on("message:edit")
+def handle_message_edit(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    message = db.session.get(Message, data.get("messageId"))
+    body = (data.get("body") or "").strip()
+
+    if not username or not message or not body:
+        return
+
+    chat = db.session.get(Chat, message.chat_id)
+    if not chat or not user_can_see_chat(chat, username) or message.sender != username or message.deleted_at:
+        return
+
+    message.body = body[:4000]
+    message.edited_at = datetime.now(timezone.utc)
+    db.session.commit()
+    emit("message:edited", message_to_dict(message), room=chat.id)
+
+
 @socketio.on("message:react")
 def handle_message_react(data):
     username = connections.get(request.sid)
@@ -2392,6 +2784,11 @@ def handle_story_create(data):
     attachment = data.get("attachment")
 
     if not username or (not body and not attachment):
+        return
+
+    error = attachment_error(attachment)
+    if error:
+        emit("notice", {"message": error})
         return
 
     story = Story(
@@ -2499,6 +2896,62 @@ def emit_call_logs_for_chat(chat):
             socketio.emit("calls:update", visible_call_logs(member), room=sid)
 
 
+def emit_scheduled_update(username):
+    for sid in connected_sids_for(username):
+        socketio.emit("scheduled:update", visible_scheduled_messages(username), room=sid)
+
+
+def create_chat_message(chat, username, body, attachment=None, reply_to=None, expires_in_seconds=None):
+    expires_at = None
+    seconds = parse_expiry_seconds(expires_in_seconds)
+    if seconds:
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=seconds)
+
+    message = Message(
+        id=uuid4().hex,
+        chat_id=chat.id,
+        sender=username,
+        body=body,
+        attachment=attachment,
+        reply_to=reply_to if isinstance(reply_to, dict) else None,
+        read_by=[username],
+        expires_at=expires_at,
+    )
+    db.session.add(message)
+    HiddenChat.query.filter_by(username=username, chat_id=chat.id).delete(synchronize_session=False)
+    return message
+
+
+def deliver_due_scheduled_messages():
+    if not scheduled_delivery_lock.acquire(blocking=False):
+        return
+
+    try:
+        now = datetime.now(timezone.utc)
+        due_rows = ScheduledMessage.query.filter(ScheduledMessage.send_at <= now).order_by(ScheduledMessage.send_at.asc()).limit(60).all()
+        for row in due_rows:
+            chat = row.chat or db.session.get(Chat, row.chat_id)
+            if chat and not chat_send_error(row.sender, chat):
+                message = create_chat_message(
+                    chat,
+                    row.sender,
+                    row.body,
+                    row.attachment,
+                    row.reply_to,
+                    row.expires_in_seconds,
+                )
+                db.session.delete(row)
+                db.session.commit()
+                socketio.emit("message:new", message_to_dict(message), room=chat.id)
+                emit_scheduled_update(row.sender)
+            else:
+                db.session.delete(row)
+                db.session.commit()
+                emit_scheduled_update(row.sender)
+    finally:
+        scheduled_delivery_lock.release()
+
+
 @socketio.on("call:log")
 def handle_call_log(data):
     username = connections.get(request.sid)
@@ -2592,6 +3045,18 @@ def handle_disconnect():
     broadcast_presence()
 
 
+def background_scheduler():
+    while True:
+        with app.app_context():
+            try:
+                expire_due_messages(notify=True)
+                deliver_due_scheduled_messages()
+            except Exception:
+                db.session.rollback()
+                app.logger.exception("Background scheduler failed")
+        socketio.sleep(SCHEDULE_POLL_SECONDS)
+
+
 with app.app_context():
     db.create_all()
     inspector = inspect(db.engine)
@@ -2608,6 +3073,8 @@ with app.app_context():
         "deleted_for": "ALTER TABLE message ADD COLUMN deleted_for JSON",
         "deleted_at": "ALTER TABLE message ADD COLUMN deleted_at TIMESTAMP",
         "deleted_by": "ALTER TABLE message ADD COLUMN deleted_by VARCHAR(80)",
+        "edited_at": "ALTER TABLE message ADD COLUMN edited_at TIMESTAMP",
+        "expires_at": "ALTER TABLE message ADD COLUMN expires_at TIMESTAMP",
     }
     for column_name, statement in message_migrations.items():
         if column_name not in message_columns:
@@ -2639,6 +3106,9 @@ with app.app_context():
     for group_chat in Chat.query.filter_by(type="group").all():
         promote_fallback_group_admin(group_chat)
     db.session.commit()
+
+if os.environ.get("WERKZEUG_RUN_MAIN") != "true" or os.environ.get("FLASK_DEBUG") != "1":
+    socketio.start_background_task(background_scheduler)
 
 
 if __name__ == "__main__":
