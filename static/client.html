@@ -27,14 +27,29 @@
             --red: #f03d54;
             --blue: #2f8cff;
             --green: #2bd576;
+            --incoming: #1f2724;
+            --outgoing: #075e54;
+            --app-bg: #0b1117;
+            --chat-bg: #101713;
             --shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
             --app-height: 100vh;
             --keyboard-inset: 0px;
             --admin-font-size: 16px;
-            --admin-sidebar-width: 380px;
-            --admin-bubble-radius: 8px;
+            --admin-mobile-font-size: 15px;
+            --admin-mobile-message-font-size: 14px;
+            --admin-sidebar-width: 700px;
+            --admin-rail-width: 80px;
+            --admin-bubble-radius: 9px;
+            --admin-list-radius: 12px;
+            --admin-composer-radius: 30px;
             --admin-message-font-size: 15px;
-            --admin-icon-size: 38px;
+            --admin-icon-size: 42px;
+            --admin-header-height: 72px;
+            --admin-mobile-icon-size: 40px;
+            --admin-mobile-bubble-radius: 10px;
+            --admin-mobile-list-radius: 12px;
+            --admin-mobile-composer-radius: 26px;
+            --admin-mobile-header-height: 64px;
         }
 
         :root[data-theme="light"] {
@@ -72,7 +87,7 @@
             background:
                 radial-gradient(circle at 15% 0%, rgba(240, 61, 84, 0.18), transparent 28%),
                 radial-gradient(circle at 85% 15%, rgba(47, 140, 255, 0.16), transparent 30%),
-                linear-gradient(145deg, #030408, #10131b 55%, #05070c);
+                linear-gradient(145deg, #030408, var(--app-bg) 55%, #05070c);
         }
 
         :root[data-theme="light"] body {
@@ -459,10 +474,11 @@
 
         .sidebar {
             position: relative;
-            display: flex;
+            display: grid;
+            grid-template-columns: var(--admin-rail-width) minmax(0, 1fr);
+            grid-template-rows: auto auto auto minmax(0, 1fr);
             min-height: 0;
             min-width: 0;
-            flex-direction: column;
             border-right: 1px solid var(--line);
             background: rgba(16, 20, 29, 0.96);
             container-type: inline-size;
@@ -471,12 +487,17 @@
         .topbar,
         .chat-top {
             display: flex;
-            min-height: 72px;
+            min-height: var(--admin-header-height);
             align-items: center;
             gap: 12px;
             padding: 14px 16px;
             border-bottom: 1px solid var(--line);
             background: var(--panel);
+        }
+
+        .topbar {
+            grid-column: 2;
+            grid-row: 1;
         }
 
         .chat-top.empty-state {
@@ -572,6 +593,8 @@
         }
 
         .search-box {
+            grid-column: 2;
+            grid-row: 2;
             display: flex;
             gap: 8px;
             padding: 12px;
@@ -579,25 +602,29 @@
         }
 
         .nav-tabs {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 6px;
-            padding: 8px;
-            border-bottom: 1px solid var(--line);
-            background: #090c13;
+            grid-column: 1;
+            grid-row: 1 / 5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 76px 8px 12px;
+            border-right: 1px solid var(--line);
+            background: rgba(9, 12, 13, 0.96);
         }
 
         .nav-tab {
             display: flex;
-            min-height: 54px;
+            width: 48px;
+            height: 48px;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             gap: 5px;
             min-width: 0;
             overflow: hidden;
-            padding: 9px 4px;
-            border-radius: 7px;
+            padding: 8px;
+            border-radius: 50%;
             color: var(--muted);
             background: transparent;
             font-size: 12px;
@@ -618,6 +645,7 @@
         }
 
         .nav-label {
+            display: none;
             overflow: hidden;
             max-width: 100%;
             text-overflow: ellipsis;
@@ -625,9 +653,21 @@
             line-height: 1.15;
         }
 
+        body.show-desktop-nav-labels .nav-tab {
+            width: 64px;
+            height: auto;
+            min-height: 54px;
+            border-radius: 14px;
+        }
+
+        body.show-desktop-nav-labels .nav-label {
+            display: block;
+        }
+
         .nav-tab.active {
             color: #fff;
             background: var(--panel-3);
+            box-shadow: inset 3px 0 0 var(--green);
         }
 
         .search-box input {
@@ -642,8 +682,13 @@
         }
 
         .section-label {
+            grid-column: 2;
+            grid-row: 3;
             padding: 12px 16px 6px;
-            text-transform: uppercase;
+            color: var(--text);
+            font-size: 22px;
+            font-weight: 800;
+            text-transform: none;
             letter-spacing: 0;
         }
 
@@ -653,8 +698,12 @@
         }
 
         .chat-list {
-            max-height: 42vh;
+            grid-column: 2;
+            grid-row: 4;
+            min-height: 0;
+            max-height: none;
             overflow: auto;
+            padding: 0 12px 12px;
         }
 
         .story-list {
@@ -677,21 +726,22 @@
             gap: 12px;
             width: 100%;
             padding: 12px 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 0;
+            border-radius: var(--admin-list-radius);
             color: var(--text);
             text-align: left;
             background: transparent;
         }
 
         .chat-item.active {
-            background: rgba(47, 140, 255, 0.16);
+            background: var(--panel-3);
         }
 
         .chat-item:hover,
         .story-item:hover,
         .call-item:hover,
         .contact-item:hover {
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.07);
         }
 
         .admin-badge {
@@ -779,10 +829,11 @@
             min-height: 0;
             min-width: 0;
             overflow: hidden;
-            grid-template-rows: 72px minmax(0, 1fr) auto;
+            grid-template-rows: var(--admin-header-height) minmax(0, 1fr) auto;
             background:
-                linear-gradient(rgba(4, 6, 10, 0.82), rgba(4, 6, 10, 0.82)),
+                linear-gradient(rgba(4, 6, 10, 0.70), rgba(4, 6, 10, 0.70)),
                 repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 18px);
+            background-color: var(--chat-bg);
         }
 
         .messages {
@@ -822,7 +873,7 @@
             font-size: var(--admin-message-font-size);
             line-height: 1.35;
             white-space: pre-wrap;
-            background: var(--panel-3);
+            background: var(--incoming);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
             transition: transform 160ms ease, box-shadow 160ms ease;
             touch-action: pan-y;
@@ -860,7 +911,7 @@
 
         .bubble.mine {
             align-self: flex-end;
-            background: linear-gradient(135deg, rgba(240, 61, 84, 0.86), rgba(47, 140, 255, 0.86));
+            background: var(--outgoing);
         }
 
         .sender {
@@ -1013,45 +1064,53 @@
         }
 
         .composer {
-            display: grid;
-            align-items: end;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
             min-height: 0;
-            grid-template-columns: 44px 44px 44px 44px 44px 44px minmax(0, 1fr) 44px;
-            gap: 10px;
-            padding: 12px;
+            gap: 8px;
+            padding: 12px 14px;
             border-top: 1px solid var(--line);
             background: var(--panel);
         }
 
         .composer.replying {
-            grid-template-rows: auto auto;
+            align-items: center;
         }
 
         .composer textarea {
-            grid-column: 7;
+            flex: 1 1 auto;
             min-height: 44px;
             max-height: 120px;
             resize: none;
             padding: 12px 14px;
-            border: 1px solid var(--line);
-            border-radius: 8px;
+            border: 1px solid transparent;
+            border-radius: var(--admin-composer-radius);
             outline: none;
             color: var(--text);
-            background: #090c13;
+            background: var(--panel-2);
         }
 
         #cancelVoiceButton:not(.hidden) ~ #messageInput {
-            grid-column: 7;
+            flex: 1 1 auto;
         }
 
         #sendButton {
-            grid-column: 8;
+            display: none;
+        }
+
+        .composer.has-content #sendButton {
+            display: grid;
+        }
+
+        .composer.has-content #voiceButton {
+            display: none;
         }
 
         .send-btn {
-            border-radius: 8px;
+            border-radius: 50%;
             color: #fff;
-            background: var(--red);
+            background: var(--green);
         }
 
         .recording {
@@ -1066,7 +1125,7 @@
 
         .voice-wave {
             display: none;
-            grid-column: 1 / -1;
+            flex: 1 0 100%;
             align-items: end;
             height: 34px;
             gap: 3px;
@@ -1092,7 +1151,7 @@
 
         .emoji-panel {
             display: flex;
-            grid-column: 1 / -1;
+            flex: 1 0 100%;
             flex-wrap: wrap;
             gap: 6px;
             padding: 8px;
@@ -1108,9 +1167,29 @@
             background: var(--panel-3);
         }
 
+        .attachment-menu {
+            display: grid;
+            gap: 8px;
+        }
+
+        .attachment-option {
+            display: grid;
+            gap: 3px;
+            padding: 12px;
+            text-align: left;
+            border-radius: 10px;
+            color: var(--text);
+            background: var(--panel-2);
+        }
+
+        .attachment-option small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
         .smart-replies {
             display: flex;
-            grid-column: 1 / -1;
+            flex: 1 0 100%;
             gap: 7px;
             overflow-x: auto;
             padding: 2px 0 4px;
@@ -1824,8 +1903,42 @@
             background: #05070c;
         }
 
+        .call-cover {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: grid;
+            place-items: center;
+            align-content: center;
+            gap: 12px;
+            background:
+                radial-gradient(circle at center, rgba(32, 214, 107, 0.14), transparent 34%),
+                linear-gradient(145deg, rgba(5, 7, 12, 0.92), rgba(13, 19, 18, 0.98));
+        }
+
+        .call-cover .avatar {
+            width: 120px;
+            height: 120px;
+            flex-basis: 120px;
+            font-size: 32px;
+            box-shadow: 0 0 0 4px rgba(32, 214, 107, 0.16);
+        }
+
+        .call-cover strong {
+            font-size: 22px;
+        }
+
+        .call-cover span {
+            color: var(--muted);
+        }
+
+        .video-stage.remote-live .call-cover {
+            display: none;
+        }
+
         #localVideo {
             position: absolute;
+            z-index: 2;
             right: 14px;
             bottom: 14px;
             width: min(180px, 32%);
@@ -1945,7 +2058,7 @@
                 display: none;
                 height: var(--app-height);
                 max-height: var(--app-height);
-                grid-template-rows: 64px minmax(0, 1fr) auto;
+                grid-template-rows: var(--admin-mobile-header-height) minmax(0, 1fr) auto;
                 overflow: hidden;
             }
 
@@ -1968,7 +2081,7 @@
 
             .topbar,
             .chat-top {
-                min-height: 64px;
+                min-height: var(--admin-mobile-header-height);
                 padding: 10px 12px;
             }
 
@@ -2004,8 +2117,8 @@
             }
 
             .icon-btn {
-                width: 36px;
-                height: 36px;
+                width: var(--admin-mobile-icon-size);
+                height: var(--admin-mobile-icon-size);
             }
 
             .topbar .icon-btn,
@@ -2056,7 +2169,8 @@
 
             .bubble {
                 max-width: 88%;
-                font-size: 14px;
+                border-radius: var(--admin-mobile-bubble-radius);
+                font-size: var(--admin-mobile-message-font-size);
             }
 
             .bubble img,
@@ -2069,7 +2183,6 @@
                 position: sticky;
                 bottom: 0;
                 z-index: 4;
-                grid-template-columns: 38px 38px minmax(0, 1fr) 38px 42px;
                 gap: 7px;
                 padding: 8px;
                 padding-bottom: max(8px, env(safe-area-inset-bottom));
@@ -2077,28 +2190,12 @@
             }
 
             .composer textarea {
-                grid-column: 3;
-                grid-row: 1;
+                flex: 1 1 120px;
                 min-height: 40px;
                 max-height: 92px;
                 padding: 10px 12px;
-                font-size: 14px;
-            }
-
-            #attachButton { grid-column: 1; grid-row: 1; }
-            #voiceButton { grid-column: 2; grid-row: 1; }
-            #emojiButton { grid-column: 4; grid-row: 1; }
-            #locationButton { grid-column: 1; grid-row: 2; }
-            #sendToolsButton { grid-column: 4; grid-row: 2; }
-            #cancelVoiceButton { grid-column: 2; grid-row: 2; }
-
-            #cancelVoiceButton:not(.hidden) ~ #messageInput {
-                grid-column: 3;
-            }
-
-            #sendButton {
-                grid-column: 5;
-                grid-row: 1;
+                border-radius: var(--admin-mobile-composer-radius);
+                font-size: var(--admin-mobile-message-font-size);
             }
 
             .app.keyboard-open .composer {
@@ -2166,6 +2263,10 @@
                 padding: 8px 7px;
                 border-radius: 24px;
                 font-size: 11px;
+            }
+
+            body.show-mobile-nav-labels .nav-label {
+                display: block;
             }
 
             .nav-tab.active {
@@ -2353,12 +2454,12 @@
             </div>
 
             <nav class="nav-tabs">
-                <button class="nav-tab active" data-section="chats" type="button"><span class="nav-icon">◖</span><span class="nav-label">Sohbetler</span></button>
-                <button class="nav-tab" data-section="groups" type="button"><span class="nav-icon">☷</span><span class="nav-label">Topluluk</span></button>
-                <button class="nav-tab" data-section="stories" type="button"><span class="nav-icon">◉</span><span class="nav-label">Güncelleme</span></button>
-                <button class="nav-tab" data-section="calls" type="button"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
-                <button class="nav-tab" data-section="contacts" type="button"><span class="nav-icon">◎</span><span class="nav-label">Kişi</span></button>
-                <button class="nav-tab" data-section="archives" type="button"><span class="nav-icon">▤</span><span class="nav-label">Arşiv</span></button>
+                <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
+                <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
+                <button class="nav-tab" data-section="stories" type="button" title="Güncellemeler"><span class="nav-icon">◌</span><span class="nav-label">Güncelleme</span></button>
+                <button class="nav-tab" data-section="groups" type="button" title="Gruplar"><span class="nav-icon">☷</span><span class="nav-label">Gruplar</span></button>
+                <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişi</span></button>
+                <button class="nav-tab" data-section="archives" type="button" title="Arşiv"><span class="nav-icon">▤</span><span class="nav-label">Arşiv</span></button>
             </nav>
 
             <div id="sectionTitle" class="section-label">Sohbetler</div>
@@ -2406,16 +2507,16 @@
                 <div id="replyPreview" class="reply-preview hidden"></div>
                 <div id="voiceWave" class="voice-wave"></div>
                 <div id="emojiPanel" class="emoji-panel hidden"></div>
-                <button id="attachButton" class="icon-btn" title="Dosya">＋</button>
-                <button id="voiceButton" class="icon-btn" title="Sesli mesaj">●</button>
-                <button id="emojiButton" class="icon-btn" title="Emoji">☺</button>
-                <button id="locationButton" class="icon-btn" title="Konum">⌖</button>
-                <button id="sendToolsButton" class="icon-btn" title="Zamanla ve kaybolan mesaj">⏱</button>
+                <button id="attachButton" class="icon-btn" data-tool="attach" title="Dosya">＋</button>
+                <button id="voiceButton" class="icon-btn" data-tool="voice" title="Sesli mesaj">🎙</button>
+                <button id="emojiButton" class="icon-btn" data-tool="emoji" title="Emoji">☺</button>
+                <button id="locationButton" class="icon-btn" data-tool="location" title="Konum">⌖</button>
+                <button id="sendToolsButton" class="icon-btn" data-tool="timed" title="Zamanla ve kaybolan mesaj">⏱</button>
                 <button id="cancelVoiceButton" class="icon-btn danger hidden" title="Kaydı iptal et">×</button>
                 <input id="fileInput" class="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
                 <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
                 <textarea id="messageInput" placeholder="Mesaj"></textarea>
-                <button id="sendButton" class="send-btn" title="Gönder">➤</button>
+                <button id="sendButton" class="send-btn" data-tool="send" title="Gönder">➤</button>
             </footer>
         </section>
     </main>
@@ -2635,10 +2736,19 @@
             <div class="video-stage">
                 <video id="remoteVideo" autoplay playsinline></video>
                 <video id="localVideo" autoplay playsinline muted></video>
+                <div id="callCover" class="call-cover">
+                    <div id="callAvatar" class="avatar">N</div>
+                    <strong id="callPeerName">NexaLine</strong>
+                    <span id="callPeerMeta">baglaniyor</span>
+                </div>
             </div>
             <div class="call-info">
-                <strong id="callTitle">Arama</strong>
-                <span id="callStatus">bağlanıyor</span>
+                <div>
+                    <strong id="callTitle">Arama</strong>
+                    <span id="callPeerLine" class="last-message">Kisi</span>
+                </div>
+                <span id="callStatus">baglaniyor</span>
+                <span id="callTimer">00:00</span>
             </div>
             <div class="call-actions">
                 <button id="acceptCallButton" class="icon-btn accept hidden" title="Kabul et">✓</button>
@@ -2684,8 +2794,9 @@
         const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
         const AI_CHAT_ID = "__next_ai_chat__";
         const AI_SENDER = "__next_ai__";
+        const DEFAULT_BRAND_LOGO = "/static/nexaline-mark.png";
         const DEFAULT_AI_NAME = "Next AI";
-        const DEFAULT_AI_AVATAR = "/static/nexaline-mark.png";
+        const DEFAULT_AI_AVATAR = DEFAULT_BRAND_LOGO;
         const MESSAGE_TONES = {
             classic: [[660, 70], [880, 80]],
             soft: [[520, 110], [640, 80]],
@@ -2843,6 +2954,9 @@
                 incomingOffer: null,
                 startedAt: null,
                 ringtoneTimer: null,
+                timer: null,
+                peerName: "",
+                peerImage: "",
                 cameraFacing: "user"
             }
         };
@@ -2852,27 +2966,134 @@
         loadAdminDesign();
 
         function applyAdminDesign(design = {}) {
+            window.nexalineDesign = design || {};
             const root = document.documentElement;
+            const desktop = design.desktop || design;
+            const mobile = design.mobile || {};
+            const colors = design.colors || design;
             const numeric = {
-                fontSize: ["--admin-font-size", "px"],
-                messageFontSize: ["--admin-message-font-size", "px"],
-                sidebarWidth: ["--admin-sidebar-width", "px"],
-                bubbleRadius: ["--admin-bubble-radius", "px"],
-                iconSize: ["--admin-icon-size", "px"]
+                fontSize: ["--admin-font-size", desktop.fontSize, "px"],
+                messageFontSize: ["--admin-message-font-size", desktop.messageFontSize, "px"],
+                sidebarWidth: ["--admin-sidebar-width", desktop.sidebarWidth, "px"],
+                railWidth: ["--admin-rail-width", desktop.railWidth, "px"],
+                bubbleRadius: ["--admin-bubble-radius", desktop.bubbleRadius, "px"],
+                listItemRadius: ["--admin-list-radius", desktop.listItemRadius, "px"],
+                composerRadius: ["--admin-composer-radius", desktop.composerRadius, "px"],
+                iconSize: ["--admin-icon-size", desktop.iconSize, "px"],
+                headerHeight: ["--admin-header-height", desktop.headerHeight, "px"],
+                mobileFontSize: ["--admin-mobile-font-size", mobile.fontSize, "px"],
+                mobileMessageFontSize: ["--admin-mobile-message-font-size", mobile.messageFontSize, "px"],
+                mobileIconSize: ["--admin-mobile-icon-size", mobile.iconSize, "px"],
+                mobileBubbleRadius: ["--admin-mobile-bubble-radius", mobile.bubbleRadius, "px"],
+                mobileListItemRadius: ["--admin-mobile-list-radius", mobile.listItemRadius, "px"],
+                mobileComposerRadius: ["--admin-mobile-composer-radius", mobile.composerRadius, "px"],
+                mobileHeaderHeight: ["--admin-mobile-header-height", mobile.headerHeight, "px"]
             };
-            Object.entries(numeric).forEach(([key, [variable, unit]]) => {
-                if (design[key] !== undefined && design[key] !== null && design[key] !== "") {
-                    root.style.setProperty(variable, `${Number(design[key])}${unit}`);
+            Object.values(numeric).forEach(([variable, value, unit]) => {
+                if (value !== undefined && value !== null && value !== "") {
+                    root.style.setProperty(variable, `${Number(value)}${unit}`);
                 }
             });
-            ["blue", "red", "green"].forEach(key => {
-                if (/^#[0-9a-f]{6}$/i.test(String(design[key] || ""))) {
-                    root.style.setProperty(`--${key}`, design[key]);
+            const colorMap = {
+                background: "--app-bg",
+                panel: "--panel",
+                panel2: "--panel-2",
+                panel3: "--panel-3",
+                line: "--line",
+                text: "--text",
+                muted: "--muted",
+                blue: "--blue",
+                red: "--red",
+                green: "--green",
+                incoming: "--incoming",
+                outgoing: "--outgoing",
+                chatBackground: "--chat-bg"
+            };
+            Object.entries(colorMap).forEach(([key, variable]) => {
+                if (/^#[0-9a-f]{6}$/i.test(String(colors[key] || ""))) {
+                    root.style.setProperty(variable, colors[key]);
                 }
             });
             if (design.brandName) {
                 document.title = design.brandName;
             }
+            applyDesignText(design.text || {});
+            applyDesignLogo(design.logoUrl || DEFAULT_BRAND_LOGO);
+            applyDesignOrder(desktop.navOrder, mobile.navOrder, desktop.composerOrder, mobile.composerOrder);
+            document.body.classList.toggle("show-desktop-nav-labels", Boolean(desktop.showNavLabels));
+            document.body.classList.toggle("show-mobile-nav-labels", mobile.showNavLabels !== false);
+            updateComposerState();
+        }
+
+        function applyDesignLogo(logoUrl) {
+            if (!logoUrl) return;
+            document.querySelectorAll("img").forEach(image => {
+                const current = image.getAttribute("src") || "";
+                if (current === DEFAULT_BRAND_LOGO || current.includes("nexaline-mark.png") || image.closest(".brand-mark, .empty-chat-inner, .screen-transition")) {
+                    image.src = logoUrl;
+                }
+            });
+        }
+
+        function applyDesignText(text = {}) {
+            const labels = {
+                chats: "Sohbetler",
+                groups: "Gruplar",
+                stories: "Guncellemeler",
+                calls: "Aramalar",
+                contacts: "Kisiler",
+                archives: "Arsiv"
+            };
+            Object.entries(labels).forEach(([key, fallback]) => {
+                const value = text[key] || fallback;
+                const tab = document.querySelector(`.nav-tab[data-section="${key}"]`);
+                if (tab) {
+                    tab.title = value;
+                    const label = tab.querySelector(".nav-label");
+                    if (label) label.textContent = value;
+                }
+            });
+            if ($("searchInput")) $("searchInput").placeholder = text.searchPlaceholder || "Aratin veya yeni sohbet baslatin";
+            if ($("messageInput")) $("messageInput").placeholder = text.messagePlaceholder || "Bir mesaj yazin";
+            const titleMap = {
+                attachButton: text.attachment || "Dosya",
+                emojiButton: text.emoji || "Emoji",
+                voiceButton: text.voice || "Sesli mesaj",
+                locationButton: text.location || "Konum",
+                sendToolsButton: text.timed || "Zamanla",
+                sendButton: text.send || "Gonder"
+            };
+            Object.entries(titleMap).forEach(([id, value]) => {
+                if ($(id)) $(id).title = value;
+            });
+        }
+
+        function applyDesignOrder(desktopNav = [], mobileNav = [], desktopComposer = [], mobileComposer = []) {
+            const navOrder = window.matchMedia("(max-width: 760px)").matches ? mobileNav : desktopNav;
+            (navOrder || []).forEach((section, index) => {
+                const tab = document.querySelector(`.nav-tab[data-section="${section}"]`);
+                if (tab) tab.style.order = index + 1;
+            });
+            const composerOrder = window.matchMedia("(max-width: 760px)").matches ? mobileComposer : desktopComposer;
+            const map = {
+                attach: "attachButton",
+                emoji: "emojiButton",
+                input: "messageInput",
+                voice: "voiceButton",
+                send: "sendButton",
+                location: "locationButton",
+                timed: "sendToolsButton"
+            };
+            const visibleComposer = new Set(composerOrder || []);
+            Object.entries(map).forEach(([key, id]) => {
+                if ($(id) && key !== "input" && key !== "send" && key !== "voice") {
+                    $(id).classList.toggle("hidden", !visibleComposer.has(key));
+                }
+            });
+            (composerOrder || []).forEach((key, index) => {
+                const id = map[key];
+                if ($(id)) $(id).style.order = index + 1;
+            });
         }
 
         async function loadAdminDesign() {
@@ -4419,6 +4640,7 @@
             renderArchives();
             renderActiveChat();
             updateAiAssistantVisibility();
+            applyAdminDesign(window.nexalineDesign || {});
         }
 
         function renderProfile() {
@@ -4437,14 +4659,22 @@
             closeAiPanel();
         }
 
+        function designText(key, fallback) {
+            return window.nexalineDesign?.text?.[key] || fallback;
+        }
+
+        function brandLogo() {
+            return window.nexalineDesign?.logoUrl || DEFAULT_BRAND_LOGO;
+        }
+
         function renderSections() {
             const labels = {
-                chats: "Sohbetler",
-                groups: "Topluluklar",
-                stories: "Güncellemeler",
-                calls: "Aramalar",
-                contacts: "Kişiler",
-                archives: "Arşivler"
+                chats: designText("chats", "Sohbetler"),
+                groups: designText("groups", "Gruplar"),
+                stories: designText("stories", "Guncellemeler"),
+                calls: designText("calls", "Aramalar"),
+                contacts: designText("contacts", "Kisiler"),
+                archives: designText("archives", "Arsiv")
             };
             document.querySelectorAll(".nav-tab").forEach(tab => {
                 tab.classList.toggle("active", tab.dataset.section === state.activeSection);
@@ -5940,6 +6170,7 @@
                 input.value = "";
                 input.placeholder = "Mesaj";
                 clearReply();
+                updateComposerState();
                 sendAiPrompt(body);
                 return;
             }
@@ -5956,6 +6187,42 @@
             input.placeholder = "Mesaj";
             state.attachment = null;
             clearReply();
+            updateComposerState();
+        }
+
+        function updateComposerState() {
+            const input = $("messageInput");
+            const hasContent = Boolean(input?.value.trim() || state.attachment);
+            document.querySelector(".composer")?.classList.toggle("has-content", hasContent);
+        }
+
+        function openAttachmentMenu() {
+            openModal("Gonder", body => {
+                const menu = document.createElement("div");
+                menu.className = "attachment-menu";
+                const items = [
+                    ["Belge", "Dosya sec", () => $("fileInput").click()],
+                    ["Fotograflar ve Videolar", "Galeri veya dosya", () => $("fileInput").click()],
+                    ["Kamera", "Kamera destegi tarayici iznine bagli", () => $("fileInput").click()],
+                    ["Ses", "Ses dosyasi sec", () => $("fileInput").click()],
+                    ["Kisi", "Kisi paylasimi yakinda", () => showToast("Kisi paylasimi icin once kisi secme ekrani acilacak.")],
+                    ["Anket", "Anket yakinda", () => showToast("Anket ozelligi hazirlaniyor.")],
+                    ["Etkinlik", "Etkinlik yakinda", () => showToast("Etkinlik ozelligi hazirlaniyor.")],
+                    ["Yeni Cikartma", "Cikartma yakinda", () => showToast("Cikartma ozelligi hazirlaniyor.")]
+                ];
+                items.forEach(([title, hint, action]) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "attachment-option";
+                    button.innerHTML = `<strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
+                    button.onclick = () => {
+                        closeModal();
+                        action();
+                    };
+                    menu.appendChild(button);
+                });
+                body.appendChild(menu);
+            }, [{ label: "Kapat", onClick: closeModal }]);
         }
 
         function toggleEmojiPanel() {
@@ -5968,6 +6235,7 @@
                     button.onclick = () => {
                         $("messageInput").value += emoji;
                         $("messageInput").focus();
+                        updateComposerState();
                     };
                     panel.appendChild(button);
                 });
@@ -7118,6 +7386,7 @@
                     return;
                 }
                 $("messageInput").placeholder = state.attachment.name;
+                updateComposerState();
             } catch (error) {
                 showToast("Dosya hazırlanamadı.");
             } finally {
@@ -7170,6 +7439,49 @@
             return chat;
         }
 
+        function callPeersForChat(chat) {
+            return (chat?.members || []).filter(member => member.username !== state.me.username);
+        }
+
+        function callDisplayPeer(chat, peers = callPeersForChat(chat)) {
+            return peers.length === 1 ? peers[0] : {
+                displayName: chat?.title || "NexaLine",
+                profileImage: chat?.image || brandLogo(),
+                avatar: initials(chat?.title || "NL")
+            };
+        }
+
+        function updateCallCover(chat, peer, status, audioOnly) {
+            const display = peer || callDisplayPeer(chat);
+            state.call.peerName = display?.displayName || chat?.title || "NexaLine";
+            state.call.peerImage = display?.profileImage || chat?.image || "";
+            $("callPeerName").textContent = state.call.peerName;
+            $("callPeerMeta").textContent = status;
+            $("callPeerLine").textContent = state.call.peerName;
+            setAvatar($("callAvatar"), display || { profileImage: brandLogo(), displayName: state.call.peerName }, state.call.peerName);
+            document.querySelector(".video-stage").classList.toggle("remote-live", false);
+            $("remoteVideo").classList.toggle("hidden", Boolean(audioOnly));
+        }
+
+        function setCallStatus(text) {
+            $("callStatus").textContent = text;
+            $("callPeerMeta").textContent = text;
+        }
+
+        function startCallTimer() {
+            if (state.call.timer) {
+                clearInterval(state.call.timer);
+            }
+            const tick = () => {
+                const seconds = state.call.startedAt ? Math.max(0, Math.floor((Date.now() - state.call.startedAt) / 1000)) : 0;
+                const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+                const rest = String(seconds % 60).padStart(2, "0");
+                $("callTimer").textContent = `${minutes}:${rest}`;
+            };
+            tick();
+            state.call.timer = setInterval(tick, 1000);
+        }
+
         async function getCallStream(audioOnly) {
             if (!navigator.mediaDevices?.getUserMedia) {
                 throw new Error("Tarayıcı kamera/mikrofonu sadece HTTPS, localhost veya izin verilmiş güvenli adreslerde açar.");
@@ -7216,9 +7528,15 @@
                     });
                 }
                 $("remoteVideo").srcObject = state.call.remoteStream;
+                if (!state.call.audioOnly && state.call.remoteStream.getVideoTracks().length) {
+                    document.querySelector(".video-stage").classList.add("remote-live");
+                    $("remoteVideo").classList.remove("hidden");
+                }
             };
             pc.onconnectionstatechange = () => {
-                $("callStatus").textContent = pc.connectionState === "connected" ? "bağlandı" : $("callStatus").textContent;
+                if (pc.connectionState === "connected") {
+                    setCallStatus("baglandi");
+                }
             };
 
             state.call.peers[peerUsername] = pc;
@@ -7248,8 +7566,14 @@
             if (!chat || Object.keys(state.call.peers).length) {
                 return;
             }
+            const peers = callPeersForChat(chat);
+            const reachablePeers = chat.type === "direct" ? peers.filter(member => member.online) : peers;
+            if (!reachablePeers.length) {
+                showToast("Kisi cevrim disi, arama baslatilamadi.");
+                return;
+            }
 
-            openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "aranıyor", false, audioOnly);
+            openCallPanel(audioOnly ? "Sesli arama" : "Goruntulu arama", "caliyor", false, audioOnly, chat, callDisplayPeer(chat, reachablePeers));
             startCallRingtone();
             try {
                 await ensureLocalCallStream(audioOnly);
@@ -7259,14 +7583,9 @@
                 return;
             }
             state.call.startedAt = Date.now();
+            startCallTimer();
             socket.emit("call:log", { chatId: chat.id, kind: audioOnly ? "audio" : "video", status: "active" });
-            const peers = chat.members.filter(member => member.username !== state.me.username);
-            if (!peers.length) {
-                showToast("Aranacak kişi yok.");
-                endCall(false);
-                return;
-            }
-            for (const member of peers) {
+            for (const member of reachablePeers) {
                 const pc = await createPeer(member.username, chat.id, audioOnly);
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -7274,9 +7593,10 @@
             }
         }
 
-        function openCallPanel(title, status, incoming, audioOnly) {
+        function openCallPanel(title, status, incoming, audioOnly, chat = activeChat(), peer = null) {
             $("callTitle").textContent = title;
-            $("callStatus").textContent = status;
+            setCallStatus(status);
+            updateCallCover(chat, peer, status, audioOnly);
             $("acceptCallButton").classList.toggle("hidden", !incoming);
             $("cameraButton").classList.toggle("hidden", audioOnly);
             $("switchCameraButton").classList.toggle("hidden", audioOnly);
@@ -7291,7 +7611,9 @@
             }
 
             stopCallRingtone();
-            openCallPanel(incoming.audioOnly ? "Sesli arama" : "Görüntülü arama", "bağlanıyor", false, incoming.audioOnly);
+            const chat = state.chats.find(item => item.id === incoming.chatId) || activeChat();
+            const peer = chat?.members?.find(member => member.username === incoming.from) || { displayName: incoming.fromName || incoming.from };
+            openCallPanel(incoming.audioOnly ? "Sesli arama" : "Goruntulu arama", "baglaniyor", false, incoming.audioOnly, chat, peer);
             let pc;
             try {
                 pc = await createPeer(incoming.from, incoming.chatId, incoming.audioOnly);
@@ -7306,6 +7628,7 @@
             await pc.setLocalDescription(answer);
             socket.emit("call:answer", { chatId: incoming.chatId, to: incoming.from, answer });
             state.call.startedAt = Date.now();
+            startCallTimer();
             state.call.incomingOffer = null;
         }
 
@@ -7315,7 +7638,7 @@
                 stopCallRingtone();
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                 await flushPendingIce(data.from);
-                $("callStatus").textContent = "bağlandı";
+                setCallStatus("baglandi");
             }
         }
 
@@ -7338,6 +7661,9 @@
 
         function endCall(notify = true) {
             stopCallRingtone();
+            if (state.call.timer) {
+                clearInterval(state.call.timer);
+            }
             const durationSeconds = state.call.startedAt ? Math.max(1, Math.round((Date.now() - state.call.startedAt) / 1000)) : 0;
             const incoming = state.call.incomingOffer;
             if (notify && incoming && !state.call.startedAt) {
@@ -7359,9 +7685,11 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, cameraFacing: "user" };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, timer: null, peerName: "", peerImage: "", cameraFacing: "user" };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
+            $("callTimer").textContent = "00:00";
+            document.querySelector(".video-stage").classList.remove("remote-live");
             $("callPanel").classList.add("hidden");
         }
 
@@ -7447,7 +7775,7 @@
                 renderActiveChat();
             };
         });
-        $("attachButton").onclick = () => $("fileInput").click();
+        $("attachButton").onclick = openAttachmentMenu;
         $("emojiButton").onclick = toggleEmojiPanel;
         $("locationButton").onclick = sendCurrentLocation;
         $("fileInput").onchange = handleFile;
@@ -7525,6 +7853,7 @@
                 socket.emit("typing", { chatId: chat.id, typing: $("messageInput").value.length > 0 });
             }
             renderSmartReplies(chat);
+            updateComposerState();
         });
         $("messageInput").addEventListener("focus", () => {
             $("app").classList.add("keyboard-open");
@@ -7767,6 +8096,9 @@
         });
 
         socket.on("notice", data => showToast(data.message));
+        socket.on("design:update", data => {
+            applyAdminDesign(data.design || {});
+        });
         socket.on("call:offer", data => {
             if (Object.keys(state.call.peers).length || state.call.incomingOffer) {
                 socket.emit("call:end", { chatId: data.chatId, to: data.from });
@@ -7778,7 +8110,9 @@
             state.call.audioOnly = Boolean(data.audioOnly);
             startCallRingtone();
             maybeNotifyCall(data);
-            openCallPanel(`${data.fromName} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly);
+            const chat = state.chats.find(item => item.id === data.chatId);
+            const peer = chat?.members?.find(member => member.username === data.from) || { displayName: data.fromName || data.from };
+            openCallPanel(`${data.fromName || data.from} ariyor`, data.audioOnly ? "sesli arama" : "goruntulu arama", true, data.audioOnly, chat, peer);
         });
         socket.on("call:answer", handleRemoteAnswer);
         socket.on("call:ice", handleRemoteIce);
@@ -7806,6 +8140,7 @@
         updateAppViewportHeight();
         window.addEventListener("resize", () => {
             updateAppViewportHeight();
+            applyAdminDesign(window.nexalineDesign || {});
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight);
         window.visualViewport?.addEventListener("scroll", updateAppViewportHeight);
@@ -7814,6 +8149,7 @@
         });
         $("messageInput").addEventListener("input", () => {
             updateAppViewportHeight();
+            updateComposerState();
         });
         $("messageInput").addEventListener("blur", () => {
             setTimeout(updateAppViewportHeight, 180);

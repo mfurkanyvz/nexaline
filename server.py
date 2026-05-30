@@ -247,47 +247,173 @@ class AppSetting(db.Model):
 
 
 DEFAULT_DESIGN_SETTINGS = {
+    "brandName": "NexaLine",
+    "logoUrl": "/static/nexaline-mark.png",
+    "colors": {
+        "background": "#0b1117",
+        "panel": "#111814",
+        "panel2": "#1f2724",
+        "panel3": "#2a3330",
+        "line": "#2a3430",
+        "text": "#eef4f1",
+        "muted": "#9aa6a1",
+        "blue": "#2f8cff",
+        "red": "#f03d54",
+        "green": "#20d66b",
+        "incoming": "#1f2724",
+        "outgoing": "#075e54",
+        "chatBackground": "#101713",
+    },
+    "text": {
+        "chats": "Sohbetler",
+        "groups": "Gruplar",
+        "stories": "Guncellemeler",
+        "calls": "Aramalar",
+        "contacts": "Kisiler",
+        "archives": "Arsiv",
+        "searchPlaceholder": "Aratin veya yeni sohbet baslatin",
+        "messagePlaceholder": "Bir mesaj yazin",
+        "newChat": "Yeni sohbet",
+        "newGroup": "Yeni grup",
+        "newStory": "Durum ekle",
+        "newCall": "Yeni arama",
+        "noCalls": "Arama kaydi yok",
+        "attachment": "Dosya",
+        "emoji": "Emoji",
+        "voice": "Sesli mesaj",
+        "location": "Konum",
+        "timed": "Zamanla",
+        "send": "Gonder",
+    },
+    "desktop": {
+        "fontSize": 16,
+        "messageFontSize": 15,
+        "sidebarWidth": 700,
+        "railWidth": 80,
+        "bubbleRadius": 9,
+        "iconSize": 42,
+        "listItemRadius": 12,
+        "composerRadius": 30,
+        "headerHeight": 72,
+        "showNavLabels": False,
+        "navOrder": ["chats", "calls", "stories", "groups", "contacts", "archives"],
+        "composerOrder": ["attach", "emoji", "input", "voice", "send"],
+    },
+    "mobile": {
+        "fontSize": 15,
+        "messageFontSize": 14,
+        "iconSize": 40,
+        "bubbleRadius": 10,
+        "listItemRadius": 12,
+        "composerRadius": 26,
+        "headerHeight": 64,
+        "showNavLabels": True,
+        "navOrder": ["chats", "calls", "stories", "groups", "contacts", "archives"],
+        "composerOrder": ["attach", "emoji", "input", "voice", "send"],
+    },
+    # Legacy flat keys are kept so older deployed clients can still read a sane design.
     "fontSize": 16,
     "messageFontSize": 15,
-    "sidebarWidth": 380,
-    "bubbleRadius": 8,
-    "iconSize": 38,
+    "sidebarWidth": 700,
+    "bubbleRadius": 9,
+    "iconSize": 42,
     "blue": "#2f8cff",
     "red": "#f03d54",
-    "green": "#2bd576",
-    "brandName": "NexaLine",
+    "green": "#20d66b",
 }
+
+
+DESIGN_SECTIONS = ("desktop", "mobile")
+DESIGN_NAV_KEYS = ("chats", "calls", "stories", "groups", "contacts", "archives")
+DESIGN_COMPOSER_KEYS = ("attach", "emoji", "input", "voice", "send", "location", "timed")
+
+
+def deep_merge_dict(base, override):
+    result = dict(base)
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = deep_merge_dict(result[key], value)
+        else:
+            result[key] = value
+    return result
 
 
 def design_settings():
     row = db.session.get(AppSetting, "design")
     data = row.value if row and isinstance(row.value, dict) else {}
-    return {**DEFAULT_DESIGN_SETTINGS, **data}
+    return deep_merge_dict(DEFAULT_DESIGN_SETTINGS, data)
 
 
 def sanitize_design_settings(data):
+    data = data if isinstance(data, dict) else {}
     current = design_settings()
-    next_settings = dict(current)
-    numeric_ranges = {
+    next_settings = deep_merge_dict(DEFAULT_DESIGN_SETTINGS, current)
+
+    def clamp_number(source, key, minimum, maximum, fallback):
+        try:
+            return max(minimum, min(maximum, int(source.get(key))))
+        except (AttributeError, TypeError, ValueError):
+            return fallback
+
+    def clean_color(value, fallback):
+        value = str(value or "").strip()
+        return value if re.fullmatch(r"#[0-9a-fA-F]{6}", value) else fallback
+
+    def clean_text(value, fallback, limit=80):
+        value = re.sub(r"\s+", " ", str(value or "")).strip()
+        return value[:limit] or fallback
+
+    if "brandName" in data:
+        next_settings["brandName"] = clean_text(data.get("brandName"), DEFAULT_DESIGN_SETTINGS["brandName"], 40)
+    if "logoUrl" in data:
+        logo = str(data.get("logoUrl") or "").strip()
+        if logo.startswith("/static/") or logo.startswith("data:image/"):
+            next_settings["logoUrl"] = logo[:700_000]
+
+    color_data = data.get("colors") if isinstance(data.get("colors"), dict) else data
+    for key, fallback in DEFAULT_DESIGN_SETTINGS["colors"].items():
+        if key in color_data:
+            next_settings["colors"][key] = clean_color(color_data.get(key), fallback)
+
+    text_data = data.get("text") if isinstance(data.get("text"), dict) else {}
+    for key, fallback in DEFAULT_DESIGN_SETTINGS["text"].items():
+        if key in text_data:
+            next_settings["text"][key] = clean_text(text_data.get(key), fallback, 90)
+
+    screen_ranges = {
         "fontSize": (12, 22),
         "messageFontSize": (12, 22),
-        "sidebarWidth": (300, 520),
+        "sidebarWidth": (360, 820),
+        "railWidth": (56, 112),
         "bubbleRadius": (0, 24),
-        "iconSize": (30, 54),
+        "iconSize": (30, 58),
+        "listItemRadius": (0, 24),
+        "composerRadius": (8, 40),
+        "headerHeight": (54, 96),
     }
-    for key, (minimum, maximum) in numeric_ranges.items():
-        if key in data:
-            try:
-                next_settings[key] = max(minimum, min(maximum, int(data.get(key))))
-            except (TypeError, ValueError):
-                pass
-    for key in ["blue", "red", "green"]:
-        value = str(data.get(key, next_settings[key])).strip()
-        if re.fullmatch(r"#[0-9a-fA-F]{6}", value):
-            next_settings[key] = value
-    if "brandName" in data:
-        brand = re.sub(r"\s+", " ", str(data.get("brandName") or "")).strip()
-        next_settings["brandName"] = brand[:40] or DEFAULT_DESIGN_SETTINGS["brandName"]
+    for section in DESIGN_SECTIONS:
+        source = data.get(section) if isinstance(data.get(section), dict) else {}
+        for key, (minimum, maximum) in screen_ranges.items():
+            if key in source and key in next_settings[section]:
+                next_settings[section][key] = clamp_number(source, key, minimum, maximum, next_settings[section][key])
+        if "showNavLabels" in source:
+            next_settings[section]["showNavLabels"] = bool(source.get("showNavLabels"))
+        if isinstance(source.get("navOrder"), list):
+            order = [item for item in source["navOrder"] if item in DESIGN_NAV_KEYS]
+            next_settings[section]["navOrder"] = order + [item for item in DESIGN_NAV_KEYS if item not in order]
+        if isinstance(source.get("composerOrder"), list):
+            order = [item for item in source["composerOrder"] if item in DESIGN_COMPOSER_KEYS]
+            next_settings[section]["composerOrder"] = order + [item for item in DESIGN_COMPOSER_KEYS if item not in order]
+
+    desktop = next_settings["desktop"]
+    next_settings["fontSize"] = desktop["fontSize"]
+    next_settings["messageFontSize"] = desktop["messageFontSize"]
+    next_settings["sidebarWidth"] = desktop["sidebarWidth"]
+    next_settings["bubbleRadius"] = desktop["bubbleRadius"]
+    next_settings["iconSize"] = desktop["iconSize"]
+    next_settings["blue"] = next_settings["colors"]["blue"]
+    next_settings["red"] = next_settings["colors"]["red"]
+    next_settings["green"] = next_settings["colors"]["green"]
     return next_settings
 
 
@@ -2014,6 +2140,7 @@ def admin_design():
         row.value = settings
         row.updated_at = datetime.now(timezone.utc)
     db.session.commit()
+    socketio.emit("design:update", {"design": settings}, namespace="/")
     return jsonify({"ok": True, "design": settings, "message": "Tasarım ayarları kaydedildi."})
 
 

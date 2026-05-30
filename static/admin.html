@@ -229,6 +229,30 @@
             gap: 8px;
         }
 
+        .design-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0 14px;
+        }
+
+        .design-tabs button.active {
+            background: var(--blue);
+        }
+
+        .logo-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-preview img {
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
+            object-fit: contain;
+            background: #05070c;
+        }
+
         .chip {
             padding: 5px 8px;
             border-radius: 999px;
@@ -331,7 +355,7 @@
             });
         }
 
-        const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "" };
+        const state = { token: localStorage.getItem("nexalineAdminToken") || "", view: "users", data: null, query: "", designDevice: "desktop" };
         const ADMIN_LOAD_TIMEOUT_MS = 15000;
         const $ = id => document.getElementById(id);
         $("tokenInput").value = state.token;
@@ -684,6 +708,7 @@
         }
 
         function renderDesign() {
+            return renderAdvancedDesign();
             const design = state.data.design || {};
             $("view").innerHTML = `
                 <h2>Tasarım Kontrolü</h2>
@@ -719,6 +744,101 @@
                 $("designRed").value = "#f03d54";
                 $("designGreen").value = "#2bd576";
             };
+        }
+
+        function renderAdvancedDesign() {
+            const design = state.data.design || {};
+            const colors = design.colors || {};
+            const text = design.text || {};
+            const device = state.designDevice || "desktop";
+            const screen = design[device] || {};
+            $("view").innerHTML = `
+                <h2>Tasarim Kontrolu</h2>
+                <article class="card">
+                    <h3>Marka, renk ve logo</h3>
+                    <div class="form-grid">
+                        <label>Site adi<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
+                        <label>Logo URL veya data<input id="designLogoUrl" value="${escapeAttr(design.logoUrl || "/static/nexaline-mark.png")}"></label>
+                        <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#0b1117")}"></label>
+                        <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#111814")}"></label>
+                        <label>Ikincil panel<input id="designPanel2" type="color" value="${escapeAttr(colors.panel2 || "#1f2724")}"></label>
+                        <label>Aktif kart/input<input id="designPanel3" type="color" value="${escapeAttr(colors.panel3 || "#2a3330")}"></label>
+                        <label>Cizgi<input id="designLine" type="color" value="${escapeAttr(colors.line || "#2a3430")}"></label>
+                        <label>Yazi<input id="designTextColor" type="color" value="${escapeAttr(colors.text || "#eef4f1")}"></label>
+                        <label>Soluk yazi<input id="designMuted" type="color" value="${escapeAttr(colors.muted || "#9aa6a1")}"></label>
+                        <label>Mavi<input id="designBlue" type="color" value="${escapeAttr(colors.blue || design.blue || "#2f8cff")}"></label>
+                        <label>Kirmizi<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#f03d54")}"></label>
+                        <label>Yesil<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#20d66b")}"></label>
+                        <label>Gelen mesaj<input id="designIncoming" type="color" value="${escapeAttr(colors.incoming || "#1f2724")}"></label>
+                        <label>Giden mesaj<input id="designOutgoing" type="color" value="${escapeAttr(colors.outgoing || "#075e54")}"></label>
+                        <label>Sohbet zemini<input id="designChatBackground" type="color" value="${escapeAttr(colors.chatBackground || "#101713")}"></label>
+                    </div>
+                    <div class="logo-preview">
+                        <img id="designLogoPreview" src="${escapeAttr(design.logoUrl || "/static/nexaline-mark.png")}" alt="Logo">
+                        <input id="designLogoFile" type="file" accept="image/*">
+                    </div>
+                </article>
+                <article class="card">
+                    <h3>Yazi ve buton metinleri</h3>
+                    <div class="form-grid">
+                        ${designTextInput("chats", "Sohbetler", text.chats)}
+                        ${designTextInput("groups", "Gruplar", text.groups)}
+                        ${designTextInput("stories", "Guncellemeler", text.stories)}
+                        ${designTextInput("calls", "Aramalar", text.calls)}
+                        ${designTextInput("contacts", "Kisiler", text.contacts)}
+                        ${designTextInput("archives", "Arsiv", text.archives)}
+                        ${designTextInput("searchPlaceholder", "Aratin veya yeni sohbet baslatin", text.searchPlaceholder)}
+                        ${designTextInput("messagePlaceholder", "Bir mesaj yazin", text.messagePlaceholder)}
+                        ${designTextInput("attachment", "Dosya", text.attachment)}
+                        ${designTextInput("emoji", "Emoji", text.emoji)}
+                        ${designTextInput("voice", "Sesli mesaj", text.voice)}
+                        ${designTextInput("location", "Konum", text.location)}
+                        ${designTextInput("timed", "Zamanla", text.timed)}
+                        ${designTextInput("send", "Gonder", text.send)}
+                    </div>
+                </article>
+                <article class="card">
+                    <h3>PC ve Mobil yerlesim</h3>
+                    <div class="design-tabs">
+                        <button class="${device === "desktop" ? "active" : ""}" data-design-device="desktop" type="button">PC</button>
+                        <button class="${device === "mobile" ? "active" : ""}" data-design-device="mobile" type="button">Mobil</button>
+                    </div>
+                    <div class="form-grid">
+                        <label>Genel yazi boyutu<input id="designFontSize" type="number" min="12" max="22" value="${Number(screen.fontSize || 16)}"></label>
+                        <label>Mesaj yazi boyutu<input id="designMessageFontSize" type="number" min="12" max="22" value="${Number(screen.messageFontSize || 15)}"></label>
+                        ${device === "desktop" ? `<label>Sol panel genisligi<input id="designSidebarWidth" type="number" min="360" max="820" value="${Number(screen.sidebarWidth || 700)}"></label><label>Sol ikon rayi<input id="designRailWidth" type="number" min="56" max="112" value="${Number(screen.railWidth || 80)}"></label>` : ""}
+                        <label>Simge boyutu<input id="designIconSize" type="number" min="30" max="58" value="${Number(screen.iconSize || 42)}"></label>
+                        <label>Baslik yuksekligi<input id="designHeaderHeight" type="number" min="54" max="96" value="${Number(screen.headerHeight || 72)}"></label>
+                        <label>Mesaj balonu yuvarlakligi<input id="designBubbleRadius" type="number" min="0" max="24" value="${Number(screen.bubbleRadius || 9)}"></label>
+                        <label>Liste kart yuvarlakligi<input id="designListItemRadius" type="number" min="0" max="24" value="${Number(screen.listItemRadius || 12)}"></label>
+                        <label>Mesaj kutusu yuvarlakligi<input id="designComposerRadius" type="number" min="8" max="40" value="${Number(screen.composerRadius || 30)}"></label>
+                        <label>Sol menude yazi<input id="designShowNavLabels" type="checkbox" ${screen.showNavLabels ? "checked" : ""}></label>
+                        <label>Sol menu sirasi<input id="designNavOrder" value="${escapeAttr((screen.navOrder || []).join(","))}"></label>
+                        <label>Mesaj kutusu sirasi<input id="designComposerOrder" value="${escapeAttr((screen.composerOrder || []).join(","))}"></label>
+                    </div>
+                    <p class="meta">Siralar: chats,calls,stories,groups,contacts,archives ve attach,emoji,input,voice,send,location,timed</p>
+                </article>
+                <div class="card-row">
+                    <button id="saveDesignButton" class="primary" type="button">Tasarimi Kaydet</button>
+                    <button id="resetDesignButton" type="button">Varsayilana Yaklastir</button>
+                </div>
+            `;
+            $("saveDesignButton").onclick = saveDesign;
+            $("resetDesignButton").onclick = resetDesignForm;
+            document.querySelectorAll("[data-design-device]").forEach(button => {
+                button.onclick = () => {
+                    state.designDevice = button.dataset.designDevice;
+                    renderAdvancedDesign();
+                };
+            });
+            $("designLogoUrl").oninput = () => {
+                $("designLogoPreview").src = $("designLogoUrl").value.trim() || "/static/nexaline-mark.png";
+            };
+            $("designLogoFile").onchange = handleDesignLogoFile;
+        }
+
+        function designTextInput(key, fallback, value) {
+            return `<label>${escapeHtml(key)}<input data-design-text="${escapeAttr(key)}" value="${escapeAttr(value || fallback)}"></label>`;
         }
 
         function renderCreateUsers() {
@@ -788,6 +908,7 @@
         }
 
         async function saveDesign() {
+            return saveAdvancedDesign();
             const design = {
                 brandName: $("designBrandName").value.trim(),
                 fontSize: Number($("designFontSize").value),
@@ -803,6 +924,98 @@
             state.data.design = data.design;
             setStatus(data.message || "Tasarım kaydedildi.", "ok");
             renderDesign();
+        }
+
+        function csvList(value) {
+            return String(value || "").split(",").map(item => item.trim()).filter(Boolean);
+        }
+
+        function collectScreenDesign(previous = {}) {
+            const screen = { ...previous };
+            screen.fontSize = Number($("designFontSize").value);
+            screen.messageFontSize = Number($("designMessageFontSize").value);
+            if ($("designSidebarWidth")) screen.sidebarWidth = Number($("designSidebarWidth").value);
+            if ($("designRailWidth")) screen.railWidth = Number($("designRailWidth").value);
+            screen.iconSize = Number($("designIconSize").value);
+            screen.headerHeight = Number($("designHeaderHeight").value);
+            screen.bubbleRadius = Number($("designBubbleRadius").value);
+            screen.listItemRadius = Number($("designListItemRadius").value);
+            screen.composerRadius = Number($("designComposerRadius").value);
+            screen.showNavLabels = $("designShowNavLabels").checked;
+            screen.navOrder = csvList($("designNavOrder").value);
+            screen.composerOrder = csvList($("designComposerOrder").value);
+            return screen;
+        }
+
+        async function saveAdvancedDesign() {
+            const current = state.data.design || {};
+            const device = state.designDevice || "desktop";
+            const text = {};
+            document.querySelectorAll("[data-design-text]").forEach(input => {
+                text[input.dataset.designText] = input.value.trim();
+            });
+            const design = {
+                ...current,
+                brandName: $("designBrandName").value.trim(),
+                logoUrl: $("designLogoUrl").value.trim(),
+                colors: {
+                    background: $("designBackground").value,
+                    panel: $("designPanel").value,
+                    panel2: $("designPanel2").value,
+                    panel3: $("designPanel3").value,
+                    line: $("designLine").value,
+                    text: $("designTextColor").value,
+                    muted: $("designMuted").value,
+                    blue: $("designBlue").value,
+                    red: $("designRed").value,
+                    green: $("designGreen").value,
+                    incoming: $("designIncoming").value,
+                    outgoing: $("designOutgoing").value,
+                    chatBackground: $("designChatBackground").value
+                },
+                text,
+                desktop: { ...(current.desktop || {}) },
+                mobile: { ...(current.mobile || {}) }
+            };
+            design[device] = collectScreenDesign(design[device]);
+            const data = await api("/admin/design", { method: "POST", body: JSON.stringify({ design }) });
+            state.data.design = data.design;
+            setStatus(data.message || "Tasarim kaydedildi.", "ok");
+            renderAdvancedDesign();
+        }
+
+        function resetDesignForm() {
+            $("designBrandName").value = "NexaLine";
+            $("designLogoUrl").value = "/static/nexaline-mark.png";
+            $("designBackground").value = "#0b1117";
+            $("designPanel").value = "#111814";
+            $("designPanel2").value = "#1f2724";
+            $("designPanel3").value = "#2a3330";
+            $("designLine").value = "#2a3430";
+            $("designTextColor").value = "#eef4f1";
+            $("designMuted").value = "#9aa6a1";
+            $("designBlue").value = "#2f8cff";
+            $("designRed").value = "#f03d54";
+            $("designGreen").value = "#20d66b";
+            $("designIncoming").value = "#1f2724";
+            $("designOutgoing").value = "#075e54";
+            $("designChatBackground").value = "#101713";
+        }
+
+        function handleDesignLogoFile(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            if (file.size > 650000) {
+                alert("Logo 650 KB altinda olmali.");
+                event.target.value = "";
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                $("designLogoUrl").value = reader.result;
+                $("designLogoPreview").src = reader.result;
+            };
+            reader.readAsDataURL(file);
         }
 
         async function editUserPrivacy(username) {
