@@ -1010,16 +1010,16 @@
                     <div class="form-grid">
                         <label>Site adi<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
                         <label>Logo URL veya data<input id="designLogoUrl" value="${escapeAttr(design.logoUrl || "/static/nexaline-mark.png")}"></label>
-                        <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#10131b")}"></label>
-                        <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#171b25")}"></label>
-                        <label>Ikincil panel<input id="designPanel2" type="color" value="${escapeAttr(colors.panel2 || "#202631")}"></label>
-                        <label>Aktif kart/input<input id="designPanel3" type="color" value="${escapeAttr(colors.panel3 || "#2a313d")}"></label>
-                        <label>Cizgi<input id="designLine" type="color" value="${escapeAttr(colors.line || "#323946")}"></label>
+                        <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#070a0f")}"></label>
+                        <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#0f141f")}"></label>
+                        <label>Ikincil panel<input id="designPanel2" type="color" value="${escapeAttr(colors.panel2 || "#161d2b")}"></label>
+                        <label>Aktif kart/input<input id="designPanel3" type="color" value="${escapeAttr(colors.panel3 || "#202a3d")}"></label>
+                        <label>Cizgi<input id="designLine" type="color" value="${escapeAttr(colors.line || "#26334f")}"></label>
                         <label>Yazi<input id="designTextColor" type="color" value="${escapeAttr(colors.text || "#eef1f6")}"></label>
                         <label>Soluk yazı<input id="designMuted" type="color" value="${escapeAttr(colors.muted || "#8b95a6")}"></label>
-                        <label>Mavi<input id="designBlue" type="color" value="${escapeAttr(colors.blue || design.blue || "#3577d9")}"></label>
-                        <label>Kırmızı<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#d83b4b")}"></label>
-                        <label>Yeşil<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#28c76f")}"></label>
+                        <label>Mavi<input id="designBlue" type="color" value="${escapeAttr(colors.blue || design.blue || "#2f80ff")}"></label>
+                        <label>Kırmızı<input id="designRed" type="color" value="${escapeAttr(colors.red || design.red || "#e53945")}"></label>
+                        <label>Turkuaz<input id="designGreen" type="color" value="${escapeAttr(colors.green || design.green || "#2ed3c6")}"></label>
                         <label>Gelen mesaj<input id="designIncoming" type="color" value="${escapeAttr(colors.incoming || "#202631")}"></label>
                         <label>Giden mesaj<input id="designOutgoing" type="color" value="${escapeAttr(colors.outgoing || "#0c5d4e")}"></label>
                         <label>Sohbet zemini<input id="designChatBackground" type="color" value="${escapeAttr(colors.chatBackground || "#11151d")}"></label>
@@ -1035,6 +1035,7 @@
                         ${designTextInput("chats", "Sohbetler", text.chats)}
                         ${designTextInput("groups", "Gruplar", text.groups)}
                         ${designTextInput("stories", "Güncellemeler", text.stories)}
+                        ${designTextInput("explore", "Keşfet", text.explore)}
                         ${designTextInput("calls", "Aramalar", text.calls)}
                         ${designTextInput("friends", "Arkadaşlarım", text.friends)}
                         ${designTextInput("contacts", "Kişiler", text.contacts)}

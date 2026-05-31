@@ -1,6 +1,7 @@
 import os
 import ipaddress
 import json
+import math
 import re
 import socket
 import secrets
@@ -54,9 +55,24 @@ AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "12")))
 AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "16")))
 AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
 QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "180")))
+POINT_RULES = {
+    "daily_login": 10,
+    "message": 1,
+    "friend_invite": 50,
+    "friend_accept": 3,
+    "group_join": 25,
+    "profile_complete": 20,
+    "story": 5,
+}
 scheduled_delivery_lock = threading.Lock()
 qr_login_lock = threading.Lock()
 qr_login_sessions = {}
+voice_room_lock = threading.Lock()
+voice_rooms = {
+    "general": {"id": "general", "title": "Nexa Meydan", "topic": "Herkese acik sohbet odasi", "participants": {}},
+    "study": {"id": "study", "title": "Odak Odasi", "topic": "Sessiz calisma ve kisa molalar", "participants": {}},
+    "music": {"id": "music", "title": "Muzik Kosesi", "topic": "Sarki, sohbet ve kesif", "participants": {}},
+}
 
 
 class IPv4SMTP(smtplib.SMTP):
@@ -100,6 +116,16 @@ class User(db.Model):
     font_size_preference = db.Column(db.String(20), nullable=False, default="medium")
     notification_sound = db.Column(db.String(40), nullable=False, default="classic")
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
+    temporary_status = db.Column(db.String(80), nullable=True)
+    temporary_status_expires_at = db.Column(db.DateTime, nullable=True)
+    nearby_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    last_lat = db.Column(db.Float, nullable=True)
+    last_lng = db.Column(db.Float, nullable=True)
+    vault_pin_hash = db.Column(db.String(255), nullable=True)
+    vault_failed_attempts = db.Column(db.Integer, nullable=False, default=0)
+    vault_locked_until = db.Column(db.DateTime, nullable=True)
+    last_daily_login = db.Column(db.DateTime, nullable=True)
+    profile_bonus_awarded = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
@@ -147,6 +173,7 @@ class Message(db.Model):
     reply_to = db.Column(db.JSON, nullable=True)
     read_by = db.Column(db.JSON, nullable=False, default=list)
     reactions = db.Column(db.JSON, nullable=False, default=dict)
+    versions = db.Column(db.JSON, nullable=False, default=list)
     deleted_for = db.Column(db.JSON, nullable=False, default=list)
     deleted_at = db.Column(db.DateTime, nullable=True)
     deleted_by = db.Column(db.String(80), nullable=True)
@@ -261,6 +288,28 @@ class ChatArchive(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
 
 
+class PointLedger(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    amount = db.Column(db.Integer, nullable=False)
+    reason = db.Column(db.String(40), nullable=False, default="bonus")
+    meta = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User")
+
+
+class VaultItem(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    kind = db.Column(db.String(30), nullable=False, default="note")
+    title = db.Column(db.String(140), nullable=False)
+    payload = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User")
+
+
 class AppSetting(db.Model):
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.JSON, nullable=False, default=dict)
@@ -271,16 +320,16 @@ DEFAULT_DESIGN_SETTINGS = {
     "brandName": "NexaLine",
     "logoUrl": "/static/nexaline-mark.png",
     "colors": {
-        "background": "#10131b",
-        "panel": "#171b25",
-        "panel2": "#202631",
-        "panel3": "#2a313d",
-        "line": "#323946",
+        "background": "#070a0f",
+        "panel": "#0f141f",
+        "panel2": "#161d2b",
+        "panel3": "#202a3d",
+        "line": "#26334f",
         "text": "#eef1f6",
         "muted": "#8b95a6",
-        "blue": "#3577d9",
-        "red": "#d83b4b",
-        "green": "#28c76f",
+        "blue": "#2f80ff",
+        "red": "#e53945",
+        "green": "#2ed3c6",
         "incoming": "#202631",
         "outgoing": "#0c5d4e",
         "chatBackground": "#11151d",
@@ -289,6 +338,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "chats": "Sohbetler",
         "groups": "Gruplar",
         "stories": "Güncellemeler",
+        "explore": "Kesfet",
         "calls": "Aramalar",
         "friends": "Arkadaşlarım",
         "contacts": "Kişiler",
@@ -318,7 +368,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "composerRadius": 34,
         "headerHeight": 64,
         "showNavLabels": True,
-        "navOrder": ["chats", "calls", "groups", "stories", "friends", "contacts"],
+        "navOrder": ["chats", "calls", "explore", "groups", "stories", "friends", "contacts"],
         "composerOrder": ["attach", "emoji", "input", "voice", "send"],
     },
     "mobile": {
@@ -330,7 +380,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "composerRadius": 34,
         "headerHeight": 64,
         "showNavLabels": True,
-        "navOrder": ["chats", "calls", "stories", "groups", "friends", "contacts"],
+        "navOrder": ["calls", "explore", "chats", "contacts", "settings"],
         "composerOrder": ["attach", "emoji", "input", "voice", "send"],
     },
     # Legacy flat keys are kept so older deployed clients can still read a sane design.
@@ -339,14 +389,14 @@ DEFAULT_DESIGN_SETTINGS = {
     "sidebarWidth": 430,
     "bubbleRadius": 14,
     "iconSize": 40,
-    "blue": "#3577d9",
-    "red": "#d83b4b",
-    "green": "#28c76f",
+    "blue": "#2f80ff",
+    "red": "#e53945",
+    "green": "#2ed3c6",
 }
 
 
 DESIGN_SECTIONS = ("desktop", "mobile")
-DESIGN_NAV_KEYS = ("chats", "calls", "groups", "stories", "friends", "contacts")
+DESIGN_NAV_KEYS = ("chats", "calls", "explore", "groups", "stories", "friends", "contacts", "settings")
 DESIGN_COMPOSER_KEYS = ("attach", "emoji", "input", "voice", "send", "location", "timed")
 
 
@@ -498,7 +548,43 @@ def historical_points(username):
     return message_points + received_points + story_points + friend_points
 
 
-def add_points(usernames, amount):
+def point_level(points):
+    points = max(0, int(points or 0))
+    level = points // 250 + 1
+    current_floor = (level - 1) * 250
+    next_floor = level * 250
+    progress = 100 if next_floor == current_floor else int(((points - current_floor) / (next_floor - current_floor)) * 100)
+    return {
+        "level": level,
+        "title": "Nexa Ustasi" if level >= 10 else "Nexa Elcisi" if level >= 5 else "Nexa Kesifcisi",
+        "current": points,
+        "next": next_floor,
+        "progress": max(0, min(100, progress)),
+    }
+
+
+def point_ledger_to_dict(row):
+    return {
+        "id": row.id,
+        "username": row.username,
+        "amount": row.amount,
+        "reason": row.reason,
+        "meta": row.meta or {},
+        "createdAt": to_iso(row.created_at),
+    }
+
+
+def point_ledger_for(username, limit=40):
+    rows = (
+        PointLedger.query.filter_by(username=username)
+        .order_by(PointLedger.created_at.desc())
+        .limit(max(1, min(120, int(limit or 40))))
+        .all()
+    )
+    return [point_ledger_to_dict(row) for row in rows]
+
+
+def add_points(usernames, amount, reason="bonus", meta=None):
     if isinstance(usernames, str):
         usernames = [usernames]
     amount = int(amount or 0)
@@ -508,6 +594,101 @@ def add_points(usernames, amount):
         user = db.session.get(User, username)
         if user:
             user.points = max(0, int(user.points or 0)) + amount
+            db.session.add(PointLedger(id=uuid4().hex, username=username, amount=amount, reason=reason, meta=meta or {}))
+
+
+def maybe_award_daily_login(user):
+    if not user:
+        return False
+    now = datetime.now(timezone.utc)
+    last = user.last_daily_login
+    if last and last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    if last and last.date() == now.date():
+        return False
+    user.last_daily_login = now
+    add_points(user.username, POINT_RULES["daily_login"], "daily_login")
+    return True
+
+
+def maybe_award_profile_completion(user):
+    if not user or user.profile_bonus_awarded:
+        return False
+    if user.display_name and user.email and user.about and user.profile_image:
+        user.profile_bonus_awarded = True
+        add_points(user.username, POINT_RULES["profile_complete"], "profile_complete")
+        return True
+    return False
+
+
+def active_temp_status(user):
+    if not user or not user.temporary_status:
+        return None
+    expires_at = user.temporary_status_expires_at
+    now = datetime.now(timezone.utc)
+    if expires_at:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
+            user.temporary_status = None
+            user.temporary_status_expires_at = None
+            return None
+    return {"text": user.temporary_status, "expiresAt": to_iso(user.temporary_status_expires_at) if user.temporary_status_expires_at else None}
+
+
+def distance_km(lat1, lng1, lat2, lng2):
+    radius = 6371
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lam = math.radians(lng2 - lng1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lam / 2) ** 2
+    return radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def nearby_users_for(username, limit=30):
+    user = db.session.get(User, username)
+    if not user or not user.nearby_enabled or user.last_lat is None or user.last_lng is None:
+        return []
+    rows = User.query.filter(
+        User.username != username,
+        User.nearby_enabled.is_(True),
+        User.last_lat.isnot(None),
+        User.last_lng.isnot(None),
+    ).all()
+    result = []
+    for row in rows:
+        if is_blocked_between(username, row.username):
+            continue
+        km = distance_km(float(user.last_lat), float(user.last_lng), float(row.last_lat), float(row.last_lng))
+        if km <= 50:
+            item = public_user(row.username, username)
+            item["distanceKm"] = round(km, 1)
+            result.append(item)
+    return sorted(result, key=lambda item: item["distanceKm"])[:limit]
+
+
+def voice_rooms_state(viewer=None):
+    with voice_room_lock:
+        rooms = []
+        for room in voice_rooms.values():
+            participants = []
+            for username, data in room["participants"].items():
+                participant = public_user(username, viewer)
+                participant.update({
+                    "muted": bool(data.get("muted")),
+                    "speaking": bool(data.get("speaking")),
+                    "joinedAt": data.get("joinedAt"),
+                })
+                participants.append(participant)
+            rooms.append({
+                "id": room["id"],
+                "title": room["title"],
+                "topic": room["topic"],
+                "participants": participants,
+                "count": len(participants),
+            })
+        return rooms
 
 
 def public_user(username, viewer=None):
@@ -518,6 +699,8 @@ def public_user(username, viewer=None):
     show_online = not blocked and (is_self or not bool(user.hide_online if user else False))
     show_last_seen = not blocked and (is_self or not bool(user.hide_last_seen if user else False))
     show_email = not blocked and (is_self or not bool(user.hide_email if user else True))
+    temp_status = None if blocked else active_temp_status(user)
+    points = 0 if blocked else user_points(username) if user else 0
     return {
         "username": username,
         "displayName": user.display_name if user else username,
@@ -525,7 +708,9 @@ def public_user(username, viewer=None):
         "profileImage": None if blocked else user.profile_image if user else None,
         "about": "" if blocked else user.about if user else "NexaLine kullanıyorum.",
         "createdAt": to_iso(user.created_at) if user else now_iso(),
-        "points": 0 if blocked else user_points(username) if user else 0,
+        "points": points,
+        "pointLevel": point_level(points),
+        "temporaryStatus": temp_status,
         "email": user.email if user and show_email else None,
         "online": online if show_online else False,
         "lastSeen": now_iso() if online and show_online else to_iso(user.last_seen) if user and show_last_seen else None,
@@ -557,6 +742,10 @@ def private_user(username):
             "fontSize": user.font_size_preference or "medium",
             "notificationSound": user.notification_sound or "classic",
         }
+        data["nearbyEnabled"] = bool(user.nearby_enabled)
+        data["vaultReady"] = bool(user.vault_pin_hash)
+        data["vaultLockedUntil"] = to_iso(user.vault_locked_until) if user.vault_locked_until else None
+        data["pointLedger"] = point_ledger_for(username, 12)
     return data
 
 
@@ -642,6 +831,7 @@ def message_to_dict(message):
         "status": "sent",
         "readBy": message.read_by or [],
         "reactions": message.reactions or {},
+        "versions": message.versions or [],
         "deletedAt": deleted_at,
         "deletedBy": message.deleted_by,
         "deletedFor": message.deleted_for or [],
@@ -1044,6 +1234,9 @@ def app_state_for_user(username):
         "devices": active_device_sessions(username),
         "archives": visible_archives(username),
         "scheduledMessages": visible_scheduled_messages(username),
+        "pointLedger": point_ledger_for(username),
+        "voiceRooms": voice_rooms_state(username),
+        "nearbyUsers": nearby_users_for(username),
     }
 
 
@@ -1242,6 +1435,9 @@ def emit_social_updates(*usernames):
                     "devices": active_device_sessions(username),
                     "archives": visible_archives(username),
                     "scheduledMessages": visible_scheduled_messages(username),
+                    "pointLedger": point_ledger_for(username),
+                    "voiceRooms": voice_rooms_state(username),
+                    "nearbyUsers": nearby_users_for(username),
                 },
                 room=sid,
             )
@@ -1540,6 +1736,7 @@ def verification_response(message, code=None, sent=True):
 
 def login_success_payload(user, device_id=None, message="Giriş başarılı."):
     device = upsert_device_session(user.username, device_id)
+    maybe_award_daily_login(user)
     db.session.commit()
     payload = {"ok": True, "message": message, "user": private_user(user.username)}
     if device:
@@ -1610,7 +1807,7 @@ ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "
 def ai_provider_status():
     provider = (os.environ.get("AI_PROVIDER") or "auto").strip().lower()
     if provider in {"gemini", "google"} or (provider == "auto" and os.environ.get("GEMINI_API_KEY")):
-        return {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"), "ready": bool(os.environ.get("GEMINI_API_KEY"))}
+        return {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"), "ready": bool(os.environ.get("GEMINI_API_KEY"))}
     if provider in {"openai", "openai-compatible"} or (provider == "auto" and os.environ.get("OPENAI_API_KEY")):
         return {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY"))}
     if provider == "ollama" or os.environ.get("OLLAMA_BASE_URL"):
@@ -2178,7 +2375,7 @@ def call_gemini_ai(prompt, context_text, research):
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY missing")
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
     response = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         params={"key": key},
@@ -2390,6 +2587,53 @@ def ai_moderate():
     text_value = (data.get("text") or "")[:4000]
     labels = ai_moderation_labels(text_value)
     return jsonify({"ok": True, "labels": labels, "blocked": bool(labels), "reason": ", ".join(labels)})
+
+
+@app.route("/ai/chat-summary", methods=["POST"])
+def ai_chat_summary_route():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    chat = db.session.get(Chat, data.get("chatId"))
+    if not username or not chat or not user_can_see_chat(chat, username):
+        return jsonify({"ok": False, "message": "Sohbet bulunamadi."}), 404
+    messages = [message_to_dict(item) for item in recent_visible_messages(chat.id, username, min(80, RECENT_MESSAGE_SCAN_LIMIT))]
+    context = {"user": private_user(username), "activeChat": {"title": chat.title, "messages": messages}, "assistant": {"name": "Nexa AI"}}
+    prompt = f"{chat.title} sohbetini kisa, islevsel ve maddeli ozetle. Onemli karar, tarih, dosya ve bekleyen aksiyonlari ayir."
+    reply, provider, research = generate_ai_reply(prompt, context, [])
+    return jsonify({"ok": True, "summary": reply or local_chat_summary(messages), "provider": provider, "research": research})
+
+
+@app.route("/ai/search", methods=["POST"])
+def ai_search_route():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    query = (data.get("query") or "").strip()
+    chat_id = data.get("chatId")
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Once giris yapmalisin."}), 401
+    if len(query) < 2:
+        return jsonify({"ok": False, "message": "Arama metni cok kisa."}), 400
+    chats = [db.session.get(Chat, chat_id)] if chat_id else [
+        Chat.query.get(member.chat_id) for member in ChatMember.query.filter_by(username=username).limit(AI_MAX_CHATS * 3).all()
+    ]
+    tokens = {token.casefold() for token in re.findall(r"[\wÃ§ÄŸÄ±Ã¶ÅŸÃ¼Ã‡ÄÄ°Ã–ÅÃœ]+", query)}
+    matches = []
+    for chat in [row for row in chats if row and user_can_see_chat(row, username)]:
+        for message in recent_visible_messages(chat.id, username, RECENT_MESSAGE_SCAN_LIMIT):
+            haystack = f"{message.body or ''} {json.dumps(message.attachment or {}, ensure_ascii=False)}".casefold()
+            score = sum(1 for token in tokens if token and token in haystack)
+            if score:
+                matches.append({
+                    "chatId": chat.id,
+                    "chatTitle": chat.title,
+                    "message": message_to_dict(message),
+                    "score": score,
+                })
+    matches.sort(key=lambda item: (item["score"], item["message"]["createdAt"]), reverse=True)
+    summary_prompt = f"Arama sorgusu: {query}\nSonuclari kullaniciya kisa acikla ve en yakin 5 sonucu sec."
+    context = {"user": private_user(username), "matches": matches[:12], "assistant": {"name": "Nexa AI"}}
+    reply, provider, research = generate_ai_reply(summary_prompt, context, [])
+    return jsonify({"ok": True, "answer": reply, "results": matches[:20], "provider": provider, "research": research})
 
 
 @app.route("/qr-login/start", methods=["POST"])
@@ -2824,6 +3068,7 @@ def update_profile(username):
             return jsonify({"ok": False, "message": "Profil fotoğrafı 1.5 MB altında olmalı."}), 400
         user.profile_image = profile_image or None
 
+    maybe_award_profile_completion(user)
     db.session.commit()
     broadcast_presence()
 
@@ -2876,6 +3121,158 @@ def update_preferences(username):
     user.notification_sound = sound
     db.session.commit()
     return jsonify({"ok": True, "message": "Tercihler kaydedildi.", "user": private_user(username)})
+
+
+@app.route("/account/<username>/status", methods=["POST"])
+def update_temporary_status(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+    text_value = re.sub(r"\s+", " ", (data.get("text") or "").strip())[:80]
+    minutes = max(0, min(24 * 60, int(data.get("minutes") or 0)))
+    user.temporary_status = text_value or None
+    user.temporary_status_expires_at = datetime.now(timezone.utc) + timedelta(minutes=minutes) if text_value and minutes else None
+    db.session.commit()
+    broadcast_presence()
+    return jsonify({"ok": True, "message": "Gecici durum guncellendi.", "user": private_user(username)})
+
+
+@app.route("/points/<username>")
+def points_state(username):
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+    points = user_points(username)
+    rewards = [
+        {"id": "profile_boost", "title": "Profil vitrini", "cost": 300, "description": "Profilini kesfet alaninda daha gorunur yapar."},
+        {"id": "theme_unlock", "title": "Ozel tema rozeti", "cost": 500, "description": "Nexa atmosfer temalarinda rozet acar."},
+        {"id": "room_badge", "title": "Sesli oda rozeti", "cost": 750, "description": "Sesli odalarda adinin yaninda rozet gosterir."},
+    ]
+    return jsonify({
+        "ok": True,
+        "points": points,
+        "level": point_level(points),
+        "rules": POINT_RULES,
+        "ledger": point_ledger_for(username, 80),
+        "rewards": rewards,
+    })
+
+
+@app.route("/nearby/<username>", methods=["GET", "POST"])
+def nearby_state(username):
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+    if request.method == "POST":
+        data = request.get_json() or {}
+        user.nearby_enabled = bool(data.get("enabled"))
+        if user.nearby_enabled:
+            try:
+                user.last_lat = float(data.get("lat"))
+                user.last_lng = float(data.get("lng"))
+            except (TypeError, ValueError):
+                return jsonify({"ok": False, "message": "Konum okunamadi."}), 400
+        db.session.commit()
+    return jsonify({"ok": True, "enabled": bool(user.nearby_enabled), "users": nearby_users_for(username)})
+
+
+def vault_items_for(username):
+    rows = VaultItem.query.filter_by(username=username).order_by(VaultItem.created_at.desc()).limit(120).all()
+    return [
+        {"id": row.id, "kind": row.kind, "title": row.title, "payload": row.payload or {}, "createdAt": to_iso(row.created_at)}
+        for row in rows
+    ]
+
+
+def verify_vault_pin(user, pin):
+    now = datetime.now(timezone.utc)
+    locked_until = user.vault_locked_until
+    if locked_until and locked_until.tzinfo is None:
+        locked_until = locked_until.replace(tzinfo=timezone.utc)
+    if locked_until and locked_until > now:
+        return False, f"Kasa kilitli. {int((locked_until - now).total_seconds())} sn sonra tekrar dene."
+    if not user.vault_pin_hash:
+        return False, "Once kasa PIN'i olustur."
+    if check_password_hash(user.vault_pin_hash, str(pin or "")):
+        user.vault_failed_attempts = 0
+        user.vault_locked_until = None
+        return True, ""
+    user.vault_failed_attempts = int(user.vault_failed_attempts or 0) + 1
+    if user.vault_failed_attempts >= 5:
+        user.vault_locked_until = now + timedelta(minutes=1)
+        user.vault_failed_attempts = 0
+    return False, "PIN hatali."
+
+
+@app.route("/vault/<username>/setup", methods=["POST"])
+def vault_setup(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    pin = str(data.get("pin") or "")
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+    if not re.fullmatch(r"\d{4}", pin):
+        return jsonify({"ok": False, "message": "PIN 4 rakam olmali."}), 400
+    user.vault_pin_hash = generate_password_hash(pin)
+    user.vault_failed_attempts = 0
+    user.vault_locked_until = None
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Gizli kasa PIN'i olusturuldu.", "user": private_user(username)})
+
+
+@app.route("/vault/<username>/unlock", methods=["POST"])
+def vault_unlock(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+    ok, message = verify_vault_pin(user, data.get("pin"))
+    db.session.commit()
+    if not ok:
+        return jsonify({"ok": False, "message": message, "user": private_user(username)}), 403
+    return jsonify({"ok": True, "items": vault_items_for(username), "user": private_user(username)})
+
+
+@app.route("/vault/<username>/items", methods=["POST"])
+def vault_item_create(username):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+    ok, message = verify_vault_pin(user, data.get("pin"))
+    if not ok:
+        db.session.commit()
+        return jsonify({"ok": False, "message": message, "user": private_user(username)}), 403
+    title = re.sub(r"\s+", " ", (data.get("title") or "Kasa notu").strip())[:140]
+    kind = (data.get("kind") or "note").strip().lower()[:30]
+    payload = data.get("payload") if isinstance(data.get("payload"), dict) else {"text": str(data.get("text") or "")[:4000]}
+    db.session.add(VaultItem(id=uuid4().hex, username=username, kind=kind or "note", title=title or "Kasa notu", payload=payload))
+    db.session.commit()
+    return jsonify({"ok": True, "items": vault_items_for(username), "user": private_user(username)})
+
+
+@app.route("/vault/<username>/items/<item_id>", methods=["DELETE"])
+def vault_item_delete(username, item_id):
+    data = request.get_json(silent=True) or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    item = db.session.get(VaultItem, item_id)
+    if not user or not item or item.username != username:
+        return jsonify({"ok": False, "message": "Kasa ogesi bulunamadi."}), 404
+    ok, message = verify_vault_pin(user, data.get("pin"))
+    if not ok:
+        db.session.commit()
+        return jsonify({"ok": False, "message": message, "user": private_user(username)}), 403
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({"ok": True, "items": vault_items_for(username), "user": private_user(username)})
 
 
 @app.route("/account/<username>/security/two-factor", methods=["POST"])
@@ -3535,7 +3932,7 @@ def handle_contact_respond(data):
     request_row.status = "accepted" if accept else "declined"
     request_row.responded_at = datetime.now(timezone.utc)
     if accept:
-        add_points([request_row.from_username, request_row.to_username], 3)
+        add_points([request_row.from_username, request_row.to_username], POINT_RULES["friend_accept"], "friend_accept")
     db.session.commit()
 
     if accept and not is_blocked_between(request_row.from_username, request_row.to_username):
@@ -3636,6 +4033,7 @@ def handle_chat_create(data):
                 status="pending",
             )
             db.session.add(request_row)
+            add_points(username, POINT_RULES["friend_invite"], "friend_invite", {"target": target})
             db.session.commit()
             emit("notice", {"message": "Mesajlaşma isteği gönderildi. Karşı taraf kabul edince sohbet açılacak."})
             emit_social_updates(username, target)
@@ -3671,6 +4069,7 @@ def handle_group_create(data):
     db.session.flush()
 
     db.session.add(ChatMember(chat_id=chat.id, username=username, is_admin=True))
+    add_points(username, POINT_RULES["group_join"], "group_join", {"chatId": chat.id, "role": "creator"})
     invitees = []
     for member in sorted(requested_members):
         if db.session.get(User, member) and not is_blocked_between(username, member):
@@ -3775,6 +4174,7 @@ def handle_group_invite_respond(data):
 
     if accept and chat and not ChatMember.query.filter_by(chat_id=chat.id, username=username).first():
         db.session.add(ChatMember(chat_id=chat.id, username=username, is_admin=False))
+        add_points(username, POINT_RULES["group_join"], "group_join", {"chatId": chat.id})
 
     db.session.commit()
 
@@ -3841,7 +4241,10 @@ def handle_lobby_join():
     if not username or not lobby:
         return
 
+    already_member = ChatMember.query.filter_by(chat_id=lobby.id, username=username).first()
     add_chat_member(lobby.id, username)
+    if not already_member:
+        add_points(username, POINT_RULES["group_join"], "group_join", {"chatId": lobby.id})
     db.session.commit()
     join_room(lobby.id)
     emit("chat:upsert", chat_for_user(lobby, username), room=request.sid)
@@ -4121,8 +4524,17 @@ def handle_message_edit(data):
     if not chat or not user_can_see_chat(chat, username) or message.sender != username or message.deleted_at:
         return
 
+    now = datetime.now(timezone.utc)
+    versions = list(message.versions or [])
+    if message.body and message.body != body[:4000]:
+        versions.append({
+            "body": message.body,
+            "editedAt": to_iso(now),
+            "editor": username,
+        })
+        message.versions = versions[-20:]
     message.body = body[:4000]
-    message.edited_at = datetime.now(timezone.utc)
+    message.edited_at = now
     db.session.commit()
     emit("message:edited", message_to_dict(message), room=chat.id)
 
@@ -4171,7 +4583,7 @@ def handle_story_create(data):
         expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
     db.session.add(story)
-    add_points(username, 5)
+    add_points(username, POINT_RULES["story"], "story")
     db.session.commit()
     broadcast_stories()
 
@@ -4224,7 +4636,7 @@ def handle_story_reply(data):
         read_by=[username],
     )
     db.session.add(message)
-    add_points(chat_member_names(chat), 1)
+    add_points(chat_member_names(chat), POINT_RULES["message"], "message", {"chatId": chat.id, "source": "story_reply"})
     db.session.commit()
 
     for member in chat_member_names(chat):
@@ -4293,7 +4705,7 @@ def create_chat_message(chat, username, body, attachment=None, reply_to=None, ex
     )
     db.session.add(message)
     HiddenChat.query.filter_by(username=username, chat_id=chat.id).delete(synchronize_session=False)
-    add_points(chat_member_names(chat), 1)
+    add_points(chat_member_names(chat), POINT_RULES["message"], "message", {"chatId": chat.id})
     return message
 
 
@@ -4369,7 +4781,7 @@ def handle_call_log(data):
     )
     db.session.add(log)
     db.session.add(message)
-    add_points(chat_member_names(chat), 1)
+    add_points(chat_member_names(chat), POINT_RULES["message"], "message", {"chatId": chat.id, "source": "call"})
     db.session.commit()
     emit("message:new", message_to_dict(message), room=chat.id)
     emit_call_logs_for_chat(chat)
@@ -4403,11 +4815,76 @@ def handle_call_end(data):
     forward_call_event("call:end", data)
 
 
+def emit_voice_rooms():
+    for sid, username in connections.items():
+        socketio.emit("voice:rooms", voice_rooms_state(username), room=sid)
+
+
+@socketio.on("voice:join")
+def handle_voice_join(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "general").strip()
+    if not username or room_id not in voice_rooms:
+        return
+    with voice_room_lock:
+        for room in voice_rooms.values():
+            room["participants"].pop(username, None)
+        voice_rooms[room_id]["participants"][username] = {
+            "muted": False,
+            "speaking": False,
+            "joinedAt": now_iso(),
+        }
+    join_room(f"voice:{room_id}")
+    emit_voice_rooms()
+
+
+@socketio.on("voice:leave")
+def handle_voice_leave(data=None):
+    username = connections.get(request.sid)
+    if not username:
+        return
+    with voice_room_lock:
+        for room_id, room in voice_rooms.items():
+            if username in room["participants"]:
+                room["participants"].pop(username, None)
+                leave_room(f"voice:{room_id}")
+    emit_voice_rooms()
+
+
+@socketio.on("voice:mute")
+def handle_voice_mute(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    if not username or room_id not in voice_rooms:
+        return
+    with voice_room_lock:
+        participant = voice_rooms[room_id]["participants"].get(username)
+        if participant is not None:
+            participant["muted"] = bool((data or {}).get("muted"))
+    emit_voice_rooms()
+
+
+@socketio.on("voice:speaking")
+def handle_voice_speaking(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    if not username or room_id not in voice_rooms:
+        return
+    with voice_room_lock:
+        participant = voice_rooms[room_id]["participants"].get(username)
+        if participant is not None:
+            participant["speaking"] = bool((data or {}).get("speaking"))
+    emit_voice_rooms()
+
+
 @socketio.on("disconnect")
 def handle_disconnect():
     username = connections.pop(request.sid, None)
 
     if username:
+        with voice_room_lock:
+            for room in voice_rooms.values():
+                room["participants"].pop(username, None)
         user = db.session.get(User, username)
         if user:
             user.last_seen = datetime.now(timezone.utc)
@@ -4419,6 +4896,7 @@ def handle_disconnect():
                 emit("typing:update", {"chatId": chat_id, "users": sorted(users_typing)}, room=chat_id)
 
     broadcast_presence()
+    emit_voice_rooms()
 
 
 def background_scheduler():
@@ -4446,6 +4924,7 @@ with app.app_context():
         db.session.commit()
     message_migrations = {
         "reactions": "ALTER TABLE message ADD COLUMN reactions JSON",
+        "versions": "ALTER TABLE message ADD COLUMN versions JSON",
         "deleted_for": "ALTER TABLE message ADD COLUMN deleted_for JSON",
         "deleted_at": "ALTER TABLE message ADD COLUMN deleted_at TIMESTAMP",
         "deleted_by": "ALTER TABLE message ADD COLUMN deleted_by VARCHAR(80)",
@@ -4476,6 +4955,16 @@ with app.app_context():
         "theme_preference": "ALTER TABLE \"user\" ADD COLUMN theme_preference VARCHAR(20) DEFAULT 'dark' NOT NULL",
         "font_size_preference": "ALTER TABLE \"user\" ADD COLUMN font_size_preference VARCHAR(20) DEFAULT 'medium' NOT NULL",
         "notification_sound": "ALTER TABLE \"user\" ADD COLUMN notification_sound VARCHAR(40) DEFAULT 'classic' NOT NULL",
+        "temporary_status": "ALTER TABLE \"user\" ADD COLUMN temporary_status VARCHAR(80)",
+        "temporary_status_expires_at": "ALTER TABLE \"user\" ADD COLUMN temporary_status_expires_at TIMESTAMP",
+        "nearby_enabled": "ALTER TABLE \"user\" ADD COLUMN nearby_enabled BOOLEAN DEFAULT FALSE NOT NULL",
+        "last_lat": "ALTER TABLE \"user\" ADD COLUMN last_lat FLOAT",
+        "last_lng": "ALTER TABLE \"user\" ADD COLUMN last_lng FLOAT",
+        "vault_pin_hash": "ALTER TABLE \"user\" ADD COLUMN vault_pin_hash VARCHAR(255)",
+        "vault_failed_attempts": "ALTER TABLE \"user\" ADD COLUMN vault_failed_attempts INTEGER DEFAULT 0 NOT NULL",
+        "vault_locked_until": "ALTER TABLE \"user\" ADD COLUMN vault_locked_until TIMESTAMP",
+        "last_daily_login": "ALTER TABLE \"user\" ADD COLUMN last_daily_login TIMESTAMP",
+        "profile_bonus_awarded": "ALTER TABLE \"user\" ADD COLUMN profile_bonus_awarded BOOLEAN DEFAULT FALSE NOT NULL",
     }
     for column_name, statement in user_migrations.items():
         if column_name not in user_columns:

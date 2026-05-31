@@ -3714,6 +3714,306 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* NexaLine master modernization layer */
+        :root {
+            --master-bg: #070a0f;
+            --master-panel: rgba(15, 20, 31, 0.78);
+            --master-panel-2: rgba(22, 29, 43, 0.84);
+            --master-line: rgba(118, 151, 255, 0.16);
+            --master-blue: #2f80ff;
+            --master-purple: #7b4dff;
+            --master-cyan: #2ed3c6;
+            --master-danger: #e53945;
+            --red: var(--master-danger);
+            --blue: var(--master-blue);
+            --green: var(--master-cyan);
+            --gold: #ffd166;
+            --panel: var(--master-panel);
+            --panel-2: var(--master-panel-2);
+            --line: var(--master-line);
+            --app-bg: var(--master-bg);
+            --chat-bg: #090d14;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 16% 8%, rgba(47, 128, 255, 0.18), transparent 30%),
+                radial-gradient(circle at 85% 18%, rgba(123, 77, 255, 0.15), transparent 32%),
+                radial-gradient(circle at 50% 105%, rgba(46, 211, 198, 0.12), transparent 34%),
+                linear-gradient(145deg, #05070b, #0a0f18 58%, #05070b);
+        }
+
+        .primary,
+        button.primary,
+        .new-chat-fab,
+        .points-chip {
+            background: linear-gradient(135deg, var(--master-blue), var(--master-purple) 54%, var(--master-cyan));
+            color: white;
+            box-shadow: 0 16px 34px rgba(47, 128, 255, 0.26);
+        }
+
+        .danger,
+        button.danger,
+        .mini-btn.danger {
+            background: rgba(229, 57, 69, 0.18) !important;
+            color: #ff9aa3 !important;
+        }
+
+        .sidebar,
+        .chat-top,
+        .composer,
+        .modal-card,
+        .settings-box,
+        .auth-card,
+        .qr-login-card {
+            border-color: var(--master-line);
+            background: linear-gradient(180deg, rgba(14, 19, 30, 0.90), rgba(8, 12, 19, 0.82));
+            backdrop-filter: blur(24px) saturate(130%);
+        }
+
+        .avatar.online,
+        .avatar.online::after,
+        #meAvatar.online {
+            border-color: rgba(229, 57, 69, 0.9);
+            box-shadow: 0 0 0 3px rgba(229, 57, 69, 0.10), 0 0 24px rgba(229, 57, 69, 0.20);
+        }
+
+        .nav-tabs {
+            position: relative;
+            isolation: isolate;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid var(--master-line);
+            border-radius: 22px;
+            padding: 8px;
+            gap: 6px;
+        }
+
+        .nav-tabs::before {
+            content: "";
+            position: absolute;
+            inset: var(--indicator-top, 8px) auto auto var(--indicator-left, 8px);
+            width: var(--indicator-width, 52px);
+            height: var(--indicator-height, 52px);
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(47,128,255,.34), rgba(123,77,255,.28), rgba(46,211,198,.25));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 14px 28px rgba(47,128,255,.18);
+            transition: left .32s cubic-bezier(.2,.9,.2,1), top .32s cubic-bezier(.2,.9,.2,1), width .32s, height .32s;
+            z-index: -1;
+        }
+
+        .nav-tab.active {
+            background: transparent !important;
+            color: #ffffff;
+        }
+
+        .nav-tab.active .nav-icon {
+            color: var(--master-cyan);
+        }
+
+        .section-frame-enter {
+            animation: sectionFrameEnter .22s ease both;
+        }
+
+        @keyframes sectionFrameEnter {
+            from { opacity: 0; transform: translateY(8px) scale(.99); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .chat-filter-row,
+        .call-filter-row,
+        .explore-chip-row {
+            display: flex;
+            gap: 8px;
+            padding: 8px 10px 10px;
+            overflow-x: auto;
+        }
+
+        .filter-chip,
+        .explore-card,
+        .voice-room-card,
+        .vault-card,
+        .point-ledger-row,
+        .reward-card {
+            border: 1px solid var(--master-line);
+            background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.09);
+            backdrop-filter: blur(18px);
+        }
+
+        .filter-chip {
+            flex: 0 0 auto;
+            border-radius: 999px;
+            color: var(--text);
+            padding: 8px 12px;
+        }
+
+        .filter-chip.active {
+            background: linear-gradient(135deg, rgba(47,128,255,.28), rgba(46,211,198,.18));
+            color: #fff;
+        }
+
+        .explore-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            padding: 10px;
+        }
+
+        .explore-card,
+        .voice-room-card {
+            min-height: 118px;
+            border-radius: 22px;
+            padding: 14px;
+            color: var(--text);
+            text-align: left;
+        }
+
+        .explore-card strong,
+        .voice-room-card strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .explore-card small,
+        .voice-room-card small {
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .voice-room-card .voice-room-actions,
+        .points-actions,
+        .vault-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .voice-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border-radius: 999px;
+            padding: 5px 8px;
+            background: rgba(46, 211, 198, 0.12);
+            color: #b8fff8;
+            font-size: 12px;
+        }
+
+        .voice-pill.speaking {
+            box-shadow: 0 0 0 4px rgba(46,211,198,.12), 0 0 22px rgba(46,211,198,.32);
+        }
+
+        .profile-status-pill,
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 5px 9px;
+            background: rgba(47, 128, 255, 0.13);
+            color: #cfe0ff;
+            font-size: 12px;
+        }
+
+        .message-history-list,
+        .point-ledger-list,
+        .vault-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .point-ledger-row,
+        .reward-card,
+        .vault-card {
+            border-radius: 18px;
+            padding: 12px;
+        }
+
+        .points-progress {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(255,255,255,.09);
+        }
+
+        .points-progress span {
+            display: block;
+            height: 100%;
+            width: var(--points-progress, 0%);
+            background: linear-gradient(90deg, var(--master-blue), var(--master-cyan));
+        }
+
+        .bubble .message-version-button {
+            opacity: .78;
+        }
+
+        .messages.drag-ready {
+            outline: 2px dashed var(--master-cyan);
+            outline-offset: -14px;
+            background-color: rgba(46, 211, 198, 0.05);
+        }
+
+        .composer.has-content #sendButton {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .composer:not(.has-content) #sendButton {
+            transform: scale(.72);
+            opacity: .35;
+            pointer-events: none;
+        }
+
+        @media (max-width: 760px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-tabs {
+                position: fixed;
+                left: 10px;
+                right: 10px;
+                bottom: calc(10px + env(safe-area-inset-bottom));
+                height: 68px;
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                z-index: 50;
+                border-radius: 26px;
+            }
+
+            .nav-tab[data-section="groups"],
+            .nav-tab[data-section="stories"],
+            .nav-tab[data-section="friends"] {
+                display: none;
+            }
+
+            .nav-tab[data-section="calls"] { order: 1; }
+            .nav-tab[data-section="explore"] { order: 2; }
+            .nav-tab[data-section="chats"] { order: 3; }
+            .nav-tab[data-section="contacts"] { order: 4; }
+            .settings-rail-button { order: 5; }
+
+            .nav-tab {
+                min-height: 52px;
+                padding: 7px 4px;
+                border-radius: 18px;
+            }
+
+            .nav-tab .nav-label {
+                display: block;
+                font-size: 10px;
+                line-height: 1.1;
+            }
+
+            .sidebar {
+                padding-bottom: 88px;
+            }
+
+            .explore-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3812,6 +4112,7 @@
                 <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
                 <button class="nav-tab" data-section="groups" type="button" title="Gruplar"><span class="nav-icon">☷</span><span class="nav-label">Gruplar</span></button>
                 <button class="nav-tab" data-section="stories" type="button" title="Güncellemeler"><span class="nav-icon">◌</span><span class="nav-label">Güncellemeler</span></button>
+                <button class="nav-tab" data-section="explore" type="button" title="Keşfet"><span class="nav-icon">✦</span><span class="nav-label">Keşfet</span></button>
                 <button class="nav-tab" data-section="friends" type="button" title="Arkadaşlarım"><span class="nav-icon">☻</span><span class="nav-label">Arkadaşlarım</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
                 <button class="nav-tab settings-rail-button" id="settingsButton" type="button" title="Ayarlar"><span class="nav-icon">⚙</span><span class="nav-label">Ayarlar</span></button>
@@ -3826,6 +4127,7 @@
             <nav id="chatList" class="chat-list"></nav>
             <nav id="groupList" class="chat-list hidden"></nav>
             <nav id="callList" class="chat-list hidden"></nav>
+            <nav id="exploreList" class="contact-list scroll-area hidden"></nav>
             <nav id="friendList" class="contact-list scroll-area hidden"></nav>
             <nav id="contactList" class="contact-list scroll-area hidden"></nav>
             <nav id="archiveList" class="chat-list hidden"></nav>
@@ -3941,6 +4243,21 @@
                     <span><strong>Nexa AI</strong><small class="last-message">Asistan adı, fotoğrafı, sansür ve yetki</small></span>
                     <span>›</span>
                 </button>
+                <button id="settingsPointsTab" class="settings-option" type="button">
+                    <span class="option-icon">★</span>
+                    <span><strong>NexaPuan</strong><small class="last-message">Seviye, ödüller ve puan hareketleri</small></span>
+                    <span>›</span>
+                </button>
+                <button id="settingsVaultTab" class="settings-option" type="button">
+                    <span class="option-icon">▣</span>
+                    <span><strong>Gizli Kasa</strong><small class="last-message">4 haneli PIN ile korunan notlar</small></span>
+                    <span>›</span>
+                </button>
+                <button id="settingsNearbyTab" class="settings-option" type="button">
+                    <span class="option-icon">⌖</span>
+                    <span><strong>Yakınımdakiler</strong><small class="last-message">Konum izniyle yakındaki kullanıcılar</small></span>
+                    <span>›</span>
+                </button>
                 <button id="settingsDeviceTab" class="settings-option" type="button">
                     <span class="option-icon">▣</span>
                     <span><strong>Cihaz Bağla</strong><small class="last-message">Web girişindeki QR kodu telefonla okut</small></span>
@@ -3969,6 +4286,28 @@
                 </div>
                 <input id="displayNameInput" placeholder="İsim soyisim">
                 <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
+                <div class="privacy-grid">
+                    <label class="toggle-row">
+                        <span>Geçici durum</span>
+                        <select id="temporaryStatusInput">
+                            <option value="">Yok</option>
+                            <option value="Müsait">Müsait</option>
+                            <option value="Meşgul">Meşgul</option>
+                            <option value="Dersteyim">Dersteyim</option>
+                            <option value="Uyuyorum">Uyuyorum</option>
+                        </select>
+                    </label>
+                    <label class="toggle-row">
+                        <span>Süre</span>
+                        <select id="temporaryStatusMinutesInput">
+                            <option value="60">1 saat</option>
+                            <option value="180">3 saat</option>
+                            <option value="480">8 saat</option>
+                            <option value="1440">1 gün</option>
+                        </select>
+                    </label>
+                </div>
+                <button id="saveTemporaryStatusButton" type="button">Geçici Durumu Kaydet</button>
                 <button id="saveProfileButton" class="primary" type="button">Profili Kaydet</button>
             </div>
 
@@ -4285,6 +4624,73 @@
                 accent: "#f03d54"
             }
         };
+        Object.assign(CHAT_THEMES, {
+            "space-dream": {
+                label: "Uzay",
+                backgroundColor: "#060817",
+                backgroundImage: "radial-gradient(circle at 20% 20%, rgba(123,77,255,.24), transparent 28%), radial-gradient(circle at 80% 38%, rgba(47,128,255,.16), transparent 30%), radial-gradient(circle at 45% 75%, rgba(255,255,255,.10), transparent 2px)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "#12172a",
+                outgoing: "#283b8f",
+                incomingText: "#eef4ff",
+                outgoingText: "#ffffff",
+                border: "rgba(123,77,255,.22)",
+                accent: "#7b4dff"
+            },
+            "rain-glass": {
+                label: "Yagmur",
+                backgroundColor: "#071016",
+                backgroundImage: "linear-gradient(125deg, rgba(46,211,198,.10), transparent 40%), repeating-linear-gradient(110deg, rgba(255,255,255,.08) 0 1px, transparent 1px 18px)",
+                backgroundSize: "cover",
+                backgroundRepeat: "repeat",
+                incoming: "rgba(21,34,42,.82)",
+                outgoing: "#0f6a78",
+                incomingText: "#e6fbff",
+                outgoingText: "#ffffff",
+                border: "rgba(46,211,198,.22)",
+                accent: "#2ed3c6"
+            },
+            "neon-flow": {
+                label: "Neon",
+                backgroundColor: "#07030f",
+                backgroundImage: "radial-gradient(circle at 16% 18%, rgba(47,128,255,.24), transparent 26%), radial-gradient(circle at 86% 78%, rgba(46,211,198,.18), transparent 30%), linear-gradient(135deg, rgba(123,77,255,.14), transparent 45%)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "#161326",
+                outgoing: "#143f68",
+                incomingText: "#f4f0ff",
+                outgoingText: "#ffffff",
+                border: "rgba(47,128,255,.22)",
+                accent: "#2f80ff"
+            },
+            "night-city": {
+                label: "Gece Sehri",
+                backgroundColor: "#05080d",
+                backgroundImage: "linear-gradient(180deg, rgba(47,128,255,.16), transparent 42%), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px)",
+                backgroundSize: "cover, 42px 42px",
+                backgroundRepeat: "no-repeat, repeat",
+                incoming: "#121a24",
+                outgoing: "#1b3263",
+                incomingText: "#eef4ff",
+                outgoingText: "#ffffff",
+                border: "rgba(47,128,255,.20)",
+                accent: "#2f80ff"
+            },
+            "forest-calm": {
+                label: "Orman",
+                backgroundColor: "#06130d",
+                backgroundImage: "radial-gradient(circle at 18% 20%, rgba(46,211,198,.12), transparent 30%), radial-gradient(circle at 82% 72%, rgba(38,166,91,.16), transparent 32%)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "#102019",
+                outgoing: "#0f5a49",
+                incomingText: "#ecfff7",
+                outgoingText: "#ffffff",
+                border: "rgba(46,211,198,.18)",
+                accent: "#2ed3c6"
+            }
+        });
         const SYSTEM_SOUND_LABELS = {
             classic: "Klasik Bip",
             notify: "Nexa Pop",
@@ -4406,6 +4812,9 @@
             blockedUsers: [],
             blockedProfiles: [],
             devices: [],
+            pointLedger: [],
+            voiceRooms: [],
+            nearbyUsers: [],
             deferredInstallPrompt: null,
             notificationReady: false,
             notifications: readStoredJson(NOTIFICATION_LOG_KEY, []),
@@ -4426,6 +4835,7 @@
             paneTransitionTimer: null,
             paneTransitionHideTimer: null,
             activeSection: "chats",
+            chatFilter: "all",
             activeChatId: null,
             activeProfileUsername: null,
             callFilter: "all",
@@ -4434,6 +4844,10 @@
             pendingViewOnce: false,
             archiveUnlocked: false,
             archiveItems: [],
+            vaultUnlocked: false,
+            vaultItems: [],
+            vaultPin: "",
+            activeVoiceRoomId: "",
             settingsView: "menu",
             qrLogin: { timer: null, sessionId: "", secret: "", expiresAt: null },
             qrScan: { stream: null, timer: null, busy: false },
@@ -4485,6 +4899,7 @@
         const NEXA_SVGS = {
             chats: '<path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/>',
             calls: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.8 2.1z"/>',
+            explore: '<path d="m12 2 2.4 6.2L21 10.6l-6.2 2.4L12 21l-2.8-8L3 10.6l6.6-2.4z"/><path d="M19 3v4"/><path d="M21 5h-4"/>',
             stories: '<path d="M4 12a8 8 0 0 1 8-8"/><path d="M20 12a8 8 0 0 1-8 8"/><path d="M12 4a8 8 0 0 1 8 8"/><path d="M12 20a8 8 0 0 1-8-8"/><circle cx="12" cy="12" r="2.5"/>',
             groups: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
             friends: '<path d="M17 18a5 5 0 0 0-10 0"/><circle cx="12" cy="8" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>',
@@ -4515,6 +4930,8 @@
             poll: '<path d="M4 19V5"/><path d="M9 19V9"/><path d="M14 19V7"/><path d="M19 19v-4"/>',
             type: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
             volume: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/>',
+            gif: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 10H6.5a1.5 1.5 0 0 0 0 3H8v-1H7"/><path d="M11 10v4"/><path d="M14 10h4"/><path d="M14 12h3"/><path d="M14 14v-4"/>',
+            music: '<path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>',
             hardDrive: '<path d="M22 12H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/><path d="M6 16h.01"/><path d="M10 16h.01"/>',
             trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>',
             chevron: '<path d="m9 18 6-6-6-6"/>',
@@ -4526,7 +4943,7 @@
         }
 
         function installNexaKitIcons() {
-            const navMap = { chats: "chats", calls: "calls", groups: "groups", stories: "stories", friends: "friends", contacts: "contacts" };
+            const navMap = { chats: "chats", calls: "calls", groups: "groups", stories: "stories", explore: "explore", friends: "friends", contacts: "contacts" };
             Object.entries(navMap).forEach(([section, icon]) => {
                 const target = document.querySelector(`.nav-tab[data-section="${section}"] .nav-icon`);
                 if (target) target.innerHTML = svgIcon(icon);
@@ -4565,6 +4982,9 @@
                 settingsPrivacyTab: "shield",
                 settingsAppearanceTab: "palette",
                 settingsAiTab: "zap",
+                settingsPointsTab: "star",
+                settingsVaultTab: "lock",
+                settingsNearbyTab: "location",
                 settingsDeviceTab: "smartphone",
                 settingsAccountTab: "lock"
             };
@@ -4649,6 +5069,7 @@
                 chats: "Sohbetler",
                 groups: "Gruplar",
                 stories: "Güncellemeler",
+                explore: "Keşfet",
                 calls: "Aramalar",
                 friends: "Arkadaşlarım",
                 contacts: "Kişiler",
@@ -5976,6 +6397,9 @@
             state.devices = data.devices || state.devices || [];
             state.archives = data.archives || state.archives || [];
             state.scheduledMessages = data.scheduledMessages || state.scheduledMessages || [];
+            state.pointLedger = data.pointLedger || data.user?.pointLedger || state.pointLedger || [];
+            state.voiceRooms = data.voiceRooms || state.voiceRooms || [];
+            state.nearbyUsers = data.nearbyUsers || state.nearbyUsers || [];
         }
 
         function isMobileView() {
@@ -6012,6 +6436,9 @@
             state.blockedUsers = [];
             state.blockedProfiles = [];
             state.devices = [];
+            state.pointLedger = [];
+            state.voiceRooms = [];
+            state.nearbyUsers = [];
             state.aiSettings = defaultAiSettings();
             state.aiAvatarDraft = "";
             state.activeChatId = null;
@@ -6594,6 +7021,7 @@
             renderChats();
             renderGroups();
             renderCalls();
+            renderExplore();
             renderFriends();
             renderContacts();
             renderArchives();
@@ -6624,21 +7052,44 @@
             setSettingsView("profile");
         }
 
-        function openPointsPanel() {
-            const points = Number(state.me?.points || 0);
-            openModal("Nexa Puan", body => {
+        async function openPointsPanel() {
+            let data = null;
+            try {
+                const response = await fetch(`/points/${encodeURIComponent(state.me.username)}`);
+                data = await response.json();
+            } catch (_error) {
+                data = null;
+            }
+            const points = Number(data?.points ?? state.me?.points ?? 0);
+            const level = data?.level || state.me?.pointLevel || { level: 1, title: "Nexa Kesifcisi", progress: 0, next: 250 };
+            const rules = data?.rules || { daily_login: 10, message: 1, friend_invite: 50, group_join: 25, profile_complete: 20, story: 5 };
+            const ledger = data?.ledger || state.pointLedger || [];
+            state.pointLedger = ledger;
+            openModal("NexaPuan Merkezi", body => {
                 body.innerHTML = `
                     <div class="profile-hero">
                         <div class="avatar">${escapeHtml(initials(state.me?.displayName || "NL"))}</div>
                         <div class="profile-title">
-                            <h2>${points} puan <span class="points-help">?</span></h2>
-                            <p>Paylaş, mesajlaş, arkadaş ekle; NexaLine içinde görünürlüğün artsın.</p>
+                            <h2>${points} puan <span class="points-help" title="Mesaj, durum, arkadaş ve giriş aktiviteleri puan kazandırır.">?</span></h2>
+                            <p>Seviye ${escapeHtml(level.level)} - ${escapeHtml(level.title || "Nexa")}. Sonraki eşik: ${escapeHtml(level.next || 250)} puan.</p>
+                            <div class="points-progress" style="--points-progress:${Number(level.progress || 0)}%"><span></span></div>
                         </div>
                     </div>
                     <div class="profile-grid">
-                        <div class="profile-stat"><span>Durum</span><strong>+5</strong><small>Her paylaşım</small></div>
-                        <div class="profile-stat"><span>Mesaj</span><strong>+1</strong><small>Gönderilen/alınan</small></div>
-                        <div class="profile-stat"><span>Arkadaş</span><strong>+3</strong><small>Yeni bağlantı</small></div>
+                        <div class="profile-stat"><span>Günlük giriş</span><strong>+${rules.daily_login}</strong><small>Her gün ilk giriş</small></div>
+                        <div class="profile-stat"><span>Mesaj</span><strong>+${rules.message}</strong><small>Gönderilen/alınan</small></div>
+                        <div class="profile-stat"><span>Arkadaş daveti</span><strong>+${rules.friend_invite}</strong><small>Yeni istek</small></div>
+                        <div class="profile-stat"><span>Grup</span><strong>+${rules.group_join}</strong><small>Katılım</small></div>
+                        <div class="profile-stat"><span>Profil</span><strong>+${rules.profile_complete}</strong><small>Tamamlanınca</small></div>
+                        <div class="profile-stat"><span>Durum</span><strong>+${rules.story}</strong><small>Paylaşım</small></div>
+                    </div>
+                    <h3>Son hareketler</h3>
+                    <div class="point-ledger-list">
+                        ${ledger.length ? ledger.slice(0, 12).map(item => `<div class="point-ledger-row"><strong>+${escapeHtml(item.amount)} ${escapeHtml(item.reason)}</strong><small>${escapeHtml(relativeTime(item.createdAt))}</small></div>`).join("") : '<div class="point-ledger-row"><strong>Henüz hareket yok</strong><small>Uygulamayı kullandıkça burada görünecek.</small></div>'}
+                    </div>
+                    <h3>Ödüller</h3>
+                    <div class="profile-grid">
+                        ${(data?.rewards || []).map(reward => `<div class="reward-card"><strong>${escapeHtml(reward.title)}</strong><small>${escapeHtml(reward.description)}</small><div class="last-message">${escapeHtml(reward.cost)} puan</div></div>`).join("")}
                     </div>
                 `;
             }, [{ label: "Kapat", primary: true, onClick: closeModal }]);
@@ -6687,7 +7138,20 @@
             setNavBadge("friends", incomingRequests);
             setNavBadge("calls", missedCalls);
             setNavBadge("stories", activeStories);
+            setNavBadge("explore", activeStories + state.groupInvites.filter(invite => invite.status === "pending").length);
             setNavBadge("contacts", 0);
+        }
+
+        function updateNavIndicator() {
+            const nav = document.querySelector(".nav-tabs");
+            const active = document.querySelector(".nav-tab.active");
+            if (!nav || !active) return;
+            const navRect = nav.getBoundingClientRect();
+            const activeRect = active.getBoundingClientRect();
+            nav.style.setProperty("--indicator-left", `${activeRect.left - navRect.left}px`);
+            nav.style.setProperty("--indicator-top", `${activeRect.top - navRect.top}px`);
+            nav.style.setProperty("--indicator-width", `${activeRect.width}px`);
+            nav.style.setProperty("--indicator-height", `${activeRect.height}px`);
         }
 
         function renderSections() {
@@ -6695,6 +7159,7 @@
                 chats: designText("chats", "Sohbetler"),
                 groups: designText("groups", "Gruplar"),
                 stories: designText("stories", "Güncellemeler"),
+                explore: "Keşfet",
                 calls: designText("calls", "Aramalar"),
                 friends: designText("friends", "Arkadaşlarım"),
                 contacts: designText("contacts", "Kişiler"),
@@ -6704,13 +7169,18 @@
                 tab.classList.toggle("active", tab.dataset.section === state.activeSection);
             });
             $("sectionTitle").textContent = labels[state.activeSection];
-            ["chatList", "groupList", "storyList", "callList", "friendList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
-            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
-            $(map[state.activeSection] || "chatList").classList.remove("hidden");
+            ["chatList", "groupList", "storyList", "callList", "exploreList", "friendList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
+            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
+            const activeList = $(map[state.activeSection] || "chatList");
+            activeList.classList.remove("hidden");
+            activeList.classList.remove("section-frame-enter");
+            void activeList.offsetWidth;
+            activeList.classList.add("section-frame-enter");
             $("archiveShortcutButton").classList.toggle("hidden", state.activeSection !== "chats");
             $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
             $("newChatFab").classList.toggle("hidden", state.activeSection !== "chats");
             updateNavBadges();
+            requestAnimationFrame(updateNavIndicator);
             updateAiAssistantVisibility();
         }
 
@@ -6886,11 +7356,35 @@
             container.appendChild(strip);
         }
 
+        function appendChatFilters(container) {
+            const filters = [
+                ["all", "Tümü"],
+                ["unread", "Okunmamış"],
+                ["groups", "Gruplar"],
+                ["channels", "Kanallar"]
+            ];
+            const row = document.createElement("div");
+            row.className = "chat-filter-row";
+            filters.forEach(([key, label]) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "filter-chip" + (state.chatFilter === key ? " active" : "");
+                button.textContent = label;
+                button.onclick = () => {
+                    state.chatFilter = key;
+                    renderChats();
+                };
+                row.appendChild(button);
+            });
+            container.appendChild(row);
+        }
+
         function renderChats() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const chatList = $("chatList");
             chatList.innerHTML = "";
             appendOnlineStrip(chatList);
+            appendChatFilters(chatList);
 
             const aiName = aiDisplayName();
             const aiSearchText = `${aiName} nexa ai next ai yapay zeka asistan aslanım al ali ${aiLastText()}`.toLocaleLowerCase("tr-TR");
@@ -6951,7 +7445,8 @@
             }
 
             visibleChatItems(state.chats)
-                .filter(chat => chat.type !== "group")
+                .filter(chat => state.chatFilter === "groups" ? chat.type === "group" : state.chatFilter === "channels" ? chat.type === "channel" : chat.type !== "group")
+                .filter(chat => state.chatFilter !== "unread" || unreadCount(chat) > 0)
                 .filter(chat => !otherMember(chat) || !state.blockedUsers.includes(otherMember(chat).username))
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
                 .sort((a, b) => Number(chatPrefs(b.id).pinned) - Number(chatPrefs(a.id).pinned))
@@ -7192,6 +7687,302 @@
                     button.append(avatar, body, time);
                     callList.appendChild(button);
                 });
+        }
+
+        function renderExplore() {
+            const list = $("exploreList");
+            if (!list) return;
+            list.innerHTML = "";
+            const grid = document.createElement("div");
+            grid.className = "explore-grid";
+            const cards = [
+                ["ai", "Nexa AI", "Sohbet ozeti, doğal arama ve uygulama komutlari", selectAiChat],
+                ["stories", "Guncellemeler", "Durumlar, kanallar ve hikaye akisi", () => switchSection("stories")],
+                ["groups", "Gruplar", "Topluluklar ve grup davetleri", () => switchSection("groups")],
+                ["nearby", "Yakinimdakiler", "Konum izniyle yakindaki kullanicilari kesfet", openNearbyPanel],
+                ["channels", "Kanallar", "Duyuru ve topluluk kanallari", openChannelStarter],
+                ["vault", "Gizli Kasa", "PIN korumali not ve medya alani", openVaultPanel]
+            ];
+            cards.forEach(([key, title, hint, action]) => {
+                const card = document.createElement("button");
+                card.type = "button";
+                card.className = "explore-card";
+                card.innerHTML = `<span class="attachment-option-icon">${svgIcon(key === "ai" ? "zap" : key === "nearby" ? "location" : key === "vault" ? "lock" : key === "channels" ? "bell" : key)}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
+                card.onclick = action;
+                grid.appendChild(card);
+            });
+            list.appendChild(grid);
+
+            const voiceTitle = document.createElement("div");
+            voiceTitle.className = "section-label";
+            voiceTitle.textContent = "Sesli Odalar";
+            list.appendChild(voiceTitle);
+            const rooms = document.createElement("div");
+            rooms.className = "explore-grid";
+            (state.voiceRooms || []).forEach(room => rooms.appendChild(renderVoiceRoomCard(room)));
+            if (!state.voiceRooms?.length) {
+                rooms.innerHTML = `<div class="voice-room-card"><strong>Oda bilgisi bekleniyor</strong><small>Sunucu baglantisi kurulunca sesli odalar gorunur.</small></div>`;
+            }
+            list.appendChild(rooms);
+
+            if (state.nearbyUsers?.length) {
+                const nearbyTitle = document.createElement("div");
+                nearbyTitle.className = "section-label";
+                nearbyTitle.textContent = "Yakindaki kullanicilar";
+                list.appendChild(nearbyTitle);
+                state.nearbyUsers.slice(0, 12).forEach(user => {
+                    const row = document.createElement("button");
+                    row.type = "button";
+                    row.className = "contact-item";
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (user.online ? " online" : "");
+                    setAvatar(avatar, user, user.displayName);
+                    const text = document.createElement("div");
+                    text.innerHTML = `<strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">${escapeHtml(user.distanceKm || "?")} km uzakta</div>`;
+                    row.append(avatar, text, document.createElement("span"));
+                    row.onclick = () => openUserProfilePane(user);
+                    list.appendChild(row);
+                });
+            }
+        }
+
+        function renderVoiceRoomCard(room) {
+            const card = document.createElement("div");
+            card.className = "voice-room-card";
+            const joined = state.activeVoiceRoomId === room.id || room.participants?.some(user => user.username === state.me?.username);
+            const participants = (room.participants || []).slice(0, 6).map(user => `<span class="voice-pill ${user.speaking ? "speaking" : ""}">${escapeHtml(user.displayName)}${user.muted ? " (sessiz)" : ""}</span>`).join("");
+            card.innerHTML = `
+                <strong>${escapeHtml(room.title)}</strong>
+                <small>${escapeHtml(room.topic || "")}</small>
+                <div class="explore-chip-row">${participants || '<span class="voice-pill">Henüz kimse yok</span>'}</div>
+                <div class="voice-room-actions">
+                    <button class="mini-btn ${joined ? "danger" : ""}" type="button" data-voice-action="${joined ? "leave" : "join"}">${joined ? "Ayril" : "Katil"}</button>
+                    <button class="mini-btn" type="button" data-voice-action="mute">${joined ? "Sessiz/Sesli" : "Bilgi"}</button>
+                </div>
+            `;
+            card.querySelector('[data-voice-action="join"], [data-voice-action="leave"]').onclick = () => {
+                if (joined) {
+                    socket.emit("voice:leave", { roomId: room.id });
+                    state.activeVoiceRoomId = "";
+                } else {
+                    socket.emit("voice:join", { roomId: room.id });
+                    state.activeVoiceRoomId = room.id;
+                    showToast(`${room.title} odasina katildin.`);
+                }
+            };
+            card.querySelector('[data-voice-action="mute"]').onclick = () => {
+                if (!joined) {
+                    showToast("Once odaya katil.");
+                    return;
+                }
+                const mine = (room.participants || []).find(user => user.username === state.me?.username);
+                socket.emit("voice:mute", { roomId: room.id, muted: !mine?.muted });
+            };
+            return card;
+        }
+
+        function switchSection(section) {
+            state.activeSection = section;
+            state.activeChatId = null;
+            state.activeProfileUsername = null;
+            renderSections();
+            render();
+        }
+
+        function openChannelStarter() {
+            openModal("Kanallar", body => {
+                body.innerHTML = `<p>Kanallar simdilik grup altyapisiyla calisir. Yeni duyuru kanali icin grup olusturup yalnizca yoneticilerin yazmasini tercih edebilirsin.</p>`;
+            }, [
+                { label: "Grup/kanal olustur", primary: true, onClick: () => { closeModal(); createGroup(); } },
+                { label: "Kapat", onClick: closeModal }
+            ]);
+        }
+
+        function openNearbyPanel() {
+            openModal("Yakindaki Kullanicilar", body => {
+                body.innerHTML = `
+                    <p>Yakindaki kisiler ozelligi varsayilan olarak kapali. Acarsan yalnizca yaklasik mesafe kullanilir.</p>
+                    <div id="nearbyRows" class="list"></div>
+                `;
+                renderNearbyRows();
+            }, [
+                { label: state.me?.nearbyEnabled ? "Kapat" : "Konumla Ac", primary: true, onClick: toggleNearbyUsers },
+                { label: "Kapat", onClick: closeModal }
+            ]);
+        }
+
+        function renderNearbyRows() {
+            const list = $("nearbyRows");
+            if (!list) return;
+            const rows = state.nearbyUsers || [];
+            list.innerHTML = rows.length ? rows.map(user => `
+                <button class="contact-item" type="button" data-nearby-user="${escapeHtml(user.username)}">
+                    <span class="avatar">${escapeHtml(initials(user.displayName))}</span>
+                    <span><strong class="chat-title">${escapeHtml(user.displayName)}</strong><span class="last-message">${escapeHtml(user.distanceKm || "?")} km uzakta</span></span>
+                    <span class="chat-time">Profil</span>
+                </button>
+            `).join("") : `<div class="vault-card"><strong>Yakinda kimse yok</strong><small>Ozelligi acan kullanicilar 50 km icinde gorunur.</small></div>`;
+            list.querySelectorAll("[data-nearby-user]").forEach(button => {
+                button.onclick = () => {
+                    const user = state.nearbyUsers.find(item => item.username === button.dataset.nearbyUser);
+                    closeModal();
+                    openUserProfilePane(user);
+                };
+            });
+        }
+
+        async function toggleNearbyUsers() {
+            if (!navigator.geolocation) {
+                showToast("Bu cihaz konum destegi vermiyor.");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(async position => {
+                try {
+                    const response = await fetch(`/nearby/${encodeURIComponent(state.me.username)}`, {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({
+                            enabled: !state.me.nearbyEnabled,
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.ok) {
+                        state.me.nearbyEnabled = data.enabled;
+                        state.nearbyUsers = data.users || [];
+                        renderNearbyRows();
+                        renderExplore();
+                        showToast(data.enabled ? "Yakindaki kullanicilar acildi." : "Yakindaki kullanicilar kapatildi.");
+                    } else {
+                        showToast(data.message || "Konum kaydedilemedi.");
+                    }
+                } catch (_error) {
+                    showToast("Yakindaki kullanicilar yuklenemedi.");
+                }
+            }, () => showToast("Konum izni verilmedi."));
+        }
+
+        function openVaultPanel() {
+            const ready = Boolean(state.me?.vaultReady);
+            openModal("Gizli Kasa", body => {
+                body.innerHTML = `
+                    <div class="vault-card">
+                        <strong>${ready ? "PIN ile ac" : "4 haneli PIN olustur"}</strong>
+                        <small>5 hatali denemede kasa 1 dakika kilitlenir.</small>
+                        <input id="vaultPinInput" type="password" inputmode="numeric" maxlength="4" placeholder="4 haneli PIN">
+                    </div>
+                    <div id="vaultContent" class="vault-list ${state.vaultUnlocked ? "" : "hidden"}"></div>
+                `;
+                if (state.vaultUnlocked) renderVaultItems();
+            }, [
+                { label: ready ? "Kilidi Ac" : "PIN Olustur", primary: true, onClick: ready ? unlockVault : setupVault },
+                { label: "Kapat", onClick: closeModal }
+            ]);
+        }
+
+        async function setupVault() {
+            const pin = $("vaultPinInput")?.value || "";
+            const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/setup`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ pin })
+            });
+            const data = await response.json();
+            showToast(data.message || "Kasa guncellendi.");
+            if (data.ok) {
+                state.me = data.user || state.me;
+                state.vaultPin = pin;
+                state.vaultUnlocked = true;
+                openVaultPanel();
+            }
+        }
+
+        async function unlockVault() {
+            const pin = $("vaultPinInput")?.value || state.vaultPin || "";
+            const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/unlock`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ pin })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "PIN hatali.");
+                state.me = data.user || state.me;
+                return;
+            }
+            state.vaultPin = pin;
+            state.vaultUnlocked = true;
+            state.vaultItems = data.items || [];
+            state.me = data.user || state.me;
+            renderVaultItems();
+        }
+
+        function renderVaultItems() {
+            const content = $("vaultContent");
+            if (!content) return;
+            content.classList.remove("hidden");
+            content.innerHTML = `
+                <div class="vault-actions">
+                    <button id="vaultAddNoteButton" class="mini-btn" type="button">Not ekle</button>
+                    <button id="vaultLockButton" class="mini-btn danger" type="button">Kilitle</button>
+                </div>
+                ${(state.vaultItems || []).map(item => `<div class="vault-card"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.payload?.text || item.kind || "")}</small><button class="mini-btn danger" type="button" data-vault-delete="${escapeHtml(item.id)}">Sil</button></div>`).join("") || '<div class="vault-card"><strong>Kasa bos</strong><small>PIN korumali notlarini buraya ekleyebilirsin.</small></div>'}
+            `;
+            $("vaultAddNoteButton").onclick = addVaultNote;
+            $("vaultLockButton").onclick = () => {
+                state.vaultUnlocked = false;
+                state.vaultPin = "";
+                openVaultPanel();
+            };
+            content.querySelectorAll("[data-vault-delete]").forEach(button => {
+                button.onclick = () => deleteVaultItem(button.dataset.vaultDelete);
+            });
+        }
+
+        function addVaultNote() {
+            openModal("Kasa Notu", body => {
+                body.innerHTML = `<input id="vaultNoteTitle" maxlength="120" placeholder="Baslik"><textarea id="vaultNoteText" maxlength="4000" placeholder="Not"></textarea>`;
+            }, [
+                { label: "Kaydet", primary: true, onClick: saveVaultNote },
+                { label: "Vazgec", onClick: openVaultPanel }
+            ]);
+        }
+
+        async function saveVaultNote() {
+            const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/items`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    pin: state.vaultPin,
+                    kind: "note",
+                    title: $("vaultNoteTitle").value,
+                    payload: { text: $("vaultNoteText").value }
+                })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Not kaydedilemedi.");
+                return;
+            }
+            state.vaultItems = data.items || [];
+            state.me = data.user || state.me;
+            openVaultPanel();
+        }
+
+        async function deleteVaultItem(id) {
+            const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/items/${encodeURIComponent(id)}`, {
+                method: "DELETE",
+                headers: authHeaders(),
+                body: JSON.stringify({ pin: state.vaultPin })
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                showToast(data.message || "Oge silinemedi.");
+                return;
+            }
+            state.vaultItems = data.items || [];
+            renderVaultItems();
         }
 
         function renderArchives() {
@@ -7620,6 +8411,9 @@
         }
 
         function contactLine(user) {
+            if (user?.temporaryStatus?.text) {
+                return `${user.temporaryStatus.text} • ${user.online ? "çevrimiçi" : "son görülme " + relativeTime(user.lastSeen)}`;
+            }
             const status = contactStatus(user.username);
             if (status === "accepted") {
                 return user.online ? "çevrimiçi" : `son görülme ${relativeTime(user.lastSeen)}`;
@@ -7955,6 +8749,7 @@
                 <div class="profile-chip-row">
                     <span class="profile-chip">${escapeHtml(relationText)}</span>
                     <span class="profile-chip">${Number(user.points || 0)} puan</span>
+                    ${user.temporaryStatus?.text ? `<span class="profile-chip">${escapeHtml(user.temporaryStatus.text)}</span>` : ""}
                     <span class="profile-chip">${user.online ? "Aktif" : "Uygun değil"}</span>
                 </div>
             `;
@@ -8185,7 +8980,8 @@
                 if (isAiChat(chat)) {
                     meta.innerHTML = `<span>${formatTime(message.createdAt)}</span>`;
                 } else {
-                    meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button><button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}${edited}${expires}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
+                    const historyButton = message.versions?.length ? '<button class="reply-action message-version-button" type="button">Geçmiş</button>' : "";
+                    meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button>${historyButton}<button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}${edited}${expires}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
                     meta.querySelector(".reply-action").onclick = event => {
                         event.stopPropagation();
                         setReplyTo(message);
@@ -8198,6 +8994,13 @@
                         event.stopPropagation();
                         openReactionMenu(message);
                     };
+                    const versionButton = meta.querySelector(".message-version-button");
+                    if (versionButton) {
+                        versionButton.onclick = event => {
+                            event.stopPropagation();
+                            openMessageHistory(message);
+                        };
+                    }
                 }
                 bubble.appendChild(meta);
                 if (!isAiChat(chat)) {
@@ -8266,6 +9069,77 @@
             return true;
         }
 
+        async function summarizeActiveChat() {
+            const chat = activeChat();
+            if (!chat || isAiChat(chat)) return;
+            try {
+                const response = await fetch("/ai/chat-summary", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username: state.me.username, chatId: chat.id })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    showToast(data.message || "Ozet alinamadi.");
+                    return;
+                }
+                closeModal();
+                openModal("AI Sohbet Özeti", body => {
+                    const text = document.createElement("div");
+                    text.className = "vault-card";
+                    text.textContent = data.summary || "Özet bulunamadı.";
+                    body.appendChild(text);
+                }, [{ label: "Kapat", primary: true, onClick: closeModal }]);
+            } catch (_error) {
+                showToast("AI ozet su an kullanilamiyor.");
+            }
+        }
+
+        function openAiSearchModal() {
+            const chat = activeChat();
+            if (!chat || isAiChat(chat)) return;
+            openModal("AI arama", body => {
+                body.innerHTML = `<input id="aiSearchQuery" placeholder="Örn: geçen hafta gönderilen PDF neydi?"><div id="aiSearchResults" class="list"></div>`;
+                $("aiSearchQuery").addEventListener("keydown", event => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        runAiSearch();
+                    }
+                });
+            }, [
+                { label: "Ara", primary: true, onClick: runAiSearch },
+                { label: "Kapat", onClick: closeModal }
+            ]);
+        }
+
+        async function runAiSearch() {
+            const chat = activeChat();
+            const query = $("aiSearchQuery")?.value.trim();
+            if (!chat || !query) return;
+            const results = $("aiSearchResults");
+            if (results) results.innerHTML = `<div class="point-ledger-row">Araniyor...</div>`;
+            try {
+                const response = await fetch("/ai/search", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username: state.me.username, chatId: chat.id, query })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    if (results) results.innerHTML = `<div class="point-ledger-row">${escapeHtml(data.message || "Arama yapilamadi.")}</div>`;
+                    return;
+                }
+                if (results) {
+                    results.innerHTML = `
+                        <div class="vault-card"><strong>Nexa AI</strong><small>${escapeHtml(data.answer || "")}</small></div>
+                        ${(data.results || []).map(item => `<button class="contact-item" type="button" data-search-message="${escapeHtml(item.message.id)}"><span class="avatar">AI</span><span><strong class="chat-title">${escapeHtml(item.chatTitle)}</strong><span class="last-message">${escapeHtml(item.message.body || item.message.attachment?.name || "Medya")}</span></span><span class="chat-time">${escapeHtml(relativeTime(item.message.createdAt))}</span></button>`).join("")}
+                    `;
+                }
+            } catch (_error) {
+                if (results) results.innerHTML = `<div class="point-ledger-row">AI arama su an kullanilamiyor.</div>`;
+            }
+        }
+
         function openChatPreferences() {
             const chat = activeChat();
             if (!chat) return;
@@ -8276,6 +9150,8 @@
             }
             const prefs = chatPrefs(chat.id);
             const actions = [
+                { label: "AI özet", onClick: summarizeActiveChat },
+                { label: "AI arama", onClick: openAiSearchModal },
                 { label: "Sohbeti sil", onClick: openDeleteChatMenu },
                 {
                     label: "Kaydet",
@@ -8471,6 +9347,12 @@
                     onClick: () => editMessage(message)
                 });
             }
+            if (message.versions?.length) {
+                actions.unshift({
+                    label: "Mesaj geçmişi",
+                    onClick: () => openMessageHistory(message)
+                });
+            }
             if (mine || activeChat()?.members.find(member => member.username === state.me.username)?.isAdmin) {
                 actions.push({
                     label: "Herkesten sil",
@@ -8486,6 +9368,25 @@
                 text.textContent = message.deletedAt ? "Silinmiş mesaj" : (message.body || message.attachment?.name || "Mesaj");
                 body.appendChild(text);
             }, actions);
+        }
+
+        function openMessageHistory(message) {
+            openModal("Mesaj geçmişi", body => {
+                const list = document.createElement("div");
+                list.className = "message-history-list";
+                const rows = [...(message.versions || [])].reverse();
+                if (!rows.length) {
+                    list.innerHTML = `<div class="point-ledger-row"><strong>Geçmiş yok</strong><small>Bu mesaj daha önce düzenlenmemiş.</small></div>`;
+                } else {
+                    rows.forEach((version, index) => {
+                        const row = document.createElement("div");
+                        row.className = "point-ledger-row";
+                        row.innerHTML = `<strong>Önceki sürüm ${rows.length - index}</strong><small>${escapeHtml(relativeTime(version.editedAt))}</small><div>${escapeHtml(version.body || "")}</div>`;
+                        list.appendChild(row);
+                    });
+                }
+                body.appendChild(list);
+            }, [{ label: "Kapat", primary: true, onClick: closeModal }]);
         }
 
         function editMessage(message) {
@@ -8625,6 +9526,13 @@
                 return wrap;
             }
 
+            if (attachment.type === "gif") {
+                const wrap = document.createElement("div");
+                wrap.className = "file-pill";
+                wrap.textContent = `${attachment.symbol || "✨"} GIF`;
+                return wrap;
+            }
+
             const link = document.createElement("a");
             link.className = "file-pill";
             link.href = attachment.dataUrl;
@@ -8759,7 +9667,10 @@
                     ["camera", "Kamera", "Fotoğraf veya video çek", () => $("cameraInput").click()],
                     ["volume", "Ses", "Ses dosyası seç", () => $("fileInput").click()],
                     ["contacts", "Kişi", "Arkadaş profili paylaş", openContactSharePicker],
-                    ["poll", "Anket", "Soru ve seçeneklerle gönder", openPollCreator]
+                    ["poll", "Anket", "Soru ve seçeneklerle gönder", openPollCreator],
+                    ["gif", "GIF", "Kısa hareketli ifade gönder", openGifPicker],
+                    ["music", "Müzik", "Ses veya müzik dosyası seç", () => $("fileInput").click()],
+                    ["zap", "AI ile düzenle", "Yazdığın mesajı iyileştir", improveComposerWithAi]
                 ];
                 items.forEach(([icon, title, hint, action]) => {
                     const button = document.createElement("button");
@@ -8774,6 +9685,63 @@
                 });
                 body.appendChild(menu);
             }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        function openGifPicker() {
+            const gifs = ["✨", "🔥", "🎉", "💫", "😂", "❤️"];
+            openModal("GIF", body => {
+                const panel = document.createElement("div");
+                panel.className = "emoji-panel";
+                gifs.forEach(item => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = item;
+                    button.onclick = () => {
+                        state.attachment = {
+                            type: "gif",
+                            name: "Nexa GIF",
+                            dataUrl: "",
+                            symbol: item
+                        };
+                        $("messageInput").placeholder = `${item} GIF hazir`;
+                        updateComposerState();
+                        closeModal();
+                    };
+                    panel.appendChild(button);
+                });
+                body.appendChild(panel);
+            }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        async function improveComposerWithAi() {
+            const input = $("messageInput");
+            const text = input.value.trim();
+            if (!text) {
+                showToast("Once duzenlenecek bir mesaj yaz.");
+                return;
+            }
+            try {
+                showToast("Nexa AI mesaji duzenliyor...");
+                const response = await fetch("/ai/chat", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        username: state.me.username,
+                        chatId: state.activeChatId,
+                        prompt: `Bu mesajı doğal, kısa ve daha temiz hale getir. Sadece düzenlenmiş mesajı yaz:\n${text}`,
+                        assistantName: aiDisplayName()
+                    })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    showToast(data.message || "AI duzenleyemedi.");
+                    return;
+                }
+                input.value = (data.reply || text).replace(/^["“]|["”]$/g, "").trim();
+                updateComposerState();
+            } catch (_error) {
+                showToast("AI duzenleme su an kullanilamiyor.");
+            }
         }
 
         function openContactSharePicker() {
@@ -9376,6 +10344,7 @@
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
             $("aboutInput").value = state.me.about || "";
+            $("temporaryStatusInput").value = state.me.temporaryStatus?.text || "";
             $("hideLastSeenInput").checked = Boolean(state.me.privacy?.lastSeenHidden);
             $("hideOnlineInput").checked = Boolean(state.me.privacy?.onlineHidden);
             $("readReceiptsInput").checked = Boolean(state.me.privacy?.readReceiptsOff);
@@ -9572,6 +10541,23 @@
             renderProfile();
             openSettings();
             showToast("Profil güncellendi.");
+        }
+
+        async function saveTemporaryStatus() {
+            const response = await fetch(`/account/${state.me.username}/status`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    text: $("temporaryStatusInput").value,
+                    minutes: Number($("temporaryStatusMinutesInput").value || 60)
+                })
+            });
+            const data = await response.json();
+            showToast(data.message || "Durum guncellendi.");
+            if (data.ok) {
+                state.me = data.user;
+                renderProfile();
+            }
         }
 
         async function savePrivacy() {
@@ -9988,7 +10974,11 @@
         const NexaAudio = {
             channels: {
                 outgoing: [[980, 45], [1320, 55]],
-                fallbackIncoming: [[660, 70], [880, 80]]
+                fallbackIncoming: [[660, 70], [880, 80]],
+                callRing: [[420, 220], [620, 220], [420, 220]],
+                callEnd: [[520, 90], [320, 120]],
+                success: [[660, 70], [880, 110]],
+                error: [[240, 140], [180, 180]]
             },
             play(type, chatId = state.activeChatId) {
                 if (type === "outgoing") {
@@ -10005,6 +10995,9 @@
                 }
                 playToneSequence(MESSAGE_TONES[type] || MESSAGE_TONES[localStorage.getItem(SYSTEM_SOUND_KEY) || "classic"] || this.channels.fallbackIncoming);
             },
+            playEvent(name) {
+                playToneSequence(this.channels[name] || MESSAGE_TONES[name] || this.channels.fallbackIncoming, 120);
+            },
             changeSystemSound(soundKey) {
                 localStorage.setItem(SYSTEM_SOUND_KEY, soundKey);
                 this.play(soundKey);
@@ -10017,9 +11010,7 @@
         }
 
         function playCallSound() {
-            playTone(420, 0.22);
-            setTimeout(() => playTone(620, 0.22), 260);
-            setTimeout(() => playTone(420, 0.22), 520);
+            NexaAudio.playEvent("callRing");
         }
 
         function startCallRingtone() {
@@ -10265,6 +11256,10 @@
                 state.pendingViewOnce = false;
                 event.target.value = "";
             }
+        }
+
+        async function handlePickedFile(file) {
+            await handleFile({ target: { files: [file], value: "" } });
         }
 
         async function handleStoryFile(event) {
@@ -10564,6 +11559,7 @@
             $("callTimer").textContent = "00:00";
             document.querySelector(".video-stage").classList.remove("remote-live");
             $("callPanel").classList.add("hidden");
+            NexaAudio.playEvent("callEnd");
         }
 
         function toggleMute() {
@@ -10636,6 +11632,7 @@
             renderChats();
             renderGroups();
             renderCalls();
+            renderExplore();
             renderFriends();
             renderContacts();
             renderArchives();
@@ -10693,6 +11690,9 @@
         $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
         $("settingsAppearanceTab").onclick = () => setSettingsView("appearance");
         $("settingsAiTab").onclick = () => setSettingsView("ai");
+        $("settingsPointsTab").onclick = openPointsPanel;
+        $("settingsVaultTab").onclick = openVaultPanel;
+        $("settingsNearbyTab").onclick = openNearbyPanel;
         $("settingsDeviceTab").onclick = () => setSettingsView("device");
         $("settingsAccountTab").onclick = () => setSettingsView("account");
         document.querySelectorAll("[data-settings-back]").forEach(button => {
@@ -10705,6 +11705,7 @@
         };
         $("profileImageInput").onchange = handleProfileImage;
         $("saveProfileButton").onclick = saveProfile;
+        $("saveTemporaryStatusButton").onclick = saveTemporaryStatus;
         $("savePrivacyButton").onclick = savePrivacy;
         $("saveAppearanceButton").onclick = saveAppearance;
         $("nextAiImageButton").onclick = chooseNextAiImage;
@@ -10767,6 +11768,33 @@
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 sendMessage();
+            }
+        });
+        document.addEventListener("keydown", event => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                $("searchInput").focus();
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+                event.preventDefault();
+                openNewChatFromFriends();
+            }
+            if (event.key === "Escape") {
+                closeModal();
+                closeSettings();
+            }
+        });
+        $("messages").addEventListener("dragover", event => {
+            event.preventDefault();
+            $("messages").classList.add("drag-ready");
+        });
+        $("messages").addEventListener("dragleave", () => $("messages").classList.remove("drag-ready"));
+        $("messages").addEventListener("drop", event => {
+            event.preventDefault();
+            $("messages").classList.remove("drag-ready");
+            const file = event.dataTransfer?.files?.[0];
+            if (file) {
+                handlePickedFile(file);
             }
         });
 
@@ -10891,6 +11919,7 @@
             renderSections();
             renderChats();
             renderGroups();
+            renderExplore();
             renderFriends();
             renderContacts();
             renderActiveChat();
@@ -10906,6 +11935,13 @@
 
         socket.on("scheduled:update", items => {
             state.scheduledMessages = items || [];
+        });
+
+        socket.on("voice:rooms", rooms => {
+            state.voiceRooms = rooms || [];
+            const mineRoom = state.voiceRooms.find(room => room.participants?.some(user => user.username === state.me?.username));
+            state.activeVoiceRoomId = mineRoom?.id || "";
+            renderExplore();
         });
 
         socket.on("account:deleted", () => {
@@ -11069,6 +12105,7 @@
         updateAppViewportHeight();
         window.addEventListener("resize", () => {
             updateAppViewportHeight();
+            updateNavIndicator();
             applyAdminDesign(window.nexalineDesign || {});
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight);

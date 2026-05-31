@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v21";
+const CACHE_NAME = "nexaline-pwa-v22";
 const APP_SHELL = [
   "/",
   "/client.html",
@@ -60,6 +60,9 @@ self.addEventListener("fetch", event => {
     url.pathname.startsWith("/admin/") ||
     url.pathname.startsWith("/ai/") ||
     url.pathname.startsWith("/qr-login/") ||
+    url.pathname.startsWith("/points/") ||
+    url.pathname.startsWith("/nearby/") ||
+    url.pathname.startsWith("/vault/") ||
     url.pathname.startsWith("/bootstrap/") ||
     url.pathname.startsWith("/chat/") ||
     url.pathname.startsWith("/downloads/") ||
