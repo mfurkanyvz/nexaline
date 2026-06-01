@@ -449,7 +449,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "composerRadius": 34,
         "headerHeight": 64,
         "showNavLabels": True,
-        "navOrder": ["chats", "calls", "contacts", "settings", "explore"],
+        "navOrder": ["stories", "calls", "chats", "contacts", "explore"],
         "composerOrder": ["attach", "emoji", "input", "voice", "send"],
     },
     # Legacy flat keys are kept so older deployed clients can still read a sane design.
@@ -2594,10 +2594,54 @@ def local_should_research(prompt):
         return False
     research_words = [
         "bugün", "bugun", "güncel", "guncel", "haber", "son dakika", "fiyat", "kaç tl",
-        "kimdir", "nedir", "ne zaman", "nerede", "hangi", "kaç", "kac",
+        "kimdir", "nedir", "ne demek", "ne zaman", "nerede", "hangi", "kaç", "kac",
+        "neden", "nasıl", "nasil", "en iyi", "karşılaştır", "karsilastir", "öner",
+        "oner", "son durum", "2026", "yeni çıkan", "yeni cikan",
     ]
-    app_words = ["sohbet", "mesaj", "tema", "gizlilik", "şifre", "sifre", "grup", "arama", "durum"]
+    app_words = [
+        "sohbeti sil", "mesaj at", "mesaj gönder", "mesaj gonder", "tema değiştir",
+        "tema degistir", "gizlilik ayar", "şifre", "sifre", "grup aç", "grup ac",
+        "arama başlat", "arama baslat", "durum paylaş", "durum paylas",
+    ]
     return any(word in lowered for word in research_words) and not any(word in lowered for word in app_words)
+
+
+def wikipedia_research(query):
+    title = re.sub(r"\s+", " ", query or "").strip()
+    title = re.sub(r"\b(kimdir|nedir|ne demek|araştır|arastir|internette|webde|google|güncel|guncel)\b", " ", title, flags=re.IGNORECASE).strip()
+    if len(title) < 3:
+        return []
+    try:
+        search = requests.get(
+            "https://tr.wikipedia.org/w/rest.php/v1/search/page",
+            params={"q": title[:120], "limit": 1},
+            headers={"User-Agent": "NexaLine/1.0 (https://nexalineapp.xyz)"},
+            timeout=6,
+        )
+        search.raise_for_status()
+        pages = search.json().get("pages") or []
+        if not pages:
+            return []
+        key = pages[0].get("key") or pages[0].get("title")
+        if not key:
+            return []
+        summary = requests.get(
+            f"https://tr.wikipedia.org/api/rest_v1/page/summary/{key}",
+            headers={"User-Agent": "NexaLine/1.0 (https://nexalineapp.xyz)"},
+            timeout=6,
+        )
+        summary.raise_for_status()
+        data = summary.json()
+        extract = data.get("extract")
+        if not extract:
+            return []
+        return [{
+            "title": data.get("title") or title,
+            "snippet": extract,
+            "url": (data.get("content_urls") or {}).get("desktop", {}).get("page"),
+        }]
+    except Exception:
+        return []
 
 
 def live_info_for_prompt(prompt, timezone_offset_minutes=0):
@@ -2714,6 +2758,8 @@ def web_research_if_requested(prompt, force=False):
     for item in data.get("RelatedTopics", [])[:6]:
         if isinstance(item, dict) and item.get("Text"):
             results.append({"title": item.get("FirstURL") or "Kaynak", "snippet": item.get("Text"), "url": item.get("FirstURL")})
+    if not results:
+        results.extend(wikipedia_research(query))
     return results[:5]
 
 
@@ -2995,6 +3041,22 @@ AI_COMMANDS = [
     {"id": "chat_summary", "title": "Sohbeti özetle", "prompt": "Aktif sohbeti özetle."},
     {"id": "call_person", "title": "Kişiyi ara", "prompt": "Bu kişiyi ara:"},
     {"id": "draft_message", "title": "Mesaj taslağı oluştur", "prompt": "Bu kişiye kısa ve doğal bir mesaj taslağı oluştur:"},
+    {"id": "send_message", "title": "Mesaj gönder", "prompt": "Bu kişiye mesaj gönder: "},
+    {"id": "schedule_message", "title": "Zamanlı mesaj", "prompt": "5 dakika sonra bu kişiye mesaj gönder: "},
+    {"id": "start_voice_call", "title": "Sesli arama başlat", "prompt": "Bu kişiyi sesli ara: "},
+    {"id": "start_video_call", "title": "Görüntülü arama başlat", "prompt": "Bu kişiyi görüntülü ara: "},
+    {"id": "open_chat", "title": "Sohbet kutusu aç", "prompt": "Bu kişiyle sohbeti aç: "},
+    {"id": "delete_chat", "title": "Sohbeti sil", "prompt": "Bu sohbeti arşive alarak sil."},
+    {"id": "react_message", "title": "Mesaja tepki bırak", "prompt": "Son mesaja kalp ifadesi bırak."},
+    {"id": "reply_message", "title": "Yanıtlayarak cevap ver", "prompt": "Son mesaja yanıtla: "},
+    {"id": "create_group", "title": "Grup oluştur", "prompt": "Yeni grup oluştur. Grup adı: "},
+    {"id": "create_story", "title": "Güncelleme paylaş", "prompt": "Durum güncellemesi paylaş: "},
+    {"id": "delete_story", "title": "Son güncellemeyi sil", "prompt": "Son paylaştığım güncellemeyi sil."},
+    {"id": "privacy_last_seen", "title": "Son görülmeyi yönet", "prompt": "Son görülmemi arkadaşlarıma aç/kapat."},
+    {"id": "open_notifications", "title": "Bildirimleri aç", "prompt": "Eski bildirimlerimi göster."},
+    {"id": "internet_search", "title": "İnternette araştır", "prompt": "İnternette araştır: "},
+    {"id": "weather", "title": "Hava durumunu sor", "prompt": "İstanbul hava durumu nasıl?"},
+    {"id": "time", "title": "Saat ve tarih", "prompt": "Saat kaç ve bugün tarih ne?"},
 ]
 
 
@@ -4209,24 +4271,6 @@ def delete_all_users():
         db.session.rollback()
         app.logger.exception("Delete all users failed")
         return jsonify({"ok": False, "message": "Kullanıcılar silinemedi."}), 500
-
-
-@app.route("/maintenance/reset-users-once", methods=["POST"])
-def maintenance_reset_users_once():
-    data = request.get_json() or {}
-    if data.get("token") != "nexaline-reset-2026-06-01-stage9":
-        return jsonify({"ok": False, "message": "Bakım token hatalı."}), 404
-    try:
-        reset_all_user_data()
-        socketio.emit("admin:reset", {"message": "Tüm kullanıcılar silindi."}, namespace="/")
-        broadcast_presence()
-        emit_general_group_updates()
-        broadcast_stories()
-        return jsonify({"ok": True, "message": "Canlı eski kullanıcı verileri sıfırlandı."})
-    except Exception:
-        db.session.rollback()
-        app.logger.exception("Maintenance reset failed")
-        return jsonify({"ok": False, "message": "Bakım reseti başarısız."}), 500
 
 
 @app.route("/admin/state")
