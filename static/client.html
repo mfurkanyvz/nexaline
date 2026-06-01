@@ -8372,7 +8372,7 @@
                 }
                 state.awaitingRegisterVerification = true;
                 state.pendingRegister = payload;
-                setRegisterStep(2);
+                setRegisterStep(3);
                 $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
                 return;
             }
