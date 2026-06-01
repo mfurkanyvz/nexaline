@@ -54,15 +54,23 @@ RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 2, int(os.environ.get("
 AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "12")))
 AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "16")))
 AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
-QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "180")))
+QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "60")))
+TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECONDS", "45")))
 POINT_RULES = {
     "daily_login": 10,
     "message": 1,
-    "friend_invite": 50,
-    "friend_accept": 3,
-    "group_join": 25,
-    "profile_complete": 20,
+    "friend_invite": 3,
+    "friend_accept": 10,
+    "group_join": 20,
     "story": 5,
+    "temporary_status": 5,
+    "voice_room_join": 50,
+    "voice_room_10min": 5,
+    "community_join": 20,
+    "ai_chat": 10,
+    "quest_daily": 50,
+    "quest_weekly": 120,
+    "quest_special": 200,
 }
 scheduled_delivery_lock = threading.Lock()
 qr_login_lock = threading.Lock()
@@ -110,6 +118,7 @@ class User(db.Model):
     hide_online = db.Column(db.Boolean, nullable=False, default=False)
     disable_read_receipts = db.Column(db.Boolean, nullable=False, default=False)
     hide_email = db.Column(db.Boolean, nullable=False, default=True)
+    privacy_settings = db.Column(db.JSON, nullable=True)
     points = db.Column(db.Integer, nullable=False, default=0)
     two_factor_enabled = db.Column(db.Boolean, nullable=False, default=False)
     theme_preference = db.Column(db.String(20), nullable=False, default="dark")
@@ -237,6 +246,16 @@ class EmailVerification(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
+class SupportRequest(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), nullable=False, index=True)
+    remembered_email = db.Column(db.String(255), nullable=True)
+    remembered_email_normalized = db.Column(db.String(255), nullable=True, index=True)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="open")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
 class BlockedUser(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     blocker = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
@@ -299,6 +318,56 @@ class PointLedger(db.Model):
     user = db.relationship("User")
 
 
+class AiTask(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    title = db.Column(db.String(180), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    repeat = db.Column(db.String(30), nullable=False, default="none")
+    remind_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User")
+
+
+class Community(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    title = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(80), nullable=False, default="Genel")
+    image = db.Column(db.Text, nullable=True)
+    owner = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    privacy = db.Column(db.String(30), nullable=False, default="public")
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    owner_user = db.relationship("User")
+    members = db.relationship("CommunityMember", backref="community", cascade="all, delete-orphan")
+    announcements = db.relationship("CommunityAnnouncement", backref="community", cascade="all, delete-orphan")
+
+
+class CommunityMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    community_id = db.Column(db.String(40), db.ForeignKey("community.id"), nullable=False)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    role = db.Column(db.String(30), nullable=False, default="member")
+    joined_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User")
+    __table_args__ = (db.UniqueConstraint("community_id", "username", name="unique_community_member"),)
+
+
+class CommunityAnnouncement(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    community_id = db.Column(db.String(40), db.ForeignKey("community.id"), nullable=False)
+    author = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    author_user = db.relationship("User")
+
+
 class VaultItem(db.Model):
     id = db.Column(db.String(40), primary_key=True)
     username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
@@ -338,7 +407,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "chats": "Sohbetler",
         "groups": "Gruplar",
         "stories": "Güncellemeler",
-        "explore": "Kesfet",
+        "explore": "Keşfet",
         "calls": "Aramalar",
         "friends": "Arkadaşlarım",
         "contacts": "Kişiler",
@@ -380,7 +449,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "composerRadius": 34,
         "headerHeight": 64,
         "showNavLabels": True,
-        "navOrder": ["calls", "explore", "chats", "contacts", "settings"],
+        "navOrder": ["chats", "calls", "contacts", "settings", "explore"],
         "composerOrder": ["attach", "emoji", "input", "voice", "send"],
     },
     # Legacy flat keys are kept so older deployed clients can still read a sane design.
@@ -540,25 +609,37 @@ def historical_points(username):
         .filter(ChatMember.username == username, Message.sender != username)
         .count()
     )
-    story_points = Story.query.filter_by(username=username).count() * 5
+    story_points = Story.query.filter_by(username=username).count() * POINT_RULES["story"]
     friend_points = ContactRequest.query.filter(
         ContactRequest.status == "accepted",
         db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username),
-    ).count() * 3
-    return message_points + received_points + story_points + friend_points
+    ).count() * POINT_RULES["friend_accept"]
+    group_points = (
+        ChatMember.query.join(Chat, Chat.id == ChatMember.chat_id)
+        .filter(ChatMember.username == username, Chat.type == "group")
+        .count()
+        * POINT_RULES["group_join"]
+    )
+    community_points = CommunityMember.query.filter_by(username=username).count() * POINT_RULES["community_join"]
+    return message_points + received_points + story_points + friend_points + group_points + community_points
 
 
 def point_level(points):
     points = max(0, int(points or 0))
-    level = points // 250 + 1
-    current_floor = (level - 1) * 250
-    next_floor = level * 250
+    thresholds = [0, 5000, 15000, 50000, 100000, 250000, 500000, 1000000]
+    level = 1
+    for index, threshold in enumerate(thresholds, start=1):
+        if points >= threshold:
+            level = index
+    current_floor = thresholds[level - 1]
+    next_floor = thresholds[level] if level < len(thresholds) else current_floor
     progress = 100 if next_floor == current_floor else int(((points - current_floor) / (next_floor - current_floor)) * 100)
     return {
         "level": level,
-        "title": "Nexa Ustasi" if level >= 10 else "Nexa Elcisi" if level >= 5 else "Nexa Kesifcisi",
+        "title": "Efsane Üye" if level >= 8 else "Nexa Ustası" if level >= 5 else "Nexa Keşifçisi",
         "current": points,
         "next": next_floor,
+        "remaining": max(0, next_floor - points),
         "progress": max(0, min(100, progress)),
     }
 
@@ -597,6 +678,16 @@ def add_points(usernames, amount, reason="bonus", meta=None):
             db.session.add(PointLedger(id=uuid4().hex, username=username, amount=amount, reason=reason, meta=meta or {}))
 
 
+def add_points_once(username, amount, reason, unique_key, meta=None):
+    if not username or amount <= 0:
+        return False
+    exists = PointLedger.query.filter_by(username=username, reason=reason).filter(PointLedger.meta["uniqueKey"].as_string() == unique_key).first()
+    if exists:
+        return False
+    add_points(username, amount, reason, {**(meta or {}), "uniqueKey": unique_key})
+    return True
+
+
 def maybe_award_daily_login(user):
     if not user:
         return False
@@ -612,12 +703,6 @@ def maybe_award_daily_login(user):
 
 
 def maybe_award_profile_completion(user):
-    if not user or user.profile_bonus_awarded:
-        return False
-    if user.display_name and user.email and user.about and user.profile_image:
-        user.profile_bonus_awarded = True
-        add_points(user.username, POINT_RULES["profile_complete"], "profile_complete")
-        return True
     return False
 
 
@@ -668,27 +753,134 @@ def nearby_users_for(username, limit=30):
     return sorted(result, key=lambda item: item["distanceKm"])[:limit]
 
 
+VOICE_ROOM_DEFAULTS = {
+    "category": "Genel",
+    "privacy": "public",
+    "limit": 50,
+    "joinMode": "open",
+    "talkMode": "request",
+    "commentsEnabled": True,
+    "aiModeration": True,
+    "recording": False,
+    "owner": "",
+    "createdAt": None,
+    "participants": {},
+    "requests": {},
+    "comments": [],
+    "bans": [],
+}
+
+
+def normalize_voice_room(room):
+    for key, value in VOICE_ROOM_DEFAULTS.items():
+        if key not in room:
+            room[key] = value.copy() if isinstance(value, (dict, list)) else value
+    if not room.get("createdAt"):
+        room["createdAt"] = now_iso()
+    return room
+
+
+def clamp_voice_room_limit(value, default=50):
+    try:
+        limit = int(value)
+    except (TypeError, ValueError):
+        limit = default
+    return max(2, min(200, limit))
+
+
+def can_manage_voice_room(room, username):
+    if not room or not username:
+        return False
+    participant = (room.get("participants") or {}).get(username) or {}
+    return room.get("owner") == username or participant.get("role") in {"founder", "admin", "moderator"}
+
+
+def voice_room_public(room, viewer=None):
+    normalize_voice_room(room)
+    participants = []
+    for username, data in room["participants"].items():
+        participant = public_user(username, viewer)
+        participant.update({
+            "muted": bool(data.get("muted")),
+            "speaking": bool(data.get("speaking")),
+            "role": data.get("role") or ("founder" if room.get("owner") == username else "listener"),
+            "joinedAt": data.get("joinedAt"),
+            "handRaised": bool(data.get("handRaised")),
+        })
+        participants.append(participant)
+    return {
+        "id": room["id"],
+        "title": room["title"],
+        "topic": room.get("topic") or "",
+        "category": room.get("category") or "Genel",
+        "privacy": room.get("privacy") or "public",
+        "limit": int(room.get("limit") or 50),
+        "joinMode": room.get("joinMode") or "open",
+        "talkMode": room.get("talkMode") or "request",
+        "commentsEnabled": bool(room.get("commentsEnabled", True)),
+        "aiModeration": bool(room.get("aiModeration", True)),
+        "recording": bool(room.get("recording")),
+        "owner": public_user(room.get("owner"), viewer) if room.get("owner") else None,
+        "participants": participants,
+        "requests": [public_user(name, viewer) for name in (room.get("requests") or {})],
+        "comments": (room.get("comments") or [])[-80:],
+        "bans": list(room.get("bans") or []),
+        "createdAt": room.get("createdAt"),
+        "count": len(participants),
+    }
+
+
 def voice_rooms_state(viewer=None):
     with voice_room_lock:
-        rooms = []
-        for room in voice_rooms.values():
-            participants = []
-            for username, data in room["participants"].items():
-                participant = public_user(username, viewer)
-                participant.update({
-                    "muted": bool(data.get("muted")),
-                    "speaking": bool(data.get("speaking")),
-                    "joinedAt": data.get("joinedAt"),
-                })
-                participants.append(participant)
-            rooms.append({
-                "id": room["id"],
-                "title": room["title"],
-                "topic": room["topic"],
-                "participants": participants,
-                "count": len(participants),
-            })
-        return rooms
+        return [voice_room_public(room, viewer) for room in voice_rooms.values()]
+
+
+PRIVACY_SCOPE_VALUES = {"everyone", "friends", "contacts", "nobody"}
+DEFAULT_PRIVACY_SCOPES = {
+    "lastSeen": "everyone",
+    "online": "everyone",
+    "email": "friends",
+    "about": "friends",
+    "photo": "everyone",
+    "calls": "friends",
+    "groups": "friends",
+}
+
+
+def privacy_scopes_for(user):
+    if not user:
+        return dict(DEFAULT_PRIVACY_SCOPES)
+
+    if isinstance(user.privacy_settings, dict):
+        scopes = {**DEFAULT_PRIVACY_SCOPES, **user.privacy_settings}
+    else:
+        scopes = {
+            **DEFAULT_PRIVACY_SCOPES,
+            "lastSeen": "nobody" if user.hide_last_seen else "everyone",
+            "online": "nobody" if user.hide_online else "everyone",
+            "email": "nobody" if user.hide_email else "friends",
+        }
+
+    normalized = {}
+    for key, fallback in DEFAULT_PRIVACY_SCOPES.items():
+        value = str(scopes.get(key) or fallback).strip()
+        normalized[key] = value if value in PRIVACY_SCOPE_VALUES else fallback
+    return normalized
+
+
+def can_view_user_scope(user, viewer, scope_key):
+    if not user:
+        return False
+    if viewer == user.username:
+        return True
+    if viewer and is_blocked_between(viewer, user.username):
+        return False
+    scope = privacy_scopes_for(user).get(scope_key, DEFAULT_PRIVACY_SCOPES.get(scope_key, "friends"))
+    if scope == "everyone":
+        return True
+    if scope == "nobody":
+        return False
+    return bool(viewer and accepted_contact(viewer, user.username))
 
 
 def public_user(username, viewer=None):
@@ -696,17 +888,20 @@ def public_user(username, viewer=None):
     is_self = viewer == username
     blocked = bool(viewer and viewer != username and is_blocked_between(viewer, username))
     online = any(name == username for name in connections.values())
-    show_online = not blocked and (is_self or not bool(user.hide_online if user else False))
-    show_last_seen = not blocked and (is_self or not bool(user.hide_last_seen if user else False))
-    show_email = not blocked and (is_self or not bool(user.hide_email if user else True))
+    show_online = not blocked and can_view_user_scope(user, viewer, "online")
+    show_last_seen = not blocked and can_view_user_scope(user, viewer, "lastSeen")
+    show_email = not blocked and can_view_user_scope(user, viewer, "email")
+    show_about = not blocked and can_view_user_scope(user, viewer, "about")
+    show_photo = not blocked and can_view_user_scope(user, viewer, "photo")
     temp_status = None if blocked else active_temp_status(user)
     points = 0 if blocked else user_points(username) if user else 0
+    privacy_scopes = privacy_scopes_for(user)
     return {
         "username": username,
         "displayName": user.display_name if user else username,
         "avatar": user.avatar if user else username[:2].upper(),
-        "profileImage": None if blocked else user.profile_image if user else None,
-        "about": "" if blocked else user.about if user else "NexaLine kullanıyorum.",
+        "profileImage": user.profile_image if user and show_photo else None,
+        "about": user.about if user and show_about else "",
         "createdAt": to_iso(user.created_at) if user else now_iso(),
         "points": points,
         "pointLevel": point_level(points),
@@ -721,6 +916,7 @@ def public_user(username, viewer=None):
             "readReceiptsOff": bool(user.disable_read_receipts) if user else False,
             "emailHidden": bool(user.hide_email) if user else True,
         },
+        "privacyScopes": privacy_scopes,
     }
 
 
@@ -736,6 +932,7 @@ def private_user(username):
             "readReceiptsOff": bool(user.disable_read_receipts),
             "emailHidden": bool(user.hide_email),
         }
+        data["privacyScopes"] = privacy_scopes_for(user)
         data["twoFactorEnabled"] = bool(user.two_factor_enabled)
         data["preferences"] = {
             "theme": user.theme_preference or "dark",
@@ -1219,6 +1416,65 @@ def visible_chats(username):
     return sorted(result, key=lambda item: item["lastMessage"]["createdAt"] if item["lastMessage"] else "", reverse=True)
 
 
+def ai_task_to_dict(row):
+    return {
+        "id": row.id,
+        "title": row.title,
+        "description": row.description or "",
+        "repeat": row.repeat or "none",
+        "remindAt": to_iso(row.remind_at) if row.remind_at else None,
+        "completedAt": to_iso(row.completed_at) if row.completed_at else None,
+        "createdAt": to_iso(row.created_at),
+        "updatedAt": to_iso(row.updated_at),
+    }
+
+
+def ai_tasks_for(username):
+    rows = AiTask.query.filter_by(username=username).order_by(AiTask.completed_at.isnot(None), AiTask.created_at.desc()).limit(120).all()
+    return [ai_task_to_dict(row) for row in rows]
+
+
+def community_to_dict(row, viewer=None):
+    member_rows = CommunityMember.query.filter_by(community_id=row.id).all()
+    members = [public_user(member.username, viewer) for member in member_rows[:24]]
+    joined = any(member.username == viewer for member in member_rows) if viewer else False
+    announcements = (
+        CommunityAnnouncement.query.filter_by(community_id=row.id)
+        .order_by(CommunityAnnouncement.created_at.desc())
+        .limit(8)
+        .all()
+    )
+    return {
+        "id": row.id,
+        "title": row.title,
+        "description": row.description or "",
+        "category": row.category or "Genel",
+        "image": row.image,
+        "owner": public_user(row.owner, viewer),
+        "privacy": row.privacy or "public",
+        "createdAt": to_iso(row.created_at),
+        "memberCount": len(member_rows),
+        "onlineCount": sum(1 for member in member_rows if any(name == member.username for name in connections.values())),
+        "joined": joined,
+        "role": next((member.role for member in member_rows if member.username == viewer), None),
+        "members": members,
+        "announcements": [
+            {
+                "id": item.id,
+                "body": item.body,
+                "author": public_user(item.author, viewer),
+                "createdAt": to_iso(item.created_at),
+            }
+            for item in announcements
+        ],
+    }
+
+
+def communities_for(username):
+    rows = Community.query.order_by(Community.created_at.desc()).limit(80).all()
+    return [community_to_dict(row, username) for row in rows]
+
+
 def app_state_for_user(username):
     return {
         "user": private_user(username),
@@ -1236,6 +1492,8 @@ def app_state_for_user(username):
         "scheduledMessages": visible_scheduled_messages(username),
         "pointLedger": point_ledger_for(username),
         "voiceRooms": voice_rooms_state(username),
+        "communities": communities_for(username),
+        "aiTasks": ai_tasks_for(username),
         "nearbyUsers": nearby_users_for(username),
     }
 
@@ -1382,6 +1640,7 @@ def device_session_to_dict(row):
     return {
         "id": row.id,
         "label": row.label,
+        "platform": device_label(row.user_agent or row.label),
         "ipAddress": row.ip_address,
         "userAgent": row.user_agent,
         "createdAt": to_iso(row.created_at),
@@ -1559,13 +1818,25 @@ def username_error(username):
     if len(username) < 3:
         return "Kullanıcı adı en az 3 karakter olmalı."
 
-    if len(username) > 24:
-        return "Kullanıcı adı en fazla 24 karakter olmalı."
+    if len(username) > 20:
+        return "Kullanıcı adı en fazla 20 karakter olmalı."
 
-    if not re.fullmatch(r"[a-z0-9_]+", username):
-        return "Kullanıcı adı sadece küçük harf, sayı ve alt çizgi içerebilir."
+    if not re.fullmatch(r"[a-z0-9_.]+", username):
+        return "Kullanıcı adı sadece küçük harf, sayı, nokta ve alt çizgi içerebilir."
 
     return None
+
+
+def user_by_login_identifier(identifier):
+    value = (identifier or "").strip().lower()
+    if not value:
+        return None
+    if "@" in value:
+        _, email_normalized = normalize_email(value)
+        if not email_normalized:
+            return None
+        return User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first()
+    return db.session.get(User, value)
 
 
 def normalize_email(email):
@@ -1579,6 +1850,18 @@ def normalize_email(email):
         domain = "gmail.com"
 
     return email, f"{local}@{domain}"
+
+
+def mask_email(email):
+    email = (email or "").strip()
+    if "@" not in email:
+        return ""
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = f"{local[:1]}***"
+    else:
+        masked_local = f"{local[:2]}{'*' * min(6, max(3, len(local) - 2))}"
+    return f"{masked_local}@{domain}"
 
 
 def email_error(email):
@@ -1610,6 +1893,7 @@ def email_subject(purpose):
         "register": "NexaLine kayıt doğrulama kodun",
         "forgot": "NexaLine şifre sıfırlama kodun",
         "email_change": "NexaLine Gmail değiştirme kodun",
+        "login_2fa": "NexaLine giriş doğrulama kodun",
     }
     return labels.get(purpose, "NexaLine doğrulama kodun")
 
@@ -1675,6 +1959,24 @@ def create_email_verification(purpose, email, email_normalized, username=None, p
     db.session.commit()
     sent = send_email_code(email, code, purpose)
     return verification, code, sent
+
+
+def latest_email_verification(purpose, username, email_normalized):
+    return EmailVerification.query.filter_by(
+        purpose=purpose,
+        username=username,
+        email_normalized=email_normalized,
+    ).order_by(EmailVerification.created_at.desc()).first()
+
+
+def verification_resend_wait_seconds(row):
+    if not row:
+        return 0
+    created_at = row.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    elapsed = (datetime.now(timezone.utc) - created_at).total_seconds()
+    return max(0, int(TWO_FACTOR_RESEND_SECONDS - elapsed))
 
 
 def send_email_code(email, code, purpose):
@@ -1806,8 +2108,9 @@ ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "
 
 def ai_provider_status():
     provider = (os.environ.get("AI_PROVIDER") or "auto").strip().lower()
-    if provider in {"gemini", "google"} or (provider == "auto" and os.environ.get("GEMINI_API_KEY")):
-        return {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"), "ready": bool(os.environ.get("GEMINI_API_KEY"))}
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
+    if provider in {"gemini", "google"} or (provider == "auto" and gemini_key):
+        return {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"), "ready": bool(gemini_key)}
     if provider in {"openai", "openai-compatible"} or (provider == "auto" and os.environ.get("OPENAI_API_KEY")):
         return {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY"))}
     if provider == "ollama" or os.environ.get("OLLAMA_BASE_URL"):
@@ -2342,10 +2645,8 @@ def local_ai_reply(prompt, context, actions, research=None):
     keywords = ai_prompt_keywords(prompt)
     if keywords:
         return (
-            "Bunu şöyle ele alırım: "
-            + ", ".join(keywords[:4])
-            + " başlıklarını netleştirip küçük adımlara bölelim. "
-            "İstersen bana hedefini, mevcut durumu ve takıldığın noktayı yaz; buna göre daha iyi bir taslak veya çözüm planı çıkarırım."
+            f"Anladım. {', '.join(keywords[:4])} tarafında yardımcı olabilirim. "
+            "İstersen bunu hemen taslak, özet, plan ya da uygulama içi komut olarak çalıştırabilirim."
         )
     return f"{assistant_name} ücretsiz yerel modda hazır. Uygulama içi komutlar, sohbet özeti, cevap taslağı, basit web özeti ve güvenlik filtresi çalışıyor."
 
@@ -2372,7 +2673,7 @@ def web_research_if_requested(prompt, force=False):
 
 
 def call_gemini_ai(prompt, context_text, research):
-    key = os.environ.get("GEMINI_API_KEY")
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY missing")
     model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
@@ -2567,6 +2868,8 @@ def ai_chat():
     context["liveInfo"] = live_info_for_prompt(prompt, data.get("timezoneOffsetMinutes", 0))
     actions = ai_detect_actions(prompt, username, chat_id, data.get("timezoneOffsetMinutes", 0))
     reply, provider, research = generate_ai_reply(prompt, context, actions)
+    add_points_once(username, POINT_RULES["ai_chat"], "ai_chat", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"prompt": prompt[:120]})
+    db.session.commit()
     return jsonify(
         {
             "ok": True,
@@ -2634,6 +2937,85 @@ def ai_search_route():
     context = {"user": private_user(username), "matches": matches[:12], "assistant": {"name": "Nexa AI"}}
     reply, provider, research = generate_ai_reply(summary_prompt, context, [])
     return jsonify({"ok": True, "answer": reply, "results": matches[:20], "provider": provider, "research": research})
+
+
+AI_COMMANDS = [
+    {"id": "daily_plan", "title": "Günlük plan oluştur", "prompt": "Bugün için kısa ve uygulanabilir bir günlük plan oluştur."},
+    {"id": "summarize", "title": "Metin özetle", "prompt": "Aşağıdaki metni kısa maddelerle özetle:"},
+    {"id": "translate_en", "title": "İngilizceye çevir", "prompt": "Aşağıdaki metni doğal İngilizceye çevir:"},
+    {"id": "translate_tr", "title": "Türkçeye çevir", "prompt": "Aşağıdaki metni doğal Türkçeye çevir:"},
+    {"id": "ideas", "title": "Fikir önerisi ver", "prompt": "Bu hedef için yaratıcı ama uygulanabilir fikirler ver:"},
+    {"id": "fix_text", "title": "Yazı düzelt", "prompt": "Bu yazıyı imla ve anlatım açısından düzelt:"},
+    {"id": "code", "title": "Kod yazdır", "prompt": "Şu ihtiyaca uygun temiz kod örneği yaz:"},
+    {"id": "chat_summary", "title": "Sohbeti özetle", "prompt": "Aktif sohbeti özetle."},
+    {"id": "call_person", "title": "Kişiyi ara", "prompt": "Bu kişiyi ara:"},
+    {"id": "draft_message", "title": "Mesaj taslağı oluştur", "prompt": "Bu kişiye kısa ve doğal bir mesaj taslağı oluştur:"},
+]
+
+
+@app.route("/ai/commands")
+def ai_commands():
+    return jsonify({"ok": True, "commands": AI_COMMANDS})
+
+
+@app.route("/ai/tasks/<username>", methods=["GET", "POST"])
+def ai_tasks(username):
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    if request.method == "GET":
+        return jsonify({"ok": True, "tasks": ai_tasks_for(username)})
+    data = request.get_json() or {}
+    title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:180]
+    if len(title) < 2:
+        return jsonify({"ok": False, "message": "Görev başlığı gerekli."}), 400
+    repeat = (data.get("repeat") or "none").strip().lower()
+    if repeat not in {"none", "daily", "weekly", "monthly"}:
+        repeat = "none"
+    remind_at = None
+    if data.get("remindAt"):
+        try:
+            remind_at = datetime.fromisoformat(str(data.get("remindAt")).replace("Z", "+00:00"))
+        except ValueError:
+            remind_at = None
+    row = AiTask(
+        id=uuid4().hex,
+        username=username,
+        title=title,
+        description=(data.get("description") or "").strip()[:1000],
+        repeat=repeat,
+        remind_at=remind_at,
+    )
+    db.session.add(row)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "AI görevi eklendi.", "tasks": ai_tasks_for(username)})
+
+
+@app.route("/ai/tasks/<username>/<task_id>", methods=["PATCH", "DELETE"])
+def ai_task_update(username, task_id):
+    username = username.strip().lower()
+    row = db.session.get(AiTask, task_id)
+    if not row or row.username != username:
+        return jsonify({"ok": False, "message": "Görev bulunamadı."}), 404
+    if request.method == "DELETE":
+        db.session.delete(row)
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Görev silindi.", "tasks": ai_tasks_for(username)})
+    data = request.get_json() or {}
+    if "title" in data:
+        title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:180]
+        if title:
+            row.title = title
+    if "description" in data:
+        row.description = (data.get("description") or "").strip()[:1000]
+    if "repeat" in data and data.get("repeat") in {"none", "daily", "weekly", "monthly"}:
+        row.repeat = data.get("repeat")
+    if "completed" in data:
+        row.completed_at = datetime.now(timezone.utc) if data.get("completed") else None
+    row.updated_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Görev güncellendi.", "tasks": ai_tasks_for(username)})
 
 
 @app.route("/qr-login/start", methods=["POST"])
@@ -2763,6 +3145,20 @@ def register_check_username():
     return jsonify({"ok": True, "message": "Kullanıcı adı uygun."})
 
 
+@app.route("/users/search")
+def users_search():
+    query = (request.args.get("q") or "").strip().lower()
+    if len(query) < 2:
+        return jsonify({"ok": True, "users": []})
+    rows = User.query.filter(
+        db.or_(
+            db.func.lower(User.username).contains(query),
+            db.func.lower(User.display_name).contains(query),
+        )
+    ).order_by(User.created_at.desc()).limit(20).all()
+    return jsonify({"ok": True, "users": [public_user(row.username) for row in rows]})
+
+
 @app.route("/register/verify", methods=["POST"])
 def register_verify():
     try:
@@ -2808,11 +3204,11 @@ def register_verify():
             return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
 
         if not password and not verification.password_hash:
-            return jsonify({"ok": True, "message": "Kod dogrulandi. Simdi guclu sifreni olustur.", "requiresPassword": True})
+            return jsonify({"ok": True, "message": "Kod doğrulandı. Şimdi güçlü şifreni oluştur.", "requiresPassword": True})
 
         if password:
             if confirm_password is not None and password != confirm_password:
-                return jsonify({"ok": False, "message": "Yazdigin iki sifre ayni degil."}), 400
+                return jsonify({"ok": False, "message": "Yazdığın iki şifre aynı değil."}), 400
             password_problem = password_error(username, password)
             if password_problem:
                 return jsonify({"ok": False, "message": password_problem}), 400
@@ -2848,23 +3244,28 @@ def register_verify():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json() or {}
-    identifier = (data.get("email") or data.get("username") or "").strip().lower()
+    identifier = (data.get("username") or data.get("email") or "").strip().lower()
     password = data.get("password") or ""
     device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
-    user = None
     if "@" in identifier:
-        user = User.query.filter(db.func.lower(User.email_normalized) == identifier.lower()).first()
-    if not user:
-        user = db.session.get(User, identifier)
+        return jsonify({"ok": False, "message": "Giriş için Gmail yerine kullanıcı adını yaz."}), 400
+    user = db.session.get(User, identifier)
 
     if not user or not check_password_hash(user.password_hash, password):
-        return jsonify({"ok": False, "message": "Gmail veya şifre hatalı."}), 401
+        return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
 
     if user.two_factor_enabled:
         if not user.email_normalized:
             return jsonify({"ok": False, "message": "2FA için Gmail gerekli. Yöneticiyle iletişime geç."}), 400
         _, code, sent = create_email_verification("login_2fa", user.email, user.email_normalized, username=user.username)
-        response = {"ok": True, "requiresTwoFactor": True, "message": "Gmail adresine giriş doğrulama kodu gönderdik.", "username": user.username}
+        response = {
+            "ok": True,
+            "requiresTwoFactor": True,
+            "message": "Gmail adresine giriş doğrulama kodu gönderdik.",
+            "username": user.username,
+            "maskedEmail": mask_email(user.email_normalized or user.email),
+            "resendAfter": TWO_FACTOR_RESEND_SECONDS,
+        }
         if not sent:
             if os.environ.get("RENDER"):
                 return jsonify({"ok": False, "message": "Mail gönderilemedi. Render mail ayarlarını kontrol et."}), 503
@@ -2873,6 +3274,32 @@ def login():
         return jsonify(response)
 
     return jsonify(login_success_payload(user, device_id))
+
+
+@app.route("/login/2fa/resend", methods=["POST"])
+def login_two_factor_resend():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    user = db.session.get(User, username)
+    if not user or not user.two_factor_enabled or not user.email_normalized:
+        return jsonify({"ok": False, "message": "Doğrulama oturumu bulunamadı."}), 404
+    latest = latest_email_verification("login_2fa", user.username, user.email_normalized)
+    wait_seconds = verification_resend_wait_seconds(latest)
+    if wait_seconds:
+        return jsonify({"ok": False, "message": f"Yeni kod için {wait_seconds} saniye bekle.", "retryAfter": wait_seconds}), 429
+    _, code, sent = create_email_verification("login_2fa", user.email, user.email_normalized, username=user.username)
+    response = {
+        "ok": True,
+        "message": "Yeni doğrulama kodu Gmail adresine gönderildi.",
+        "maskedEmail": mask_email(user.email_normalized or user.email),
+        "resendAfter": TWO_FACTOR_RESEND_SECONDS,
+    }
+    if not sent:
+        if os.environ.get("RENDER"):
+            return jsonify({"ok": False, "message": "Mail gönderilemedi. Render mail ayarlarını kontrol et."}), 503
+        response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
+        response["devCode"] = code
+    return jsonify(response)
 
 
 @app.route("/login/2fa", methods=["POST"])
@@ -2904,30 +3331,28 @@ def login_two_factor():
 @app.route("/password/forgot/start", methods=["POST"])
 def forgot_password_start():
     data = request.get_json() or {}
-    email = (data.get("email") or "").strip()
-    email_problem = email_error(email)
-    if email_problem:
-        return jsonify({"ok": False, "message": email_problem}), 400
-
-    email, email_normalized = normalize_email(email)
-    user = User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first()
+    identifier = (data.get("identifier") or data.get("username") or data.get("email") or "").strip()
+    user = user_by_login_identifier(identifier)
     if not user:
-        return jsonify({"ok": False, "message": "Bu Gmail ile kayıtlı hesap bulunamadı."}), 404
+        return jsonify({"ok": False, "message": "Bu kullanıcı adı veya Gmail ile kayıtlı hesap bulunamadı."}), 404
+    if not user.email_normalized:
+        return jsonify({"ok": False, "message": "Bu hesapta doğrulanmış Gmail yok. Destek talebi oluştur."}), 400
 
-    _, code, sent = create_email_verification("forgot", email, email_normalized, username=user.username)
-    return verification_response("Gmail adresine şifre sıfırlama kodu gönderdik.", code, sent)
+    _, code, sent = create_email_verification("forgot", user.email, user.email_normalized, username=user.username)
+    response = verification_response("Gmail adresine şifre sıfırlama kodu gönderdik.", code, sent)
+    return response
 
 
 @app.route("/password/forgot/verify", methods=["POST"])
 def forgot_password_verify():
     data = request.get_json() or {}
-    email = (data.get("email") or "").strip()
+    identifier = (data.get("identifier") or data.get("username") or data.get("email") or "").strip()
     code = (data.get("code") or "").strip()
     new_password = data.get("password") or ""
-    email, email_normalized = normalize_email(email)
-    user = User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first() if email_normalized else None
+    user = user_by_login_identifier(identifier)
     if not user:
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    email_normalized = user.email_normalized
 
     password_problem = password_error(user.username, new_password)
     if password_problem:
@@ -3038,6 +3463,37 @@ def change_email_verify(username):
     return jsonify({"ok": True, "message": "Gmail değiştirildi.", "user": private_user(username)})
 
 
+@app.route("/support/access-request", methods=["POST"])
+def support_access_request():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    remembered_email = (data.get("rememberedEmail") or data.get("email") or "").strip()
+    description = re.sub(r"\s+", " ", (data.get("description") or "").strip())
+
+    username_problem = username_error(username)
+    if username_problem:
+        return jsonify({"ok": False, "message": username_problem}), 400
+    if len(description) < 12:
+        return jsonify({"ok": False, "message": "Sorunu en az 12 karakterle açıkla."}), 400
+    remembered_email_value = None
+    remembered_email_normalized = None
+    if remembered_email:
+        remembered_email_value, remembered_email_normalized = normalize_email(remembered_email)
+        if not remembered_email_value:
+            return jsonify({"ok": False, "message": "Hatırladığın Gmail geçerli görünmüyor."}), 400
+
+    request_row = SupportRequest(
+        id=uuid4().hex,
+        username=username,
+        remembered_email=remembered_email_value,
+        remembered_email_normalized=remembered_email_normalized,
+        description=description[:2000],
+    )
+    db.session.add(request_row)
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Destek talebin kaydedildi. Hesap bilgilerin incelenebilir durumda."})
+
+
 @app.route("/account/<username>/profile", methods=["POST"])
 def update_profile(username):
     data = request.get_json() or {}
@@ -3051,6 +3507,7 @@ def update_profile(username):
         return jsonify({"ok": False, "message": display_name_error}), 400
     about = (data.get("about") or user.about or "").strip()
     profile_image = data.get("profileImage")
+    avatar = re.sub(r"\s+", "", str(data.get("avatar") or "")).strip()
 
     if len(display_name) < 2 or len(display_name) > 80:
         return jsonify({"ok": False, "message": "Görünen ad 2-40 karakter olmalı."}), 400
@@ -3059,7 +3516,10 @@ def update_profile(username):
         return jsonify({"ok": False, "message": "Hakkımda yazısı en fazla 180 karakter olmalı."}), 400
 
     user.display_name = display_name
-    user.avatar = tr_upper(display_name[:2])
+    if avatar:
+        user.avatar = tr_upper(avatar[:5])
+    else:
+        user.avatar = tr_upper(display_name[:2])
     user.about = about or "NexaLine kullanıyorum."
     if isinstance(profile_image, str):
         if profile_image and not profile_image.startswith("data:image/"):
@@ -3090,10 +3550,23 @@ def update_privacy(username):
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
     privacy = data.get("privacy") or {}
-    user.hide_last_seen = bool(privacy.get("lastSeenHidden"))
-    user.hide_online = bool(privacy.get("onlineHidden"))
+    incoming_scopes = data.get("privacyScopes") or privacy.get("scopes") or {}
+    current_scopes = privacy_scopes_for(user)
+    if isinstance(incoming_scopes, dict):
+        for key in DEFAULT_PRIVACY_SCOPES:
+            value = str(incoming_scopes.get(key) or current_scopes.get(key) or DEFAULT_PRIVACY_SCOPES[key]).strip()
+            current_scopes[key] = value if value in PRIVACY_SCOPE_VALUES else DEFAULT_PRIVACY_SCOPES[key]
+
+    if not isinstance(incoming_scopes, dict) or not incoming_scopes:
+        current_scopes["lastSeen"] = "nobody" if privacy.get("lastSeenHidden") else "everyone"
+        current_scopes["online"] = "nobody" if privacy.get("onlineHidden") else "everyone"
+        current_scopes["email"] = "nobody" if privacy.get("emailHidden", True) else "friends"
+
+    user.privacy_settings = current_scopes
+    user.hide_last_seen = current_scopes.get("lastSeen") == "nobody"
+    user.hide_online = current_scopes.get("online") == "nobody"
     user.disable_read_receipts = bool(privacy.get("readReceiptsOff"))
-    user.hide_email = bool(privacy.get("emailHidden", True))
+    user.hide_email = current_scopes.get("email") == "nobody"
     db.session.commit()
     broadcast_presence()
     return jsonify({"ok": True, "message": "Gizlilik ayarları güncellendi.", "user": private_user(username)})
@@ -3129,14 +3602,130 @@ def update_temporary_status(username):
     username = username.strip().lower()
     user = db.session.get(User, username)
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
     text_value = re.sub(r"\s+", " ", (data.get("text") or "").strip())[:80]
     minutes = max(0, min(24 * 60, int(data.get("minutes") or 0)))
     user.temporary_status = text_value or None
     user.temporary_status_expires_at = datetime.now(timezone.utc) + timedelta(minutes=minutes) if text_value and minutes else None
+    if text_value:
+        add_points_once(username, POINT_RULES["temporary_status"], "temporary_status", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"text": text_value})
     db.session.commit()
     broadcast_presence()
-    return jsonify({"ok": True, "message": "Gecici durum guncellendi.", "user": private_user(username)})
+    return jsonify({"ok": True, "message": "Geçici durum güncellendi.", "user": private_user(username)})
+
+
+BADGE_DEFINITIONS = [
+    {"id": "first_step", "title": "İlk Adım", "description": "İlk puanını kazan.", "reward": "+25", "target": 1, "reason": "any"},
+    {"id": "chat_master", "title": "Sohbet Ustası", "description": "100 mesaj puanı kazan.", "reward": "Sohbet rozeti", "target": 100, "reason": "message"},
+    {"id": "early_bird", "title": "Erken Kuş", "description": "5 günlük giriş puanı kazan.", "reward": "+50", "target": 5, "reason": "daily_login"},
+    {"id": "helpful", "title": "Yardımsever", "description": "5 arkadaşlık kabul puanı kazan.", "reward": "Profil rozeti", "target": 5, "reason": "friend_accept"},
+    {"id": "loyal", "title": "Sadık Üye", "description": "10 günlük giriş serisi oluştur.", "reward": "Sadakat rozeti", "target": 10, "reason": "daily_streak"},
+    {"id": "explorer", "title": "Keşifçi", "description": "3 farklı özelliği kullan.", "reward": "Keşif teması", "target": 3, "reason": "feature_mix"},
+    {"id": "voice_master", "title": "Sesli Oda Ustası", "description": "3 sesli odaya katıl.", "reward": "Sesli oda rozeti", "target": 3, "reason": "voice_room_join"},
+    {"id": "community_leader", "title": "Topluluk Lideri", "description": "Bir topluluk oluştur veya 3 topluluğa katıl.", "reward": "Lider rozeti", "target": 3, "reason": "community_join"},
+    {"id": "ai_friend", "title": "AI Dostu", "description": "Nexa AI ile 5 gün konuş.", "reward": "+100", "target": 5, "reason": "ai_chat"},
+    {"id": "legend", "title": "Efsane Üye", "description": "100.000 puana ulaş.", "reward": "Efsane profil çerçevesi", "target": 100000, "reason": "points"},
+]
+
+
+QUEST_DEFINITIONS = [
+    {"id": "daily_messages", "type": "daily", "title": "3 kişiye mesaj gönder", "description": "Bugün en az 3 mesaj gönder.", "reward": POINT_RULES["quest_daily"], "reason": "message", "target": 3},
+    {"id": "daily_ai", "type": "daily", "title": "AI ile sohbet et", "description": "Bugün Nexa AI'ya bir komut ver.", "reward": POINT_RULES["quest_daily"], "reason": "ai_chat", "target": 1},
+    {"id": "weekly_voice", "type": "weekly", "title": "Bir sesli odaya katıl", "description": "Bu hafta canlı bir odaya gir.", "reward": POINT_RULES["quest_weekly"], "reason": "voice_room_join", "target": 1},
+    {"id": "weekly_community", "type": "weekly", "title": "Bir topluluğa katıl", "description": "Bu hafta bir topluluğa katıl veya oluştur.", "reward": POINT_RULES["quest_weekly"], "reason": "community_join", "target": 1},
+    {"id": "special_story", "type": "special", "title": "Durum paylaş", "description": "Bir güncelleme paylaş.", "reward": POINT_RULES["quest_special"], "reason": "story", "target": 1},
+]
+
+
+def ledger_count(username, reason=None, since=None):
+    query = PointLedger.query.filter_by(username=username)
+    if reason and reason != "any":
+        query = query.filter_by(reason=reason)
+    if since:
+        query = query.filter(PointLedger.created_at >= since)
+    return query.count()
+
+
+def daily_streak(username):
+    rows = PointLedger.query.filter_by(username=username, reason="daily_login").order_by(PointLedger.created_at.desc()).all()
+    days = {row.created_at.date() for row in rows}
+    today = datetime.now(timezone.utc).date()
+    streak = 0
+    while today - timedelta(days=streak) in days:
+        streak += 1
+    return streak
+
+
+def badge_progress(username, points):
+    feature_reasons = {row.reason for row in PointLedger.query.filter_by(username=username).all()}
+    result = []
+    streak = daily_streak(username)
+    for badge in BADGE_DEFINITIONS:
+        reason = badge["reason"]
+        if reason == "points":
+            value = points
+        elif reason == "daily_streak":
+            value = streak
+        elif reason == "feature_mix":
+            value = len(feature_reasons.intersection({"message", "story", "voice_room_join", "community_join", "ai_chat", "temporary_status"}))
+        elif reason == "any":
+            value = PointLedger.query.filter_by(username=username).count()
+        else:
+            value = ledger_count(username, reason)
+        target = max(1, int(badge["target"]))
+        result.append({
+            **badge,
+            "current": value,
+            "progress": min(100, int((value / target) * 100)),
+            "unlocked": value >= target,
+        })
+    return result
+
+
+def quest_window(quest_type):
+    now = datetime.now(timezone.utc)
+    if quest_type == "daily":
+        return datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    if quest_type == "weekly":
+        start = now - timedelta(days=now.weekday())
+        return datetime(start.year, start.month, start.day, tzinfo=timezone.utc)
+    return None
+
+
+def quest_progress(username):
+    rows = []
+    for quest in QUEST_DEFINITIONS:
+        since = quest_window(quest["type"])
+        count = ledger_count(username, quest["reason"], since)
+        target = int(quest["target"])
+        claimed_key = f"{quest['id']}:{since.date().isoformat() if since else 'all'}"
+        claimed = PointLedger.query.filter_by(username=username, reason="quest").filter(PointLedger.meta["uniqueKey"].as_string() == claimed_key).first() is not None
+        rows.append({
+            **quest,
+            "current": count,
+            "progress": min(100, int((count / max(1, target)) * 100)),
+            "completed": count >= target,
+            "claimed": claimed,
+            "claimKey": claimed_key,
+        })
+    return rows
+
+
+def leaderboard_for(username):
+    rows = User.query.order_by(User.points.desc(), User.created_at.asc()).limit(50).all()
+    global_rows = [
+        {"rank": index + 1, "user": public_user(row.username, username), "points": user_points(row.username)}
+        for index, row in enumerate(rows)
+    ]
+    friend_names = {username}
+    for request_row in ContactRequest.query.filter(
+        ContactRequest.status == "accepted",
+        db.or_(ContactRequest.from_username == username, ContactRequest.to_username == username),
+    ):
+        friend_names.add(request_row.from_username)
+        friend_names.add(request_row.to_username)
+    friend_rows = [item for item in global_rows if item["user"]["username"] in friend_names]
+    return {"global": global_rows, "country": global_rows, "friends": friend_rows}
 
 
 @app.route("/points/<username>")
@@ -3144,21 +3733,37 @@ def points_state(username):
     username = username.strip().lower()
     user = db.session.get(User, username)
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
     points = user_points(username)
-    rewards = [
-        {"id": "profile_boost", "title": "Profil vitrini", "cost": 300, "description": "Profilini kesfet alaninda daha gorunur yapar."},
-        {"id": "theme_unlock", "title": "Ozel tema rozeti", "cost": 500, "description": "Nexa atmosfer temalarinda rozet acar."},
-        {"id": "room_badge", "title": "Sesli oda rozeti", "cost": 750, "description": "Sesli odalarda adinin yaninda rozet gosterir."},
-    ]
     return jsonify({
         "ok": True,
         "points": points,
         "level": point_level(points),
         "rules": POINT_RULES,
         "ledger": point_ledger_for(username, 80),
-        "rewards": rewards,
+        "badges": badge_progress(username, points),
+        "quests": quest_progress(username),
+        "leaderboard": leaderboard_for(username),
+        "dailyStreak": daily_streak(username),
     })
+
+
+@app.route("/points/<username>/quests/<quest_id>/claim", methods=["POST"])
+def claim_point_quest(username, quest_id):
+    username = username.strip().lower()
+    if not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    quests = {quest["id"]: quest for quest in quest_progress(username)}
+    quest = quests.get(quest_id)
+    if not quest:
+        return jsonify({"ok": False, "message": "Görev bulunamadı."}), 404
+    if not quest["completed"]:
+        return jsonify({"ok": False, "message": "Görev henüz tamamlanmadı."}), 400
+    if quest["claimed"]:
+        return jsonify({"ok": False, "message": "Bu görev ödülü zaten alındı."}), 400
+    add_points_once(username, int(quest["reward"]), "quest", quest["claimKey"], {"questId": quest_id})
+    db.session.commit()
+    return points_state(username)
 
 
 @app.route("/nearby/<username>", methods=["GET", "POST"])
@@ -3166,7 +3771,7 @@ def nearby_state(username):
     username = username.strip().lower()
     user = db.session.get(User, username)
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
     if request.method == "POST":
         data = request.get_json() or {}
         user.nearby_enabled = bool(data.get("enabled"))
@@ -3175,9 +3780,71 @@ def nearby_state(username):
                 user.last_lat = float(data.get("lat"))
                 user.last_lng = float(data.get("lng"))
             except (TypeError, ValueError):
-                return jsonify({"ok": False, "message": "Konum okunamadi."}), 400
+                return jsonify({"ok": False, "message": "Konum okunamadı."}), 400
         db.session.commit()
     return jsonify({"ok": True, "enabled": bool(user.nearby_enabled), "users": nearby_users_for(username)})
+
+
+@app.route("/communities", methods=["GET", "POST"])
+def communities_route():
+    if request.method == "GET":
+        username = (request.args.get("username") or "").strip().lower()
+        return jsonify({"ok": True, "communities": communities_for(username or None)})
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:160]
+    if len(title) < 2:
+        return jsonify({"ok": False, "message": "Topluluk adı gerekli."}), 400
+    community = Community(
+        id=uuid4().hex,
+        title=title,
+        description=(data.get("description") or "").strip()[:800],
+        category=(data.get("category") or "Genel").strip()[:80],
+        privacy=(data.get("privacy") or "public").strip().lower()[:30],
+        owner=username,
+    )
+    db.session.add(community)
+    db.session.flush()
+    db.session.add(CommunityMember(community_id=community.id, username=username, role="owner"))
+    add_points_once(username, POINT_RULES["community_join"], "community_join", f"community:{community.id}", {"communityId": community.id, "role": "owner"})
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Topluluk oluşturuldu.", "community": community_to_dict(community, username), "communities": communities_for(username)})
+
+
+@app.route("/communities/<community_id>/join", methods=["POST"])
+def community_join(community_id):
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    community = db.session.get(Community, community_id)
+    if not db.session.get(User, username) or not community:
+        return jsonify({"ok": False, "message": "Topluluk veya kullanıcı bulunamadı."}), 404
+    row = CommunityMember.query.filter_by(community_id=community_id, username=username).first()
+    if not row:
+        db.session.add(CommunityMember(community_id=community_id, username=username, role="member"))
+        add_points_once(username, POINT_RULES["community_join"], "community_join", f"community:{community_id}", {"communityId": community_id})
+        db.session.commit()
+    return jsonify({"ok": True, "message": "Topluluğa katıldın.", "community": community_to_dict(community, username), "communities": communities_for(username)})
+
+
+@app.route("/communities/<community_id>/announcements", methods=["POST"])
+def community_announcement_create(community_id):
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    body = re.sub(r"\s+", " ", (data.get("body") or "").strip())[:1200]
+    community = db.session.get(Community, community_id)
+    member = CommunityMember.query.filter_by(community_id=community_id, username=username).first()
+    if not community or not member:
+        return jsonify({"ok": False, "message": "Topluluk üyeliği gerekli."}), 403
+    if member.role not in {"owner", "admin", "moderator"}:
+        return jsonify({"ok": False, "message": "Duyuru için yönetici yetkisi gerekli."}), 403
+    if len(body) < 2:
+        return jsonify({"ok": False, "message": "Duyuru metni gerekli."}), 400
+    db.session.add(CommunityAnnouncement(id=uuid4().hex, community_id=community_id, author=username, body=body))
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Duyuru yayınlandı.", "community": community_to_dict(community, username), "communities": communities_for(username)})
 
 
 def vault_items_for(username):
@@ -3196,7 +3863,7 @@ def verify_vault_pin(user, pin):
     if locked_until and locked_until > now:
         return False, f"Kasa kilitli. {int((locked_until - now).total_seconds())} sn sonra tekrar dene."
     if not user.vault_pin_hash:
-        return False, "Once kasa PIN'i olustur."
+        return False, "Önce kasa PIN'i oluştur."
     if check_password_hash(user.vault_pin_hash, str(pin or "")):
         user.vault_failed_attempts = 0
         user.vault_locked_until = None
@@ -3205,7 +3872,7 @@ def verify_vault_pin(user, pin):
     if user.vault_failed_attempts >= 5:
         user.vault_locked_until = now + timedelta(minutes=1)
         user.vault_failed_attempts = 0
-    return False, "PIN hatali."
+    return False, "PIN hatalı."
 
 
 @app.route("/vault/<username>/setup", methods=["POST"])
@@ -3215,14 +3882,14 @@ def vault_setup(username):
     user = db.session.get(User, username)
     pin = str(data.get("pin") or "")
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
     if not re.fullmatch(r"\d{4}", pin):
-        return jsonify({"ok": False, "message": "PIN 4 rakam olmali."}), 400
+        return jsonify({"ok": False, "message": "PIN 4 rakam olmalı."}), 400
     user.vault_pin_hash = generate_password_hash(pin)
     user.vault_failed_attempts = 0
     user.vault_locked_until = None
     db.session.commit()
-    return jsonify({"ok": True, "message": "Gizli kasa PIN'i olusturuldu.", "user": private_user(username)})
+    return jsonify({"ok": True, "message": "Gizli kasa PIN'i oluşturuldu.", "user": private_user(username)})
 
 
 @app.route("/vault/<username>/unlock", methods=["POST"])
@@ -3231,7 +3898,7 @@ def vault_unlock(username):
     username = username.strip().lower()
     user = db.session.get(User, username)
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
     ok, message = verify_vault_pin(user, data.get("pin"))
     db.session.commit()
     if not ok:
@@ -3245,7 +3912,7 @@ def vault_item_create(username):
     username = username.strip().lower()
     user = db.session.get(User, username)
     if not user:
-        return jsonify({"ok": False, "message": "Kullanici bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
     ok, message = verify_vault_pin(user, data.get("pin"))
     if not ok:
         db.session.commit()
@@ -3265,7 +3932,7 @@ def vault_item_delete(username, item_id):
     user = db.session.get(User, username)
     item = db.session.get(VaultItem, item_id)
     if not user or not item or item.username != username:
-        return jsonify({"ok": False, "message": "Kasa ogesi bulunamadi."}), 404
+        return jsonify({"ok": False, "message": "Kasa öğesi bulunamadı."}), 404
     ok, message = verify_vault_pin(user, data.get("pin"))
     if not ok:
         db.session.commit()
@@ -3299,7 +3966,11 @@ def list_devices(username):
     if device_id:
         upsert_device_session(username, device_id)
         db.session.commit()
-    return jsonify({"ok": True, "devices": active_device_sessions(username)})
+    current_device_id = normalize_device_id(device_id) if device_id else ""
+    devices = active_device_sessions(username)
+    for device in devices:
+        device["isCurrent"] = bool(current_device_id and device["id"] == current_device_id)
+    return jsonify({"ok": True, "devices": devices})
 
 
 @app.route("/account/<username>/devices/<device_id>", methods=["DELETE"])
@@ -3311,6 +3982,27 @@ def revoke_device(username, device_id):
     row.revoked_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify({"ok": True, "message": "Cihaz oturumu kapatıldı.", "devices": active_device_sessions(username)})
+
+
+@app.route("/account/<username>/devices", methods=["DELETE"])
+def revoke_other_devices(username):
+    username = username.strip().lower()
+    if not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    current_device_id = normalize_device_id(request.headers.get("X-Nexa-Device") or request.args.get("deviceId") or "")
+    now = datetime.now(timezone.utc)
+    query = DeviceSession.query.filter_by(username=username, revoked_at=None)
+    revoked = 0
+    for row in query.all():
+        if current_device_id and row.id == current_device_id:
+            continue
+        row.revoked_at = now
+        revoked += 1
+    db.session.commit()
+    devices = active_device_sessions(username)
+    for device in devices:
+        device["isCurrent"] = bool(current_device_id and device["id"] == current_device_id)
+    return jsonify({"ok": True, "message": f"{revoked} cihaz oturumu kapatıldı.", "devices": devices})
 
 
 @app.route("/account/<username>/blocked", methods=["GET"])
@@ -4827,14 +5519,27 @@ def handle_voice_join(data):
     if not username or room_id not in voice_rooms:
         return
     with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if username in (room.get("bans") or []):
+            emit("notice", {"message": "Bu odadan engellendin."})
+            return
+        if len(room["participants"]) >= int(room.get("limit") or 50) and username not in room["participants"]:
+            emit("notice", {"message": "Oda katılımcı limiti dolu."})
+            return
         for room in voice_rooms.values():
             room["participants"].pop(username, None)
-        voice_rooms[room_id]["participants"][username] = {
+        room = normalize_voice_room(voice_rooms[room_id])
+        role = "founder" if room.get("owner") == username else ("speaker" if room.get("talkMode") == "everyone" else "listener")
+        room["participants"][username] = {
             "muted": False,
             "speaking": False,
+            "role": role,
+            "handRaised": False,
             "joinedAt": now_iso(),
         }
     join_room(f"voice:{room_id}")
+    add_points_once(username, POINT_RULES["voice_room_join"], "voice_room_join", f"{datetime.now(timezone.utc).date()}:{room_id}", {"roomId": room_id})
+    db.session.commit()
     emit_voice_rooms()
 
 
@@ -4846,8 +5551,17 @@ def handle_voice_leave(data=None):
     with voice_room_lock:
         for room_id, room in voice_rooms.items():
             if username in room["participants"]:
-                room["participants"].pop(username, None)
+                participant = room["participants"].pop(username, None) or {}
+                joined_at = participant.get("joinedAt")
+                if joined_at:
+                    try:
+                        joined_dt = datetime.fromisoformat(str(joined_at).replace("Z", "+00:00"))
+                        if (datetime.now(timezone.utc) - joined_dt).total_seconds() >= 600:
+                            add_points(username, POINT_RULES["voice_room_10min"], "voice_room_10min", {"roomId": room_id})
+                    except ValueError:
+                        pass
                 leave_room(f"voice:{room_id}")
+    db.session.commit()
     emit_voice_rooms()
 
 
@@ -4874,6 +5588,142 @@ def handle_voice_speaking(data):
         participant = voice_rooms[room_id]["participants"].get(username)
         if participant is not None:
             participant["speaking"] = bool((data or {}).get("speaking"))
+    emit_voice_rooms()
+
+
+@socketio.on("voice:create")
+def handle_voice_create(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    if not username:
+        return
+    title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:120]
+    if len(title) < 2:
+        emit("notice", {"message": "Oda adı gerekli."})
+        return
+    room_id = uuid4().hex[:12]
+    with voice_room_lock:
+        voice_rooms[room_id] = normalize_voice_room({
+            "id": room_id,
+            "title": title,
+            "topic": (data.get("topic") or data.get("category") or "Canlı sohbet").strip()[:180],
+            "category": (data.get("category") or "Genel").strip()[:60],
+            "privacy": (data.get("privacy") or "public").strip().lower(),
+            "limit": clamp_voice_room_limit(data.get("limit")),
+            "joinMode": (data.get("joinMode") or "open").strip().lower(),
+            "talkMode": (data.get("talkMode") or "request").strip().lower(),
+            "commentsEnabled": data.get("commentsEnabled") is not False,
+            "aiModeration": data.get("aiModeration") is not False,
+            "recording": bool(data.get("recording")),
+            "owner": username,
+            "participants": {},
+        })
+    handle_voice_join({"roomId": room_id})
+
+
+@socketio.on("voice:request_speak")
+def handle_voice_request_speak(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    if not username or room_id not in voice_rooms:
+        return
+    with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if username in room["participants"]:
+            room["participants"][username]["handRaised"] = True
+            room["requests"][username] = now_iso()
+    emit_voice_rooms()
+
+
+@socketio.on("voice:approve_speaker")
+def handle_voice_approve_speaker(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    target = ((data or {}).get("username") or "").strip().lower()
+    accept = (data or {}).get("accept") is not False
+    if not username or room_id not in voice_rooms:
+        return
+    with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if not can_manage_voice_room(room, username):
+            emit("notice", {"message": "Oda yönetimi için yetkin yok."})
+            return
+        room["requests"].pop(target, None)
+        if target in room["participants"]:
+            room["participants"][target]["handRaised"] = False
+            if accept:
+                room["participants"][target]["role"] = "speaker"
+                room["participants"][target]["muted"] = False
+    emit_voice_rooms()
+
+
+@socketio.on("voice:comment")
+def handle_voice_comment(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    body = re.sub(r"\s+", " ", ((data or {}).get("body") or "").strip())[:500]
+    if not username or room_id not in voice_rooms or not body:
+        return
+    with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if not room.get("commentsEnabled", True):
+            emit("notice", {"message": "Bu odada yorumlar kapalı."})
+            return
+        labels = ai_moderation_labels(body) if room.get("aiModeration", True) else []
+        comment = {
+            "id": uuid4().hex,
+            "username": username,
+            "displayName": db.session.get(User, username).display_name if db.session.get(User, username) else username,
+            "body": body,
+            "labels": labels,
+            "hidden": bool(labels),
+            "pinned": False,
+            "createdAt": now_iso(),
+        }
+        room["comments"].append(comment)
+        room["comments"] = room["comments"][-100:]
+    emit_voice_rooms()
+
+
+@socketio.on("voice:settings")
+def handle_voice_settings(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    if not username or room_id not in voice_rooms:
+        return
+    with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if not can_manage_voice_room(room, username):
+            emit("notice", {"message": "Oda ayarları için yetkin yok."})
+            return
+        for key in ["privacy", "joinMode", "talkMode", "commentsEnabled", "aiModeration", "recording"]:
+            if key in data:
+                room[key] = data[key]
+        if "limit" in data:
+            room["limit"] = clamp_voice_room_limit(data.get("limit"), room.get("limit") or 50)
+    emit_voice_rooms()
+
+
+@socketio.on("voice:ban")
+def handle_voice_ban(data):
+    username = connections.get(request.sid)
+    room_id = ((data or {}).get("roomId") or "").strip()
+    target = ((data or {}).get("username") or "").strip().lower()
+    banned = (data or {}).get("banned") is not False
+    if not username or room_id not in voice_rooms or not target:
+        return
+    with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if not can_manage_voice_room(room, username):
+            emit("notice", {"message": "Ban işlemi için yetkin yok."})
+            return
+        bans = set(room.get("bans") or [])
+        if banned:
+            bans.add(target)
+            room["participants"].pop(target, None)
+        else:
+            bans.discard(target)
+        room["bans"] = sorted(bans)
     emit_voice_rooms()
 
 
@@ -4950,6 +5800,7 @@ with app.app_context():
         "hide_online": "ALTER TABLE \"user\" ADD COLUMN hide_online BOOLEAN DEFAULT FALSE NOT NULL",
         "disable_read_receipts": "ALTER TABLE \"user\" ADD COLUMN disable_read_receipts BOOLEAN DEFAULT FALSE NOT NULL",
         "hide_email": "ALTER TABLE \"user\" ADD COLUMN hide_email BOOLEAN DEFAULT TRUE NOT NULL",
+        "privacy_settings": "ALTER TABLE \"user\" ADD COLUMN privacy_settings JSON",
         "points": "ALTER TABLE \"user\" ADD COLUMN points INTEGER DEFAULT 0 NOT NULL",
         "two_factor_enabled": "ALTER TABLE \"user\" ADD COLUMN two_factor_enabled BOOLEAN DEFAULT FALSE NOT NULL",
         "theme_preference": "ALTER TABLE \"user\" ADD COLUMN theme_preference VARCHAR(20) DEFAULT 'dark' NOT NULL",

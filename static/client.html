@@ -524,6 +524,71 @@
             background: transparent;
         }
 
+        .account-switcher-button {
+            width: 32px;
+            height: 32px;
+            min-height: 32px;
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: var(--text);
+            background: rgba(255,255,255,.06);
+        }
+
+        .account-switcher-menu {
+            position: absolute;
+            top: 62px;
+            left: 66px;
+            z-index: 60;
+            width: min(280px, calc(100vw - 28px));
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(11,16,24,.96);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .account-switcher-menu button {
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr);
+            align-items: center;
+            gap: 9px;
+            width: 100%;
+            min-height: 46px;
+            padding: 8px;
+            text-align: left;
+            color: var(--text);
+            background: transparent;
+        }
+
+        .account-switcher-menu .account-active {
+            border-color: rgba(47,128,255,.34);
+            background: rgba(47,128,255,.12);
+        }
+
+        .notification-tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .notification-tools .last-message {
+            flex: 1 0 100%;
+        }
+
+        .chat-item.unread {
+            border-color: rgba(47,128,255,.34);
+            box-shadow: inset 3px 0 0 var(--nx-blue, #2f80ff);
+        }
+
+        .mobile-brand-title {
+            display: none;
+        }
+
         .status-line {
             min-height: 22px;
             margin-top: 12px;
@@ -3648,6 +3713,375 @@
             margin-top: 10px;
         }
 
+        .profile-hero-card {
+            position: relative;
+            display: grid;
+            gap: 14px;
+            overflow: hidden;
+            padding: 18px;
+            border: 1px solid var(--master-line);
+            border-radius: 26px;
+            background:
+                radial-gradient(circle at 18% 0%, rgba(47,128,255,.28), transparent 36%),
+                radial-gradient(circle at 88% 24%, rgba(46,211,198,.18), transparent 38%),
+                linear-gradient(145deg, rgba(255,255,255,.09), rgba(255,255,255,.035));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 22px 52px rgba(0,0,0,.24);
+        }
+
+        .profile-hero-top {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 14px;
+            align-items: center;
+        }
+
+        .profile-avatar-xl {
+            position: relative;
+            width: 92px;
+            height: 92px;
+            border-radius: 32px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            color: #fff;
+            background: var(--primary-gradient);
+            box-shadow: 0 18px 44px rgba(47,128,255,.28);
+            font-size: 28px;
+            font-weight: 1000;
+        }
+
+        .profile-avatar-xl img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-avatar-xl .avatar {
+            width: 100%;
+            height: 100%;
+            flex-basis: 100%;
+            border: 0;
+            border-radius: 32px;
+            font-size: 28px;
+        }
+
+        .profile-camera-button {
+            position: absolute;
+            right: -4px;
+            bottom: -4px;
+            width: 34px;
+            min-height: 34px;
+            height: 34px;
+            border: 1px solid rgba(255,255,255,.18);
+            border-radius: 14px;
+            color: #fff;
+            background: linear-gradient(135deg, var(--nx-danger, var(--red)), var(--nx-blue, var(--blue)));
+        }
+
+        .profile-hero-title {
+            min-width: 0;
+        }
+
+        .profile-hero-title h3 {
+            margin: 0 0 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 22px;
+        }
+
+        .profile-hero-title p {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .profile-metrics-grid,
+        .privacy-scope-grid,
+        .avatar-preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .profile-metric,
+        .privacy-scope-card,
+        .avatar-preset-card,
+        .profile-note-card {
+            border: 1px solid var(--master-line);
+            border-radius: 20px;
+            padding: 12px;
+            color: var(--text);
+            background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.032));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+        }
+
+        .profile-metric strong,
+        .profile-note-card strong,
+        .privacy-scope-card strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .profile-metric small,
+        .profile-note-card small,
+        .privacy-scope-card small {
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .avatar-preset-card {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .avatar-preset-card.active {
+            border-color: rgba(46,211,198,.65);
+            box-shadow: 0 0 0 3px rgba(46,211,198,.14), inset 0 1px 0 rgba(255,255,255,.12);
+        }
+
+        .avatar-mini-preview {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            border-radius: 16px;
+            color: #fff;
+            font-weight: 1000;
+            background: var(--avatar-gradient, var(--primary-gradient));
+        }
+
+        .privacy-scope-card {
+            display: grid;
+            gap: 8px;
+        }
+
+        .privacy-scope-card select {
+            min-height: 40px;
+            padding: 8px 10px;
+        }
+
+        .blocked-card .avatar,
+        .device-card .device-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 16px;
+            flex-basis: 40px;
+        }
+
+        .device-card.clickable {
+            cursor: pointer;
+        }
+
+        .call-kind-pill,
+        .call-direction-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-right: 6px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            color: #dbeafe;
+            background: rgba(47,128,255,.14);
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .call-direction-pill.missed {
+            color: #ffd7df;
+            background: rgba(229,72,93,.18);
+        }
+
+        .call-item.missed {
+            border-color: rgba(229,72,93,.30);
+        }
+
+        .location-card {
+            display: grid;
+            gap: 8px;
+            min-width: min(280px, 100%);
+            overflow: hidden;
+            padding: 10px;
+            border: 1px solid var(--master-line);
+            border-radius: 18px;
+            color: var(--text);
+            text-decoration: none;
+            background: linear-gradient(145deg, rgba(47,128,255,.16), rgba(46,211,198,.08));
+        }
+
+        .location-map-preview {
+            height: 96px;
+            border-radius: 14px;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px),
+                radial-gradient(circle at 50% 52%, rgba(229,72,93,.8) 0 5px, transparent 6px),
+                rgba(255,255,255,.055);
+            background-size: 26px 26px, 26px 26px, auto, auto;
+        }
+
+        .voice-card {
+            display: grid;
+            gap: 8px;
+            min-width: min(320px, 100%);
+            padding: 10px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.055);
+        }
+
+        .voice-card audio {
+            width: 100%;
+        }
+
+        .camera-capture-card {
+            display: grid;
+            gap: 12px;
+        }
+
+        .camera-capture-stage {
+            position: relative;
+            aspect-ratio: 3 / 4;
+            overflow: hidden;
+            border: 1px solid var(--master-line);
+            border-radius: 26px;
+            background:
+                radial-gradient(circle at center, rgba(47,128,255,.16), transparent 52%),
+                rgba(0,0,0,.34);
+        }
+
+        .camera-capture-stage video,
+        .camera-capture-stage img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-capture-tools,
+        .poll-option-builder {
+            display: grid;
+            gap: 10px;
+        }
+
+        .poll-option-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .nexa-stage-grid,
+        .ai-home-grid,
+        .badge-grid,
+        .quest-grid,
+        .community-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .ai-home-card,
+        .badge-card,
+        .quest-card,
+        .community-card,
+        .voice-live-card {
+            border: 1px solid var(--master-line);
+            border-radius: 22px;
+            padding: 14px;
+            color: var(--text);
+            text-align: left;
+            background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.035));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 16px 36px rgba(0,0,0,.18);
+        }
+
+        .ai-home-card strong,
+        .badge-card strong,
+        .quest-card strong,
+        .community-card strong,
+        .voice-live-card strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .ai-home-card small,
+        .badge-card small,
+        .quest-card small,
+        .community-card small,
+        .voice-live-card small {
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .ai-home-card {
+            min-height: 112px;
+        }
+
+        .badge-card.unlocked {
+            border-color: rgba(46,211,198,.52);
+            box-shadow: 0 0 0 3px rgba(46,211,198,.12), inset 0 1px 0 rgba(255,255,255,.11);
+        }
+
+        .voice-stage {
+            display: grid;
+            gap: 12px;
+        }
+
+        .voice-participant-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .voice-participant {
+            display: grid;
+            justify-items: center;
+            gap: 5px;
+            min-width: 66px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        .voice-participant .avatar {
+            width: 52px;
+            height: 52px;
+            flex-basis: 52px;
+            border: 2px solid rgba(46,211,198,.45);
+        }
+
+        .voice-comment {
+            display: grid;
+            gap: 4px;
+            padding: 9px 10px;
+            border-radius: 14px;
+            background: rgba(255,255,255,.055);
+        }
+
+        .voice-comment.hidden-comment {
+            border: 1px solid rgba(247,201,72,.28);
+            color: #ffe8a6;
+            background: rgba(247,201,72,.08);
+        }
+
+        @media (max-width: 520px) {
+            .profile-hero-top,
+            .profile-metrics-grid,
+            .privacy-scope-grid,
+            .avatar-preset-grid,
+            .nexa-stage-grid,
+            .ai-home-grid,
+            .badge-grid,
+            .quest-grid,
+            .community-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-hero-top {
+                justify-items: center;
+                text-align: center;
+            }
+        }
+
         .points-help {
             position: relative;
             display: inline-grid;
@@ -3965,6 +4399,121 @@
             pointer-events: none;
         }
 
+        .modal-panel.sheet {
+            align-items: flex-end;
+        }
+
+        .modal-panel.sheet .modal-box {
+            width: min(560px, calc(100vw - 18px));
+            max-height: min(74vh, 720px);
+            margin-bottom: max(10px, env(safe-area-inset-bottom));
+            border-radius: 30px 30px 26px 26px;
+            animation: sheetRise .24s cubic-bezier(.2,.9,.18,1.05) both;
+        }
+
+        @keyframes sheetRise {
+            from { transform: translateY(36px) scale(.98); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .attachment-menu {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .attachment-option {
+            min-height: 118px;
+            display: grid;
+            align-content: start;
+            justify-items: start;
+            gap: 10px;
+            padding: 14px;
+            border-radius: 22px;
+            color: var(--text);
+            background: linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.035));
+            border: 1px solid var(--master-line);
+        }
+
+        .attachment-option strong,
+        .attachment-option small {
+            display: block;
+            line-height: 1.25;
+        }
+
+        .attachment-option small {
+            margin-top: 4px;
+            color: var(--muted);
+        }
+
+        .pin-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 14px 0 18px;
+        }
+
+        .pin-dots span {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.24);
+            background: rgba(255,255,255,.06);
+        }
+
+        .pin-dots span.filled {
+            background: var(--primary-gradient);
+            border-color: transparent;
+            box-shadow: 0 0 18px rgba(47,128,255,.30);
+        }
+
+        .pin-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .pin-keypad button {
+            min-height: 58px;
+            border-radius: 20px;
+            color: var(--text);
+            background: rgba(255,255,255,.07);
+            border: 1px solid var(--master-line);
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .vault-unlock-card {
+            display: grid;
+            justify-items: center;
+            gap: 8px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .vault-unlock-card .attachment-option-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 20px;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            background: var(--primary-gradient);
+            box-shadow: 0 18px 38px rgba(47,128,255,.24);
+        }
+
+        .vault-unlock-card small {
+            max-width: 340px;
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .pin-keypad button:active {
+            transform: scale(.96);
+            background: rgba(47,128,255,.18);
+        }
+
         @media (max-width: 760px) {
             .app {
                 grid-template-columns: 1fr;
@@ -3988,11 +4537,11 @@
                 display: none;
             }
 
-            .nav-tab[data-section="calls"] { order: 1; }
-            .nav-tab[data-section="explore"] { order: 2; }
-            .nav-tab[data-section="chats"] { order: 3; }
-            .nav-tab[data-section="contacts"] { order: 4; }
-            .settings-rail-button { order: 5; }
+            .nav-tab[data-section="chats"] { order: 1; }
+            .nav-tab[data-section="calls"] { order: 2; }
+            .nav-tab[data-section="contacts"] { order: 3; }
+            .settings-rail-button { order: 4; }
+            .nav-tab[data-section="explore"] { order: 5; }
 
             .nav-tab {
                 min-height: 52px;
@@ -4012,6 +4561,393 @@
 
             .explore-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .modal-panel.sheet .modal-box {
+                width: calc(100vw - 14px);
+                max-height: min(78vh, 720px);
+            }
+
+            .attachment-menu {
+                gap: 9px;
+            }
+
+            .attachment-option {
+                min-height: 104px;
+                padding: 11px;
+                border-radius: 18px;
+            }
+
+            .attachment-option-icon {
+                width: 34px;
+                height: 34px;
+            }
+        }
+
+        :root {
+            --nx-bg: #05070B;
+            --nx-bg-soft: #080D14;
+            --nx-surface: rgba(18, 23, 32, 0.82);
+            --nx-surface-2: rgba(25, 31, 42, 0.76);
+            --nx-border: rgba(255,255,255,.10);
+            --nx-text: #F4F7FB;
+            --nx-muted: #9AA5B4;
+            --nx-blue: #2F80FF;
+            --nx-purple: #7B4DFF;
+            --nx-cyan: #2ED3C6;
+            --nx-green: #2BD47D;
+            --nx-yellow: #F7C948;
+            --nx-danger: #E5485D;
+            --nx-gradient: linear-gradient(135deg, #2F80FF 0%, #7B4DFF 52%, #2ED3C6 100%);
+            --nx-glass: rgba(13, 18, 27, .72);
+        }
+
+        @media (max-width: 760px) {
+            :root {
+                --bg: var(--nx-bg);
+                --app-bg: var(--nx-bg);
+                --panel: var(--nx-surface);
+                --panel-2: var(--nx-surface-2);
+                --line: var(--nx-border);
+                --text: var(--nx-text);
+                --muted: var(--nx-muted);
+                --blue: var(--nx-blue);
+                --green: var(--nx-green);
+                --red: var(--nx-danger);
+                --kit-red: var(--nx-blue);
+                --kit-red-glow: var(--nx-cyan);
+                --kit-surface: var(--nx-surface);
+                --kit-surface-2: var(--nx-surface-2);
+                --kit-border: var(--nx-border);
+                --primary-gradient: var(--nx-gradient);
+                --master-blue: var(--nx-blue);
+                --master-purple: var(--nx-purple);
+                --master-cyan: var(--nx-cyan);
+                --master-danger: var(--nx-danger);
+            }
+
+            :root[data-theme="light"] {
+                --nx-bg: #F4F7FB;
+                --nx-bg-soft: #FFFFFF;
+                --nx-surface: rgba(255,255,255,.86);
+                --nx-surface-2: rgba(241,245,249,.92);
+                --nx-border: rgba(15,23,42,.12);
+                --nx-text: #111827;
+                --nx-muted: #64748B;
+                --nx-glass: rgba(255,255,255,.78);
+                --bg: var(--nx-bg);
+                --app-bg: var(--nx-bg);
+                --panel: var(--nx-surface);
+                --panel-2: var(--nx-surface-2);
+                --line: var(--nx-border);
+                --text: var(--nx-text);
+                --muted: var(--nx-muted);
+                --kit-surface: var(--nx-surface);
+                --kit-surface-2: var(--nx-surface-2);
+                --kit-border: var(--nx-border);
+            }
+
+            body {
+                color: var(--nx-text);
+                background:
+                    radial-gradient(circle at 12% 0%, rgba(47,128,255,.24), transparent 34%),
+                    radial-gradient(circle at 86% 10%, rgba(123,77,255,.18), transparent 36%),
+                    radial-gradient(circle at 50% 105%, rgba(46,211,198,.14), transparent 40%),
+                    var(--nx-bg);
+            }
+
+            :root[data-theme="light"] body {
+                background:
+                    radial-gradient(circle at 12% 0%, rgba(47,128,255,.16), transparent 34%),
+                    radial-gradient(circle at 88% 10%, rgba(123,77,255,.12), transparent 34%),
+                    #F4F7FB;
+            }
+
+            .auth-card,
+            .qr-login-card,
+            .sidebar,
+            .topbar,
+            .chat-top,
+            .composer,
+            .settings-box,
+            .modal-box,
+            .story-box,
+            .chat-item,
+            .contact-item,
+            .call-item,
+            .settings-option,
+            .toggle-row,
+            .profile-stat,
+            .profile-about,
+            .explore-card,
+            .vault-card,
+            .voice-room-card {
+                border: 1px solid var(--nx-border);
+                background: linear-gradient(145deg, rgba(255,255,255,.085), rgba(255,255,255,.035)), var(--nx-glass);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 18px 48px rgba(0,0,0,.22);
+                backdrop-filter: blur(22px) saturate(140%);
+            }
+
+            :root[data-theme="light"] .auth-card,
+            :root[data-theme="light"] .qr-login-card,
+            :root[data-theme="light"] .sidebar,
+            :root[data-theme="light"] .topbar,
+            :root[data-theme="light"] .chat-top,
+            :root[data-theme="light"] .composer,
+            :root[data-theme="light"] .settings-box,
+            :root[data-theme="light"] .modal-box,
+            :root[data-theme="light"] .story-box,
+            :root[data-theme="light"] .chat-item,
+            :root[data-theme="light"] .contact-item,
+            :root[data-theme="light"] .call-item,
+            :root[data-theme="light"] .settings-option,
+            :root[data-theme="light"] .toggle-row,
+            :root[data-theme="light"] .profile-stat,
+            :root[data-theme="light"] .profile-about,
+            :root[data-theme="light"] .explore-card,
+            :root[data-theme="light"] .vault-card,
+            :root[data-theme="light"] .voice-room-card {
+                background: linear-gradient(145deg, rgba(255,255,255,.92), rgba(241,245,249,.76));
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 18px 42px rgba(15,23,42,.08);
+            }
+
+            button,
+            .icon-btn,
+            .secondary,
+            .text-btn,
+            .filter-chip,
+            input,
+            textarea,
+            select {
+                min-height: 44px;
+                border-radius: 16px;
+                transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+            }
+
+            button:active,
+            .icon-btn:active,
+            .chat-item:active,
+            .contact-item:active,
+            .call-item:active {
+                transform: scale(.96);
+            }
+
+            .primary,
+            button.primary,
+            .send-btn,
+            .new-chat-fab,
+            .points-chip,
+            .filter-chip.active {
+                border: 0;
+                color: #fff;
+                background: var(--nx-gradient);
+                box-shadow: 0 16px 38px rgba(47,128,255,.24);
+            }
+
+            .danger,
+            button.danger,
+            .mini-btn.danger {
+                color: #fff !important;
+                background: linear-gradient(135deg, rgba(229,72,93,.92), rgba(160,28,52,.88)) !important;
+                box-shadow: 0 14px 30px rgba(229,72,93,.18) !important;
+            }
+
+            input,
+            textarea,
+            select,
+            .field {
+                color: var(--nx-text);
+                border: 1px solid var(--nx-border);
+                background: rgba(255,255,255,.055);
+            }
+
+            :root[data-theme="light"] input,
+            :root[data-theme="light"] textarea,
+            :root[data-theme="light"] select,
+            :root[data-theme="light"] .field {
+                color: var(--nx-text);
+                background: rgba(255,255,255,.82);
+            }
+
+            input:focus,
+            textarea:focus,
+            select:focus,
+            .field:focus {
+                border-color: rgba(47,128,255,.70);
+                box-shadow: 0 0 0 3px rgba(47,128,255,.14);
+            }
+
+            #authScreen #qrLoginCard {
+                display: none !important;
+            }
+
+            #verificationCode:not(.hidden) {
+                text-align: center;
+                letter-spacing: .55em;
+                font-weight: 800;
+                font-variant-numeric: tabular-nums;
+                background:
+                    linear-gradient(90deg, transparent calc(100% - 1px), rgba(255,255,255,.14) 0) 0 0 / calc(100% / 6) 100%,
+                    rgba(255,255,255,.055);
+            }
+
+            :root[data-theme="light"] #verificationCode:not(.hidden) {
+                background:
+                    linear-gradient(90deg, transparent calc(100% - 1px), rgba(15,23,42,.12) 0) 0 0 / calc(100% / 6) 100%,
+                    rgba(255,255,255,.86);
+            }
+
+            .modal-panel {
+                align-items: flex-end;
+                padding: 10px;
+                background: rgba(0,0,0,.48);
+                backdrop-filter: blur(14px);
+            }
+
+            .modal-box {
+                width: 100%;
+                max-height: min(82vh, 720px);
+                border-radius: 30px 30px 24px 24px;
+                animation: sheetRise .24s cubic-bezier(.2,.9,.18,1.05) both;
+            }
+
+            .modal-head::before {
+                content: "";
+                position: absolute;
+                left: 50%;
+                top: 8px;
+                width: 42px;
+                height: 4px;
+                border-radius: 999px;
+                background: rgba(154,165,180,.45);
+                transform: translateX(-50%);
+            }
+
+            .modal-head {
+                position: relative;
+                padding-top: 22px;
+            }
+
+            .toast {
+                border-radius: 18px;
+                background: var(--nx-glass);
+                backdrop-filter: blur(18px);
+            }
+
+            .avatar.online,
+            #meAvatar.online {
+                border-color: rgba(43,212,125,.85);
+                box-shadow: 0 0 0 3px rgba(43,212,125,.12), 0 0 20px rgba(43,212,125,.20);
+            }
+
+            .topbar {
+                display: grid;
+                grid-template-columns: auto minmax(0, .9fr) minmax(0, 1fr) auto;
+                grid-template-areas: "avatar user brand actions";
+                gap: 10px;
+            }
+
+            #meAvatar {
+                grid-area: avatar;
+            }
+
+            .topbar .identity {
+                grid-area: user;
+                justify-self: start;
+                text-align: left;
+            }
+
+            .mobile-brand-title {
+                grid-area: brand;
+                display: block;
+                justify-self: center;
+                color: var(--nx-text);
+                font-size: 15px;
+                font-weight: 700;
+                letter-spacing: .01em;
+            }
+
+            .account-switcher-button {
+                position: absolute;
+                left: 48px;
+                top: 22px;
+                width: 24px;
+                height: 24px;
+                min-height: 24px;
+                border-radius: 999px;
+                background: rgba(255,255,255,.08);
+            }
+
+            .account-switcher-menu {
+                top: 70px;
+                left: 12px;
+            }
+
+            .topbar .icon-row {
+                grid-area: actions;
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+
+            #installButton,
+            #storyButton,
+            #newGroupButton,
+            #mobileQrButton,
+            #pointsRailButton {
+                display: none !important;
+            }
+
+            #notificationButton,
+            #topSettingsButton {
+                display: grid !important;
+            }
+
+            .nav-tab[data-section="groups"],
+            .nav-tab[data-section="friends"],
+            .settings-rail-button {
+                display: none !important;
+            }
+
+            .nav-tab[data-section="stories"] {
+                display: grid !important;
+                order: 1;
+            }
+
+            .nav-tab[data-section="calls"] { order: 2; }
+            .nav-tab[data-section="chats"] { order: 3; }
+            .nav-tab[data-section="contacts"] { order: 4; }
+            .nav-tab[data-section="explore"] { order: 5; }
+
+            .nav-tabs {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                border-radius: 28px;
+                background: rgba(13,18,27,.72);
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 18px 38px rgba(0,0,0,.24);
+            }
+
+            .nav-tabs::before {
+                border-radius: 22px;
+                background: linear-gradient(135deg, rgba(47,128,255,.36), rgba(123,77,255,.30), rgba(46,211,198,.24));
+                transition: left .26s cubic-bezier(.2,.9,.2,1), top .26s cubic-bezier(.2,.9,.2,1), width .26s, height .26s;
+            }
+
+            .nav-tab.active .nav-icon {
+                transform: scale(1.08);
+            }
+
+            .nav-tab .nav-icon {
+                transition: transform .24s ease, color .24s ease, opacity .24s ease;
+            }
+        }
+
+        @media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: .001ms !important;
+                transition-duration: .001ms !important;
+                scroll-behavior: auto !important;
             }
         }
     </style>
@@ -4065,6 +5001,8 @@
                 <button id="authButton" class="primary" type="button">Giriş Yap</button>
             </div>
             <button id="forgotButton" class="text-btn" type="button">Şifremi unuttum</button>
+            <button id="resendTwoFactorButton" class="text-btn hidden" type="button">Kodu tekrar gönder</button>
+            <button id="supportAccessButton" class="text-btn" type="button">Hesabıma erişemiyorum</button>
             <div id="authStatus" class="status-line"></div>
         </section>
         <section id="qrLoginCard" class="qr-login-card">
@@ -4090,6 +5028,9 @@
                     <strong id="meName">NexaLine</strong>
                     <small id="meStatus" class="hidden"></small>
                 </div>
+                <button id="accountSwitcherButton" class="account-switcher-button" type="button" title="Hesap değiştir">⌄</button>
+                <div id="accountSwitcherMenu" class="account-switcher-menu hidden"></div>
+                <div class="mobile-brand-title">NexaLine</div>
                 <button id="pointsRailButton" class="points-chip" type="button" title="Nexa puanları">
                     <span class="points-star">★</span>
                     <span id="pointsTopLabel">0 Puan</span>
@@ -4099,6 +5040,7 @@
                     <button class="icon-btn" id="installButton" title="Uygulamayı indir">⇩</button>
                     <button class="icon-btn" id="storyButton" title="Durum ekle">◉</button>
                     <button class="icon-btn" id="notificationButton" title="Bildirimler">!</button>
+                    <button class="icon-btn" id="topSettingsButton" title="Ayarlar">⚙</button>
                     <button class="icon-btn" id="newGroupButton" title="Grup oluştur">＋</button>
                 </div>
             </header>
@@ -4272,12 +5214,21 @@
 
             <div id="settingsProfileSection" class="settings-section hidden">
                 <button class="settings-back" data-settings-back type="button">← Ayarlar</button>
-                <div class="settings-row">
-                    <div>
-                        <strong>Profil</strong>
-                        <div class="last-message">Fotoğraf, görünen ad ve hakkımda</div>
+                <div class="profile-hero-card">
+                    <div class="profile-hero-top">
+                        <div class="profile-avatar-xl">
+                            <div id="settingsAvatar" class="avatar">NL</div>
+                            <button id="profileHeroPhotoButton" class="profile-camera-button" type="button" title="Fotoğraf seç">▣</button>
+                        </div>
+                        <div class="profile-hero-title">
+                            <h3 id="settingsProfileName">NexaLine</h3>
+                            <p id="settingsProfileMeta">@nexaline</p>
+                        </div>
                     </div>
-                    <div id="settingsAvatar" class="avatar">NL</div>
+                    <div class="profile-metrics-grid">
+                        <div class="profile-metric"><strong id="settingsProfilePoints">0</strong><small>NexaPuan</small></div>
+                        <button id="profileAboutShortcut" class="profile-note-card" type="button"><strong>Hakkımda</strong><small id="settingsProfileAboutText">NexaLine kullanıyorum.</small></button>
+                    </div>
                 </div>
                 <input id="profileImageInput" class="hidden" type="file" accept="image/*">
                 <div class="settings-row">
@@ -4285,7 +5236,9 @@
                     <button id="removeProfileImageButton" type="button">Fotoğrafı Sil</button>
                 </div>
                 <input id="displayNameInput" placeholder="İsim soyisim">
+                <input id="avatarTextInput" maxlength="5" placeholder="Avatar harfi veya kısa logo yazısı">
                 <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
+                <div id="avatarPresetGrid" class="avatar-preset-grid"></div>
                 <div class="privacy-grid">
                     <label class="toggle-row">
                         <span>Geçici durum</span>
@@ -4318,6 +5271,43 @@
                         <strong>Gizlilik</strong>
                         <div class="last-message">Kapattığın bilgiyi karşı tarafta da göremezsin</div>
                     </div>
+                </div>
+                <div class="privacy-scope-grid">
+                    <label class="privacy-scope-card">
+                        <strong>Son görülme</strong>
+                        <small>Kimlerin son aktif zamanını görebileceğini seç.</small>
+                        <select id="lastSeenScopeInput"></select>
+                    </label>
+                    <label class="privacy-scope-card">
+                        <strong>Çevrim içi</strong>
+                        <small>O an çevrim içi olup olmadığını kim görsün?</small>
+                        <select id="onlineScopeInput"></select>
+                    </label>
+                    <label class="privacy-scope-card">
+                        <strong>Profil fotoğrafı</strong>
+                        <small>Fotoğraf görünürlüğünü yönet.</small>
+                        <select id="photoScopeInput"></select>
+                    </label>
+                    <label class="privacy-scope-card">
+                        <strong>Hakkımda</strong>
+                        <small>Profil açıklaman kimlere açık olsun?</small>
+                        <select id="aboutScopeInput"></select>
+                    </label>
+                    <label class="privacy-scope-card">
+                        <strong>Gmail</strong>
+                        <small>Gmail adresini sadece seçtiğin kişiler görür.</small>
+                        <select id="emailScopeInput"></select>
+                    </label>
+                    <label class="privacy-scope-card">
+                        <strong>Arama izni</strong>
+                        <small>Seni kimler arayabilsin?</small>
+                        <select id="callsScopeInput"></select>
+                    </label>
+                    <label class="privacy-scope-card">
+                        <strong>Grup daveti</strong>
+                        <small>Seni gruplara kimler ekleyebilsin?</small>
+                        <select id="groupsScopeInput"></select>
+                    </label>
                 </div>
                 <div class="privacy-grid">
                     <label class="toggle-row">
@@ -4378,6 +5368,17 @@
                     <button id="removeNextAiImageButton" type="button">Varsayılan Logo</button>
                 </div>
                 <input id="nextAiNameInput" maxlength="40" placeholder="Asistan adı">
+                <select id="nextAiVoiceInput">
+                    <option value="female">Kadın ses tonu</option>
+                    <option value="male">Erkek ses tonu</option>
+                    <option value="warm">Sıcak arkadaş tonu</option>
+                </select>
+                <select id="nextAiLengthInput">
+                    <option value="short">Kısa yanıt</option>
+                    <option value="medium">Orta yanıt</option>
+                    <option value="long">Detaylı yanıt</option>
+                </select>
+                <textarea id="nextAiPersonaInput" maxlength="500" placeholder="Kişiselleştirme: Bana nasıl hitap etsin, nasıl konuşsun?"></textarea>
                 <div class="privacy-grid">
                     <label class="toggle-row">
                         <span>Nexa AI açık</span>
@@ -4391,8 +5392,16 @@
                         <span>Tam yetki: onaysız uygula</span>
                         <input id="nextAiAutoApproveInput" type="checkbox">
                     </label>
+                    <label class="toggle-row">
+                        <span>Geçmişi kaydet</span>
+                        <input id="nextAiHistoryInput" type="checkbox">
+                    </label>
+                    <label class="toggle-row">
+                        <span>AI bildirimleri</span>
+                        <input id="nextAiNotifyInput" type="checkbox">
+                    </label>
                 </div>
-                <div class="last-message">Tam yetki açılırsa mesaj gönderme, sohbet silme, arama ve ayar değiştirme komutlarını ayrıca onay istemeden uygular.</div>
+                <div class="last-message">Tam yetki: Nexa, yalnızca sen komut verdiğinde ilgili sohbet, kişi, arama ve medya verilerine onaysız erişebilir. Kendiliğinden verilerini taramaz.</div>
                 <button id="saveNextAiButton" class="primary" type="button">Nexa AI Ayarlarını Kaydet</button>
             </div>
 
@@ -4508,7 +5517,9 @@
         const SECRET_PIN_KEY = "nexalineSecretPin";
         const ARCHIVE_PIN_KEY_PREFIX = "nexalineArchivePin";
         const NOTIFICATION_LOG_KEY = "nexalineNotificationLog";
+        const NOTIFICATION_MUTE_KEY = "nexalineNotificationMuteUntil";
         const SYSTEM_SOUND_KEY = "nexalineSystemSound";
+        const ACCOUNT_LIST_KEY = "nexalineAccounts";
         const AI_HISTORY_KEY = "nexalineAiHistory";
         const AI_CENSOR_KEY = "nexalineAiCensor";
         const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
@@ -4550,14 +5561,27 @@
             rose: "Gün batımı",
             graphite: "Grafit"
         };
-        const CHAT_THEME_DEFAULT = "whatsapp-classic";
+        const CHAT_THEME_DEFAULT = "nexa-default";
         const CHAT_BACKGROUND_THEME_MAP = {
-            none: "whatsapp-classic",
+            none: "nexa-default",
             ocean: "deep-ocean",
             rose: "nexa-sunset",
             graphite: "minimal-pitch-black"
         };
         const CHAT_THEMES = {
+            "nexa-default": {
+                label: "Nexa Default",
+                backgroundColor: "#070a0f",
+                backgroundImage: "radial-gradient(circle at 14% 10%, rgba(47,128,255,.20), transparent 28%), radial-gradient(circle at 88% 20%, rgba(123,77,255,.16), transparent 30%), radial-gradient(circle at 50% 95%, rgba(46,211,198,.12), transparent 34%)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "rgba(24,31,43,.82)",
+                outgoing: "linear-gradient(135deg, #2f80ff, #7b4dff 62%, #2ed3c6)",
+                incomingText: "#f4f7fb",
+                outgoingText: "#ffffff",
+                border: "rgba(110,140,255,.22)",
+                accent: "#2f80ff"
+            },
             "whatsapp-classic": {
                 label: "WhatsApp Klasik",
                 backgroundColor: "#0b141a",
@@ -4639,7 +5663,7 @@
                 accent: "#7b4dff"
             },
             "rain-glass": {
-                label: "Yagmur",
+                label: "Yağmur",
                 backgroundColor: "#071016",
                 backgroundImage: "linear-gradient(125deg, rgba(46,211,198,.10), transparent 40%), repeating-linear-gradient(110deg, rgba(255,255,255,.08) 0 1px, transparent 1px 18px)",
                 backgroundSize: "cover",
@@ -4665,7 +5689,7 @@
                 accent: "#2f80ff"
             },
             "night-city": {
-                label: "Gece Sehri",
+                label: "Gece Şehri",
                 backgroundColor: "#05080d",
                 backgroundImage: "linear-gradient(180deg, rgba(47,128,255,.16), transparent 42%), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px)",
                 backgroundSize: "cover, 42px 42px",
@@ -4689,6 +5713,47 @@
                 outgoingText: "#ffffff",
                 border: "rgba(46,211,198,.18)",
                 accent: "#2ed3c6"
+            }
+        });
+        Object.assign(CHAT_THEMES, {
+            "soft-glass": {
+                label: "Soft Glass",
+                backgroundColor: "#080b12",
+                backgroundImage: "radial-gradient(circle at 12% 8%, rgba(244,247,251,.12), transparent 24%), linear-gradient(145deg, rgba(47,128,255,.10), rgba(123,77,255,.08) 48%, rgba(46,211,198,.08))",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "rgba(255,255,255,.075)",
+                outgoing: "linear-gradient(135deg, rgba(47,128,255,.90), rgba(123,77,255,.90))",
+                incomingText: "#f4f7fb",
+                outgoingText: "#ffffff",
+                border: "rgba(255,255,255,.16)",
+                accent: "#f4f7fb"
+            },
+            "aurora": {
+                label: "Aurora",
+                backgroundColor: "#04070d",
+                backgroundImage: "radial-gradient(circle at 18% 18%, rgba(46,211,198,.24), transparent 30%), radial-gradient(circle at 82% 22%, rgba(123,77,255,.22), transparent 32%), radial-gradient(circle at 54% 88%, rgba(47,128,255,.20), transparent 34%)",
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                incoming: "rgba(18,27,38,.86)",
+                outgoing: "linear-gradient(135deg, #2ed3c6, #2f80ff 52%, #7b4dff)",
+                incomingText: "#f4f7fb",
+                outgoingText: "#ffffff",
+                border: "rgba(46,211,198,.22)",
+                accent: "#2ed3c6"
+            },
+            "minimal-dark": {
+                label: "Minimal Dark",
+                backgroundColor: "#05070b",
+                backgroundImage: "none",
+                backgroundSize: "auto",
+                backgroundRepeat: "repeat",
+                incoming: "rgba(255,255,255,.07)",
+                outgoing: "rgba(47,128,255,.92)",
+                incomingText: "#f4f7fb",
+                outgoingText: "#ffffff",
+                border: "rgba(255,255,255,.10)",
+                accent: "#2f80ff"
             }
         });
         const SYSTEM_SOUND_LABELS = {
@@ -4730,12 +5795,38 @@
             };
         }
 
+        function rememberedAccounts() {
+            return readStoredJson(ACCOUNT_LIST_KEY, []);
+        }
+
+        function rememberAccount(user) {
+            if (!user?.username) return;
+            const next = rememberedAccounts().filter(item => item.username !== user.username);
+            next.unshift({
+                username: user.username,
+                displayName: user.displayName || user.username,
+                profileImage: user.profileImage || "",
+                avatar: user.avatar || initials(user.displayName || user.username),
+                lastUsedAt: new Date().toISOString()
+            });
+            localStorage.setItem(ACCOUNT_LIST_KEY, JSON.stringify(next.slice(0, 6)));
+        }
+
+        function removeRememberedAccount(username) {
+            localStorage.setItem(ACCOUNT_LIST_KEY, JSON.stringify(rememberedAccounts().filter(item => item.username !== username)));
+        }
+
         function defaultAiSettings() {
             return {
                 enabled: true,
                 name: DEFAULT_AI_NAME,
                 image: "",
-                autoApprove: false
+                autoApprove: false,
+                voice: "warm",
+                responseLength: "medium",
+                persona: "",
+                saveHistory: true,
+                notifications: true
             };
         }
 
@@ -4800,6 +5891,7 @@
             authBusy: false,
             pendingRegister: null,
             pendingTwoFactor: null,
+            twoFactorResendUntil: 0,
             me: null,
             users: [],
             chats: [],
@@ -4814,10 +5906,13 @@
             devices: [],
             pointLedger: [],
             voiceRooms: [],
+            communities: [],
+            aiTasks: [],
             nearbyUsers: [],
             deferredInstallPrompt: null,
             notificationReady: false,
             notifications: readStoredJson(NOTIFICATION_LOG_KEY, []),
+            notificationMuteUntil: localStorage.getItem(NOTIFICATION_MUTE_KEY) || "",
             theme: localStorage.getItem(THEME_KEY) || "dark",
             lockedChatsUnlocked: false,
             aiBusy: false,
@@ -4827,6 +5922,7 @@
             aiAvatarDraft: "",
             aiRevealedMessages: {},
             aiStatus: null,
+            aiVoiceListening: false,
             disappearingSeconds: Number(localStorage.getItem("nexalineDisappearSeconds") || 0),
             chatPreferences: readStoredJson("nexalineChatPreferences", {}),
             outbox: readStoredJson("nexalineOutbox", []),
@@ -4847,6 +5943,7 @@
             vaultUnlocked: false,
             vaultItems: [],
             vaultPin: "",
+            vaultPinDraft: "",
             activeVoiceRoomId: "",
             settingsView: "menu",
             qrLogin: { timer: null, sessionId: "", secret: "", expiresAt: null },
@@ -4953,6 +6050,7 @@
             const buttonMap = {
                 storyButton: "camera",
                 notificationButton: "bell",
+                topSettingsButton: "settings",
                 newGroupButton: "plus",
                 installButton: "download",
                 callButton: "calls",
@@ -5532,6 +6630,9 @@
         }
 
         async function showSystemNotification(title, body, tag, data = {}) {
+            if (isNotificationMuted()) {
+                return;
+            }
             if (window.NexaLineNative?.notify) {
                 window.NexaLineNative.notify(title, body, tag || "nexaline");
                 return;
@@ -5569,34 +6670,123 @@
             updateNotificationButton();
         }
 
+        function isNotificationMuted() {
+            if (state.notificationMuteUntil === "forever") {
+                return true;
+            }
+            if (!state.notificationMuteUntil) {
+                return false;
+            }
+            return new Date(state.notificationMuteUntil).getTime() > Date.now();
+        }
+
+        function setNotificationMute(hours) {
+            state.notificationMuteUntil = hours === "forever"
+                ? "forever"
+                : new Date(Date.now() + Number(hours) * 60 * 60 * 1000).toISOString();
+            localStorage.setItem(NOTIFICATION_MUTE_KEY, state.notificationMuteUntil);
+            showToast(hours === "forever" ? "Bildirimler süresiz sessize alındı." : `Bildirimler ${hours} saat sessize alındı.`);
+            updateNotificationButton();
+        }
+
+        function clearNotificationMute() {
+            state.notificationMuteUntil = "";
+            localStorage.removeItem(NOTIFICATION_MUTE_KEY);
+            showToast("Bildirim sesi tekrar açıldı.");
+            updateNotificationButton();
+        }
+
         function unreadNotificationCount() {
-            return state.notifications.filter(item => !item.read).length;
+            const requestCount = (state.contactRequests || []).filter(item => item.status === "pending" && item.to?.username === state.me?.username).length;
+            const inviteCount = (state.groupInvites || []).filter(item => item.status === "pending").length;
+            return state.notifications.filter(item => !item.read).length + requestCount + inviteCount;
         }
 
         function updateNotificationButton() {
             const button = $("notificationButton");
             if (!button) return;
             const count = unreadNotificationCount();
-            button.textContent = count ? (count > 9 ? "9+" : String(count)) : "!";
+            button.textContent = isNotificationMuted() ? "×" : count ? (count > 9 ? "9+" : String(count)) : "!";
             button.classList.toggle("active-tool", Boolean(count));
+        }
+
+        function notificationTypeIcon(kind) {
+            return {
+                friend: "☻",
+                group: "☷",
+                security: "⌾",
+                account: "◎",
+                call: "☎",
+                message: "✉",
+                system: "✦"
+            }[kind] || "✦";
+        }
+
+        function notificationCenterItems() {
+            const localItems = state.notifications.map(item => ({ source: "local", ...item }));
+            const friendItems = (state.contactRequests || [])
+                .filter(item => item.status === "pending" && item.to?.username === state.me?.username)
+                .map(item => ({
+                    id: `friend:${item.id}`,
+                    source: "friend",
+                    kind: "friend",
+                    title: "Arkadaşlık isteği",
+                    body: `${item.from?.displayName || item.from?.username || "Bir kullanıcı"} sana istek gönderdi.`,
+                    createdAt: item.createdAt,
+                    read: false
+                }));
+            const groupItems = (state.groupInvites || [])
+                .filter(item => item.status === "pending")
+                .map(item => ({
+                    id: `group:${item.id}`,
+                    source: "group",
+                    kind: "group",
+                    title: "Grup daveti",
+                    body: `${item.chatTitle || "Bir grup"} davetin var.`,
+                    createdAt: item.createdAt,
+                    read: false
+                }));
+            return [...friendItems, ...groupItems, ...localItems]
+                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         }
 
         function openNotificationPanel() {
             openModal("Bildirimler", body => {
-                if (!state.notifications.length) {
-                    body.innerHTML = `<div class="last-message">Bildirim yok.</div>`;
+                const items = notificationCenterItems();
+                const muteText = isNotificationMuted()
+                    ? state.notificationMuteUntil === "forever"
+                        ? "Bildirimler süresiz sessizde."
+                        : `Bildirimler ${relativeTime(state.notificationMuteUntil)} açılacak.`
+                    : "Bildirim sesi açık.";
+                body.innerHTML = `
+                    <div class="notification-tools">
+                        <span class="last-message">${escapeHtml(muteText)}</span>
+                        <button class="mini-btn" type="button" data-mute-notifications="1">1 saat</button>
+                        <button class="mini-btn" type="button" data-mute-notifications="8">8 saat</button>
+                        <button class="mini-btn" type="button" data-mute-notifications="24">24 saat</button>
+                        <button class="mini-btn" type="button" data-mute-notifications="forever">Süresiz</button>
+                        ${isNotificationMuted() ? '<button class="mini-btn" type="button" data-unmute-notifications>Ses aç</button>' : ""}
+                    </div>
+                `;
+                if (!items.length) {
+                    body.insertAdjacentHTML("beforeend", `<div class="last-message">Bildirim yok.</div>`);
+                    body.querySelectorAll("[data-mute-notifications]").forEach(button => button.onclick = () => { setNotificationMute(button.dataset.muteNotifications); closeModal(); });
+                    body.querySelector("[data-unmute-notifications]")?.addEventListener("click", () => { clearNotificationMute(); closeModal(); });
                     return;
                 }
                 const list = document.createElement("div");
                 list.className = "list";
-                state.notifications.forEach(item => {
+                items.forEach(item => {
                     const row = document.createElement("button");
-                    row.className = "chat-item";
+                    row.className = "chat-item" + (!item.read ? " unread" : "");
                     row.type = "button";
-                    row.innerHTML = `<div class="avatar">${item.kind === "call" ? "A" : "M"}</div><div><strong class="chat-title">${escapeHtml(item.title || "NexaLine")}</strong><div class="last-message">${escapeHtml(item.body || "")}</div></div><span class="chat-time">${relativeTime(item.createdAt)}</span>`;
+                    row.innerHTML = `<div class="avatar">${notificationTypeIcon(item.kind)}</div><div><strong class="chat-title">${escapeHtml(item.title || "NexaLine")}</strong><div class="last-message">${escapeHtml(item.body || "")}</div></div><span class="chat-time">${relativeTime(item.createdAt)}</span>`;
                     row.onclick = () => {
-                        item.read = true;
-                        saveNotificationLog();
+                        if (item.source === "local") {
+                            const stored = state.notifications.find(row => row.id === item.id);
+                            if (stored) stored.read = true;
+                            saveNotificationLog();
+                        }
                         if (item.chatId && state.chats.some(chat => chat.id === item.chatId)) {
                             const chat = state.chats.find(row => row.id === item.chatId);
                             state.activeChatId = item.chatId;
@@ -5611,12 +6801,13 @@
                     list.appendChild(row);
                 });
                 body.appendChild(list);
+                body.querySelectorAll("[data-mute-notifications]").forEach(button => button.onclick = () => { setNotificationMute(button.dataset.muteNotifications); closeModal(); });
+                body.querySelector("[data-unmute-notifications]")?.addEventListener("click", () => { clearNotificationMute(); closeModal(); });
             }, [
-                { label: "Temizle", onClick: () => { state.notifications = []; saveNotificationLog(); updateNotificationButton(); closeModal(); } },
+                { label: "Tümünü okundu yap", onClick: () => { state.notifications.forEach(item => item.read = true); saveNotificationLog(); updateNotificationButton(); closeModal(); } },
+                { label: "Tümünü temizle", onClick: () => { state.notifications = []; saveNotificationLog(); updateNotificationButton(); closeModal(); } },
                 { label: "Kapat", primary: true, onClick: closeModal }
             ]);
-            state.notifications.forEach(item => item.read = true);
-            saveNotificationLog();
             updateNotificationButton();
         }
 
@@ -5664,7 +6855,7 @@
                     const ok = await requestNotificationPermission();
                     showToast(ok ? "Bildirimler açıldı." : "Bildirim izni alınamadı.");
                 };
-            }, [{ label: "Kapat", onClick: closeModal }]);
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
         function showScreenTransition(label = "NexaLine hazırlanıyor", duration = 900) {
@@ -5737,13 +6928,18 @@
 
         function closeModal() {
             stopQrScanner();
+            if (state.cameraCaptureStop) {
+                state.cameraCaptureStop();
+                state.cameraCaptureStop = null;
+            }
             $("modalPanel").classList.add("hidden");
+            $("modalPanel").className = "modal-panel hidden";
             $("modalBody").innerHTML = "";
             $("modalActions").innerHTML = "";
             state.profileCrop = null;
         }
 
-        function openModal(title, buildBody, actions = []) {
+        function openModal(title, buildBody, actions = [], variant = "") {
             $("modalTitle").textContent = title;
             const body = $("modalBody");
             const actionBar = $("modalActions");
@@ -5758,6 +6954,7 @@
                 button.onclick = () => action.onClick?.();
                 actionBar.appendChild(button);
             });
+            $("modalPanel").className = `modal-panel ${variant || ""}`.trim();
             $("modalPanel").classList.remove("hidden");
             pushAppHistory("modal");
         }
@@ -5774,6 +6971,11 @@
         }
 
         function saveAiHistory() {
+            if (state.aiSettings?.saveHistory === false) {
+                localStorage.removeItem(AI_HISTORY_KEY);
+                localStorage.removeItem(aiHistoryKey());
+                return;
+            }
             const history = JSON.stringify(state.aiMessages.slice(-40));
             localStorage.setItem(AI_HISTORY_KEY, history);
             localStorage.setItem(aiHistoryKey(), history);
@@ -5802,7 +7004,13 @@
             if (!list) return;
             if (!state.aiMessages.length) {
                 list.innerHTML = `
-                    <div class="ai-bubble">Merhaba, ben Nexa AI. Sohbetleri özetleyebilir, mesaj taslağı hazırlayabilir, tema/sohbet ayarlarını düzenleyebilir ve riskli mesajları gizleyebilirim.</div>
+                    <div class="ai-bubble">Merhaba, ben ${escapeHtml(aiDisplayName())}. Arkadaş gibi sohbet eder, asistan gibi uygulama komutlarını çalıştırırım.</div>
+                    <div class="ai-home-grid">
+                        <button class="ai-home-card" type="button" data-ai-home="chat"><span class="attachment-option-icon">${svgIcon("chats")}</span><strong>Yeni Sohbet</strong><small>AI ile normal konuşma başlat</small></button>
+                        <button class="ai-home-card" type="button" data-ai-home="commands"><span class="attachment-option-icon">${svgIcon("zap")}</span><strong>Komutlar</strong><small>Hazır komutları çalıştır</small></button>
+                        <button class="ai-home-card" type="button" data-ai-home="tasks"><span class="attachment-option-icon">${svgIcon("clock")}</span><strong>Görevler</strong><small>Hatırlatma ve yapılacaklar</small></button>
+                        <button class="ai-home-card" type="button" data-ai-home="tools"><span class="attachment-option-icon">${svgIcon("palette")}</span><strong>AI Araçları</strong><small>Özet, çeviri, düzeltme, ses</small></button>
+                    </div>
                     <div class="ai-quick">
                         <button data-ai-quick="Merhaba">Merhaba</button>
                         <button data-ai-quick="Bu sohbeti kısaca özetle">Sohbeti özetle</button>
@@ -5826,6 +7034,15 @@
                     sendAiPrompt();
                 };
             });
+            list.querySelectorAll("[data-ai-home]").forEach(button => {
+                button.onclick = () => {
+                    const target = button.dataset.aiHome;
+                    if (target === "chat") $("aiInput").focus();
+                    if (target === "commands") openAiCommandCenter();
+                    if (target === "tasks") openAiTasksPanel();
+                    if (target === "tools") openAiToolsPanel();
+                };
+            });
             list.querySelectorAll("[data-ai-action]").forEach(button => {
                 button.onclick = () => {
                     const [messageId, index] = button.dataset.aiAction.split(":");
@@ -5839,6 +7056,187 @@
                 ? `${state.aiStatus.provider} • ${state.aiStatus.model}`
                 : "Uygulama asistanı hazır";
             $("aiSendButton").disabled = state.aiBusy;
+        }
+
+        async function openAiCommandCenter() {
+            let commands = [];
+            try {
+                const response = await fetch("/ai/commands");
+                const data = await response.json();
+                commands = data.commands || [];
+            } catch (_error) {
+                commands = [];
+            }
+            openModal("AI Komutları", body => {
+                body.innerHTML = `
+                    <div class="ai-home-grid">
+                        ${commands.map(command => `
+                            <button class="ai-home-card" type="button" data-ai-command="${escapeHtml(command.id)}">
+                                <span class="attachment-option-icon">${svgIcon(command.id.includes("translate") ? "type" : command.id.includes("call") ? "calls" : "zap")}</span>
+                                <strong>${escapeHtml(command.title)}</strong>
+                                <small>${escapeHtml(command.prompt)}</small>
+                            </button>
+                        `).join("") || '<div class="ai-home-card"><strong>Komut listesi alınamadı</strong><small>AI sohbet kutusuna direkt yazabilirsin.</small></div>'}
+                    </div>
+                `;
+                body.querySelectorAll("[data-ai-command]").forEach(button => {
+                    button.onclick = () => {
+                        const command = commands.find(item => item.id === button.dataset.aiCommand);
+                        if (!command) return;
+                        closeModal();
+                        $("aiInput").value = command.prompt;
+                        $("aiInput").focus();
+                    };
+                });
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        async function loadAiTasks() {
+            try {
+                const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}`);
+                const data = await response.json();
+                if (data.ok) state.aiTasks = data.tasks || [];
+            } catch (_error) {
+                showToast("AI görevleri alınamadı.");
+            }
+        }
+
+        async function openAiTasksPanel() {
+            await loadAiTasks();
+            openModal("AI Görevlerim", body => {
+                const rows = state.aiTasks || [];
+                body.innerHTML = `
+                    <div class="form-grid">
+                        <input id="aiTaskTitleInput" maxlength="180" placeholder="Yeni görev">
+                        <input id="aiTaskTimeInput" type="datetime-local">
+                        <select id="aiTaskRepeatInput">
+                            <option value="none">Tek sefer</option>
+                            <option value="daily">Her gün</option>
+                            <option value="weekly">Her hafta</option>
+                            <option value="monthly">Her ay</option>
+                        </select>
+                        <button id="addAiTaskButton" class="primary" type="button">Görev Ekle</button>
+                    </div>
+                    <div class="quest-grid">
+                        ${rows.length ? rows.map(task => `
+                            <div class="quest-card">
+                                <strong>${escapeHtml(task.title)}</strong>
+                                <small>${escapeHtml(task.repeat || "none")} ${task.remindAt ? "• " + new Date(task.remindAt).toLocaleString("tr-TR") : ""}</small>
+                                <div class="points-progress" style="--points-progress:${task.completedAt ? 100 : 35}%"><span></span></div>
+                                <div class="chip-row">
+                                    <button class="mini-btn" type="button" data-ai-task-complete="${escapeHtml(task.id)}">${task.completedAt ? "Aktife Al" : "Tamamla"}</button>
+                                    <button class="mini-btn danger" type="button" data-ai-task-delete="${escapeHtml(task.id)}">Sil</button>
+                                </div>
+                            </div>
+                        `).join("") : '<div class="quest-card"><strong>Henüz görev yok</strong><small>Bir görev ekleyip AI ile takip edebilirsin.</small></div>'}
+                    </div>
+                `;
+                $("addAiTaskButton").onclick = async () => {
+                    const title = $("aiTaskTitleInput").value.trim();
+                    if (!title) {
+                        showToast("Görev başlığı yaz.");
+                        return;
+                    }
+                    const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}`, {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({ title, remindAt: $("aiTaskTimeInput").value || null, repeat: $("aiTaskRepeatInput").value })
+                    });
+                    const data = await response.json();
+                    showToast(data.message || "Görev güncellendi.");
+                    if (data.ok) {
+                        state.aiTasks = data.tasks || [];
+                        closeModal();
+                        openAiTasksPanel();
+                    }
+                };
+                body.querySelectorAll("[data-ai-task-complete]").forEach(button => {
+                    button.onclick = async () => {
+                        const task = state.aiTasks.find(item => item.id === button.dataset.aiTaskComplete);
+                        const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}/${encodeURIComponent(button.dataset.aiTaskComplete)}`, {
+                            method: "PATCH",
+                            headers: authHeaders(),
+                            body: JSON.stringify({ completed: !task?.completedAt })
+                        });
+                        const data = await response.json();
+                        if (data.ok) state.aiTasks = data.tasks || [];
+                        closeModal();
+                        openAiTasksPanel();
+                    };
+                });
+                body.querySelectorAll("[data-ai-task-delete]").forEach(button => {
+                    button.onclick = async () => {
+                        const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}/${encodeURIComponent(button.dataset.aiTaskDelete)}`, {
+                            method: "DELETE",
+                            headers: authHeaders()
+                        });
+                        const data = await response.json();
+                        if (data.ok) state.aiTasks = data.tasks || [];
+                        closeModal();
+                        openAiTasksPanel();
+                    };
+                });
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openAiToolsPanel() {
+            openModal("AI Araçları", body => {
+                body.innerHTML = `
+                    <div class="ai-home-grid">
+                        <button class="ai-home-card" data-ai-tool="Özetle: " type="button"><strong>Özet</strong><small>Metni kısa maddelere indir</small></button>
+                        <button class="ai-home-card" data-ai-tool="Türkçeye çevir: " type="button"><strong>Çeviri</strong><small>TR/EN doğal çeviri</small></button>
+                        <button class="ai-home-card" data-ai-tool="Yazıyı düzelt: " type="button"><strong>Yazı Düzelt</strong><small>İmla ve anlatımı toparla</small></button>
+                        <button class="ai-home-card" data-ai-tool="Bana sesli asistan gibi cevap ver: " type="button"><strong>Sesli Asistan</strong><small>Mikrofonla konuş</small></button>
+                    </div>
+                    <textarea id="aiToolTextInput" placeholder="İşlenecek metin veya komut"></textarea>
+                `;
+                body.querySelectorAll("[data-ai-tool]").forEach(button => {
+                    button.onclick = () => {
+                        const text = $("aiToolTextInput").value.trim();
+                        closeModal();
+                        sendAiPrompt(`${button.dataset.aiTool}${text}`);
+                    };
+                });
+            }, [
+                { label: "Sesli Asistan", onClick: () => { closeModal(); openAiVoiceAssistant(); } },
+                { label: "Kapat", onClick: closeModal }
+            ], "sheet");
+        }
+
+        function openAiVoiceAssistant() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            openModal("Sesli Asistan", body => {
+                body.innerHTML = `
+                    <div class="voice-live-card" style="text-align:center">
+                        <span class="attachment-option-icon" style="margin:auto">${svgIcon("mic")}</span>
+                        <strong id="aiVoiceStatus">Dinlemeye hazır</strong>
+                        <small>Konuşmayı metne çevirip Nexa AI'ya göndereceğim.</small>
+                    </div>
+                    <textarea id="aiVoiceTextInput" placeholder="Duyulan metin burada görünecek"></textarea>
+                `;
+            }, [
+                { label: "Başlat", primary: true, onClick: () => {
+                    if (!SpeechRecognition) {
+                        showToast("Bu tarayıcı ses tanımayı desteklemiyor.");
+                        return;
+                    }
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = "tr-TR";
+                    recognition.interimResults = true;
+                    recognition.onresult = event => {
+                        const text = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
+                        $("aiVoiceTextInput").value = text;
+                        $("aiVoiceStatus").textContent = "Dinleniyor...";
+                    };
+                    recognition.onend = () => {
+                        const text = $("aiVoiceTextInput").value.trim();
+                        closeModal();
+                        if (text) sendAiPrompt(text);
+                    };
+                    recognition.start();
+                } },
+                { label: "Kapat", onClick: closeModal }
+            ], "sheet");
         }
 
         async function loadAiStatus() {
@@ -5909,6 +7307,8 @@
                         prompt: promptForModel,
                         chatId: isAiChatId(state.activeChatId) ? null : state.activeChatId,
                         assistantName: aiDisplayName(),
+                        responseLength: state.aiSettings.responseLength,
+                        persona: state.aiSettings.persona,
                         timezoneOffsetMinutes: new Date().getTimezoneOffset()
                     })
                 });
@@ -6399,6 +7799,8 @@
             state.scheduledMessages = data.scheduledMessages || state.scheduledMessages || [];
             state.pointLedger = data.pointLedger || data.user?.pointLedger || state.pointLedger || [];
             state.voiceRooms = data.voiceRooms || state.voiceRooms || [];
+            state.communities = data.communities || state.communities || [];
+            state.aiTasks = data.aiTasks || state.aiTasks || [];
             state.nearbyUsers = data.nearbyUsers || state.nearbyUsers || [];
         }
 
@@ -6438,6 +7840,8 @@
             state.devices = [];
             state.pointLedger = [];
             state.voiceRooms = [];
+            state.communities = [];
+            state.aiTasks = [];
             state.nearbyUsers = [];
             state.aiSettings = defaultAiSettings();
             state.aiAvatarDraft = "";
@@ -6446,6 +7850,7 @@
             state.bootReady = false;
             $("app").classList.add("hidden");
             $("app").classList.remove("chat-open", "keyboard-open");
+            $("accountSwitcherMenu")?.classList.add("hidden");
             $("aiAssistantButton")?.classList.add("hidden");
             $("aiPanel").classList.add("hidden");
             $("authScreen").classList.remove("hidden");
@@ -6483,8 +7888,8 @@
             $("loginTab").classList.toggle("active", !isRegister);
             $("registerTab").classList.toggle("active", isRegister);
             $("qrLoginCard").classList.toggle("hidden", isRegister);
-            $("username").placeholder = isRegister ? "İsim" : "Gmail adresi";
-            $("username").autocomplete = isRegister ? "given-name" : "email";
+            $("username").placeholder = isRegister ? "İsim" : "Kullanıcı adı";
+            $("username").autocomplete = isRegister ? "given-name" : "username";
             show("registerProgress", isRegister);
             show("username", isRegister ? step === 0 : !isTwoFactor);
             show("lastName", isRegister && step === 0);
@@ -6494,18 +7899,25 @@
             show("password", (!isRegister && !isTwoFactor) || step === 4);
             show("confirmPassword", isRegister && step === 4);
             show("forgotButton", !isRegister && !isTwoFactor);
+            show("supportAccessButton", !isRegister && !isTwoFactor);
+            show("resendTwoFactorButton", isTwoFactor);
             show("authBackButton", isTwoFactor || (isRegister && step > 0));
 
             $("authActions").classList.toggle("with-back", isTwoFactor || (isRegister && step > 0));
             $("password").autocomplete = isRegister ? "new-password" : "current-password";
             $("password").placeholder = isRegister ? "Güçlü şifre" : "Şifre";
             $("authButton").textContent = isTwoFactor
-                ? "Dogrula"
+                ? "Doğrula"
                 : !isRegister
                 ? "Giriş Yap"
                 : step === 4
                     ? "Hesabı Oluştur"
                     : "Devam";
+
+            if (isTwoFactor && !$("authStatus").textContent) {
+                const masked = state.pendingTwoFactor.maskedEmail || "Gmail adresine";
+                $("authStatus").textContent = `6 haneli kod ${masked} adresine gönderildi.`;
+            }
 
             document.querySelectorAll("#registerProgress span").forEach((item, index) => {
                 item.classList.toggle("active", isRegister && index <= step);
@@ -6594,17 +8006,18 @@
                     }
                     state.pendingTwoFactor = null;
                     state.me = data.user;
+                    rememberAccount(data.user);
                     localStorage.setItem("nexalineUser", data.user.username);
                     openApp();
                     return;
                 }
 
-                const email = $("username").value.trim();
+                const username = $("username").value.trim().toLowerCase();
                 const password = $("password").value;
                 const response = await fetch("/login", {
                     method: "POST",
                     headers: authHeaders(),
-                    body: JSON.stringify({ email, password, deviceId: deviceId() })
+                    body: JSON.stringify({ username, password, deviceId: deviceId() })
                 });
                 const data = await response.json();
 
@@ -6613,7 +8026,8 @@
                     return;
                 }
                 if (data.requiresTwoFactor) {
-                    state.pendingTwoFactor = { username: data.username };
+                    state.pendingTwoFactor = { username: data.username, maskedEmail: data.maskedEmail || "" };
+                    state.twoFactorResendUntil = Date.now() + Number(data.resendAfter || 45) * 1000;
                     $("verificationCode").value = data.devCode || "";
                     $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
                     updateAuthView();
@@ -6621,6 +8035,7 @@
                 }
 
                 state.me = data.user;
+                rememberAccount(data.user);
                 localStorage.setItem("nexalineUser", data.user.username);
                 openApp();
             } catch (error) {
@@ -6630,6 +8045,69 @@
             }
         }
 
+        async function resendTwoFactorCode() {
+            if (!state.pendingTwoFactor?.username) return;
+            const waitMs = Math.max(0, state.twoFactorResendUntil - Date.now());
+            if (waitMs > 0) {
+                $("authStatus").textContent = `Yeni kod için ${Math.ceil(waitMs / 1000)} saniye bekle.`;
+                return;
+            }
+            $("resendTwoFactorButton").disabled = true;
+            try {
+                const response = await fetch("/login/2fa/resend", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username: state.pendingTwoFactor.username })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    $("authStatus").textContent = data.message || "Kod gönderilemedi.";
+                    if (data.retryAfter) {
+                        state.twoFactorResendUntil = Date.now() + Number(data.retryAfter) * 1000;
+                    }
+                    return;
+                }
+                state.pendingTwoFactor.maskedEmail = data.maskedEmail || state.pendingTwoFactor.maskedEmail;
+                state.twoFactorResendUntil = Date.now() + Number(data.resendAfter || 45) * 1000;
+                $("verificationCode").value = data.devCode || "";
+                $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
+            } catch (_error) {
+                $("authStatus").textContent = "Kod gönderilemedi. İnternetini kontrol et.";
+            } finally {
+                $("resendTwoFactorButton").disabled = false;
+            }
+        }
+
+        function openSupportAccessRequest() {
+            openModal("Hesabıma erişemiyorum", body => {
+                body.innerHTML = `
+                    <input id="supportUsernameInput" autocomplete="username" placeholder="Kullanıcı adı">
+                    <input id="supportEmailInput" autocomplete="email" placeholder="Hatırladığın Gmail">
+                    <textarea id="supportDescriptionInput" maxlength="2000" placeholder="Sorunu kısa anlat"></textarea>
+                `;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Talep Gönder",
+                    primary: true,
+                    onClick: async () => {
+                        const response = await fetch("/support/access-request", {
+                            method: "POST",
+                            headers: authHeaders(),
+                            body: JSON.stringify({
+                                username: $("supportUsernameInput").value.trim().toLowerCase(),
+                                rememberedEmail: $("supportEmailInput").value.trim(),
+                                description: $("supportDescriptionInput").value.trim()
+                            })
+                        });
+                        const data = await response.json();
+                        showToast(data.message || "Talep gönderildi.");
+                        if (data.ok) closeModal();
+                    }
+                }
+            ]);
+        }
+
         function qrTokenFromPayload(value) {
             const raw = (value || "").trim();
             if (!raw) return "";
@@ -6637,7 +8115,11 @@
                 const url = new URL(raw, location.origin);
                 return url.searchParams.get("nexaQrLogin") || raw;
             } catch (_error) {
-                return raw.includes("nexaQrLogin=") ? raw.split("nexaQrLogin=", 1)[1].split("&", 1)[0] : raw;
+                if (raw.includes("nexaQrLogin=")) {
+                    const tokenPart = raw.split("nexaQrLogin=")[1] || "";
+                    return decodeURIComponent(tokenPart.split("&")[0] || "");
+                }
+                return raw;
             }
         }
 
@@ -6672,7 +8154,7 @@
                 };
                 const imageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(data.payload)}`;
                 $("qrCodeBox").innerHTML = `<img src="${imageUrl}" alt="NexaLine QR giriş kodu">`;
-                $("qrLoginStatus").textContent = "Telefondan Ayarlar > Cihaz Bağla ile okut. Kod 3 dakika geçerli.";
+                $("qrLoginStatus").textContent = "Telefondan Ayarlar > Cihaz Bağla ile okut. Kod 60 saniye geçerli.";
                 socket.emit("qr:watch", { sessionId: data.sessionId, secret: data.secret });
                 state.qrLogin.timer = setInterval(pollQrLogin, 1600);
                 pollQrLogin();
@@ -6820,7 +8302,7 @@
         }
 
         function normalizeRegisterUsername(value) {
-            return value.trim().toLocaleLowerCase("tr-TR").replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24);
+            return value.trim().toLocaleLowerCase("tr-TR").replace(/[^a-z0-9_.]/g, "_").replace(/_{2,}/g, "_").replace(/^[_.]+|[_.]+$/g, "").slice(0, 20);
         }
 
         async function submitRegisterStep() {
@@ -6934,6 +8416,7 @@
             }
 
             state.me = data.user;
+            rememberAccount(data.user);
             localStorage.setItem("nexalineUser", data.user.username);
             openApp();
         }
@@ -7032,11 +8515,12 @@
 
         function renderProfile() {
             applyUserPreferences();
+            rememberAccount(state.me);
             setAvatar($("meAvatar"), state.me, state.me.displayName);
             $("meAvatar").classList.add("online");
-            $("meAvatar").onclick = openProfileSettings;
+            $("meAvatar").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
             $("meName").textContent = state.me.displayName;
-            $("meName").onclick = openProfileSettings;
+            $("meName").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
             $("meStatus").textContent = "";
             $("meStatus").classList.add("hidden");
             $("pointsRailButton").title = `${Number(state.me.points || 0)} Nexa puan`;
@@ -7052,6 +8536,116 @@
             setSettingsView("profile");
         }
 
+        function renderAccountSwitcherMenu() {
+            const menu = $("accountSwitcherMenu");
+            if (!menu) return;
+            const accounts = rememberedAccounts();
+            const rows = accounts.map(account => {
+                const active = account.username === state.me?.username;
+                const avatar = account.profileImage
+                    ? `<span class="avatar"><img src="${escapeHtml(account.profileImage)}" alt=""></span>`
+                    : `<span class="avatar">${escapeHtml(initials(account.displayName || account.username))}</span>`;
+                return `
+                    <button class="${active ? "account-active" : ""}" type="button" data-switch-account="${escapeHtml(account.username)}">
+                        ${avatar}
+                        <span><strong>${escapeHtml(account.displayName || account.username)}</strong><small class="last-message">@${escapeHtml(account.username)}${active ? " • aktif" : ""}</small></span>
+                    </button>
+                `;
+            }).join("");
+            menu.innerHTML = `
+                ${rows || '<div class="last-message">Bu cihazda kayıtlı hesap yok.</div>'}
+                <button type="button" data-add-account><span class="avatar">+</span><span><strong>Hesap Ekle</strong><small class="last-message">Yeni kullanıcı adıyla giriş yap</small></span></button>
+                <button type="button" data-logout-account><span class="avatar">×</span><span><strong>Hesaptan Çık</strong><small class="last-message">Bu cihazda oturumu kapat</small></span></button>
+            `;
+            menu.querySelectorAll("[data-switch-account]").forEach(button => {
+                button.onclick = () => {
+                    const username = button.dataset.switchAccount;
+                    if (!username || username === state.me?.username) {
+                        menu.classList.add("hidden");
+                        return;
+                    }
+                    localStorage.setItem("nexalineUser", username);
+                    location.reload();
+                };
+            });
+            menu.querySelector("[data-add-account]")?.addEventListener("click", () => {
+                menu.classList.add("hidden");
+                localStorage.removeItem("nexalineUser");
+                resetToAuth("Eklemek istediğin hesapla giriş yap.");
+            });
+            menu.querySelector("[data-logout-account]")?.addEventListener("click", () => {
+                menu.classList.add("hidden");
+                if (state.me?.username) {
+                    removeRememberedAccount(state.me.username);
+                }
+                logout();
+            });
+        }
+
+        function toggleAccountSwitcher() {
+            if (isMobileView()) {
+                openAccountSwitcherSheet();
+                return;
+            }
+            const menu = $("accountSwitcherMenu");
+            if (!menu) return;
+            renderAccountSwitcherMenu();
+            menu.classList.toggle("hidden");
+        }
+
+        function openAccountSwitcherSheet() {
+            openModal("Hesaplarım", body => {
+                const accounts = rememberedAccounts();
+                const list = document.createElement("div");
+                list.className = "list";
+                if (!accounts.length) {
+                    list.innerHTML = `<div class="last-message">Bu cihazda kayıtlı hesap yok.</div>`;
+                }
+                accounts.forEach(account => {
+                    const row = document.createElement("div");
+                    row.className = "chat-item" + (account.username === state.me?.username ? " account-active" : "");
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar";
+                    setAvatar(avatar, account, account.displayName || account.username);
+                    const text = document.createElement("div");
+                    text.innerHTML = `<strong class="chat-title">${escapeHtml(account.displayName || account.username)}</strong><div class="last-message">@${escapeHtml(account.username)}${account.username === state.me?.username ? " • Aktif" : ""}</div>`;
+                    const actions = document.createElement("div");
+                    actions.className = "icon-row";
+                    const switchButton = document.createElement("button");
+                    switchButton.className = "mini-btn";
+                    switchButton.type = "button";
+                    switchButton.textContent = account.username === state.me?.username ? "Aktif" : "Geç";
+                    switchButton.onclick = () => {
+                        if (account.username === state.me?.username) return;
+                        localStorage.setItem("nexalineUser", account.username);
+                        location.reload();
+                    };
+                    const removeButton = document.createElement("button");
+                    removeButton.className = "mini-btn danger";
+                    removeButton.type = "button";
+                    removeButton.textContent = "Kaldır";
+                    removeButton.onclick = () => {
+                        removeRememberedAccount(account.username);
+                        if (account.username === state.me?.username) {
+                            localStorage.removeItem("nexalineUser");
+                            closeModal();
+                            resetToAuth("Hesap bu cihazdan kaldırıldı.");
+                            return;
+                        }
+                        openAccountSwitcherSheet();
+                    };
+                    actions.append(switchButton, removeButton);
+                    row.append(avatar, text, actions);
+                    list.appendChild(row);
+                });
+                body.appendChild(list);
+            }, [
+                { label: "+ Hesap Ekle", onClick: () => { closeModal(); localStorage.removeItem("nexalineUser"); resetToAuth("Eklemek istediğin hesapla giriş yap."); } },
+                { label: "Çıkış Yap", primary: true, onClick: () => { closeModal(); logout(); } },
+                { label: "Kapat", onClick: closeModal }
+            ], "sheet");
+        }
+
         async function openPointsPanel() {
             let data = null;
             try {
@@ -7061,9 +8655,12 @@
                 data = null;
             }
             const points = Number(data?.points ?? state.me?.points ?? 0);
-            const level = data?.level || state.me?.pointLevel || { level: 1, title: "Nexa Kesifcisi", progress: 0, next: 250 };
-            const rules = data?.rules || { daily_login: 10, message: 1, friend_invite: 50, group_join: 25, profile_complete: 20, story: 5 };
+            const level = data?.level || state.me?.pointLevel || { level: 1, title: "Nexa Keşifçisi", progress: 0, next: 5000, remaining: 5000 };
+            const rules = data?.rules || {};
             const ledger = data?.ledger || state.pointLedger || [];
+            const badges = data?.badges || [];
+            const quests = data?.quests || [];
+            const leaderboard = data?.leaderboard?.global || [];
             state.pointLedger = ledger;
             openModal("NexaPuan Merkezi", body => {
                 body.innerHTML = `
@@ -7071,27 +8668,66 @@
                         <div class="avatar">${escapeHtml(initials(state.me?.displayName || "NL"))}</div>
                         <div class="profile-title">
                             <h2>${points} puan <span class="points-help" title="Mesaj, durum, arkadaş ve giriş aktiviteleri puan kazandırır.">?</span></h2>
-                            <p>Seviye ${escapeHtml(level.level)} - ${escapeHtml(level.title || "Nexa")}. Sonraki eşik: ${escapeHtml(level.next || 250)} puan.</p>
+                            <p>Seviye ${escapeHtml(level.level)} - ${escapeHtml(level.title || "Nexa")}. Sonraki eşik: ${escapeHtml(level.next || 5000)} puan, kalan ${escapeHtml(level.remaining || 0)}.</p>
                             <div class="points-progress" style="--points-progress:${Number(level.progress || 0)}%"><span></span></div>
                         </div>
                     </div>
                     <div class="profile-grid">
                         <div class="profile-stat"><span>Günlük giriş</span><strong>+${rules.daily_login}</strong><small>Her gün ilk giriş</small></div>
                         <div class="profile-stat"><span>Mesaj</span><strong>+${rules.message}</strong><small>Gönderilen/alınan</small></div>
-                        <div class="profile-stat"><span>Arkadaş daveti</span><strong>+${rules.friend_invite}</strong><small>Yeni istek</small></div>
+                        <div class="profile-stat"><span>Arkadaş kabul</span><strong>+${rules.friend_accept}</strong><small>Takipleşme</small></div>
                         <div class="profile-stat"><span>Grup</span><strong>+${rules.group_join}</strong><small>Katılım</small></div>
-                        <div class="profile-stat"><span>Profil</span><strong>+${rules.profile_complete}</strong><small>Tamamlanınca</small></div>
+                        <div class="profile-stat"><span>Sesli oda</span><strong>+${rules.voice_room_join}</strong><small>İlk katılım</small></div>
                         <div class="profile-stat"><span>Durum</span><strong>+${rules.story}</strong><small>Paylaşım</small></div>
+                    </div>
+                    <h3>Görevler</h3>
+                    <div class="quest-grid">
+                        ${quests.map(quest => `
+                            <div class="quest-card">
+                                <strong>${escapeHtml(quest.title)}</strong>
+                                <small>${escapeHtml(quest.description)} • ${quest.current}/${quest.target} • +${quest.reward}</small>
+                                <div class="points-progress" style="--points-progress:${Number(quest.progress || 0)}%"><span></span></div>
+                                <button class="mini-btn ${quest.completed && !quest.claimed ? "primary" : ""}" type="button" data-quest-claim="${escapeHtml(quest.id)}" ${quest.completed && !quest.claimed ? "" : "disabled"}>${quest.claimed ? "Alındı" : quest.completed ? "Ödülü Al" : "Devam"}</button>
+                            </div>
+                        `).join("")}
+                    </div>
+                    <h3>Rozetler</h3>
+                    <div class="badge-grid">
+                        ${badges.map(badge => `
+                            <div class="badge-card ${badge.unlocked ? "unlocked" : ""}">
+                                <strong>${badge.unlocked ? "★ " : "☆ "}${escapeHtml(badge.title)}</strong>
+                                <small>${escapeHtml(badge.description)} • ${badge.current}/${badge.target}</small>
+                                <div class="points-progress" style="--points-progress:${Number(badge.progress || 0)}%"><span></span></div>
+                                <div class="last-message">Ödül: ${escapeHtml(badge.reward || "-")}</div>
+                            </div>
+                        `).join("")}
+                    </div>
+                    <h3>Liderlik Tablosu</h3>
+                    <div class="point-ledger-list">
+                        ${leaderboard.slice(0, 8).map(row => `<div class="point-ledger-row"><strong>#${row.rank} ${escapeHtml(row.user?.displayName || row.user?.username || "NexaLine")}</strong><small>${escapeHtml(row.points)} puan</small></div>`).join("")}
                     </div>
                     <h3>Son hareketler</h3>
                     <div class="point-ledger-list">
                         ${ledger.length ? ledger.slice(0, 12).map(item => `<div class="point-ledger-row"><strong>+${escapeHtml(item.amount)} ${escapeHtml(item.reason)}</strong><small>${escapeHtml(relativeTime(item.createdAt))}</small></div>`).join("") : '<div class="point-ledger-row"><strong>Henüz hareket yok</strong><small>Uygulamayı kullandıkça burada görünecek.</small></div>'}
                     </div>
-                    <h3>Ödüller</h3>
-                    <div class="profile-grid">
-                        ${(data?.rewards || []).map(reward => `<div class="reward-card"><strong>${escapeHtml(reward.title)}</strong><small>${escapeHtml(reward.description)}</small><div class="last-message">${escapeHtml(reward.cost)} puan</div></div>`).join("")}
-                    </div>
                 `;
+                body.querySelectorAll("[data-quest-claim]").forEach(button => {
+                    button.onclick = async () => {
+                        const response = await fetch(`/points/${encodeURIComponent(state.me.username)}/quests/${encodeURIComponent(button.dataset.questClaim)}/claim`, {
+                            method: "POST",
+                            headers: authHeaders()
+                        });
+                        const next = await response.json();
+                        if (next.ok) {
+                            state.me.points = next.points;
+                            showToast("Görev ödülü puana işlendi.");
+                            closeModal();
+                            openPointsPanel();
+                        } else {
+                            showToast(next.message || "Ödül alınamadı.");
+                        }
+                    };
+                });
             }, [{ label: "Kapat", primary: true, onClick: closeModal }]);
         }
 
@@ -7619,6 +9255,47 @@
             return log.caller === state.me?.username ? "outgoing" : "incoming";
         }
 
+        function callDirectionLabel(log) {
+            const type = callLogType(log);
+            if (type === "missed") return "Cevapsız";
+            if (type === "outgoing") return "Giden";
+            return "Gelen";
+        }
+
+        function openCallLogDetail(log) {
+            const chat = state.chats.find(item => item.id === log.chatId);
+            openModal("Arama detayı", body => {
+                body.innerHTML = `
+                    <div class="device-card">
+                        <div>
+                            <strong>${escapeHtml(log.chatTitle || "NexaLine araması")}</strong>
+                            <div class="last-message">${escapeHtml(callDirectionLabel(log))} • ${escapeHtml(log.kind === "video" ? "Görüntülü" : "Sesli")} • ${escapeHtml(log.status === "active" ? "aktif arama" : formatDuration(log.durationSeconds))}</div>
+                            <div class="last-message">Başlangıç: ${new Date(log.startedAt).toLocaleString("tr-TR")}</div>
+                            <div class="last-message">Arayan: ${escapeHtml(log.callerName || log.caller || "")}</div>
+                        </div>
+                    </div>
+                `;
+            }, [
+                { label: "Kapat", onClick: closeModal },
+                { label: "Sesli ara", primary: true, onClick: () => {
+                    closeModal();
+                    if (chat) {
+                        state.activeChatId = chat.id;
+                        render();
+                        setTimeout(() => startCall(true), 0);
+                    }
+                } },
+                { label: "Görüntülü ara", primary: true, onClick: () => {
+                    closeModal();
+                    if (chat) {
+                        state.activeChatId = chat.id;
+                        render();
+                        setTimeout(() => startCall(false), 0);
+                    }
+                } }
+            ], "sheet");
+        }
+
         function renderCalls() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const callList = $("callList");
@@ -7630,10 +9307,10 @@
             create.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Yeni arama</strong><div class="last-message">Kişi seçip sesli veya görüntülü ara</div></div><span class="chat-time"></span>`;
             callList.appendChild(create);
             const filters = document.createElement("div");
-            filters.className = "filter-row";
+            filters.className = "call-filter-row";
             [
-                ["all", "Tumu"],
-                ["missed", "Cevapsiz"],
+                ["all", "Tümü"],
+                ["missed", "Cevapsız"],
                 ["incoming", "Gelen"],
                 ["outgoing", "Giden"]
             ].forEach(([key, label]) => {
@@ -7659,12 +9336,13 @@
                 .filter(log => log.chatTitle.toLowerCase().includes(filter) || log.callerName.toLowerCase().includes(filter))
                 .forEach(log => {
                     const button = document.createElement("button");
-                    button.className = "call-item";
+                    button.className = "call-item" + (callLogType(log) === "missed" ? " missed" : "");
                     button.onclick = () => {
                         clearActiveNewMarker();
                         state.activeChatId = log.chatId;
+                        state.activeProfileUsername = null;
                         render();
-                        openMobileChat();
+                        openCallLogDetail(log);
                     };
                     const avatar = document.createElement("div");
                     avatar.className = "avatar";
@@ -7679,7 +9357,7 @@
                     title.textContent = log.chatTitle;
                     const meta = document.createElement("div");
                     meta.className = "last-message";
-                    meta.textContent = `${log.kind === "video" ? "Görüntülü" : "Sesli"} • ${log.status === "active" ? "aktif arama" : formatDuration(log.durationSeconds)}`;
+                    meta.innerHTML = `<span class="call-direction-pill ${callLogType(log)}">${escapeHtml(callDirectionLabel(log))}</span><span class="call-kind-pill">${log.kind === "video" ? "Görüntülü" : "Sesli"}</span>${escapeHtml(log.status === "active" ? "aktif arama" : formatDuration(log.durationSeconds))}`;
                     body.append(title, meta);
                     const time = document.createElement("span");
                     time.className = "chat-time";
@@ -7696,18 +9374,19 @@
             const grid = document.createElement("div");
             grid.className = "explore-grid";
             const cards = [
-                ["ai", "Nexa AI", "Sohbet ozeti, doğal arama ve uygulama komutlari", selectAiChat],
-                ["stories", "Guncellemeler", "Durumlar, kanallar ve hikaye akisi", () => switchSection("stories")],
+                ["ai", "Nexa AI", "Sohbet özeti, doğal arama ve uygulama komutları", selectAiChat],
+                ["voice", "Sesli Odalar", "Canlı oda keşfet, oluştur ve yönet", openVoiceRoomsHub],
+                ["communities", "Topluluklar", "Topluluk oluştur, katıl ve duyuru yayınla", openCommunitiesHub],
+                ["stories", "Güncellemeler", "Durumlar, kanallar ve hikaye akışı", () => switchSection("stories")],
                 ["groups", "Gruplar", "Topluluklar ve grup davetleri", () => switchSection("groups")],
-                ["nearby", "Yakinimdakiler", "Konum izniyle yakindaki kullanicilari kesfet", openNearbyPanel],
-                ["channels", "Kanallar", "Duyuru ve topluluk kanallari", openChannelStarter],
-                ["vault", "Gizli Kasa", "PIN korumali not ve medya alani", openVaultPanel]
+                ["nearby", "Yakınımdakiler", "Konum izniyle yakındaki kullanıcıları keşfet", openNearbyPanel],
+                ["vault", "Gizli Kasa", "PIN korumalı not ve medya alanı", openVaultPanel]
             ];
             cards.forEach(([key, title, hint, action]) => {
                 const card = document.createElement("button");
                 card.type = "button";
                 card.className = "explore-card";
-                card.innerHTML = `<span class="attachment-option-icon">${svgIcon(key === "ai" ? "zap" : key === "nearby" ? "location" : key === "vault" ? "lock" : key === "channels" ? "bell" : key)}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
+                card.innerHTML = `<span class="attachment-option-icon">${svgIcon(key === "ai" ? "zap" : key === "nearby" ? "location" : key === "vault" ? "lock" : key === "voice" ? "mic" : key === "communities" ? "groups" : key)}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
                 card.onclick = action;
                 grid.appendChild(card);
             });
@@ -7721,14 +9400,14 @@
             rooms.className = "explore-grid";
             (state.voiceRooms || []).forEach(room => rooms.appendChild(renderVoiceRoomCard(room)));
             if (!state.voiceRooms?.length) {
-                rooms.innerHTML = `<div class="voice-room-card"><strong>Oda bilgisi bekleniyor</strong><small>Sunucu baglantisi kurulunca sesli odalar gorunur.</small></div>`;
+                rooms.innerHTML = `<div class="voice-room-card"><strong>Oda bilgisi bekleniyor</strong><small>Sunucu bağlantısı kurulunca sesli odalar görünür.</small></div>`;
             }
             list.appendChild(rooms);
 
             if (state.nearbyUsers?.length) {
                 const nearbyTitle = document.createElement("div");
                 nearbyTitle.className = "section-label";
-                nearbyTitle.textContent = "Yakindaki kullanicilar";
+                nearbyTitle.textContent = "Yakındaki kullanıcılar";
                 list.appendChild(nearbyTitle);
                 state.nearbyUsers.slice(0, 12).forEach(user => {
                     const row = document.createElement("button");
@@ -7753,11 +9432,12 @@
             const participants = (room.participants || []).slice(0, 6).map(user => `<span class="voice-pill ${user.speaking ? "speaking" : ""}">${escapeHtml(user.displayName)}${user.muted ? " (sessiz)" : ""}</span>`).join("");
             card.innerHTML = `
                 <strong>${escapeHtml(room.title)}</strong>
-                <small>${escapeHtml(room.topic || "")}</small>
+                <small>${escapeHtml(room.category || "Genel")} • ${escapeHtml(room.privacy || "public")} • ${escapeHtml(room.topic || "")}</small>
                 <div class="explore-chip-row">${participants || '<span class="voice-pill">Henüz kimse yok</span>'}</div>
                 <div class="voice-room-actions">
-                    <button class="mini-btn ${joined ? "danger" : ""}" type="button" data-voice-action="${joined ? "leave" : "join"}">${joined ? "Ayril" : "Katil"}</button>
+                    <button class="mini-btn ${joined ? "danger" : ""}" type="button" data-voice-action="${joined ? "leave" : "join"}">${joined ? "Ayrıl" : "Katıl"}</button>
                     <button class="mini-btn" type="button" data-voice-action="mute">${joined ? "Sessiz/Sesli" : "Bilgi"}</button>
+                    <button class="mini-btn" type="button" data-voice-action="detail">Detay</button>
                 </div>
             `;
             card.querySelector('[data-voice-action="join"], [data-voice-action="leave"]').onclick = () => {
@@ -7767,18 +9447,163 @@
                 } else {
                     socket.emit("voice:join", { roomId: room.id });
                     state.activeVoiceRoomId = room.id;
-                    showToast(`${room.title} odasina katildin.`);
+                    showToast(`${room.title} odasına katıldın.`);
                 }
             };
             card.querySelector('[data-voice-action="mute"]').onclick = () => {
                 if (!joined) {
-                    showToast("Once odaya katil.");
+                    showToast("Önce odaya katıl.");
                     return;
                 }
                 const mine = (room.participants || []).find(user => user.username === state.me?.username);
                 socket.emit("voice:mute", { roomId: room.id, muted: !mine?.muted });
             };
+            card.querySelector('[data-voice-action="detail"]').onclick = () => openVoiceRoomDetail(room.id);
             return card;
+        }
+
+        function currentVoiceRoom(roomId = state.activeVoiceRoomId) {
+            return state.voiceRooms.find(room => room.id === roomId) || null;
+        }
+
+        function openVoiceRoomsHub() {
+            openModal("Sesli Odalar", body => {
+                const rooms = state.voiceRooms || [];
+                body.innerHTML = `
+                    <div class="ai-home-grid">
+                        <button class="ai-home-card" type="button" id="voiceCreateButton"><strong>Oda Oluştur</strong><small>Kategori, gizlilik ve katılımcı limitiyle yeni oda aç</small></button>
+                        <button class="ai-home-card" type="button" id="voiceJoinedButton"><strong>Katıldıklarım</strong><small>${state.activeVoiceRoomId ? "Aktif odana dön" : "Henüz aktif oda yok"}</small></button>
+                    </div>
+                    <input id="voiceRoomSearchInput" placeholder="Oda ara">
+                    <div id="voiceRoomRows" class="voice-stage"></div>
+                `;
+                const renderRows = () => {
+                    const q = $("voiceRoomSearchInput").value.toLocaleLowerCase("tr-TR");
+                    const list = $("voiceRoomRows");
+                    list.innerHTML = rooms
+                        .filter(room => !q || `${room.title} ${room.category} ${room.topic}`.toLocaleLowerCase("tr-TR").includes(q))
+                        .map(room => `<button class="voice-live-card" type="button" data-voice-room="${escapeHtml(room.id)}"><strong>${escapeHtml(room.title)}</strong><small>${escapeHtml(room.category || "Genel")} • ${room.count || 0}/${room.limit || 50} kişi • ${escapeHtml(room.owner?.displayName || "NexaLine")}</small></button>`)
+                        .join("") || '<div class="voice-live-card"><strong>Oda yok</strong><small>İlk canlı odayı sen oluşturabilirsin.</small></div>';
+                    list.querySelectorAll("[data-voice-room]").forEach(button => button.onclick = () => openVoiceRoomDetail(button.dataset.voiceRoom));
+                };
+                $("voiceCreateButton").onclick = openVoiceRoomCreator;
+                $("voiceJoinedButton").onclick = () => {
+                    if (state.activeVoiceRoomId) openVoiceRoomDetail(state.activeVoiceRoomId);
+                };
+                $("voiceRoomSearchInput").oninput = renderRows;
+                renderRows();
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openVoiceRoomCreator() {
+            openModal("Oda Oluştur", body => {
+                body.innerHTML = `
+                    <input id="voiceTitleInput" maxlength="120" placeholder="Oda adı">
+                    <input id="voiceCategoryInput" maxlength="60" placeholder="Kategori">
+                    <select id="voicePrivacyInput"><option value="public">Herkese açık</option><option value="friends">Arkadaşlar</option><option value="invite">Davetli</option></select>
+                    <input id="voiceLimitInput" type="number" min="2" max="200" value="50" placeholder="Katılımcı limiti">
+                    <select id="voiceJoinModeInput"><option value="open">Onaysız katılım</option><option value="approval">Onaylı katılım</option></select>
+                    <select id="voiceTalkModeInput"><option value="everyone">Herkes konuşabilir</option><option value="request">İstek gerekir</option><option value="admin">Sadece admin</option></select>
+                    <label class="toggle-row"><span>Yorumlar açık</span><input id="voiceCommentsInput" type="checkbox" checked></label>
+                    <label class="toggle-row"><span>AI sansür açık</span><input id="voiceAiModerationInput" type="checkbox" checked></label>
+                    <label class="toggle-row"><span>Kayıt al</span><input id="voiceRecordingInput" type="checkbox"></label>
+                `;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Oda Oluştur", primary: true, onClick: () => {
+                    socket.emit("voice:create", {
+                        title: $("voiceTitleInput").value,
+                        category: $("voiceCategoryInput").value || "Genel",
+                        privacy: $("voicePrivacyInput").value,
+                        limit: Number($("voiceLimitInput").value || 50),
+                        joinMode: $("voiceJoinModeInput").value,
+                        talkMode: $("voiceTalkModeInput").value,
+                        commentsEnabled: $("voiceCommentsInput").checked,
+                        aiModeration: $("voiceAiModerationInput").checked,
+                        recording: $("voiceRecordingInput").checked
+                    });
+                    closeModal();
+                    showToast("Sesli oda oluşturuluyor.");
+                } }
+            ], "sheet");
+        }
+
+        function openVoiceRoomDetail(roomId) {
+            const room = currentVoiceRoom(roomId);
+            if (!room) {
+                showToast("Oda bulunamadı.");
+                return;
+            }
+            const joined = room.participants?.some(user => user.username === state.me?.username);
+            const mine = room.participants?.find(user => user.username === state.me?.username);
+            const canManage = room.owner?.username === state.me?.username || ["founder", "admin", "moderator"].includes(mine?.role);
+            openModal(room.title, body => {
+                body.innerHTML = `
+                    <div class="voice-stage">
+                        <div class="voice-live-card">
+                            <strong>${escapeHtml(room.title)}</strong>
+                            <small>${escapeHtml(room.category || "Genel")} • ${room.count || 0}/${room.limit || 50} kişi • ${escapeHtml(room.privacy || "public")}</small>
+                            <div class="points-progress" style="--points-progress:${Math.min(100, ((room.count || 0) / (room.limit || 50)) * 100)}%"><span></span></div>
+                        </div>
+                        <div class="voice-participant-grid">
+                            ${(room.participants || []).map(user => `<div class="voice-participant"><span class="avatar">${escapeHtml(initials(user.displayName))}</span><span>${escapeHtml(user.displayName)}</span><small>${escapeHtml(user.role || "dinleyici")}${user.muted ? " • sessiz" : ""}</small></div>`).join("") || '<div class="last-message">Katılımcı yok.</div>'}
+                        </div>
+                        <div class="chip-row">
+                            <button class="mini-btn ${joined ? "danger" : "primary"}" id="voiceJoinLeaveButton" type="button">${joined ? "Ayrıl" : "Katıl"}</button>
+                            <button class="mini-btn" id="voiceMuteButton" type="button">${mine?.muted ? "Mikrofon Aç" : "Mikrofon Kapat"}</button>
+                            <button class="mini-btn" id="voiceRaiseHandButton" type="button">El Kaldır / İstek Gönder</button>
+                            ${canManage ? '<button class="mini-btn" id="voiceSettingsButton" type="button">Oda Ayarları</button>' : ""}
+                        </div>
+                        <textarea id="voiceCommentInput" placeholder="Odaya yorum yaz"></textarea>
+                        <button id="voiceCommentButton" class="primary" type="button">Yorum Gönder</button>
+                        <div class="point-ledger-list">
+                            ${(room.comments || []).slice(-8).map(comment => `<div class="voice-comment ${comment.hidden ? "hidden-comment" : ""}"><strong>${escapeHtml(comment.displayName || comment.username)}</strong><small>${escapeHtml(comment.hidden ? "AI sansür uyarısı: " : "")}${escapeHtml(comment.body)}</small></div>`).join("") || '<div class="last-message">Yorum yok.</div>'}
+                        </div>
+                    </div>
+                `;
+                $("voiceJoinLeaveButton").onclick = () => {
+                    socket.emit(joined ? "voice:leave" : "voice:join", { roomId: room.id });
+                    if (!joined) state.activeVoiceRoomId = room.id;
+                    closeModal();
+                };
+                $("voiceMuteButton").onclick = () => socket.emit("voice:mute", { roomId: room.id, muted: !mine?.muted });
+                $("voiceRaiseHandButton").onclick = () => socket.emit("voice:request_speak", { roomId: room.id });
+                $("voiceCommentButton").onclick = () => {
+                    socket.emit("voice:comment", { roomId: room.id, body: $("voiceCommentInput").value });
+                    $("voiceCommentInput").value = "";
+                };
+                $("voiceSettingsButton")?.addEventListener("click", () => openVoiceSettings(room));
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openVoiceSettings(room) {
+            openModal("Oda Ayarları", body => {
+                body.innerHTML = `
+                    <select id="voiceSettingsPrivacy"><option value="public">Herkese açık</option><option value="friends">Arkadaşlar</option><option value="invite">Davetli</option></select>
+                    <input id="voiceSettingsLimit" type="number" min="2" max="200" value="${Number(room.limit || 50)}">
+                    <select id="voiceSettingsTalk"><option value="everyone">Herkes</option><option value="request">İstek gerekir</option><option value="admin">Sadece admin</option></select>
+                    <label class="toggle-row"><span>Yorumlar</span><input id="voiceSettingsComments" type="checkbox" ${room.commentsEnabled ? "checked" : ""}></label>
+                    <label class="toggle-row"><span>AI sansür</span><input id="voiceSettingsAi" type="checkbox" ${room.aiModeration ? "checked" : ""}></label>
+                    <label class="toggle-row"><span>Kayıt al</span><input id="voiceSettingsRecording" type="checkbox" ${room.recording ? "checked" : ""}></label>
+                    <div class="last-message">Ban listesi: ${(room.bans || []).join(", ") || "Boş"}</div>
+                `;
+                $("voiceSettingsPrivacy").value = room.privacy || "public";
+                $("voiceSettingsTalk").value = room.talkMode || "request";
+            }, [
+                { label: "Kaydet", primary: true, onClick: () => {
+                    socket.emit("voice:settings", {
+                        roomId: room.id,
+                        privacy: $("voiceSettingsPrivacy").value,
+                        limit: Number($("voiceSettingsLimit").value || 50),
+                        talkMode: $("voiceSettingsTalk").value,
+                        commentsEnabled: $("voiceSettingsComments").checked,
+                        aiModeration: $("voiceSettingsAi").checked,
+                        recording: $("voiceSettingsRecording").checked
+                    });
+                    closeModal();
+                } },
+                { label: "Kapat", onClick: closeModal }
+            ], "sheet");
         }
 
         function switchSection(section) {
@@ -7791,22 +9616,135 @@
 
         function openChannelStarter() {
             openModal("Kanallar", body => {
-                body.innerHTML = `<p>Kanallar simdilik grup altyapisiyla calisir. Yeni duyuru kanali icin grup olusturup yalnizca yoneticilerin yazmasini tercih edebilirsin.</p>`;
+                body.innerHTML = `<p>Kanallar şimdilik grup altyapısıyla çalışır. Yeni duyuru kanalı için grup oluşturup yalnızca yöneticilerin yazmasını tercih edebilirsin.</p>`;
             }, [
-                { label: "Grup/kanal olustur", primary: true, onClick: () => { closeModal(); createGroup(); } },
+                { label: "Grup/kanal oluştur", primary: true, onClick: () => { closeModal(); createGroup(); } },
                 { label: "Kapat", onClick: closeModal }
             ]);
         }
 
-        function openNearbyPanel() {
-            openModal("Yakindaki Kullanicilar", body => {
+        async function loadCommunities() {
+            try {
+                const response = await fetch(`/communities?username=${encodeURIComponent(state.me.username)}`);
+                const data = await response.json();
+                if (data.ok) state.communities = data.communities || [];
+            } catch (_error) {
+                showToast("Topluluklar alınamadı.");
+            }
+        }
+
+        async function openCommunitiesHub() {
+            await loadCommunities();
+            openModal("Topluluklar", body => {
                 body.innerHTML = `
-                    <p>Yakindaki kisiler ozelligi varsayilan olarak kapali. Acarsan yalnizca yaklasik mesafe kullanilir.</p>
+                    <button id="communityCreateButton" class="primary" type="button">Topluluk Oluştur</button>
+                    <div class="community-grid">
+                        ${(state.communities || []).map(community => `
+                            <button class="community-card" type="button" data-community="${escapeHtml(community.id)}">
+                                <strong>${escapeHtml(community.title)}</strong>
+                                <small>${escapeHtml(community.category || "Genel")} • ${community.memberCount || 0} üye • ${community.onlineCount || 0} çevrimiçi</small>
+                                <div class="last-message">${escapeHtml(community.description || "NexaLine topluluğu")}</div>
+                            </button>
+                        `).join("") || '<div class="community-card"><strong>Topluluk yok</strong><small>İlk topluluğu sen oluşturabilirsin.</small></div>'}
+                    </div>
+                `;
+                $("communityCreateButton").onclick = openCommunityCreator;
+                body.querySelectorAll("[data-community]").forEach(button => button.onclick = () => openCommunityDetail(button.dataset.community));
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openCommunityCreator() {
+            openModal("Topluluk Oluştur", body => {
+                body.innerHTML = `
+                    <input id="communityTitleInput" maxlength="160" placeholder="Topluluk adı">
+                    <input id="communityCategoryInput" maxlength="80" placeholder="Kategori">
+                    <textarea id="communityDescriptionInput" maxlength="800" placeholder="Topluluk açıklaması"></textarea>
+                    <select id="communityPrivacyInput"><option value="public">Herkese açık</option><option value="friends">Arkadaşlar</option><option value="private">Özel</option></select>
+                `;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Oluştur", primary: true, onClick: async () => {
+                    const response = await fetch("/communities", {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({
+                            username: state.me.username,
+                            title: $("communityTitleInput").value,
+                            category: $("communityCategoryInput").value || "Genel",
+                            description: $("communityDescriptionInput").value,
+                            privacy: $("communityPrivacyInput").value
+                        })
+                    });
+                    const data = await response.json();
+                    showToast(data.message || "Topluluk güncellendi.");
+                    if (data.ok) {
+                        state.communities = data.communities || [];
+                        closeModal();
+                        openCommunitiesHub();
+                    }
+                } }
+            ], "sheet");
+        }
+
+        function openCommunityDetail(communityId) {
+            const community = state.communities.find(item => item.id === communityId);
+            if (!community) return;
+            const canAnnounce = community.role && ["owner", "admin", "moderator"].includes(community.role);
+            openModal(community.title, body => {
+                body.innerHTML = `
+                    <div class="community-card">
+                        <strong>${escapeHtml(community.title)}</strong>
+                        <small>${escapeHtml(community.category || "Genel")} • ${community.memberCount || 0} üye • ${community.onlineCount || 0} çevrimiçi</small>
+                        <div class="last-message">${escapeHtml(community.description || "")}</div>
+                    </div>
+                    <button id="communityJoinButton" class="primary" type="button">${community.joined ? "Katıldın" : "Topluluğa Katıl"}</button>
+                    ${canAnnounce ? '<textarea id="communityAnnouncementInput" placeholder="Duyuru yaz"></textarea><button id="communityAnnouncementButton" class="primary" type="button">Duyuru Yayınla</button>' : ""}
+                    <h3>Duyurular</h3>
+                    <div class="point-ledger-list">
+                        ${(community.announcements || []).map(item => `<div class="point-ledger-row"><strong>${escapeHtml(item.author?.displayName || "NexaLine")}</strong><small>${escapeHtml(item.body)}</small></div>`).join("") || '<div class="last-message">Duyuru yok.</div>'}
+                    </div>
+                `;
+                $("communityJoinButton").disabled = community.joined;
+                $("communityJoinButton").onclick = async () => {
+                    const response = await fetch(`/communities/${encodeURIComponent(community.id)}/join`, {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({ username: state.me.username })
+                    });
+                    const data = await response.json();
+                    showToast(data.message || "Topluluk güncellendi.");
+                    if (data.ok) {
+                        state.communities = data.communities || [];
+                        closeModal();
+                        openCommunitiesHub();
+                    }
+                };
+                $("communityAnnouncementButton")?.addEventListener("click", async () => {
+                    const response = await fetch(`/communities/${encodeURIComponent(community.id)}/announcements`, {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({ username: state.me.username, body: $("communityAnnouncementInput").value })
+                    });
+                    const data = await response.json();
+                    showToast(data.message || "Duyuru güncellendi.");
+                    if (data.ok) {
+                        state.communities = data.communities || [];
+                        closeModal();
+                        openCommunitiesHub();
+                    }
+                });
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openNearbyPanel() {
+            openModal("Yakındaki Kullanıcılar", body => {
+                body.innerHTML = `
+                    <p>Yakındaki kişiler özelliği varsayılan olarak kapalı. Açarsan yalnızca yaklaşık mesafe kullanılır.</p>
                     <div id="nearbyRows" class="list"></div>
                 `;
                 renderNearbyRows();
             }, [
-                { label: state.me?.nearbyEnabled ? "Kapat" : "Konumla Ac", primary: true, onClick: toggleNearbyUsers },
+                { label: state.me?.nearbyEnabled ? "Kapat" : "Konumla Aç", primary: true, onClick: toggleNearbyUsers },
                 { label: "Kapat", onClick: closeModal }
             ]);
         }
@@ -7821,7 +9759,7 @@
                     <span><strong class="chat-title">${escapeHtml(user.displayName)}</strong><span class="last-message">${escapeHtml(user.distanceKm || "?")} km uzakta</span></span>
                     <span class="chat-time">Profil</span>
                 </button>
-            `).join("") : `<div class="vault-card"><strong>Yakinda kimse yok</strong><small>Ozelligi acan kullanicilar 50 km icinde gorunur.</small></div>`;
+            `).join("") : `<div class="vault-card"><strong>Yakında kimse yok</strong><small>Özelliği açan kullanıcılar 50 km içinde görünür.</small></div>`;
             list.querySelectorAll("[data-nearby-user]").forEach(button => {
                 button.onclick = () => {
                     const user = state.nearbyUsers.find(item => item.username === button.dataset.nearbyUser);
@@ -7833,7 +9771,7 @@
 
         async function toggleNearbyUsers() {
             if (!navigator.geolocation) {
-                showToast("Bu cihaz konum destegi vermiyor.");
+                showToast("Bu cihaz konum desteği vermiyor.");
                 return;
             }
             navigator.geolocation.getCurrentPosition(async position => {
@@ -7853,53 +9791,110 @@
                         state.nearbyUsers = data.users || [];
                         renderNearbyRows();
                         renderExplore();
-                        showToast(data.enabled ? "Yakindaki kullanicilar acildi." : "Yakindaki kullanicilar kapatildi.");
+                        showToast(data.enabled ? "Yakındaki kullanıcılar açıldı." : "Yakındaki kullanıcılar kapatıldı.");
                     } else {
                         showToast(data.message || "Konum kaydedilemedi.");
                     }
                 } catch (_error) {
-                    showToast("Yakindaki kullanicilar yuklenemedi.");
+                    showToast("Yakındaki kullanıcılar yüklenemedi.");
                 }
             }, () => showToast("Konum izni verilmedi."));
         }
 
         function openVaultPanel() {
             const ready = Boolean(state.me?.vaultReady);
+            state.vaultPinDraft = "";
             openModal("Gizli Kasa", body => {
+                const lockedUntil = state.me?.vaultLockedUntil ? new Date(state.me.vaultLockedUntil) : null;
+                const lockedText = lockedUntil && lockedUntil > new Date()
+                    ? `Çok fazla hatalı deneme. ${lockedUntil.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} sonrası tekrar dene.`
+                    : "5 hatalı denemede kasa 1 dakika kilitlenir.";
                 body.innerHTML = `
-                    <div class="vault-card">
-                        <strong>${ready ? "PIN ile ac" : "4 haneli PIN olustur"}</strong>
-                        <small>5 hatali denemede kasa 1 dakika kilitlenir.</small>
-                        <input id="vaultPinInput" type="password" inputmode="numeric" maxlength="4" placeholder="4 haneli PIN">
+                    <div class="vault-card vault-unlock-card ${state.vaultUnlocked ? "hidden" : ""}">
+                        <span class="attachment-option-icon">${svgIcon("lock")}</span>
+                        <strong>${ready ? "PIN ile aç" : "4 haneli PIN oluştur"}</strong>
+                        <small>${escapeHtml(lockedText)}</small>
+                        <input id="vaultPinInput" class="hidden" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code">
+                        <div id="vaultPinDots" class="pin-dots" aria-label="PIN uzunluğu"></div>
+                        <div class="pin-keypad" aria-label="Gizli kasa PIN tuş takımı">
+                            ${["1","2","3","4","5","6","7","8","9"].map(value => `<button type="button" data-vault-key="${value}">${value}</button>`).join("")}
+                            <button type="button" data-vault-clear>×</button>
+                            <button type="button" data-vault-key="0">0</button>
+                            <button type="button" data-vault-submit>✓</button>
+                        </div>
                     </div>
                     <div id="vaultContent" class="vault-list ${state.vaultUnlocked ? "" : "hidden"}"></div>
                 `;
+                bindVaultKeypad(ready);
                 if (state.vaultUnlocked) renderVaultItems();
             }, [
-                { label: ready ? "Kilidi Ac" : "PIN Olustur", primary: true, onClick: ready ? unlockVault : setupVault },
                 { label: "Kapat", onClick: closeModal }
-            ]);
+            ], "sheet");
+        }
+
+        function renderVaultPinDots() {
+            const dots = $("vaultPinDots");
+            if (!dots) return;
+            dots.innerHTML = [0, 1, 2, 3]
+                .map(index => `<span class="${index < state.vaultPinDraft.length ? "filled" : ""}"></span>`)
+                .join("");
+            const input = $("vaultPinInput");
+            if (input) input.value = state.vaultPinDraft;
+        }
+
+        function bindVaultKeypad(ready) {
+            renderVaultPinDots();
+            document.querySelectorAll("[data-vault-key]").forEach(button => {
+                button.onclick = () => {
+                    if (state.vaultPinDraft.length >= 4) return;
+                    state.vaultPinDraft += button.dataset.vaultKey;
+                    renderVaultPinDots();
+                    if (state.vaultPinDraft.length === 4) submitVaultPin(ready);
+                };
+            });
+            document.querySelectorAll("[data-vault-clear]").forEach(button => {
+                button.onclick = () => {
+                    state.vaultPinDraft = state.vaultPinDraft.slice(0, -1);
+                    renderVaultPinDots();
+                };
+            });
+            document.querySelectorAll("[data-vault-submit]").forEach(button => {
+                button.onclick = () => submitVaultPin(ready);
+            });
+        }
+
+        function submitVaultPin(ready) {
+            if (state.vaultPinDraft.length !== 4) {
+                showToast("4 haneli PIN gir.");
+                return;
+            }
+            if (ready) {
+                unlockVault();
+            } else {
+                setupVault();
+            }
         }
 
         async function setupVault() {
-            const pin = $("vaultPinInput")?.value || "";
+            const pin = state.vaultPinDraft || $("vaultPinInput")?.value || "";
             const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/setup`, {
                 method: "POST",
                 headers: authHeaders(),
                 body: JSON.stringify({ pin })
             });
             const data = await response.json();
-            showToast(data.message || "Kasa guncellendi.");
+            showToast(data.message || "Kasa güncellendi.");
             if (data.ok) {
                 state.me = data.user || state.me;
                 state.vaultPin = pin;
+                state.vaultPinDraft = "";
                 state.vaultUnlocked = true;
                 openVaultPanel();
             }
         }
 
         async function unlockVault() {
-            const pin = $("vaultPinInput")?.value || state.vaultPin || "";
+            const pin = state.vaultPinDraft || $("vaultPinInput")?.value || state.vaultPin || "";
             const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/unlock`, {
                 method: "POST",
                 headers: authHeaders(),
@@ -7907,11 +9902,14 @@
             });
             const data = await response.json();
             if (!data.ok) {
-                showToast(data.message || "PIN hatali.");
+                showToast(data.message || "PIN hatalı.");
                 state.me = data.user || state.me;
+                state.vaultPinDraft = "";
+                renderVaultPinDots();
                 return;
             }
             state.vaultPin = pin;
+            state.vaultPinDraft = "";
             state.vaultUnlocked = true;
             state.vaultItems = data.items || [];
             state.me = data.user || state.me;
@@ -7927,7 +9925,7 @@
                     <button id="vaultAddNoteButton" class="mini-btn" type="button">Not ekle</button>
                     <button id="vaultLockButton" class="mini-btn danger" type="button">Kilitle</button>
                 </div>
-                ${(state.vaultItems || []).map(item => `<div class="vault-card"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.payload?.text || item.kind || "")}</small><button class="mini-btn danger" type="button" data-vault-delete="${escapeHtml(item.id)}">Sil</button></div>`).join("") || '<div class="vault-card"><strong>Kasa bos</strong><small>PIN korumali notlarini buraya ekleyebilirsin.</small></div>'}
+                ${(state.vaultItems || []).map(item => `<div class="vault-card"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.payload?.text || item.kind || "")}</small><button class="mini-btn danger" type="button" data-vault-delete="${escapeHtml(item.id)}">Sil</button></div>`).join("") || '<div class="vault-card"><strong>Kasa boş</strong><small>PIN korumalı notlarını buraya ekleyebilirsin.</small></div>'}
             `;
             $("vaultAddNoteButton").onclick = addVaultNote;
             $("vaultLockButton").onclick = () => {
@@ -7942,10 +9940,10 @@
 
         function addVaultNote() {
             openModal("Kasa Notu", body => {
-                body.innerHTML = `<input id="vaultNoteTitle" maxlength="120" placeholder="Baslik"><textarea id="vaultNoteText" maxlength="4000" placeholder="Not"></textarea>`;
+                body.innerHTML = `<input id="vaultNoteTitle" maxlength="120" placeholder="Başlık"><textarea id="vaultNoteText" maxlength="4000" placeholder="Not"></textarea>`;
             }, [
                 { label: "Kaydet", primary: true, onClick: saveVaultNote },
-                { label: "Vazgec", onClick: openVaultPanel }
+                { label: "Vazgeç", onClick: openVaultPanel }
             ]);
         }
 
@@ -8370,7 +10368,7 @@
             contactList.innerHTML = "";
             const allHeader = document.createElement("div");
             allHeader.className = "section-mini-title";
-            allHeader.textContent = "Tum kullanicilar";
+            allHeader.textContent = "Tüm kullanıcılar";
             contactList.appendChild(allHeader);
 
             state.users
@@ -8403,7 +10401,7 @@
                     const status = contactStatus(user.username);
                     const dot = document.createElement("span");
                     dot.className = status === "incoming" || status === "accepted" ? "badge" : "online-dot" + (user.online ? " online" : "");
-                    dot.textContent = status === "incoming" ? "!" : status === "accepted" ? "Arkadas" : "";
+                    dot.textContent = status === "incoming" ? "!" : status === "accepted" ? "Arkadaş" : "";
 
                     button.append(avatar, body, dot);
                     contactList.appendChild(button);
@@ -9341,6 +11339,21 @@
                     }
                 }
             ];
+            if (!message.deletedAt && (message.body || message.attachment?.name)) {
+                actions.unshift({
+                    label: "Kopyala",
+                    onClick: async () => {
+                        const text = message.body || message.attachment?.name || "";
+                        try {
+                            await navigator.clipboard.writeText(text);
+                            showToast("Mesaj kopyalandı.");
+                        } catch (_error) {
+                            showToast(text);
+                        }
+                        closeModal();
+                    }
+                });
+            }
             if (mine && !message.deletedAt) {
                 actions.unshift({
                     label: "Düzenle",
@@ -9448,12 +11461,24 @@
 
             if (attachment.type && attachment.type.startsWith("audio/")) {
                 const wrap = document.createElement("div");
-                wrap.className = "list";
+                wrap.className = "voice-card";
+                const head = document.createElement("div");
+                head.className = "profile-preview";
+                head.innerHTML = `<span class="attachment-option-icon">${svgIcon("mic")}</span><span><strong>Sesli mesaj</strong><small>${escapeHtml(attachment.name || "NexaLine ses kaydı")}</small></span>`;
                 const audio = document.createElement("audio");
                 audio.className = "voice-message";
                 audio.controls = true;
                 audio.src = attachment.dataUrl;
-                wrap.appendChild(audio);
+                const speed = document.createElement("button");
+                speed.type = "button";
+                speed.className = "mini-btn";
+                speed.textContent = "1x";
+                speed.onclick = () => {
+                    const next = audio.playbackRate >= 2 ? 1 : audio.playbackRate >= 1.5 ? 2 : 1.5;
+                    audio.playbackRate = next;
+                    speed.textContent = `${next}x`;
+                };
+                wrap.append(head, audio, speed);
                 if (attachment.transcript) {
                     const transcript = document.createElement("div");
                     transcript.className = "voice-transcript";
@@ -9482,11 +11507,17 @@
 
             if (attachment.type === "location") {
                 const link = document.createElement("a");
-                link.className = "file-pill location-pill";
+                link.className = "location-card";
                 link.href = attachment.url;
                 link.target = "_blank";
                 link.rel = "noreferrer";
-                link.textContent = `📍 Konum: ${Number(attachment.lat).toFixed(5)}, ${Number(attachment.lng).toFixed(5)}`;
+                const lat = Number(attachment.lat);
+                const lng = Number(attachment.lng);
+                link.innerHTML = `
+                    <span class="location-map-preview"></span>
+                    <strong>${escapeHtml(attachment.name || "Mevcut konum")}</strong>
+                    <small>${Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : "Haritada aç"}</small>
+                `;
                 return link;
             }
 
@@ -9603,11 +11634,18 @@
                 }
                 const actions = document.createElement("div");
                 actions.className = "media-actions";
-                const download = document.createElement("a");
-                download.href = attachment.dataUrl;
-                download.download = attachment.name || "nexaline-gorsel.jpg";
-                download.textContent = "İndir";
-                actions.appendChild(download);
+                if (attachment.viewOnce) {
+                    const note = document.createElement("span");
+                    note.className = "last-message";
+                    note.textContent = "Tek açımlık medya indirilemez ve tekrar açılamaz.";
+                    actions.appendChild(note);
+                } else {
+                    const download = document.createElement("a");
+                    download.href = attachment.dataUrl;
+                    download.download = attachment.name || "nexaline-gorsel.jpg";
+                    download.textContent = "İndir";
+                    actions.appendChild(download);
+                }
                 body.append(media, actions);
             }, [{ label: "Kapat", onClick: closeModal }]);
         }
@@ -9664,12 +11702,13 @@
                     ["file", "Belge", "Dosya seç", () => $("fileInput").click()],
                     ["image", "Fotoğraflar ve Videolar", "Galeri veya dosya", () => $("fileInput").click()],
                     ["eye", "Tek Açımlık Medya", "Fotoğraf veya video bir kez açılsın", () => { state.pendingViewOnce = true; $("fileInput").click(); }],
-                    ["camera", "Kamera", "Fotoğraf veya video çek", () => $("cameraInput").click()],
+                    ["camera", "Kamera", "Fotoğraf çek veya video kaydet", openCameraCapture],
                     ["volume", "Ses", "Ses dosyası seç", () => $("fileInput").click()],
                     ["contacts", "Kişi", "Arkadaş profili paylaş", openContactSharePicker],
                     ["poll", "Anket", "Soru ve seçeneklerle gönder", openPollCreator],
                     ["gif", "GIF", "Kısa hareketli ifade gönder", openGifPicker],
                     ["music", "Müzik", "Ses veya müzik dosyası seç", () => $("fileInput").click()],
+                    ["location", "Konum", "Mevcut konumunu gönder", sendCurrentLocation],
                     ["zap", "AI ile düzenle", "Yazdığın mesajı iyileştir", improveComposerWithAi]
                 ];
                 items.forEach(([icon, title, hint, action]) => {
@@ -9684,7 +11723,118 @@
                     menu.appendChild(button);
                 });
                 body.appendChild(menu);
-            }, [{ label: "Kapat", onClick: closeModal }]);
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        async function openCameraCapture() {
+            let stream = null;
+            let facingMode = "environment";
+            let capturedDataUrl = "";
+
+            const stopStream = () => {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
+            };
+            state.cameraCaptureStop = stopStream;
+
+            const startStream = async () => {
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    showToast("Kamera API desteklenmiyor. Cihaz kamerası açılıyor.");
+                    closeModal();
+                    $("cameraInput").click();
+                    return;
+                }
+                const video = $("cameraCaptureVideo");
+                const preview = $("cameraCapturePreview");
+                stopStream();
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
+                    video.srcObject = stream;
+                    video.classList.remove("hidden");
+                    preview.classList.add("hidden");
+                    await video.play();
+                } catch (_error) {
+                    showToast("Kamera izni alınamadı. Cihaz seçicisi açılıyor.");
+                    closeModal();
+                    $("cameraInput").click();
+                }
+            };
+
+            const captureFrame = () => {
+                const video = $("cameraCaptureVideo");
+                if (!video?.videoWidth) {
+                    showToast("Kamera görüntüsü hazırlanıyor.");
+                    return;
+                }
+                const canvas = document.createElement("canvas");
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+                capturedDataUrl = canvas.toDataURL("image/jpeg", 0.86);
+                $("cameraCapturePreview").src = capturedDataUrl;
+                $("cameraCapturePreview").classList.remove("hidden");
+                video.classList.add("hidden");
+                stopStream();
+            };
+
+            const useCaptured = () => {
+                if (!capturedDataUrl) {
+                    captureFrame();
+                    if (!capturedDataUrl) return;
+                }
+                const viewOnce = Boolean($("cameraViewOnceInput")?.checked);
+                state.attachment = {
+                    type: "image/jpeg",
+                    name: `kamera-${Date.now()}.jpg`,
+                    dataUrl: capturedDataUrl,
+                    viewOnce,
+                    viewOnceId: viewOnce ? (crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`) : undefined
+                };
+                $("messageInput").placeholder = viewOnce ? "Tek açımlık kamera medyası" : "Kamera fotoğrafı hazır";
+                updateComposerState();
+                stopStream();
+                closeModal();
+            };
+
+            openModal("Kamera", body => {
+                body.innerHTML = `
+                    <div class="camera-capture-card">
+                        <div class="camera-capture-stage">
+                            <video id="cameraCaptureVideo" playsinline muted></video>
+                            <img id="cameraCapturePreview" class="hidden" alt="Kamera önizleme">
+                        </div>
+                        <div class="camera-capture-tools">
+                            <label class="toggle-row"><span>Tek açımlık gönder</span><input id="cameraViewOnceInput" type="checkbox"></label>
+                            <button id="cameraCaptureButton" class="primary" type="button">Fotoğraf çek</button>
+                            <button id="cameraRetakeButton" type="button">Yeniden çek</button>
+                            <button id="cameraFlipButton" type="button">Kamerayı çevir</button>
+                            <button id="cameraVideoFallbackButton" type="button">Video çek / cihaz kamerası</button>
+                        </div>
+                    </div>
+                `;
+                $("cameraCaptureButton").onclick = captureFrame;
+                $("cameraRetakeButton").onclick = () => {
+                    capturedDataUrl = "";
+                    startStream();
+                };
+                $("cameraFlipButton").onclick = () => {
+                    facingMode = facingMode === "user" ? "environment" : "user";
+                    capturedDataUrl = "";
+                    startStream();
+                };
+                $("cameraVideoFallbackButton").onclick = () => {
+                    stopStream();
+                    closeModal();
+                    $("cameraInput").click();
+                };
+            }, [
+                { label: "Kapat", onClick: () => { stopStream(); closeModal(); } },
+                { label: "Kullan", primary: true, onClick: useCaptured }
+            ], "sheet");
+
+            await startStream();
         }
 
         function openGifPicker() {
@@ -9717,7 +11867,7 @@
             const input = $("messageInput");
             const text = input.value.trim();
             if (!text) {
-                showToast("Once duzenlenecek bir mesaj yaz.");
+                showToast("Önce düzenlenecek bir mesaj yaz.");
                 return;
             }
             try {
@@ -9788,11 +11938,38 @@
             openModal("Anket oluştur", body => {
                 body.innerHTML = `
                     <input id="pollQuestionInput" maxlength="120" placeholder="Anket sorusu">
-                    <input id="pollOptionOneInput" maxlength="80" placeholder="1. seçenek">
-                    <input id="pollOptionTwoInput" maxlength="80" placeholder="2. seçenek">
-                    <input id="pollOptionThreeInput" maxlength="80" placeholder="3. seçenek (isteğe bağlı)">
-                    <input id="pollOptionFourInput" maxlength="80" placeholder="4. seçenek (isteğe bağlı)">
+                    <div id="pollOptionBuilder" class="poll-option-builder"></div>
+                    <button id="addPollOptionButton" type="button">Seçenek ekle</button>
+                    <div class="last-message">En az 2, en fazla 10 seçenek ekleyebilirsin.</div>
                 `;
+                const builder = $("pollOptionBuilder");
+                const addOptionInput = value => {
+                    const count = builder.querySelectorAll("[data-poll-option]").length;
+                    if (count >= 10) {
+                        showToast("En fazla 10 seçenek eklenebilir.");
+                        return;
+                    }
+                    const row = document.createElement("div");
+                    row.className = "poll-option-row";
+                    row.innerHTML = `
+                        <input data-poll-option maxlength="80" placeholder="${count + 1}. seçenek" value="${escapeHtml(value || "")}">
+                        <button class="mini-btn" type="button">Sil</button>
+                    `;
+                    row.querySelector("button").onclick = () => {
+                        if (builder.querySelectorAll("[data-poll-option]").length <= 2) {
+                            showToast("Ankette en az iki seçenek olmalı.");
+                            return;
+                        }
+                        row.remove();
+                        [...builder.querySelectorAll("[data-poll-option]")].forEach((input, index) => {
+                            input.placeholder = `${index + 1}. seçenek`;
+                        });
+                    };
+                    builder.appendChild(row);
+                };
+                addOptionInput("");
+                addOptionInput("");
+                $("addPollOptionButton").onclick = () => addOptionInput("");
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 {
@@ -9800,8 +11977,8 @@
                     primary: true,
                     onClick: () => {
                         const question = $("pollQuestionInput").value.trim();
-                        const options = ["pollOptionOneInput", "pollOptionTwoInput", "pollOptionThreeInput", "pollOptionFourInput"]
-                            .map(id => $(id).value.trim())
+                        const options = [...document.querySelectorAll("[data-poll-option]")]
+                            .map(input => input.value.trim())
                             .filter(Boolean);
                         if (!question || options.length < 2) {
                             showToast("Anket için soru ve en az iki seçenek gerekli.");
@@ -9947,19 +12124,25 @@
             navigator.geolocation.getCurrentPosition(position => {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
-                socket.emit("message:send", {
+                const payload = {
                     chatId: chat.id,
                     body: "Mevcut konumum",
                     attachment: {
                         type: "location",
-                        name: "Konum",
+                        name: "Canlı konum kartı",
                         lat,
                         lng,
                         url: `https://www.google.com/maps?q=${lat},${lng}`
                     },
                     replyTo: state.replyTo,
                     expiresInSeconds: state.disappearingSeconds || 0
-                });
+                };
+                if (socket.connected) {
+                    socket.emit("message:send", payload);
+                } else {
+                    queueMessage(payload);
+                }
+                NexaAudio.play("outgoing");
                 clearReply();
             }, () => showToast("Konum izni alınamadı."), { enableHighAccuracy: true, timeout: 12000 });
         }
@@ -10339,10 +12522,125 @@
                 .join("");
         }
 
+        const PRIVACY_SCOPE_LABELS = {
+            everyone: "Herkes",
+            friends: "Arkadaşlarım",
+            contacts: "Arkadaşlarım",
+            nobody: "Hiç kimse"
+        };
+        const PRIVACY_SCOPE_INPUTS = {
+            lastSeen: "lastSeenScopeInput",
+            online: "onlineScopeInput",
+            photo: "photoScopeInput",
+            about: "aboutScopeInput",
+            email: "emailScopeInput",
+            calls: "callsScopeInput",
+            groups: "groupsScopeInput"
+        };
+        const DEFAULT_PRIVACY_SCOPES = {
+            lastSeen: "everyone",
+            online: "everyone",
+            photo: "everyone",
+            about: "friends",
+            email: "friends",
+            calls: "friends",
+            groups: "friends"
+        };
+        const AVATAR_PRESETS = [
+            { label: "NexaLine", value: "NL", gradient: "linear-gradient(135deg,#2F80FF,#E5485D)" },
+            { label: "Kişisel", value: "ME", gradient: "linear-gradient(135deg,#7B4DFF,#2ED3C6)" },
+            { label: "Premium", value: "N", gradient: "linear-gradient(135deg,#F7C948,#E5485D)" },
+            { label: "Minimal", value: "•", gradient: "linear-gradient(135deg,#111827,#2F80FF)" }
+        ];
+
+        function privacyScopesFromState() {
+            const stored = state.me?.privacyScopes || {};
+            const legacy = state.me?.privacy || {};
+            return {
+                ...DEFAULT_PRIVACY_SCOPES,
+                ...stored,
+                lastSeen: stored.lastSeen || (legacy.lastSeenHidden ? "nobody" : DEFAULT_PRIVACY_SCOPES.lastSeen),
+                online: stored.online || (legacy.onlineHidden ? "nobody" : DEFAULT_PRIVACY_SCOPES.online),
+                email: stored.email || (legacy.emailHidden ? "nobody" : DEFAULT_PRIVACY_SCOPES.email)
+            };
+        }
+
+        function fillScopeSelect(id, selected) {
+            const select = $(id);
+            if (!select) return;
+            selected = selected === "contacts" ? "friends" : selected;
+            select.innerHTML = Object.entries(PRIVACY_SCOPE_LABELS)
+                .filter(([key]) => key !== "contacts")
+                .map(([key, label]) => `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`)
+                .join("");
+            select.value = selected || "friends";
+            select.onchange = syncLegacyPrivacyToggles;
+        }
+
+        function renderPrivacyScopeSelects() {
+            const scopes = privacyScopesFromState();
+            Object.entries(PRIVACY_SCOPE_INPUTS).forEach(([key, id]) => fillScopeSelect(id, scopes[key]));
+            syncLegacyPrivacyToggles();
+        }
+
+        function syncLegacyPrivacyToggles() {
+            const lastSeenScope = $("lastSeenScopeInput")?.value || "everyone";
+            const onlineScope = $("onlineScopeInput")?.value || "everyone";
+            const emailScope = $("emailScopeInput")?.value || "friends";
+            if ($("hideLastSeenInput")) $("hideLastSeenInput").checked = lastSeenScope === "nobody";
+            if ($("hideOnlineInput")) $("hideOnlineInput").checked = onlineScope === "nobody";
+            if ($("hideEmailInput")) $("hideEmailInput").checked = emailScope === "nobody";
+        }
+
+        function privacyScopesFromInputs() {
+            const scopes = {};
+            Object.entries(PRIVACY_SCOPE_INPUTS).forEach(([key, id]) => {
+                scopes[key] = $(id)?.value || DEFAULT_PRIVACY_SCOPES[key];
+            });
+            return scopes;
+        }
+
+        function renderProfileSettingsHero() {
+            if (!$("settingsProfileName")) return;
+            const displayName = $("displayNameInput")?.value.trim() || state.me?.displayName || "NexaLine";
+            const avatarValue = $("avatarTextInput")?.value.trim() || state.me?.avatar || initials(displayName);
+            $("settingsProfileName").textContent = displayName;
+            $("settingsProfileMeta").textContent = `@${state.me?.username || "nexaline"} • ${state.me?.emailVerified ? "Gmail doğrulandı" : "Gmail bekliyor"}`;
+            $("settingsProfilePoints").textContent = `${state.me?.points || 0} puan`;
+            $("settingsProfileAboutText").textContent = $("aboutInput")?.value.trim() || state.me?.about || "NexaLine kullanıyorum.";
+            setAvatar($("settingsAvatar"), {
+                profileImage: state.profileImageDraft,
+                avatar: avatarValue,
+                displayName
+            }, displayName);
+            renderAvatarPresets();
+        }
+
+        function renderAvatarPresets() {
+            const grid = $("avatarPresetGrid");
+            if (!grid) return;
+            const current = ($("avatarTextInput")?.value || state.me?.avatar || "").trim();
+            const nameInitials = initials($("displayNameInput")?.value || state.me?.displayName || "NexaLine").slice(0, 5);
+            const presets = [{ label: "İsimden", value: nameInitials, gradient: "linear-gradient(135deg,#2ED3C6,#2F80FF)" }, ...AVATAR_PRESETS];
+            grid.innerHTML = presets.map(item => `
+                <button class="avatar-preset-card ${current === item.value ? "active" : ""}" type="button" data-avatar-preset="${escapeHtml(item.value)}" data-gradient="${escapeHtml(item.gradient)}">
+                    <span class="avatar-mini-preview" style="--avatar-gradient:${escapeHtml(item.gradient)}">${escapeHtml(item.value)}</span>
+                    <span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.value)} avatar yazısı</small></span>
+                </button>
+            `).join("");
+            grid.querySelectorAll("[data-avatar-preset]").forEach(button => {
+                button.onclick = () => {
+                    $("avatarTextInput").value = button.dataset.avatarPreset || "";
+                    renderProfileSettingsHero();
+                };
+            });
+        }
+
         function openSettings() {
             ensureSettingsExtras();
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
+            $("avatarTextInput").value = state.me.avatar || initials(state.me.displayName || state.me.username || "NexaLine").slice(0, 5);
             $("aboutInput").value = state.me.about || "";
             $("temporaryStatusInput").value = state.me.temporaryStatus?.text || "";
             $("hideLastSeenInput").checked = Boolean(state.me.privacy?.lastSeenHidden);
@@ -10358,11 +12656,18 @@
             $("nextAiCensorInput").checked = state.aiCensorEnabled;
             $("nextAiAutoApproveInput").checked = state.aiSettings.autoApprove;
             $("nextAiNameInput").value = aiDisplayName();
+            $("nextAiVoiceInput").value = state.aiSettings.voice || "warm";
+            $("nextAiLengthInput").value = state.aiSettings.responseLength || "medium";
+            $("nextAiPersonaInput").value = state.aiSettings.persona || "";
+            $("nextAiHistoryInput").checked = state.aiSettings.saveHistory !== false;
+            $("nextAiNotifyInput").checked = state.aiSettings.notifications !== false;
             $("secretPinInput").value = "";
             $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
             state.profileImageDraft = state.me.profileImage || null;
             state.aiAvatarDraft = state.aiSettings.image || "";
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
+            renderPrivacyScopeSelects();
+            renderProfileSettingsHero();
             setAvatar($("nextAiAvatar"), { profileImage: aiAvatarData(), displayName: aiDisplayName() }, aiDisplayName());
             renderBlockedUsers();
             renderDevices();
@@ -10411,19 +12716,39 @@
             if (!list) return;
             const rows = state.devices || [];
             if (!rows.length) {
-                list.innerHTML = `<div class="device-card"><div><strong>Aktif cihaz yok</strong><div class="last-message">Bu oturum kaydedilince burada gorunur.</div></div></div>`;
+                list.innerHTML = `<div class="device-card"><div><strong>Aktif cihaz yok</strong><div class="last-message">Bu oturum kaydedilince burada görünür.</div></div></div>`;
                 return;
             }
-            list.innerHTML = rows.map(device => `
+            list.innerHTML = `
                 <div class="device-card">
                     <div>
-                        <strong>${escapeHtml(device.label || "NexaLine")}</strong>
-                        <div class="last-message">${escapeHtml(device.ipAddress || "IP yok")} • ${relativeTime(device.lastSeen)}</div>
-                        <div class="last-message">${escapeHtml((device.userAgent || "").slice(0, 120))}</div>
+                        <strong>Aktif cihazlar</strong>
+                        <div class="last-message">${rows.length} cihaz bağlı. Mevcut cihaz korunarak diğerleri kapatılabilir.</div>
                     </div>
-                    <button class="mini-btn danger" type="button" data-revoke-device="${escapeHtml(device.id)}">Kapat</button>
+                    <button class="mini-btn danger" type="button" id="revokeOtherDevicesButton">Diğerlerini kapat</button>
                 </div>
-            `).join("");
+                ${rows.map(device => `
+                    <div class="device-card clickable" data-device-card="${escapeHtml(device.id)}">
+                        <div class="profile-preview">
+                            <span class="device-icon attachment-option-icon">${svgIcon((device.platform || device.label || "").toLowerCase().includes("mobil") || (device.userAgent || "").toLowerCase().includes("mobile") ? "smartphone" : "hardDrive")}</span>
+                            <div>
+                                <strong>${escapeHtml(device.label || "NexaLine")}${device.isCurrent ? " • Bu cihaz" : ""}</strong>
+                                <div class="last-message">${escapeHtml(device.ipAddress || "IP yok")} • ${relativeTime(device.lastSeen)}</div>
+                                <div class="last-message">${escapeHtml((device.userAgent || "").slice(0, 120))}</div>
+                            </div>
+                        </div>
+                        <button class="mini-btn danger" type="button" data-revoke-device="${escapeHtml(device.id)}">${device.isCurrent ? "Çıkış" : "Kapat"}</button>
+                    </div>
+                `).join("")}
+            `;
+            $("revokeOtherDevicesButton").onclick = revokeOtherDevices;
+            list.querySelectorAll("[data-device-card]").forEach(card => {
+                card.onclick = event => {
+                    if (event.target.closest("[data-revoke-device]")) return;
+                    const device = rows.find(item => item.id === card.dataset.deviceCard);
+                    if (device) openDeviceDetail(device);
+                };
+            });
             list.querySelectorAll("[data-revoke-device]").forEach(button => {
                 button.onclick = () => revokeDevice(button.dataset.revokeDevice);
             });
@@ -10451,14 +12776,47 @@
                 headers: authHeaders()
             });
             const data = await response.json();
-            showToast(data.message || "Cihaz guncellendi.");
+            showToast(data.message || "Cihaz güncellendi.");
+            if (data.ok) {
+                if (id === deviceId()) {
+                    resetToAuth("Bu cihaz oturumu kapatildi.");
+                } else {
+                    await loadDevices();
+                }
+            }
+        }
+
+        async function revokeOtherDevices() {
+            const response = await fetch(`/account/${state.me.username}/devices`, {
+                method: "DELETE",
+                headers: authHeaders()
+            });
+            const data = await response.json();
+            showToast(data.message || "Cihazlar güncellendi.");
             if (data.ok) {
                 state.devices = data.devices || [];
                 renderDevices();
-                if (id === deviceId()) {
-                    resetToAuth("Bu cihaz oturumu kapatildi.");
-                }
             }
+        }
+
+        function openDeviceDetail(device) {
+            openModal(device.isCurrent ? "Bu cihaz" : "Cihaz detayı", body => {
+                body.innerHTML = `
+                    <div class="device-card">
+                        <div>
+                            <strong>${escapeHtml(device.label || "NexaLine")}</strong>
+                            <div class="last-message">Platform: ${escapeHtml(device.platform || "NexaLine Web")}</div>
+                            <div class="last-message">IP: ${escapeHtml(device.ipAddress || "Bilinmiyor")}</div>
+                            <div class="last-message">İlk giriş: ${new Date(device.createdAt).toLocaleString("tr-TR")}</div>
+                            <div class="last-message">Son aktiflik: ${relativeTime(device.lastSeen)}</div>
+                            <div class="last-message">${escapeHtml(device.userAgent || "")}</div>
+                        </div>
+                    </div>
+                `;
+            }, [
+                { label: "Kapat", onClick: closeModal },
+                { label: device.isCurrent ? "Bu cihazdan çık" : "Oturumu kapat", primary: true, onClick: () => { closeModal(); revokeDevice(device.id); } }
+            ], "sheet");
         }
 
         function renderBlockedUsers() {
@@ -10466,15 +12824,22 @@
             if (!list) return;
             const rows = state.blockedProfiles || [];
             if (!rows.length) {
-                list.innerHTML = `<div class="blocked-card"><div><strong>Engellenen yok</strong><div class="last-message">Engelledigin kisiler burada gorunur.</div></div></div>`;
+                list.innerHTML = `<div class="blocked-card"><div><strong>Engellenen yok</strong><div class="last-message">Engellediğin kişiler burada görünür.</div></div></div>`;
                 return;
             }
             list.innerHTML = rows.map(user => `
                 <div class="blocked-card">
-                    <div><strong>${escapeHtml(user.displayName || user.username)}</strong><div class="last-message">@${escapeHtml(user.username)}</div></div>
+                    <div class="profile-preview">
+                        <div class="avatar" data-blocked-avatar="${escapeHtml(user.username)}">${escapeHtml(user.avatar || initials(user.displayName || user.username).slice(0, 2))}</div>
+                        <div><strong>${escapeHtml(user.displayName || user.username)}</strong><div class="last-message">@${escapeHtml(user.username)}</div></div>
+                    </div>
                     <button class="mini-btn" type="button" data-unblock-user="${escapeHtml(user.username)}">Engeli kaldir</button>
                 </div>
             `).join("");
+            rows.forEach(user => {
+                const avatar = [...list.querySelectorAll("[data-blocked-avatar]")].find(item => item.dataset.blockedAvatar === user.username);
+                if (avatar) setAvatar(avatar, user, user.displayName || user.username);
+            });
             list.querySelectorAll("[data-unblock-user]").forEach(button => {
                 button.onclick = () => unblockUser(button.dataset.unblockUser);
             });
@@ -10515,7 +12880,7 @@
                 body: JSON.stringify({ enabled: $("twoFactorInput").checked })
             });
             const data = await response.json();
-            showToast(data.message || "2FA guncellendi.");
+            showToast(data.message || "2FA güncellendi.");
             if (data.ok) {
                 state.me = data.user;
             }
@@ -10528,6 +12893,7 @@
                 body: JSON.stringify({
                     displayName: $("displayNameInput").value.trim(),
                     about: $("aboutInput").value.trim(),
+                    avatar: $("avatarTextInput").value.trim(),
                     profileImage: state.profileImageDraft
                 })
             });
@@ -10553,7 +12919,7 @@
                 })
             });
             const data = await response.json();
-            showToast(data.message || "Durum guncellendi.");
+            showToast(data.message || "Durum güncellendi.");
             if (data.ok) {
                 state.me = data.user;
                 renderProfile();
@@ -10570,7 +12936,8 @@
                         onlineHidden: $("hideOnlineInput").checked,
                         readReceiptsOff: $("readReceiptsInput").checked,
                         emailHidden: $("hideEmailInput").checked
-                    }
+                    },
+                    privacyScopes: privacyScopesFromInputs()
                 })
             });
             const data = await response.json();
@@ -10649,6 +13016,11 @@
             state.aiSettings.autoApprove = $("nextAiAutoApproveInput").checked;
             state.aiSettings.name = $("nextAiNameInput").value.trim() || DEFAULT_AI_NAME;
             state.aiSettings.image = state.aiAvatarDraft || "";
+            state.aiSettings.voice = $("nextAiVoiceInput").value || "warm";
+            state.aiSettings.responseLength = $("nextAiLengthInput").value || "medium";
+            state.aiSettings.persona = $("nextAiPersonaInput").value.trim();
+            state.aiSettings.saveHistory = $("nextAiHistoryInput").checked;
+            state.aiSettings.notifications = $("nextAiNotifyInput").checked;
             state.aiCensorEnabled = $("nextAiCensorInput").checked;
             saveAiSettings();
             saveAiCensorSetting();
@@ -10741,15 +13113,15 @@
 
         async function forgotPassword() {
             openModal("Şifremi unuttum", body => {
-                body.innerHTML = `<input id="forgotEmailInput" placeholder="Gmail adresi">`;
+                body.innerHTML = `<input id="forgotIdentifierInput" placeholder="Kullanıcı adı veya Gmail">`;
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Kod Gönder", primary: true, onClick: async () => {
-                    const email = $("forgotEmailInput").value.trim();
+                    const identifier = $("forgotIdentifierInput").value.trim();
                     let response = await fetch("/password/forgot/start", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email })
+                        body: JSON.stringify({ identifier })
                     });
                     let data = await response.json();
                     if (!data.ok) {
@@ -10757,14 +13129,18 @@
                         return;
                     }
                     openModal("Yeni şifre", body => {
-                        body.innerHTML = `<input id="forgotEmailInput" value="${escapeHtml(email)}" readonly><input id="forgotCodeInput" inputmode="numeric" placeholder="Doğrulama kodu"><input id="forgotNewPasswordInput" type="password" placeholder="Yeni güçlü şifre">`;
+                        body.innerHTML = `<input id="forgotIdentifierInput" value="${escapeHtml(identifier)}" readonly><input id="forgotCodeInput" inputmode="numeric" placeholder="Doğrulama kodu"><input id="forgotNewPasswordInput" type="password" placeholder="Yeni güçlü şifre"><input id="forgotNewPasswordConfirmInput" type="password" placeholder="Yeni şifre tekrar">`;
                     }, [
                         { label: "Vazgeç", onClick: closeModal },
                         { label: "Şifreyi Değiştir", primary: true, onClick: async () => {
+                            if ($("forgotNewPasswordInput").value !== $("forgotNewPasswordConfirmInput").value) {
+                                showToast("Yazdığın iki şifre aynı değil.");
+                                return;
+                            }
                             response = await fetch("/password/forgot/verify", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ email, code: $("forgotCodeInput").value.trim(), password: $("forgotNewPasswordInput").value })
+                                body: JSON.stringify({ identifier, code: $("forgotCodeInput").value.trim(), password: $("forgotNewPasswordInput").value })
                             });
                             data = await response.json();
                             showToast(data.message);
@@ -11122,7 +13498,7 @@
                 const controls = document.createElement("div");
                 controls.className = "crop-controls";
                 controls.innerHTML = `
-                    <label>Yakinlastir<input id="cropZoomInput" type="range" min="1" max="3" step="0.01" value="1.08"></label>
+                    <label>Yakınlaştır<input id="cropZoomInput" type="range" min="1" max="3" step="0.01" value="1.08"></label>
                     <label>Yatay<input id="cropXInput" type="range" min="-120" max="120" step="1" value="0"></label>
                     <label>Dikey<input id="cropYInput" type="range" min="-120" max="120" step="1" value="0"></label>
                 `;
@@ -11177,7 +13553,7 @@
                     dragStart = null;
                 });
             }, [
-                { label: "Vazgec", onClick: closeModal },
+                { label: "Vazgeç", onClick: closeModal },
                 { label: "Kullan", primary: true, onClick: useCroppedProfileImage }
             ]);
         }
@@ -11217,6 +13593,7 @@
             state.profileImageDraft = dataUrl;
             state.profileCrop = null;
             setAvatar($("settingsAvatar"), { profileImage: dataUrl, displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
+            renderProfileSettingsHero();
             closeModal();
             showToast("Profil fotoğrafı hazır. Kaydetmeyi unutma.");
         }
@@ -11403,7 +13780,7 @@
             };
             pc.onconnectionstatechange = () => {
                 if (pc.connectionState === "connected") {
-                    setCallStatus("baglandi");
+                    setCallStatus("bağlandı");
                 }
             };
 
@@ -11506,7 +13883,7 @@
                 stopCallRingtone();
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                 await flushPendingIce(data.from);
-                setCallStatus("baglandi");
+                setCallStatus("bağlandı");
             }
         }
 
@@ -11670,6 +14047,8 @@
         $("voiceButton").onclick = toggleVoiceRecording;
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("settingsButton").onclick = openSettings;
+        $("topSettingsButton").onclick = openSettings;
+        $("accountSwitcherButton").onclick = toggleAccountSwitcher;
         $("archiveShortcutButton").onclick = () => {
             state.activeSection = "archives";
             state.activeChatId = null;
@@ -11699,9 +14078,24 @@
             button.onclick = () => setSettingsView("menu");
         });
         $("profileImageButton").onclick = chooseProfileImage;
+        $("profileHeroPhotoButton").onclick = chooseProfileImage;
+        $("displayNameInput").oninput = renderProfileSettingsHero;
+        $("avatarTextInput").oninput = renderProfileSettingsHero;
+        $("aboutInput").oninput = renderProfileSettingsHero;
+        $("profileAboutShortcut").onclick = () => $("aboutInput").focus();
+        $("hideLastSeenInput").onchange = () => {
+            $("lastSeenScopeInput").value = $("hideLastSeenInput").checked ? "nobody" : "everyone";
+        };
+        $("hideOnlineInput").onchange = () => {
+            $("onlineScopeInput").value = $("hideOnlineInput").checked ? "nobody" : "everyone";
+        };
+        $("hideEmailInput").onchange = () => {
+            $("emailScopeInput").value = $("hideEmailInput").checked ? "nobody" : "friends";
+        };
         $("removeProfileImageButton").onclick = () => {
             state.profileImageDraft = "";
             setAvatar($("settingsAvatar"), { displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
+            renderProfileSettingsHero();
         };
         $("profileImageInput").onchange = handleProfileImage;
         $("saveProfileButton").onclick = saveProfile;
@@ -11721,6 +14115,8 @@
         $("settingsDeleteButton").onclick = deleteAccount;
         $("settingsLogoutButton").onclick = logout;
         $("forgotButton").onclick = forgotPassword;
+        $("resendTwoFactorButton").onclick = resendTwoFactorCode;
+        $("supportAccessButton").onclick = openSupportAccessRequest;
         $("storyButton").onclick = createStory;
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
@@ -11818,12 +14214,12 @@
 
         socket.on("qr:ready", data => {
             if (data?.sessionId === state.qrLogin.sessionId) {
-                $("qrLoginStatus").textContent = "QR kod canli. Telefonda cihaz baglama ekranindan okut.";
+                $("qrLoginStatus").textContent = "QR kod canlı. Telefonda Cihaz Bağla ekranından okut; 60 saniye geçerli.";
             }
         });
 
         socket.on("qr:error", data => {
-            $("qrLoginStatus").textContent = data?.message || "QR oturumu kapandi.";
+            $("qrLoginStatus").textContent = data?.message || "QR oturumu kapandı.";
             stopQrLoginPolling();
         });
 
@@ -11834,7 +14230,7 @@
             stopQrLoginPolling();
             state.me = data.user;
             localStorage.setItem("nexalineUser", data.user.username);
-            $("qrLoginStatus").textContent = "Baglandi. NexaLine aciliyor...";
+            $("qrLoginStatus").textContent = "Bağlandı. NexaLine açılıyor...";
             openApp();
         });
 
