@@ -1764,7 +1764,7 @@
         }
 
         .ai-composer {
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: auto auto minmax(0, 1fr) auto auto;
             border-top: 1px solid var(--line);
             border-bottom: 0;
         }
@@ -1778,6 +1778,411 @@
             border-radius: 8px;
             color: var(--text);
             background: #090c13;
+        }
+
+        .ai-panel.nexal-mode {
+            color: #f8fbff;
+            border-color: rgba(138, 88, 255, 0.38);
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 50% -10%, rgba(111, 62, 255, 0.26), transparent 34%),
+                radial-gradient(circle at 105% 8%, rgba(255, 0, 184, 0.16), transparent 32%),
+                linear-gradient(180deg, #07101f 0%, #050912 100%);
+            box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+        }
+
+        .ai-panel.nexal-mode .ai-head,
+        .ai-panel.nexal-mode .ai-composer {
+            border-color: rgba(135, 98, 255, 0.18);
+            background: rgba(4, 9, 20, 0.58);
+            backdrop-filter: blur(18px);
+        }
+
+        .ai-panel.nexal-mode .ai-messages {
+            background:
+                radial-gradient(circle at 24% 18%, rgba(59, 130, 246, 0.13), transparent 30%),
+                radial-gradient(circle at 82% 75%, rgba(236, 72, 153, 0.13), transparent 30%);
+        }
+
+        .ai-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ai-mini-orb {
+            position: relative;
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #3420ff, #f300c9);
+            box-shadow: 0 0 22px rgba(176, 64, 255, 0.5);
+        }
+
+        .ai-mini-orb::before {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            border-radius: inherit;
+            background: conic-gradient(from 0deg, #2f80ff, #a855f7, #ff0fb7, #2f80ff);
+            animation: nexalSpin 3.2s linear infinite;
+            z-index: -1;
+        }
+
+        .ai-mini-orb::after {
+            content: "";
+            width: 16px;
+            height: 10px;
+            border-radius: 999px;
+            background:
+                radial-gradient(circle at 28% 50%, #29d8ff 0 2px, transparent 3px),
+                radial-gradient(circle at 72% 50%, #29d8ff 0 2px, transparent 3px),
+                rgba(3, 8, 20, 0.88);
+        }
+
+        .nexal-home {
+            display: grid;
+            gap: 20px;
+            min-height: 100%;
+            align-content: center;
+            padding: 4px;
+        }
+
+        .nexal-hero {
+            display: grid;
+            justify-items: center;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .nexal-hero h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .nexal-hero p {
+            margin: 0;
+            color: #9aa9c4;
+            font-size: 12px;
+        }
+
+        .nexal-orb {
+            position: relative;
+            display: grid;
+            width: 126px;
+            height: 126px;
+            place-items: center;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 48% 42%, rgba(15, 23, 42, 0.95) 0 35%, transparent 36%),
+                conic-gradient(from 210deg, #2f80ff, #7b2cff, #f000c8, #2f80ff);
+            box-shadow: 0 0 44px rgba(122, 64, 255, 0.52), inset 0 0 28px rgba(0, 0, 0, 0.7);
+            animation: nexalPulse 2.8s ease-in-out infinite;
+        }
+
+        .nexal-orb::before {
+            content: "";
+            position: absolute;
+            inset: -9px;
+            border-radius: inherit;
+            border: 2px solid transparent;
+            background: conic-gradient(from 0deg, transparent, #2f80ff, #ff00bf, transparent) border-box;
+            -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: nexalSpin 4s linear infinite;
+        }
+
+        .nexal-orb::after {
+            content: "";
+            width: 64px;
+            height: 42px;
+            border-radius: 999px;
+            background:
+                radial-gradient(circle at 31% 45%, #23d7ff 0 6px, transparent 7px),
+                radial-gradient(circle at 69% 45%, #23d7ff 0 6px, transparent 7px),
+                linear-gradient(180deg, #0b1430, #090d1a);
+            box-shadow: inset 0 -8px 18px rgba(255, 0, 200, 0.12);
+        }
+
+        .nexal-menu {
+            display: grid;
+            gap: 10px;
+        }
+
+        .nexal-menu-card,
+        .nexal-command-card,
+        .nexal-task-card,
+        .nexal-settings-row,
+        .nexal-tool-card {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid rgba(124, 98, 255, 0.22);
+            border-radius: 18px;
+            color: #f8fbff;
+            text-align: left;
+            background: linear-gradient(145deg, rgba(18, 30, 55, 0.86), rgba(9, 15, 30, 0.82));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 16px 30px rgba(0, 0, 0, 0.18);
+        }
+
+        .nexal-menu-card:active,
+        .nexal-command-card:active,
+        .nexal-tool-card:active {
+            transform: translateY(1px) scale(0.99);
+        }
+
+        .nexal-card-icon {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border-radius: 12px;
+            color: #fff;
+            background: linear-gradient(135deg, #6537ff, #ff00b8);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+            font-weight: 900;
+        }
+
+        .nexal-card-icon.green { background: linear-gradient(135deg, #06b6d4, #22c55e); }
+        .nexal-card-icon.orange { background: linear-gradient(135deg, #f97316, #ec4899); }
+        .nexal-card-icon.blue { background: linear-gradient(135deg, #2563eb, #06b6d4); }
+        .nexal-card-icon.gray { background: linear-gradient(135deg, #334155, #64748b); }
+
+        .nexal-menu-card small,
+        .nexal-command-card small,
+        .nexal-task-card small,
+        .nexal-settings-row small,
+        .nexal-tool-card small {
+            display: block;
+            color: #91a0bb;
+            line-height: 1.35;
+        }
+
+        .nexal-chevron {
+            color: #92a1bc;
+            font-size: 20px;
+        }
+
+        .nexal-command-list,
+        .nexal-tool-panel,
+        .nexal-settings-list {
+            display: grid;
+            gap: 10px;
+            animation: nexalSlideIn 240ms ease both;
+        }
+
+        .nexal-task-tabs {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px;
+            margin-bottom: 12px;
+        }
+
+        .nexal-task-tabs button,
+        .nexal-pill-button {
+            padding: 10px 8px;
+            border-radius: 12px;
+            color: #d9e6ff;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .nexal-task-tabs button.active,
+        .nexal-pill-button.primary {
+            color: #fff;
+            background: linear-gradient(135deg, #4d37ff, #ff00b8);
+            box-shadow: 0 10px 24px rgba(168, 85, 247, 0.28);
+        }
+
+        .nexal-task-card {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .nexal-task-card input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            accent-color: #9d36ff;
+        }
+
+        .nexal-task-card.failed {
+            border-color: rgba(255, 72, 128, 0.38);
+        }
+
+        .nexal-task-card.done {
+            border-color: rgba(34, 197, 94, 0.32);
+            opacity: 0.72;
+        }
+
+        .nexal-form-grid {
+            display: grid;
+            gap: 9px;
+        }
+
+        .nexal-form-grid input,
+        .nexal-form-grid textarea,
+        .nexal-form-grid select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(124, 98, 255, 0.22);
+            border-radius: 14px;
+            color: #f8fbff;
+            background: rgba(8, 14, 29, 0.92);
+        }
+
+        .nexal-generated-image {
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(124, 98, 255, 0.24);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .nexal-generated-image img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+        }
+
+        .nexal-thumb-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .nexal-thumb {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(47, 128, 255, .62), rgba(255, 0, 184, .42));
+        }
+
+        .nexal-voice-stage {
+            display: grid;
+            justify-items: center;
+            gap: 24px;
+            padding: 26px 8px 8px;
+            text-align: center;
+        }
+
+        .nexal-voice-orb {
+            position: relative;
+            display: grid;
+            width: 180px;
+            height: 180px;
+            place-items: center;
+            border-radius: 50%;
+            background:
+                linear-gradient(90deg, rgba(47,128,255,.26) 0 50%, rgba(255,0,184,.24) 50%),
+                radial-gradient(circle, rgba(8, 13, 31, .92) 0 46%, transparent 48%),
+                conic-gradient(from 0deg, #2f80ff, #7b2cff, #ff00b8, #2f80ff);
+            box-shadow: 0 0 55px rgba(130, 70, 255, 0.48);
+            animation: nexalSpin 5.5s linear infinite;
+        }
+
+        .nexal-voice-orb.user-speaking {
+            box-shadow: 32px 0 70px rgba(255, 0, 184, 0.42), 0 0 40px rgba(130, 70, 255, 0.34);
+        }
+
+        .nexal-voice-orb.ai-speaking {
+            box-shadow: -32px 0 70px rgba(47, 128, 255, 0.46), 0 0 40px rgba(130, 70, 255, 0.34);
+        }
+
+        .nexal-voice-orb .mic {
+            display: grid;
+            width: 70px;
+            height: 70px;
+            place-items: center;
+            border-radius: 50%;
+            color: #ff4fd8;
+            background: rgba(10, 16, 33, 0.95);
+            box-shadow: inset 0 0 22px rgba(255, 0, 184, 0.16);
+            animation: nexalPulse 1.4s ease-in-out infinite;
+            font-size: 30px;
+        }
+
+        .nexal-settings-row {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+        }
+
+        .nexal-toggle {
+            position: relative;
+            width: 48px;
+            height: 28px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .nexal-toggle.on {
+            background: linear-gradient(135deg, #6d39ff, #f000c8);
+        }
+
+        .nexal-toggle::after {
+            content: "";
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            transition: transform 180ms ease;
+        }
+
+        .nexal-toggle.on::after {
+            transform: translateX(20px);
+        }
+
+        .ai-bubble .ai-attachment-preview {
+            display: grid;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .ai-bubble .ai-attachment-preview img {
+            max-width: 220px;
+            border-radius: 14px;
+        }
+
+        .ai-typing-dots {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .ai-typing-dots span {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #b989ff;
+            animation: nexalDots 900ms ease-in-out infinite;
+        }
+
+        .ai-typing-dots span:nth-child(2) { animation-delay: 120ms; }
+        .ai-typing-dots span:nth-child(3) { animation-delay: 240ms; }
+
+        @keyframes nexalSpin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes nexalPulse {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.035); filter: brightness(1.18); }
+        }
+
+        @keyframes nexalSlideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes nexalDots {
+            0%, 100% { transform: translateY(0); opacity: .45; }
+            50% { transform: translateY(-4px); opacity: 1; }
         }
 
         .censored-message {
@@ -2928,6 +3333,25 @@
                 inset: auto 8px calc(130px + env(safe-area-inset-bottom)) 8px;
                 width: auto;
                 max-height: min(72dvh, 620px);
+            }
+
+            .ai-panel.nexal-mode {
+                inset: 0;
+                width: 100vw;
+                max-height: none;
+                min-height: 100dvh;
+                border: 0;
+                border-radius: 0;
+                padding-top: env(safe-area-inset-top);
+            }
+
+            .ai-panel.nexal-mode .ai-messages {
+                min-height: 0;
+                padding: 14px;
+            }
+
+            .ai-panel.nexal-mode .ai-composer {
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
             }
 
             .modal-panel {
@@ -5606,16 +6030,23 @@
 
     <section id="aiPanel" class="ai-panel hidden">
         <div class="ai-head">
-            <div>
-                <strong>Nexa AI</strong>
-                <small id="aiStatus">Uygulama asistanı hazır</small>
+            <div class="ai-title-row">
+                <span class="ai-mini-orb" aria-hidden="true"></span>
+                <span>
+                    <strong id="aiPanelTitle">Nexa AI</strong>
+                    <small id="aiStatus">Uygulama asistanı hazır</small>
+                </span>
             </div>
             <button id="aiCloseButton" class="icon-btn" type="button">×</button>
         </div>
         <div id="aiMessages" class="ai-messages"></div>
         <div class="ai-composer">
+            <button id="aiCommandButton" class="icon-btn" type="button" title="Komutlar">＋</button>
+            <button id="aiAttachButton" class="icon-btn" type="button" title="Dosya veya konum">⌖</button>
             <textarea id="aiInput" placeholder="Nexa AI'ya yaz..."></textarea>
+            <button id="aiVoiceLiveButton" class="icon-btn" type="button" title="Sesli asistan">🎙</button>
             <button id="aiSendButton" class="send-btn" type="button">➤</button>
+            <input id="aiFileInput" class="hidden" type="file" accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
         </div>
     </section>
 
@@ -6844,6 +7275,10 @@
                 endCall(true);
                 return true;
             }
+            if (!$("aiPanel").classList.contains("hidden")) {
+                closeAiPanel();
+                return true;
+            }
             if (isMobileView() && $("app").classList.contains("chat-open")) {
                 closeMobileChat();
                 return true;
@@ -7038,7 +7473,7 @@
                     sender: mine ? state.me.username : AI_SENDER,
                     senderName: mine ? state.me.displayName : aiDisplayName(),
                     body: message.text || "",
-                    attachment: null,
+                    attachment: message.attachment || null,
                     replyTo: null,
                     reactions: {},
                     readBy: [state.me.username, AI_SENDER],
@@ -7406,6 +7841,7 @@
         }
 
         function closeModal() {
+            state.aiReminderOpen = false;
             stopQrScanner();
             if (state.cameraCaptureStop) {
                 state.cameraCaptureStop();
@@ -7731,9 +8167,693 @@
             }
         }
 
+        function aiPlanTasksKey() {
+            return `nexalineAiPlanTasks:${state.me?.username || "guest"}`;
+        }
+
+        function nextAiPlanTime(task, from = new Date()) {
+            const base = new Date(from);
+            if (task.repeat === "hourly") {
+                base.setMinutes(0, 0, 0);
+                base.setHours(base.getHours() + 1);
+                return base.toISOString();
+            }
+            const [hour, minute] = String(task.time || "09:00").split(":").map(Number);
+            const next = new Date(from);
+            next.setHours(Number.isFinite(hour) ? hour : 9, Number.isFinite(minute) ? minute : 0, 0, 0);
+            if (next <= from) {
+                next.setDate(next.getDate() + 1);
+            }
+            return next.toISOString();
+        }
+
+        function defaultAiPlanTasks() {
+            const seeds = [
+                ["morning-sport", "Sabah sporu yap", "Her gün 07:00", "07:00", "daily", true],
+                ["drink-water", "Su içmeyi unutma", "Her saat başı", "10:00", "hourly", false],
+                ["read-book", "Kitap oku", "Her gün 21:00", "21:00", "daily", false],
+                ["shopping-list", "Alışveriş listesi hazırla", "Yarın 12:00", "12:00", "daily", false],
+                ["meeting-notes", "Toplantının notlarını gönder", "Bugün 18:00", "18:00", "daily", false]
+            ];
+            return seeds.map(([id, title, hint, time, repeat, active]) => ({
+                id,
+                title,
+                hint,
+                time,
+                repeat,
+                active,
+                attempts: 0,
+                completedAt: "",
+                failedAt: "",
+                nextAt: active ? nextAiPlanTime({ time, repeat }) : ""
+            }));
+        }
+
+        function loadAiPlanTasks() {
+            const stored = readStoredJson(aiPlanTasksKey(), null);
+            if (Array.isArray(stored) && stored.length) return stored;
+            const defaults = defaultAiPlanTasks();
+            localStorage.setItem(aiPlanTasksKey(), JSON.stringify(defaults));
+            return defaults;
+        }
+
+        function saveAiPlanTasks(tasks) {
+            localStorage.setItem(aiPlanTasksKey(), JSON.stringify(tasks));
+            state.aiPlanTasks = tasks;
+        }
+
+        function upsertAiPlanTask(taskId, patch) {
+            const tasks = loadAiPlanTasks();
+            const index = tasks.findIndex(task => task.id === taskId);
+            if (index >= 0) {
+                tasks[index] = { ...tasks[index], ...patch };
+            }
+            saveAiPlanTasks(tasks);
+            return tasks[index] || null;
+        }
+
+        function renderAiAttachmentHtml(attachment) {
+            if (!attachment) return "";
+            const name = escapeHtml(attachment.name || "Nexa eki");
+            const type = String(attachment.type || "");
+            if (type.startsWith("image/") && attachment.dataUrl) {
+                return `<div class="ai-attachment-preview"><img src="${escapeHtml(attachment.dataUrl)}" alt="${name}"><small>${name}</small></div>`;
+            }
+            if (type === "location") {
+                const lat = Number(attachment.lat);
+                const lng = Number(attachment.lng);
+                return `<div class="ai-attachment-preview"><a class="file-pill" href="${escapeHtml(attachment.url || "#")}" target="_blank" rel="noreferrer">Konum: ${Number.isFinite(lat) ? lat.toFixed(5) : "?"}, ${Number.isFinite(lng) ? lng.toFixed(5) : "?"}</a></div>`;
+            }
+            return `<div class="ai-attachment-preview"><span class="file-pill">Dosya: ${name}</span></div>`;
+        }
+
+        function addAiMessage(role, text, actions = [], attachment = null) {
+            state.aiMessages.push({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                role,
+                text,
+                actions,
+                attachment,
+                createdAt: new Date().toISOString()
+            });
+            saveAiHistory();
+            renderAiPanel();
+            if (state.me) {
+                renderChats();
+                if (isAiChatId(state.activeChatId)) {
+                    renderActiveChat();
+                }
+            }
+        }
+
+        function renderAiPanel() {
+            const panel = $("aiPanel");
+            const list = $("aiMessages");
+            if (!panel || !list) return;
+            panel.classList.add("nexal-mode");
+            if ($("aiPanelTitle")) $("aiPanelTitle").textContent = aiDisplayName();
+            if (!state.aiMessages.length) {
+                list.innerHTML = `
+                    <div class="nexal-home">
+                        <div class="nexal-hero">
+                            <div class="nexal-orb" aria-hidden="true"></div>
+                            <h2>${escapeHtml(aiDisplayName())}</h2>
+                            <p>Akıllı asistan her zaman yanında.</p>
+                        </div>
+                        <div class="nexal-menu">
+                            <button class="nexal-menu-card" type="button" data-ai-home="chat"><span class="nexal-card-icon">✦</span><span><strong>Yeni Sohbet</strong><small>AI ile sohbet başlat</small></span><span class="nexal-chevron">›</span></button>
+                            <button class="nexal-menu-card" type="button" data-ai-home="tasks"><span class="nexal-card-icon green">✓</span><span><strong>Görevler</strong><small>Hatırlatmalar ve günlük plan</small></span><span class="nexal-chevron">›</span></button>
+                            <button class="nexal-menu-card" type="button" data-ai-home="image"><span class="nexal-card-icon orange">◎</span><span><strong>Görsel Oluştur</strong><small>Prompt yaz, Nexal görsel üretsin</small></span><span class="nexal-chevron">›</span></button>
+                            <button class="nexal-menu-card" type="button" data-ai-home="settings"><span class="nexal-card-icon gray">⚙</span><span><strong>AI Ayarları</strong><small>Ses, yetki, gizlilik ve geçmiş</small></span><span class="nexal-chevron">›</span></button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                list.innerHTML = state.aiMessages.map(message => `
+                    <div class="ai-bubble ${message.role === "user" ? "user" : ""}">
+                        ${escapeHtml(message.text || "")}
+                        ${renderAiAttachmentHtml(message.attachment)}
+                        ${message.actions?.length ? `<div class="ai-actions">${message.actions.map((action, index) => `<button data-ai-action="${escapeHtml(message.id)}:${index}" type="button">${escapeHtml(action.label || action.type)}</button>`).join("")}</div>` : ""}
+                    </div>
+                `).join("") + (state.aiBusy ? `<div class="ai-bubble"><span class="ai-typing-dots"><span></span><span></span><span></span></span></div>` : "");
+            }
+            list.querySelectorAll("[data-ai-home]").forEach(button => {
+                button.onclick = () => {
+                    const target = button.dataset.aiHome;
+                    if (target === "chat") {
+                        addAiMessage("assistant", `Tabii. Ben ${aiDisplayName()}; yaz, konuş, dosya at ya da komut ver. Buradayım.`);
+                        setTimeout(() => $("aiInput")?.focus(), 80);
+                    }
+                    if (target === "tasks") openAiTasksPanel();
+                    if (target === "image") openAiImageGenerator();
+                    if (target === "settings") openAiSettingsPanel();
+                };
+            });
+            list.querySelectorAll("[data-ai-action]").forEach(button => {
+                button.onclick = () => {
+                    const [messageId, index] = button.dataset.aiAction.split(":");
+                    const message = state.aiMessages.find(item => item.id === messageId);
+                    const action = message?.actions?.[Number(index)];
+                    if (action) applyAiAction(action);
+                };
+            });
+            list.scrollTop = list.scrollHeight;
+            const statusText = state.aiBusy
+                ? (state.aiActivity || "Düşünüyor...")
+                : state.aiStatus
+                    ? `Çevrimiçi • ${state.aiStatus.provider}`
+                    : "Çevrimiçi";
+            if ($("aiStatus")) $("aiStatus").textContent = statusText;
+            if ($("aiSendButton")) $("aiSendButton").disabled = state.aiBusy;
+        }
+
+        function aiCommandItems() {
+            return [
+                { id: "tasks", icon: "✓", color: "green", title: "Günlük plan oluştur", hint: "Bugün için plan yap", run: openAiTasksPanel },
+                { id: "summarize", icon: "▤", color: "blue", title: "Metin özetle", hint: "Uzun metinleri kısalt", run: openAiSummarizerPanel },
+                { id: "translate", icon: "⌁", color: "blue", title: "Çeviri yap", hint: "Diller arası çeviri", run: openAiTranslatePanel },
+                { id: "fix", icon: "✎", color: "orange", title: "Yazıyı düzelt", hint: "Yazım ve dil bilgisi kontrolü", run: openAiWritingFixPanel },
+                { id: "image", icon: "◎", color: "orange", title: "Görsel oluştur", hint: "Prompt ile görsel üret", run: openAiImageGenerator },
+                { id: "settings", icon: "⚙", color: "gray", title: "AI Ayarları", hint: "Ses, geçmiş ve gizlilik", run: openAiSettingsPanel }
+            ];
+        }
+
+        function openAiCommandCenter() {
+            openModal("Komut Örnekleri", body => {
+                body.innerHTML = `<div class="nexal-command-list">${aiCommandItems().map(item => `
+                    <button class="nexal-command-card" type="button" data-ai-command="${item.id}">
+                        <span class="nexal-card-icon ${item.color}">${item.icon}</span>
+                        <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.hint)}</small></span>
+                        <span class="nexal-chevron">›</span>
+                    </button>
+                `).join("")}</div>`;
+                body.querySelectorAll("[data-ai-command]").forEach(button => {
+                    button.onclick = () => {
+                        const item = aiCommandItems().find(command => command.id === button.dataset.aiCommand);
+                        if (!item) return;
+                        closeModal();
+                        setTimeout(item.run, 120);
+                    };
+                });
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function filteredAiPlanTasks(filter) {
+            const tasks = loadAiPlanTasks();
+            if (filter === "active") return tasks.filter(task => task.active && !task.completedAt && !task.failedAt);
+            if (filter === "done") return tasks.filter(task => task.completedAt);
+            if (filter === "failed") return tasks.filter(task => task.failedAt);
+            return tasks;
+        }
+
+        function openAiTasksPanel(filter = "all") {
+            const tasks = filteredAiPlanTasks(filter);
+            openModal("Günlük Plan Oluştur", body => {
+                body.innerHTML = `
+                    <div class="nexal-task-tabs">
+                        ${[["all", "Tümü"], ["active", "Aktif"], ["done", "Tamamlanan"], ["failed", "Tamamlanmayan"]].map(([key, label]) => `<button class="${filter === key ? "active" : ""}" data-ai-task-filter="${key}" type="button">${label}</button>`).join("")}
+                    </div>
+                    <div class="nexal-command-list">
+                        ${tasks.map(task => `
+                            <div class="nexal-task-card ${task.completedAt ? "done" : task.failedAt ? "failed" : ""}">
+                                <span><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(task.hint || task.repeat || "")}${task.nextAt && task.active ? ` • ${new Date(task.nextAt).toLocaleString("tr-TR")}` : ""}</small></span>
+                                <input type="checkbox" data-ai-task-toggle="${escapeHtml(task.id)}" ${task.active && !task.completedAt && !task.failedAt ? "checked" : ""}>
+                            </div>
+                        `).join("") || `<div class="nexal-task-card"><span><strong>Liste boş</strong><small>Bu sekmede görev yok.</small></span></div>`}
+                    </div>
+                    <div class="nexal-form-grid" style="margin-top:12px">
+                        <input id="nexalTaskTitleInput" maxlength="120" placeholder="Yeni görev ekle">
+                        <input id="nexalTaskTimeInput" type="time" value="09:00">
+                        <select id="nexalTaskRepeatInput"><option value="daily">Her gün</option><option value="hourly">Her saat</option><option value="none">Tek sefer</option></select>
+                        <button id="nexalAddTaskButton" class="nexal-pill-button primary" type="button">Yeni Görev Ekle</button>
+                    </div>
+                `;
+                body.querySelectorAll("[data-ai-task-filter]").forEach(button => {
+                    button.onclick = () => {
+                        closeModal();
+                        setTimeout(() => openAiTasksPanel(button.dataset.aiTaskFilter), 80);
+                    };
+                });
+                body.querySelectorAll("[data-ai-task-toggle]").forEach(input => {
+                    input.onchange = () => {
+                        const task = loadAiPlanTasks().find(item => item.id === input.dataset.aiTaskToggle);
+                        if (!task) return;
+                        upsertAiPlanTask(task.id, {
+                            active: input.checked,
+                            completedAt: "",
+                            failedAt: "",
+                            attempts: 0,
+                            nextAt: input.checked ? nextAiPlanTime(task) : ""
+                        });
+                        showToast(input.checked ? "Görev aktif edildi." : "Görev kapatıldı.");
+                        startAiPlanReminderEngine();
+                    };
+                });
+                $("nexalAddTaskButton").onclick = () => {
+                    const title = $("nexalTaskTitleInput").value.trim();
+                    const time = $("nexalTaskTimeInput").value || "09:00";
+                    const repeat = $("nexalTaskRepeatInput").value;
+                    if (title.length < 2) {
+                        showToast("Görev adını yaz.");
+                        return;
+                    }
+                    const tasks = loadAiPlanTasks();
+                    const task = {
+                        id: `custom-${Date.now()}`,
+                        title,
+                        hint: repeat === "hourly" ? "Her saat" : repeat === "daily" ? `Her gün ${time}` : time,
+                        time,
+                        repeat,
+                        active: true,
+                        attempts: 0,
+                        completedAt: "",
+                        failedAt: "",
+                        nextAt: nextAiPlanTime({ time, repeat })
+                    };
+                    tasks.push(task);
+                    saveAiPlanTasks(tasks);
+                    showToast("Yeni görev aktif edildi.");
+                    closeModal();
+                    setTimeout(() => openAiTasksPanel("active"), 80);
+                    startAiPlanReminderEngine();
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function textFromSelectedChat(chatId) {
+            const chat = state.chats.find(item => item.id === chatId);
+            return (chat?.messages || []).slice(-80).map(message => `${message.senderName}: ${message.body || message.attachment?.name || "medya"}`).join("\n");
+        }
+
+        function chatSelectOptions() {
+            return state.chats.filter(chat => !isAiChat(chat)).map(chat => `<option value="${escapeHtml(chat.id)}">${escapeHtml(chat.title)}</option>`).join("");
+        }
+
+        async function runAiTextTool(tool, text, extra = {}) {
+            const response = await fetch("/ai/text-tool", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ username: state.me.username, assistantName: aiDisplayName(), tool, text, ...extra })
+            });
+            return response.json();
+        }
+
+        function openAiSummarizerPanel() {
+            openModal("Metin Özetle", body => {
+                body.innerHTML = `
+                    <div class="nexal-form-grid">
+                        <select id="aiSummaryChatSelect"><option value="">Sohbet seç</option>${chatSelectOptions()}</select>
+                        <textarea id="aiSummaryTextInput" rows="7" placeholder="Ya bir sohbet seç ya da uzun metni buraya yapıştır."></textarea>
+                        <button id="aiSummaryRunButton" class="nexal-pill-button primary" type="button">Özetle</button>
+                        <div id="aiSummaryResult" class="nexal-tool-card hidden"><span class="nexal-card-icon blue">▤</span><span></span></div>
+                    </div>
+                `;
+                $("aiSummaryRunButton").onclick = async () => {
+                    const chatText = $("aiSummaryChatSelect").value ? textFromSelectedChat($("aiSummaryChatSelect").value) : "";
+                    const text = chatText || $("aiSummaryTextInput").value.trim();
+                    if (!text) return showToast("Özetlenecek metin yok.");
+                    $("aiSummaryRunButton").disabled = true;
+                    const data = await runAiTextTool("summarize", text);
+                    $("aiSummaryRunButton").disabled = false;
+                    $("aiSummaryResult").classList.remove("hidden");
+                    $("aiSummaryResult span:last-child").innerHTML = `<strong>Özet</strong><small>${escapeHtml(data.result || data.message || "Özet alınamadı.")}</small>`;
+                    if (data.ok) addAiMessage("assistant", data.result || "Özet hazır.");
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openAiTranslatePanel() {
+            openModal("Çeviri Yap", body => {
+                body.innerHTML = `
+                    <div class="nexal-form-grid">
+                        <input id="aiTranslateSourceInput" value="Otomatik" placeholder="Hangi dilden">
+                        <input id="aiTranslateTargetInput" value="Türkçe" placeholder="Hangi dile">
+                        <textarea id="aiTranslateTextInput" rows="7" placeholder="Çevrilecek metin"></textarea>
+                        <button id="aiTranslateRunButton" class="nexal-pill-button primary" type="button">Çevir</button>
+                        <div id="aiTranslateResult" class="nexal-tool-card hidden"><span class="nexal-card-icon blue">⌁</span><span></span></div>
+                    </div>
+                `;
+                $("aiTranslateRunButton").onclick = async () => {
+                    const text = $("aiTranslateTextInput").value.trim();
+                    if (!text) return showToast("Çevrilecek metni yaz.");
+                    $("aiTranslateRunButton").disabled = true;
+                    const data = await runAiTextTool("translate", text, { sourceLang: $("aiTranslateSourceInput").value, targetLang: $("aiTranslateTargetInput").value });
+                    $("aiTranslateRunButton").disabled = false;
+                    $("aiTranslateResult").classList.remove("hidden");
+                    $("aiTranslateResult span:last-child").innerHTML = `<strong>Çeviri</strong><small>${escapeHtml(data.result || data.message || "Çeviri alınamadı.")}</small>`;
+                    if (data.ok) addAiMessage("assistant", data.result || "Çeviri hazır.");
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openAiWritingFixPanel() {
+            openModal("Yazıyı Düzelt", body => {
+                body.innerHTML = `
+                    <div class="nexal-form-grid">
+                        <select id="aiFixChatSelect"><option value="">Sohbetten al</option>${chatSelectOptions()}</select>
+                        <textarea id="aiFixTextInput" rows="7" placeholder="Düzeltilecek metin"></textarea>
+                        <button id="aiFixRunButton" class="nexal-pill-button primary" type="button">Düzelt</button>
+                        <div id="aiFixResult" class="nexal-tool-card hidden"><span class="nexal-card-icon orange">✎</span><span></span></div>
+                    </div>
+                `;
+                $("aiFixRunButton").onclick = async () => {
+                    const chatText = $("aiFixChatSelect").value ? textFromSelectedChat($("aiFixChatSelect").value) : "";
+                    const text = $("aiFixTextInput").value.trim() || chatText;
+                    if (!text) return showToast("Düzeltilecek metin yok.");
+                    $("aiFixRunButton").disabled = true;
+                    const data = await runAiTextTool("fix", text);
+                    $("aiFixRunButton").disabled = false;
+                    $("aiFixResult").classList.remove("hidden");
+                    $("aiFixResult span:last-child").innerHTML = `<strong>Düzeltilmiş metin</strong><small>${escapeHtml(data.result || data.message || "Düzeltme alınamadı.")}</small>`;
+                    if (data.ok) addAiMessage("assistant", data.result || "Yazı düzeltildi.");
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openAiImageGenerator() {
+            openModal("Görsel Oluştur", body => {
+                body.innerHTML = `
+                    <div class="nexal-form-grid">
+                        <textarea id="aiImagePromptInput" rows="3" placeholder="Dağ manzarası, gün batımı, modern ev, göl, sakin"></textarea>
+                        <div id="aiImagePreview" class="nexal-generated-image hidden"></div>
+                        <div class="nexal-thumb-row"><span class="nexal-thumb"></span><span class="nexal-thumb"></span><span class="nexal-thumb"></span><span class="nexal-thumb"></span></div>
+                        <button id="aiImageCreateButton" class="nexal-pill-button primary" type="button">Oluştur</button>
+                        <button id="aiImageRecreateButton" class="nexal-pill-button" type="button">Baştan Oluştur</button>
+                    </div>
+                `;
+                let variant = 0;
+                const create = async () => {
+                    const prompt = $("aiImagePromptInput").value.trim();
+                    if (prompt.length < 3) return showToast("Görsel için bir şey yaz.");
+                    $("aiImageCreateButton").disabled = true;
+                    $("aiImageCreateButton").textContent = "Düşünüyor...";
+                    const response = await fetch("/ai/image", {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({ username: state.me.username, prompt, variant })
+                    });
+                    const data = await response.json();
+                    $("aiImageCreateButton").disabled = false;
+                    $("aiImageCreateButton").textContent = "Oluştur";
+                    if (!data.ok) return showToast(data.message || "Görsel oluşturulamadı.");
+                    const image = data.image;
+                    $("aiImagePreview").classList.remove("hidden");
+                    $("aiImagePreview").innerHTML = `<img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(prompt)}"><div class="last-message" style="padding:10px">${escapeHtml(data.note || "Görsel oluşturuldu.")}</div>`;
+                    addAiMessage("assistant", "Görsel oluşturuldu.", [], image);
+                    if (state.aiSettings.notifications) showToast("Nexa AI görseli oluşturdu.");
+                };
+                $("aiImageCreateButton").onclick = create;
+                $("aiImageRecreateButton").onclick = () => {
+                    variant += 1;
+                    create();
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function openAiSettingsPanel() {
+            openModal("AI Ayarları", body => {
+                body.innerHTML = `
+                    <div class="nexal-settings-list">
+                        <label class="nexal-settings-row"><span class="nexal-card-icon blue">♪</span><span><strong>Ses</strong><small>Nexa AI sesi</small></span><select id="aiVoiceSelect"><option value="female">Kadın</option><option value="male">Erkek</option><option value="warm">Sıcak</option></select></label>
+                        <label class="nexal-settings-row"><span class="nexal-card-icon gray">≡</span><span><strong>Yanıt Uzunluğu</strong><small>Kısa, orta veya uzun cevap</small></span><select id="aiLengthSelect"><option value="short">Kısa</option><option value="medium">Orta</option><option value="long">Uzun</option></select></label>
+                        ${[
+                            ["persona", "Kişiselleştirme", "Arkadaş gibi daha doğal konuşsun"],
+                            ["saveHistory", "Geçmişi Kaydet", "Önceki konuşmaları hatırlasın"],
+                            ["notifications", "Bildirimler", "Görev ve görsel uyarıları açık olsun"],
+                            ["autoApprove", "Tam Erişim", "Sadece komut verdiğinde şifre dışı ayarları uygulasın"],
+                            ["censor", "Sansür Filtresi", "+18, hakaret ve spam uyarılarını yönetsin"]
+                        ].map(([key, title, hint]) => `<button class="nexal-settings-row" type="button" data-ai-setting-toggle="${key}"><span class="nexal-card-icon ${key === "autoApprove" ? "orange" : "green"}">${key === "autoApprove" ? "∞" : "✓"}</span><span><strong>${title}</strong><small>${hint}</small></span><span class="nexal-toggle ${key === "censor" ? state.aiCensorEnabled ? "on" : "" : key === "persona" ? state.aiSettings.persona ? "on" : "" : state.aiSettings[key] !== false && (key !== "autoApprove" || state.aiSettings.autoApprove) ? "on" : ""}"></span></button>`).join("")}
+                        <button class="nexal-settings-row" type="button" data-ai-privacy><span class="nexal-card-icon gray">?</span><span><strong>Veri & Gizlilik</strong><small>Nexa AI şifrelere erişmez; tam erişim sadece verdiğin komutla çalışır.</small></span><span class="nexal-chevron">›</span></button>
+                        <button class="nexal-settings-row" type="button" data-ai-about><span class="nexal-card-icon gray">i</span><span><strong>Hakkında</strong><small>v1.0.0 • NexaLine içinde ücretsiz asistan</small></span><span></span></button>
+                        <button id="clearAiHistoryButton" class="nexal-pill-button" type="button" style="color:#ff657e">Sohbet Geçmişini Temizle</button>
+                    </div>
+                `;
+                $("aiVoiceSelect").value = state.aiSettings.voice || "warm";
+                $("aiLengthSelect").value = state.aiSettings.responseLength || "medium";
+                $("aiVoiceSelect").onchange = () => { state.aiSettings.voice = $("aiVoiceSelect").value; saveAiSettings(); };
+                $("aiLengthSelect").onchange = () => { state.aiSettings.responseLength = $("aiLengthSelect").value; saveAiSettings(); };
+                body.querySelectorAll("[data-ai-setting-toggle]").forEach(button => {
+                    button.onclick = () => {
+                        const key = button.dataset.aiSettingToggle;
+                        if (key === "censor") {
+                            state.aiCensorEnabled = !state.aiCensorEnabled;
+                            saveAiCensorSetting();
+                        } else if (key === "persona") {
+                            state.aiSettings.persona = state.aiSettings.persona ? "" : "samimi, arkadaş gibi ama gerektiğinde net asistan";
+                        } else {
+                            state.aiSettings[key] = !state.aiSettings[key];
+                        }
+                        saveAiSettings();
+                        closeModal();
+                        setTimeout(openAiSettingsPanel, 90);
+                    };
+                });
+                body.querySelector("[data-ai-privacy]").onclick = () => showToast("Nexa AI şifreleri görmez; sohbet, ayar ve medya erişimi yalnızca verdiğin komut için kullanılır.");
+                body.querySelector("[data-ai-about]").onclick = () => showToast(`${aiDisplayName()} v1.0.0 hazır.`);
+                $("clearAiHistoryButton").onclick = () => {
+                    state.aiMessages = [];
+                    saveAiHistory();
+                    renderAiPanel();
+                    renderActiveChat();
+                    closeModal();
+                    showToast("Nexa AI sohbet geçmişi temizlendi.");
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        function speakAiText(text) {
+            if (!("speechSynthesis" in window) || !text) return;
+            const utterance = new SpeechSynthesisUtterance(text.slice(0, 600));
+            utterance.lang = "tr-TR";
+            utterance.rate = state.aiSettings.voice === "male" ? 0.94 : 1;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utterance);
+        }
+
+        function openAiVoiceAssistant() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            openModal("Sesli Asistan", body => {
+                body.innerHTML = `
+                    <div class="nexal-voice-stage">
+                        <div id="nexalVoiceOrb" class="nexal-voice-orb"><span class="mic">🎙</span></div>
+                        <strong id="nexalVoiceStatus">Dinliyorum...</strong>
+                        <textarea id="nexalVoiceTextInput" rows="3" placeholder="Söylediklerin burada görünecek"></textarea>
+                        <div class="chip-row"><button id="nexalVoiceStartButton" class="nexal-pill-button primary" type="button">Başlat</button><button id="nexalVoiceKeyboardButton" class="nexal-pill-button" type="button">Klavyeye Geç</button></div>
+                    </div>
+                `;
+                $("nexalVoiceKeyboardButton").onclick = () => {
+                    closeModal();
+                    openAiPanel();
+                    setTimeout(() => $("aiInput")?.focus(), 80);
+                };
+                $("nexalVoiceStartButton").onclick = async () => {
+                    if (!SpeechRecognition) {
+                        showToast("Bu tarayıcı ses tanımayı desteklemiyor.");
+                        return;
+                    }
+                    const recognition = new SpeechRecognition();
+                    recognition.lang = "tr-TR";
+                    recognition.interimResults = true;
+                    $("nexalVoiceOrb").classList.add("user-speaking");
+                    recognition.onresult = event => {
+                        const text = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
+                        $("nexalVoiceTextInput").value = text;
+                        $("nexalVoiceStatus").textContent = "Dinliyorum...";
+                    };
+                    recognition.onend = async () => {
+                        $("nexalVoiceOrb").classList.remove("user-speaking");
+                        const text = $("nexalVoiceTextInput").value.trim();
+                        if (!text) return;
+                        $("nexalVoiceOrb").classList.add("ai-speaking");
+                        $("nexalVoiceStatus").textContent = "Söylüyorum...";
+                        const data = await sendAiPrompt(text);
+                        const reply = data?.reply || state.aiMessages.slice().reverse().find(item => item.role === "assistant")?.text || "";
+                        speakAiText(reply);
+                        setTimeout(() => $("nexalVoiceOrb")?.classList.remove("ai-speaking"), 1400);
+                    };
+                    recognition.start();
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        async function startAiSpeechInput() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                openAiVoiceAssistant();
+                return;
+            }
+            const recognition = new SpeechRecognition();
+            recognition.lang = "tr-TR";
+            recognition.interimResults = true;
+            recognition.onresult = event => {
+                const text = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
+                const target = $("aiPanel") && !$("aiPanel").classList.contains("hidden") ? $("aiInput") : $("messageInput");
+                target.value = text;
+                updateComposerState();
+            };
+            recognition.onend = () => showToast("Ses yazıya çevrildi.");
+            recognition.start();
+        }
+
+        function openAiAttachmentMenu() {
+            openModal("Nexa AI'ya gönder", body => {
+                body.innerHTML = `
+                    <div class="nexal-command-list">
+                        <button class="nexal-command-card" data-ai-attach="file" type="button"><span class="nexal-card-icon blue">▧</span><span><strong>Dosya veya görsel</strong><small>AI incelesin, özetlesin veya arasın</small></span><span class="nexal-chevron">›</span></button>
+                        <button class="nexal-command-card" data-ai-attach="location" type="button"><span class="nexal-card-icon green">⌖</span><span><strong>Konum gönder</strong><small>Konuma göre aksiyon alsın</small></span><span class="nexal-chevron">›</span></button>
+                    </div>
+                `;
+                body.querySelector("[data-ai-attach='file']").onclick = () => {
+                    closeModal();
+                    $("aiFileInput").click();
+                };
+                body.querySelector("[data-ai-attach='location']").onclick = () => {
+                    closeModal();
+                    sendAiCurrentLocation();
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+        async function sendAiCurrentLocation() {
+            if (!navigator.geolocation) return showToast("Konum bu cihazda desteklenmiyor.");
+            navigator.geolocation.getCurrentPosition(position => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const attachment = {
+                    type: "location",
+                    name: "Mevcut konum",
+                    lat,
+                    lng,
+                    url: `https://maps.google.com/?q=${lat},${lng}`
+                };
+                sendAiPrompt("Bu konumu oku ve komutuma göre yardımcı ol.", attachment);
+            }, () => showToast("Konum izni alınamadı."), { enableHighAccuracy: true, timeout: 10000 });
+        }
+
+        async function handleAiFile(event) {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            try {
+                const attachment = await prepareAttachmentFile(file);
+                await sendAiPrompt(`${attachment.name} dosyasını incele. İçeriğini açıkla ve ne yapabileceğini söyle.`, attachment);
+            } catch (_error) {
+                showToast("AI dosyası hazırlanamadı.");
+            }
+        }
+
+        async function sendAiPrompt(promptOverride = null, attachment = null) {
+            const input = $("aiInput");
+            const prompt = (promptOverride ?? input?.value ?? "").trim();
+            if ((!prompt && !attachment) || state.aiBusy || !state.me) return null;
+            if (input && promptOverride === null) {
+                input.value = "";
+            }
+            if (!state.aiSettings.enabled) {
+                addAiMessage("assistant", "Nexa AI kapalı. Ayarlar > Nexa AI bölümünden açabilirsin.");
+                return null;
+            }
+            state.aiBusy = true;
+            state.aiActivity = "Düşünüyor...";
+            addAiMessage("user", prompt || "Bu eki incele.", [], attachment);
+            renderAiPanel();
+            try {
+                const promptForModel = promptTargetsAiName(prompt)
+                    ? `Kullanıcı sana verdiği isim olan "${prompt}" diye seslendi. Türkçe, sıcak ve kısa karşılık ver.`
+                    : prompt;
+                const response = await fetch("/ai/chat", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        username: state.me.username,
+                        prompt: promptForModel,
+                        attachment,
+                        chatId: isAiChatId(state.activeChatId) ? null : state.activeChatId,
+                        assistantName: aiDisplayName(),
+                        responseLength: state.aiSettings.responseLength,
+                        persona: state.aiSettings.persona,
+                        timezoneOffsetMinutes: new Date().getTimezoneOffset()
+                    })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    addAiMessage("assistant", data.message || "AI yanıt veremedi.");
+                    return data;
+                }
+                state.aiActivity = "Yazıyor...";
+                state.aiStatus = data.provider || state.aiStatus;
+                const actions = data.actions || [];
+                addAiMessage("assistant", data.reply || "Hazır.", actions);
+                if (state.aiSettings.autoApprove && actions.length) {
+                    actions.forEach(action => applyAiAction(action, true));
+                }
+                return data;
+            } catch (error) {
+                addAiMessage("assistant", "AI bağlantısı kurulamadı. Yerel komutlar için tekrar deneyebilirsin.");
+                return null;
+            } finally {
+                state.aiBusy = false;
+                state.aiActivity = "";
+                renderAiPanel();
+                if (isAiChatId(state.activeChatId)) {
+                    renderActiveChat();
+                }
+            }
+        }
+
+        function startAiPlanReminderEngine() {
+            if (state.aiPlanTimer) return;
+            const tick = () => {
+                if (!state.me || state.aiReminderOpen) return;
+                const tasks = loadAiPlanTasks();
+                const now = Date.now();
+                const due = tasks.find(task => task.active && !task.completedAt && !task.failedAt && task.nextAt && new Date(task.nextAt).getTime() <= now);
+                if (due) showAiTaskReminder(due);
+            };
+            state.aiPlanTimer = setInterval(tick, 30000);
+            setTimeout(tick, 1500);
+        }
+
+        function showAiTaskReminder(task) {
+            state.aiReminderOpen = true;
+            const message = `${task.title}. Tamam yapacağım demezsen 5 dakika sonra tekrar hatırlatırım.`;
+            if (state.aiSettings.notifications && "Notification" in window && Notification.permission === "granted") {
+                new Notification(aiDisplayName(), { body: message, icon: brandLogo() });
+            }
+            openModal(`${aiDisplayName()} hatırlatıyor`, body => {
+                body.innerHTML = `<div class="nexal-tool-card"><span class="nexal-card-icon orange">!</span><span><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(message)}</small></span></div>`;
+            }, [
+                { label: "Tamam yapacağım", primary: true, onClick: () => {
+                    upsertAiPlanTask(task.id, {
+                        completedAt: new Date().toISOString(),
+                        active: task.repeat === "none" ? false : true,
+                        attempts: 0,
+                        failedAt: "",
+                        nextAt: task.repeat === "none" ? "" : nextAiPlanTime(task)
+                    });
+                    state.aiReminderOpen = false;
+                    closeModal();
+                    showToast("Görev tamamlandı.");
+                } },
+                { label: "Kapat", onClick: () => {
+                    const attempts = Number(task.attempts || 0) + 1;
+                    upsertAiPlanTask(task.id, {
+                        attempts,
+                        nextAt: attempts >= 5 ? "" : new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+                        failedAt: attempts >= 5 ? new Date().toISOString() : ""
+                    });
+                    state.aiReminderOpen = false;
+                    closeModal();
+                    showToast(attempts >= 5 ? "Görev tamamlanmayanlara taşındı." : "5 dakika sonra tekrar hatırlatacağım.");
+                } }
+            ], "sheet");
+        }
+
         function openAiPanel() {
             $("aiPanel").classList.remove("hidden");
             pushAppHistory("ai");
+            if (!state.aiPlanTasks) state.aiPlanTasks = loadAiPlanTasks();
+            startAiPlanReminderEngine();
             loadAiStatus();
             renderAiPanel();
             setTimeout(() => $("aiInput").focus(), 80);
@@ -7760,7 +8880,7 @@
             return normalize(prompt) === normalize(aiDisplayName());
         }
 
-        async function sendAiPrompt(promptOverride = null) {
+        async function sendAiPromptLegacy(promptOverride = null) {
             const input = $("aiInput");
             const prompt = (promptOverride ?? input?.value ?? "").trim();
             if (!prompt || state.aiBusy || !state.me) return;
@@ -8679,7 +9799,7 @@
             if (state.qrScan.stream) {
                 state.qrScan.stream.getTracks().forEach(track => track.stop());
             }
-            state.qrScan = { stream: null, timer: null, busy: false };
+            state.qrScan = { stream: null, timer: null, busy: false, canvas: null };
         }
 
         async function confirmQrPayload(payload) {
@@ -8722,13 +9842,23 @@
             ]);
         }
 
+        function loadJsQrDecoder() {
+            if (window.jsQR) return Promise.resolve(window.jsQR);
+            if (state.jsQrLoading) return state.jsQrLoading;
+            state.jsQrLoading = new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+                script.async = true;
+                script.onload = () => window.jsQR ? resolve(window.jsQR) : reject(new Error("jsQR yüklenemedi"));
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+            return state.jsQrLoading;
+        }
+
         async function startQrScannerLoop() {
             const video = $("qrScannerVideo");
             if (!video) return;
-            if (!("BarcodeDetector" in window)) {
-                showToast("Bu tarayıcı otomatik QR okumayı desteklemiyor. QR metnini elle yapıştırabilirsin.");
-                return;
-            }
             if (!navigator.mediaDevices?.getUserMedia) {
                 showToast("Kamera erişimi bu cihazda desteklenmiyor.");
                 return;
@@ -8738,17 +9868,45 @@
                 state.qrScan.stream = stream;
                 video.srcObject = stream;
                 await video.play().catch(() => {});
-                const detector = new BarcodeDetector({ formats: ["qr_code"] });
+                let detector = null;
+                let jsQr = null;
+                if ("BarcodeDetector" in window) {
+                    try {
+                        detector = new BarcodeDetector({ formats: ["qr_code"] });
+                    } catch (_error) {
+                        detector = null;
+                    }
+                }
+                if (!detector) {
+                    try {
+                        jsQr = await loadJsQrDecoder();
+                        showToast("QR kamera taraması yedek motorla açıldı.");
+                    } catch (_error) {
+                        showToast("QR motoru yüklenemedi. Kamera açık, metni elle de girebilirsin.");
+                    }
+                }
+                const canvas = document.createElement("canvas");
+                const context = canvas.getContext("2d", { willReadFrequently: true });
+                state.qrScan.canvas = canvas;
                 state.qrScan.timer = setInterval(async () => {
                     if (!video.videoWidth || state.qrScan.busy) return;
                     try {
-                        const codes = await detector.detect(video);
-                        const value = codes[0]?.rawValue;
+                        let value = "";
+                        if (detector) {
+                            const codes = await detector.detect(video);
+                            value = codes[0]?.rawValue || "";
+                        } else if (jsQr && context) {
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                            value = jsQr(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" })?.data || "";
+                        }
                         if (value) {
                             confirmQrPayload(value);
                         }
                     } catch (_error) {}
-                }, 700);
+                }, detector ? 700 : 320);
             } catch (_error) {
                 showToast("Kamera açılamadı. İzinleri kontrol et veya QR metnini elle gir.");
             }
@@ -8909,6 +10067,7 @@
         async function openApp() {
             applyUserPreferences();
             loadAiSettings();
+            startAiPlanReminderEngine();
             showScreenTransition("NexaLine açılıyor", 0);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
@@ -8955,6 +10114,7 @@
                 const currentChatId = state.activeChatId;
                 state.me = data.user;
                 loadAiSettings();
+                startAiPlanReminderEngine();
                 state.users = data.users;
                 state.chats = data.chats;
                 state.generalGroup = data.generalGroup;
@@ -9853,7 +11013,7 @@
             const grid = document.createElement("div");
             grid.className = "explore-grid";
             const cards = [
-                ["ai", "Nexa AI", "Sohbet özeti, doğal arama ve uygulama komutları", selectAiChat],
+                ["ai", "Nexa AI", "Sohbet özeti, doğal arama ve uygulama komutları", openAiPanel],
                 ["voice", "Sesli Odalar", "Canlı oda keşfet, oluştur ve yönet", openVoiceRoomsHub],
                 ["communities", "Topluluklar", "Topluluk oluştur, katıl ve duyuru yayınla", openCommunitiesHub],
                 ["stories", "Güncellemeler", "Durumlar, kanallar ve hikaye akışı", () => switchSection("stories")],
@@ -11329,10 +12489,14 @@
             $("emptyChat").classList.add("hidden");
             document.querySelector(".composer").classList.remove("hidden");
             const aiMode = isAiChat(chat);
-            $("attachButton").classList.toggle("hidden", aiMode);
-            $("locationButton").classList.toggle("hidden", aiMode);
-            $("voiceButton").classList.toggle("hidden", aiMode);
-            $("sendToolsButton").classList.toggle("hidden", aiMode);
+            $("attachButton").classList.remove("hidden");
+            $("locationButton").classList.remove("hidden");
+            $("voiceButton").classList.remove("hidden");
+            $("sendToolsButton").classList.remove("hidden");
+            $("attachButton").title = aiMode ? "Nexa AI komutları" : "Dosya";
+            $("locationButton").title = aiMode ? "Konumu Nexa AI'ya gönder" : "Konum";
+            $("voiceButton").title = aiMode ? "Sesi yazıya çevir" : "Sesli mesaj";
+            $("sendToolsButton").title = aiMode ? "Sesli asistan" : "Zamanla ve kaybolan mesaj";
             $("cancelVoiceButton").classList.add("hidden");
             $("messageInput").placeholder = aiMode ? `${aiDisplayName()} ile konuş` : "Mesaj";
             $("activeTitle").textContent = chat.title;
@@ -11342,7 +12506,7 @@
             $("activeAvatar").onclick = chatSettingsHandler;
             $("activeTitle").onclick = chatSettingsHandler;
             $("activeStatus").onclick = chatSettingsHandler;
-            $("activeStatus").textContent = aiMode ? "çevrimiçi • kişisel asistan" : statusText(chat);
+            $("activeStatus").textContent = aiMode ? (state.aiBusy ? (state.aiActivity || "düşünüyor") : "çevrimiçi • kişisel asistan") : statusText(chat);
             $("backButton").classList.remove("hidden");
             $("callButton").classList.toggle("hidden", aiMode);
             $("videoButton").classList.toggle("hidden", aiMode);
@@ -12139,15 +13303,13 @@
             }
 
             if (isAiChat(chat)) {
-                if (state.attachment) {
-                    showToast("Nexa AI şu an dosya almıyor, metin olarak yazabilirsin.");
-                    return;
-                }
+                const aiAttachment = state.attachment;
                 input.value = "";
                 input.placeholder = "Mesaj";
+                state.attachment = null;
                 clearReply();
                 updateComposerState();
-                sendAiPrompt(body);
+                sendAiPrompt(body || "Bu eki incele.", aiAttachment);
                 return;
             }
 
@@ -14506,16 +15668,16 @@
                 renderActiveChat();
             };
         });
-        $("attachButton").onclick = openAttachmentMenu;
+        $("attachButton").onclick = () => isAiChat(activeChat()) ? openAiCommandCenter() : openAttachmentMenu();
         $("emojiButton").onclick = toggleEmojiPanel;
-        $("locationButton").onclick = sendCurrentLocation;
+        $("locationButton").onclick = () => isAiChat(activeChat()) ? sendAiCurrentLocation() : sendCurrentLocation();
         $("fileInput").onchange = handleFile;
         $("cameraInput").onchange = handleFile;
         $("storyFileInput").onchange = handleStoryFile;
         $("installButton").onclick = openInstallPanel;
         $("settingsInstallButton").onclick = openInstallPanel;
         $("notificationButton").onclick = openNotificationPanel;
-        $("sendToolsButton").onclick = openSendTools;
+        $("sendToolsButton").onclick = () => isAiChat(activeChat()) ? openAiVoiceAssistant() : openSendTools();
         $("closeStoryButton").onclick = closeStoryPanel;
         $("storyPanel").onclick = event => {
             if (event.target.closest("button, input, textarea, a, video")) {
@@ -14523,7 +15685,7 @@
             }
             showNextStory();
         };
-        $("voiceButton").onclick = toggleVoiceRecording;
+        $("voiceButton").onclick = () => isAiChat(activeChat()) ? startAiSpeechInput() : toggleVoiceRecording();
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("settingsButton").onclick = openSettings;
         $("topSettingsButton").onclick = openSettings;
@@ -14614,6 +15776,10 @@
         if ($("aiAssistantButton")) $("aiAssistantButton").onclick = toggleAiPanel;
         $("aiCloseButton").onclick = closeAiPanel;
         $("aiSendButton").onclick = sendAiPrompt;
+        $("aiCommandButton").onclick = openAiCommandCenter;
+        $("aiAttachButton").onclick = openAiAttachmentMenu;
+        $("aiVoiceLiveButton").onclick = openAiVoiceAssistant;
+        $("aiFileInput").onchange = handleAiFile;
         $("aiInput").addEventListener("keydown", event => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();

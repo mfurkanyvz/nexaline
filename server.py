@@ -1,5 +1,8 @@
 import os
 import ipaddress
+import base64
+import hashlib
+import html
 import json
 import math
 import re
@@ -2451,14 +2454,19 @@ def ai_detect_actions(prompt, username, active_chat_id=None, timezone_offset_min
     if chat and any(word in lowered for word in ["sohbeti sil", "sohbet sil", "konuşmayı sil", "konusmayi sil", "listemden kaldır", "listemden kaldir"]):
         delete_mode = "permanent" if any(word in lowered for word in ["kalıcı", "kalici", "tamamen"]) else "archive"
         actions.append({"type": "delete_chat", "chatId": chat["id"], "mode": delete_mode, "label": f"{chat['title']} sohbetini sil"})
-    wants_call = chat and not any(word in lowered for word in ["araştır", "arastir", "webde ara", "internette ara"]) and any(
-        word in lowered for word in ["arama yap", "sesli ara", "görüntülü ara", "goruntulu ara", "telefon et", "kameralı ara", "kamerali ara"]
+    wants_call = chat and not any(word in lowered for word in ["araştır", "arastir", "webde ara", "internette ara"]) and (
+        any(word in lowered for word in ["arama yap", "sesli ara", "görüntülü ara", "goruntulu ara", "telefon et", "kameralı ara", "kamerali ara"])
+        or re.search(r"\b(ara|arasana|arayabilir misin|arayalım|arayalim)\b", lowered)
     )
     if wants_call:
         video_call = any(word in lowered for word in ["görüntülü", "goruntulu", "kamera", "kameralı", "kamerali", "video"])
+        audio_call = any(word in lowered for word in ["sesli", "telefon"])
         call_at = parse_ai_schedule(prompt, timezone_offset_minutes)
         if call_at:
             actions.append({"type": "schedule_call", "chatId": chat["id"], "audioOnly": not video_call, "callAt": call_at, "label": f"{chat['title']} için planlı arama başlat"})
+        elif not video_call and not audio_call:
+            actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": True, "label": "Sesli ara"})
+            actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": False, "label": "Görüntülü ara"})
         else:
             actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": not video_call, "label": f"{chat['title']} için {'görüntülü' if video_call else 'sesli'} arama başlat"})
     if any(word in lowered for word in ["aramayı kapat", "aramayi kapat", "aramayı bitir", "aramayi bitir", "çağrıyı kapat", "cagriyi kapat"]):
@@ -2704,6 +2712,16 @@ def local_ai_reply(prompt, context, actions, research=None):
     if research_answer:
         return research_answer
     live_info = context.get("liveInfo") or {}
+    input_attachment = context.get("inputAttachment") or {}
+    if input_attachment:
+        kind = input_attachment.get("kind") or input_attachment.get("type") or "dosya"
+        name = input_attachment.get("name") or "ek"
+        if input_attachment.get("location"):
+            location = input_attachment["location"]
+            return f"Konumu aldım: {location.get('lat')}, {location.get('lng')}. İstersen bu konuma göre yol tarifi, yakın yer araması veya konum paylaşımı için komut çalıştırabilirim."
+        if str(kind).startswith("image") or kind == "image":
+            return f"{name} görselini aldım. Gemini görsel okuma anahtarı açıksa içeriğini doğrudan analiz ederim; ücretsiz yerel modda dosya adı, tür ve komutuna göre arama/özet/düzenleme yardımı yapabilirim."
+        return f"{name} dosyasını aldım. İçeriği metin olarak okunabiliyorsa özetleme, düzeltme veya arama komutuyla işleyebilirim."
     if any(word in lowered for word in ["saat kaç", "saat kac", "saat ne", "bugün tarih", "bugun tarih"]):
         return f"Şu an saat {live_info.get('time')}, tarih {live_info.get('date')}."
     if any(word in lowered for word in ["hava", "weather", "sıcaklık", "sicaklik"]):
@@ -2763,17 +2781,55 @@ def web_research_if_requested(prompt, force=False):
     return results[:5]
 
 
-def call_gemini_ai(prompt, context_text, research):
+def attachment_context_for_ai(attachment):
+    if not isinstance(attachment, dict):
+        return None
+    data_url = str(attachment.get("dataUrl") or "")
+    return {
+        "name": str(attachment.get("name") or "")[:160],
+        "type": str(attachment.get("type") or "")[:100],
+        "kind": "image" if str(attachment.get("type") or "").startswith("image/") else attachment.get("type") or "file",
+        "location": {
+            "lat": attachment.get("lat"),
+            "lng": attachment.get("lng"),
+            "url": attachment.get("url"),
+        } if attachment.get("type") == "location" else None,
+        "hasInlineData": bool(data_url),
+        "dataUrlPreview": data_url[:120] if data_url else "",
+    }
+
+
+def gemini_inline_part_from_attachment(attachment):
+    if not isinstance(attachment, dict):
+        return None
+    mime_type = str(attachment.get("type") or "")
+    data_url = str(attachment.get("dataUrl") or "")
+    if not mime_type.startswith("image/") or "," not in data_url:
+        return None
+    try:
+        header, payload = data_url.split(",", 1)
+    except ValueError:
+        return None
+    if "base64" not in header or len(payload) > MAX_ATTACHMENT_DATA_URL_CHARS:
+        return None
+    return {"inline_data": {"mime_type": mime_type, "data": payload}}
+
+
+def call_gemini_ai(prompt, context_text, research, attachment=None):
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY missing")
     model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+    parts = [{"text": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"}]
+    inline_part = gemini_inline_part_from_attachment(attachment)
+    if inline_part:
+        parts.append(inline_part)
     response = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         params={"key": key},
         json={
             "systemInstruction": {"parts": [{"text": AI_SYSTEM_PROMPT}]},
-            "contents": [{"role": "user", "parts": [{"text": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"}]}],
+            "contents": [{"role": "user", "parts": parts}],
             "generationConfig": {"temperature": 0.45, "maxOutputTokens": 900},
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -2826,7 +2882,7 @@ def call_ollama_ai(prompt, context_text, research):
     return response.json().get("message", {}).get("content", "").strip()
 
 
-def generate_ai_reply(prompt, context, actions):
+def generate_ai_reply(prompt, context, actions, attachment=None):
     provider = ai_provider_status()
     context_text = json.dumps(context, ensure_ascii=False, indent=2)
     research = web_research_if_requested(prompt)
@@ -2834,7 +2890,7 @@ def generate_ai_reply(prompt, context, actions):
         research = web_research_if_requested(prompt, force=True)
     try:
         if provider["provider"] == "gemini" and provider["ready"]:
-            reply = call_gemini_ai(prompt, context_text, research)
+            reply = call_gemini_ai(prompt, context_text, research, attachment)
         elif provider["provider"] == "openai" and provider["ready"]:
             reply = call_openai_ai(prompt, context_text, research)
         elif provider["provider"] == "ollama":
@@ -2946,19 +3002,24 @@ def ai_chat():
     prompt = (data.get("prompt") or "").strip()
     chat_id = data.get("chatId")
     assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Nexa AI").strip())[:40] or "Nexa AI"
+    attachment = data.get("attachment") if isinstance(data.get("attachment"), dict) else None
 
     if not username or not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
-    if not prompt:
+    if not prompt and not attachment:
         return jsonify({"ok": False, "message": "AI için bir şey yaz."}), 400
     if len(prompt) > 2500:
         return jsonify({"ok": False, "message": "AI isteği çok uzun."}), 400
+    if attachment and len(str(attachment.get("dataUrl") or "")) > MAX_ATTACHMENT_DATA_URL_CHARS:
+        return jsonify({"ok": False, "message": "AI eki çok büyük."}), 400
 
     context = ai_context_for_user(username, chat_id)
     context["assistant"] = {"name": assistant_name}
     context["liveInfo"] = live_info_for_prompt(prompt, data.get("timezoneOffsetMinutes", 0))
+    if attachment:
+        context["inputAttachment"] = attachment_context_for_ai(attachment)
     actions = ai_detect_actions(prompt, username, chat_id, data.get("timezoneOffsetMinutes", 0))
-    reply, provider, research = generate_ai_reply(prompt, context, actions)
+    reply, provider, research = generate_ai_reply(prompt or "Bu eki incele ve yardımcı ol.", context, actions, attachment)
     add_points_once(username, POINT_RULES["ai_chat"], "ai_chat", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"prompt": prompt[:120]})
     db.session.commit()
     return jsonify(
@@ -2970,6 +3031,114 @@ def ai_chat():
             "research": research,
         }
     )
+
+
+def local_generated_image_data_url(prompt, variant=0):
+    seed = hashlib.sha256(f"{prompt}:{variant}".encode("utf-8")).hexdigest()
+    hue_a = int(seed[:2], 16) % 360
+    hue_b = (hue_a + 120 + int(seed[2:4], 16) % 80) % 360
+    hue_c = (hue_a + 250) % 360
+    safe_prompt = html.escape(re.sub(r"\s+", " ", prompt or "NexaLine görseli").strip()[:120])
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+<stop stop-color="hsl({hue_a},86%,38%)"/><stop offset=".52" stop-color="hsl({hue_b},84%,32%)"/><stop offset="1" stop-color="hsl({hue_c},88%,44%)"/>
+</linearGradient>
+<radialGradient id="glow" cx=".36" cy=".28" r=".74"><stop stop-color="rgba(255,255,255,.72)"/><stop offset=".42" stop-color="rgba(255,255,255,.08)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></radialGradient>
+<filter id="blur"><feGaussianBlur stdDeviation="34"/></filter>
+</defs>
+<rect width="1024" height="768" fill="#06101f"/>
+<rect width="1024" height="768" fill="url(#bg)" opacity=".86"/>
+<circle cx="210" cy="170" r="220" fill="#2f80ff" opacity=".28" filter="url(#blur)"/>
+<circle cx="820" cy="560" r="260" fill="#ff00b8" opacity=".24" filter="url(#blur)"/>
+<path d="M145 595 C270 370 424 330 548 398 C693 478 768 322 889 178" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="16" stroke-linecap="round"/>
+<rect x="86" y="86" width="852" height="596" rx="48" fill="rgba(4,9,20,.38)" stroke="rgba(255,255,255,.28)"/>
+<text x="112" y="160" fill="#fff" font-size="34" font-family="Inter,Arial,sans-serif" font-weight="800">Nexa AI görsel taslağı</text>
+<foreignObject x="112" y="202" width="800" height="210">
+<div xmlns="http://www.w3.org/1999/xhtml" style="color:#edf6ff;font-family:Inter,Arial,sans-serif;font-size:44px;font-weight:900;line-height:1.08;text-shadow:0 8px 34px rgba(0,0,0,.38);">{safe_prompt}</div>
+</foreignObject>
+<text x="112" y="642" fill="rgba(255,255,255,.72)" font-size="24" font-family="Inter,Arial,sans-serif">Ücretsiz yerel mod • Gemini varsa gerçek image model denenir</text>
+</svg>"""
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii")
+
+
+def call_gemini_image(prompt):
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY missing")
+    model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation")
+    response = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        params={"key": key},
+        json={
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+        },
+        timeout=max(AI_TIMEOUT_SECONDS, 18),
+    )
+    response.raise_for_status()
+    parts = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
+    note = ""
+    for part in parts:
+        if part.get("text"):
+            note = part.get("text")
+        inline = part.get("inlineData") or part.get("inline_data")
+        if inline and inline.get("data"):
+            mime_type = inline.get("mimeType") or inline.get("mime_type") or "image/png"
+            return f"data:{mime_type};base64,{inline['data']}", note
+    raise RuntimeError("Gemini image response has no image")
+
+
+@app.route("/ai/text-tool", methods=["POST"])
+def ai_text_tool():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    tool = (data.get("tool") or "summarize").strip().lower()
+    text_value = (data.get("text") or "").strip()
+    source_lang = (data.get("sourceLang") or "otomatik").strip()
+    target_lang = (data.get("targetLang") or "Türkçe").strip()
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    if len(text_value) < 2:
+        return jsonify({"ok": False, "message": "İşlenecek metin gerekli."}), 400
+    if len(text_value) > 6000:
+        text_value = text_value[:6000]
+    if tool == "translate":
+        prompt = f"{source_lang} dilinden {target_lang} diline doğal ve anlamı koruyan çeviri yap. Sadece çeviriyi yaz:\n{text_value}"
+    elif tool == "fix":
+        prompt = f"Bu metni imla, noktalama ve anlatım açısından düzelt. Anlamı değiştirme, sadece düzeltilmiş metni yaz:\n{text_value}"
+    else:
+        prompt = f"Bu metni kısa, işe yarar ve maddeli şekilde özetle:\n{text_value}"
+    context = ai_context_for_user(username, data.get("chatId"))
+    context["assistant"] = {"name": data.get("assistantName") or "Nexa AI"}
+    reply, provider, research = generate_ai_reply(prompt, context, [])
+    return jsonify({"ok": True, "result": reply, "provider": provider, "research": research})
+
+
+@app.route("/ai/image", methods=["POST"])
+def ai_image():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    prompt = re.sub(r"\s+", " ", (data.get("prompt") or "").strip())
+    variant = int(data.get("variant") or 0)
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    if len(prompt) < 3:
+        return jsonify({"ok": False, "message": "Görsel için ne istediğini yaz."}), 400
+    if len(prompt) > 800:
+        prompt = prompt[:800]
+    provider = {"provider": "local", "model": "nexaline-free-image", "ready": True, "free": True}
+    note = "Ücretsiz yerel görsel üretildi."
+    try:
+        data_url, note = call_gemini_image(prompt)
+        provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
+    except Exception as error:
+        app.logger.info("AI image fallback: %s", error)
+        data_url = local_generated_image_data_url(prompt, variant)
+    mime_match = re.match(r"data:([^;]+);", data_url)
+    mime_type = mime_match.group(1) if mime_match else "image/svg+xml"
+    extension = "png" if mime_type == "image/png" else "jpg" if mime_type == "image/jpeg" else "svg"
+    return jsonify({"ok": True, "image": {"dataUrl": data_url, "name": f"nexa-ai-gorsel.{extension}", "type": mime_type}, "note": note, "provider": provider})
 
 
 @app.route("/ai/moderate", methods=["POST"])
@@ -3033,11 +3202,10 @@ def ai_search_route():
 AI_COMMANDS = [
     {"id": "daily_plan", "title": "Günlük plan oluştur", "prompt": "Bugün için kısa ve uygulanabilir bir günlük plan oluştur."},
     {"id": "summarize", "title": "Metin özetle", "prompt": "Aşağıdaki metni kısa maddelerle özetle:"},
-    {"id": "translate_en", "title": "İngilizceye çevir", "prompt": "Aşağıdaki metni doğal İngilizceye çevir:"},
-    {"id": "translate_tr", "title": "Türkçeye çevir", "prompt": "Aşağıdaki metni doğal Türkçeye çevir:"},
-    {"id": "ideas", "title": "Fikir önerisi ver", "prompt": "Bu hedef için yaratıcı ama uygulanabilir fikirler ver:"},
+    {"id": "translate", "title": "Çeviri yap", "prompt": "Aşağıdaki metni istediğim dile doğal şekilde çevir:"},
     {"id": "fix_text", "title": "Yazı düzelt", "prompt": "Bu yazıyı imla ve anlatım açısından düzelt:"},
-    {"id": "code", "title": "Kod yazdır", "prompt": "Şu ihtiyaca uygun temiz kod örneği yaz:"},
+    {"id": "image", "title": "Görsel oluştur", "prompt": "Şu tarife uygun görsel oluştur:"},
+    {"id": "ai_settings", "title": "AI ayarları", "prompt": "Nexa AI ayarlarını aç."},
     {"id": "chat_summary", "title": "Sohbeti özetle", "prompt": "Aktif sohbeti özetle."},
     {"id": "call_person", "title": "Kişiyi ara", "prompt": "Bu kişiyi ara:"},
     {"id": "draft_message", "title": "Mesaj taslağı oluştur", "prompt": "Bu kişiye kısa ve doğal bir mesaj taslağı oluştur:"},
