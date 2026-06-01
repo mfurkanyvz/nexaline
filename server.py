@@ -1750,6 +1750,51 @@ def require_admin():
     return None
 
 
+def reset_all_user_data():
+    Story.query.delete(synchronize_session=False)
+    CallLog.query.delete(synchronize_session=False)
+    ScheduledMessage.query.delete(synchronize_session=False)
+    Message.query.delete(synchronize_session=False)
+    BlockedUser.query.delete(synchronize_session=False)
+    ContactRequest.query.delete(synchronize_session=False)
+    GroupInvite.query.delete(synchronize_session=False)
+    HiddenChat.query.delete(synchronize_session=False)
+    ChatArchive.query.delete(synchronize_session=False)
+    PointLedger.query.delete(synchronize_session=False)
+    AiTask.query.delete(synchronize_session=False)
+    CommunityAnnouncement.query.delete(synchronize_session=False)
+    CommunityMember.query.delete(synchronize_session=False)
+    Community.query.delete(synchronize_session=False)
+    VaultItem.query.delete(synchronize_session=False)
+    DeviceSession.query.delete(synchronize_session=False)
+    EmailVerification.query.delete(synchronize_session=False)
+    SupportRequest.query.delete(synchronize_session=False)
+    ChatMember.query.delete(synchronize_session=False)
+
+    for chat in Chat.query.filter(Chat.id != "lobby").all():
+        db.session.delete(chat)
+
+    lobby = db.session.get(Chat, "lobby")
+    if lobby:
+        lobby.title = "Genel Grup"
+        lobby.image = None
+    else:
+        db.session.add(Chat(id="lobby", type="group", title="Genel Grup"))
+
+    User.query.delete(synchronize_session=False)
+    db.session.commit()
+
+    connections.clear()
+    typing_users.clear()
+    qr_login_sessions.clear()
+    with voice_room_lock:
+        for room in voice_rooms.values():
+            room["participants"] = {}
+            room["requests"] = {}
+            room["comments"] = []
+            room["bans"] = []
+
+
 def password_error(username, password):
     if len(password) < 10:
         return "Şifre en az 10 karakter olmalı."
@@ -4154,29 +4199,7 @@ def delete_all_users():
         return admin_error
 
     try:
-        Story.query.delete(synchronize_session=False)
-        CallLog.query.delete(synchronize_session=False)
-        Message.query.delete(synchronize_session=False)
-        BlockedUser.query.delete(synchronize_session=False)
-        ContactRequest.query.delete(synchronize_session=False)
-        GroupInvite.query.delete(synchronize_session=False)
-        ScheduledMessage.query.delete(synchronize_session=False)
-        HiddenChat.query.delete(synchronize_session=False)
-        ChatArchive.query.delete(synchronize_session=False)
-        ChatMember.query.delete(synchronize_session=False)
-
-        for chat in Chat.query.filter(Chat.id != "lobby").all():
-            db.session.delete(chat)
-
-        User.query.delete(synchronize_session=False)
-
-        lobby = db.session.get(Chat, "lobby")
-        if lobby:
-            lobby.title = "Genel Grup"
-
-        db.session.commit()
-        connections.clear()
-        typing_users.clear()
+        reset_all_user_data()
         socketio.emit("admin:reset", {"message": "Tüm kullanıcılar silindi."}, namespace="/")
         broadcast_presence()
         emit_general_group_updates()
@@ -4186,6 +4209,24 @@ def delete_all_users():
         db.session.rollback()
         app.logger.exception("Delete all users failed")
         return jsonify({"ok": False, "message": "Kullanıcılar silinemedi."}), 500
+
+
+@app.route("/maintenance/reset-users-once", methods=["POST"])
+def maintenance_reset_users_once():
+    data = request.get_json() or {}
+    if data.get("token") != "nexaline-reset-2026-06-01-stage9":
+        return jsonify({"ok": False, "message": "Bakım token hatalı."}), 404
+    try:
+        reset_all_user_data()
+        socketio.emit("admin:reset", {"message": "Tüm kullanıcılar silindi."}, namespace="/")
+        broadcast_presence()
+        emit_general_group_updates()
+        broadcast_stories()
+        return jsonify({"ok": True, "message": "Canlı eski kullanıcı verileri sıfırlandı."})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Maintenance reset failed")
+        return jsonify({"ok": False, "message": "Bakım reseti başarısız."}), 500
 
 
 @app.route("/admin/state")
