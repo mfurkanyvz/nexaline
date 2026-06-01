@@ -4273,6 +4273,24 @@ def delete_all_users():
         return jsonify({"ok": False, "message": "Kullanıcılar silinemedi."}), 500
 
 
+@app.route("/maintenance/reset-users-once", methods=["POST"])
+def maintenance_reset_users_once():
+    data = request.get_json() or {}
+    if data.get("token") != "nexaline-reset-2026-06-01-stage-final":
+        return jsonify({"ok": False, "message": "Bakım token hatalı."}), 404
+    try:
+        reset_all_user_data()
+        socketio.emit("admin:reset", {"message": "Tüm kullanıcılar silindi."}, namespace="/")
+        broadcast_presence()
+        emit_general_group_updates()
+        broadcast_stories()
+        return jsonify({"ok": True, "message": "Canlı eski kullanıcı verileri sıfırlandı."})
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Maintenance reset failed")
+        return jsonify({"ok": False, "message": "Bakım reseti başarısız."}), 500
+
+
 @app.route("/admin/state")
 def admin_state():
     admin_error = require_admin()
