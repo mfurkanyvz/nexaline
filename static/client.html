@@ -8919,6 +8919,11 @@
                         assistantName: aiDisplayName(),
                         responseLength: state.aiSettings.responseLength,
                         persona: state.aiSettings.persona,
+                        clientHistory: state.aiMessages.slice(-30).map(item => ({
+                            role: item.role,
+                            text: item.text,
+                            createdAt: item.createdAt
+                        })),
                         timezoneOffsetMinutes: new Date().getTimezoneOffset()
                     })
                 });
@@ -9055,6 +9060,11 @@
                         assistantName: aiDisplayName(),
                         responseLength: state.aiSettings.responseLength,
                         persona: state.aiSettings.persona,
+                        clientHistory: state.aiMessages.slice(-30).map(item => ({
+                            role: item.role,
+                            text: item.text,
+                            createdAt: item.createdAt
+                        })),
                         timezoneOffsetMinutes: new Date().getTimezoneOffset()
                     })
                 });

@@ -12,6 +12,8 @@ import secrets
 import smtplib
 import threading
 import time
+import unicodedata
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from uuid import uuid4
@@ -60,6 +62,9 @@ RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 2, int(os.environ.get("
 AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "12")))
 AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "16")))
 AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
+AI_MEMORY_MAX_ITEMS = max(40, int(os.environ.get("AI_MEMORY_MAX_ITEMS", "160")))
+AI_RELEVANT_CHAT_LIMIT = max(3, int(os.environ.get("AI_RELEVANT_CHAT_LIMIT", "8")))
+AI_RELEVANT_CHAT_MESSAGES = max(8, int(os.environ.get("AI_RELEVANT_CHAT_MESSAGES", "32")))
 QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "60")))
 TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECONDS", "45")))
 POINT_RULES = {
@@ -334,6 +339,19 @@ class AiTask(db.Model):
     completed_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User")
+
+
+class AiMemory(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    chat_id = db.Column(db.String(140), nullable=True, index=True)
+    role = db.Column(db.String(20), nullable=False)
+    content = db.Column(db.Text, nullable=False, default="")
+    provider = db.Column(db.String(40), nullable=True)
+    meta = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
 
     user = db.relationship("User")
 
@@ -2153,6 +2171,12 @@ açıklayabilir ve izinli uygulama eylemleri önerebilirsin. Mesaj gönderme, so
 tema/gizlilik/AI ayarı değiştirme ve zamanlama gibi işlemler uygulama tarafından kullanıcının onay ayarına göre çalıştırılır.
 Bilmediğin veya internette doğrulanması gereken konuda eminmiş gibi davranma."""
 
+AI_SYSTEM_PROMPT += """
+Uygulama baglamindaki memory, clientHistory ve relevantChats alanlarini Nexa AI'nin ortak hafizasi gibi kullan.
+Saglayici degisse bile uslubunu, kullanicinin sana verdigi ismi ve onceki konusma bilgisini bu hafizadan koru.
+Kullanici internetten arastirma isterse web arastirma notlarini kullan, kaynaklari kisaca belirt ve sonuc yoksa bunu acik soyle.
+"""
+
 ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex", "erotik", "onlyfans"}
 ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "siktir", "amk", "aq"}
 
@@ -2205,7 +2229,161 @@ def compact_ai_message(message):
     }
 
 
-def ai_context_for_user(username, chat_id=None):
+def ai_prompt_tokens(prompt):
+    lowered = fold_tr_ascii(prompt or "")
+    tokens = re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", lowered)
+    stop_words = {
+        "bir", "bu", "şu", "su", "ben", "bana", "sen", "sana", "onu", "bunu", "şunu", "sohbet",
+        "sohbeti", "önceki", "onceki", "geçmiş", "gecmis", "mesaj", "mesajı", "mesaji", "ne",
+        "nedir", "nasıl", "nasil", "ara", "araştır", "arastir", "özetle", "ozetle", "hatırla",
+        "hatirla", "hakkında", "hakkinda", "ile", "ve", "ya", "de", "da", "ki", "mi", "mı",
+    }
+    return [token for token in tokens if len(token) >= 3 and token not in stop_words][:24]
+
+
+def fold_tr_ascii(value):
+    mapping = str.maketrans({
+        "ç": "c", "Ç": "c",
+        "ğ": "g", "Ğ": "g",
+        "ı": "i", "I": "i",
+        "İ": "i", "i": "i",
+        "ö": "o", "Ö": "o",
+        "ş": "s", "Ş": "s",
+        "ü": "u", "Ü": "u",
+    })
+    folded = (value or "").casefold().translate(mapping)
+    return unicodedata.normalize("NFKD", folded).encode("ascii", "ignore").decode("ascii")
+
+
+def compact_ai_memory(row):
+    return {
+        "role": row.role,
+        "content": (row.content or "")[:1200],
+        "chatId": row.chat_id,
+        "provider": row.provider,
+        "createdAt": to_iso(row.created_at),
+    }
+
+
+def sanitize_client_ai_history(items):
+    if not isinstance(items, list):
+        return []
+    cleaned = []
+    for item in items[-30:]:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        text_value = re.sub(r"\s+", " ", str(item.get("text") or "")).strip()
+        if role not in {"user", "assistant"} or not text_value:
+            continue
+        cleaned.append({
+            "role": role,
+            "content": text_value[:1000],
+            "createdAt": str(item.get("createdAt") or "")[:40],
+            "source": "client-local-history",
+        })
+    return cleaned
+
+
+def ai_memory_for_user(username, chat_id=None, prompt="", client_history=None):
+    rows = (
+        AiMemory.query.filter_by(username=username)
+        .order_by(AiMemory.created_at.desc())
+        .limit(AI_MEMORY_MAX_ITEMS)
+        .all()
+    )
+    tokens = set(ai_prompt_tokens(prompt))
+    recent = list(reversed(rows[:24]))
+    relevant = []
+    for row in rows:
+        haystack = fold_tr_ascii(f"{row.content or ''} {row.chat_id or ''}")
+        if (chat_id and row.chat_id == chat_id) or (tokens and any(token in haystack for token in tokens)):
+            relevant.append(row)
+        if len(relevant) >= 24:
+            break
+    merged = []
+    seen = set()
+    for item in [*reversed(relevant), *recent]:
+        if item.id in seen:
+            continue
+        seen.add(item.id)
+        merged.append(compact_ai_memory(item))
+    return {
+        "serverMemory": merged[-60:],
+        "clientHistory": sanitize_client_ai_history(client_history),
+        "memoryRule": "Tum AI saglayicilari cevap vermeden once bu Nexa hafizasini dikkate alir. Sifreler ve gizli anahtarlar hafizaya eklenmez.",
+    }
+
+
+def relevant_chat_context_for_ai(username, prompt, active_chat_id=None):
+    chats = visible_chats(username)
+    tokens = set(ai_prompt_tokens(prompt))
+    prompt_folded = fold_tr_ascii(prompt or "")
+    scored = []
+    for index, chat in enumerate(chats):
+        score = 0
+        if active_chat_id and chat["id"] == active_chat_id:
+            score += 100
+        haystack_parts = [chat.get("title") or "", chat.get("id") or ""]
+        for member in chat.get("members", []):
+            haystack_parts.extend([member.get("username") or "", member.get("displayName") or ""])
+        for message in (chat.get("messages") or [])[-AI_RELEVANT_CHAT_MESSAGES:]:
+            haystack_parts.append(message.get("body") or "")
+            attachment = message.get("attachment")
+            if isinstance(attachment, dict):
+                haystack_parts.append(json.dumps({key: attachment.get(key) for key in ("name", "type", "transcript")}, ensure_ascii=False))
+        haystack = fold_tr_ascii(" ".join(haystack_parts))
+        chat_title = fold_tr_ascii(chat.get("title") or "")
+        if chat_title and chat_title in prompt_folded:
+            score += 60
+        if tokens:
+            score += sum(6 for token in tokens if token in haystack)
+        if any(word in prompt_folded for word in ["onceki", "gecmis", "son konus", "ne konus", "sohbet", "hatirla"]):
+            score += max(0, 12 - index)
+        if any(word in prompt_folded for word in ["önceki", "onceki", "geçmiş", "gecmis", "son konuş", "son konus", "ne konuş", "ne konus"]):
+            score += max(0, 12 - index)
+        if score > 0:
+            scored.append((score, index, chat))
+    if not scored:
+        scored = [(max(0, 8 - index), index, chat) for index, chat in enumerate(chats[:3])]
+    selected = [chat for _score, _index, chat in sorted(scored, key=lambda item: (-item[0], item[1]))[:AI_RELEVANT_CHAT_LIMIT]]
+    return [
+        {
+            "id": chat["id"],
+            "title": chat["title"],
+            "type": chat["type"],
+            "members": [member.get("displayName") or member.get("username") for member in chat.get("members", [])],
+            "lastMessages": [compact_ai_message(message) for message in (chat.get("messages") or [])[-AI_RELEVANT_CHAT_MESSAGES:]],
+        }
+        for chat in selected
+    ]
+
+
+def store_ai_memory(username, chat_id, role, content, provider=None, meta=None):
+    text_value = re.sub(r"\s+", " ", (content or "").strip())
+    if not text_value:
+        return
+    db.session.add(AiMemory(
+        id=uuid4().hex,
+        username=username,
+        chat_id=chat_id,
+        role=role,
+        content=text_value[:4000],
+        provider=provider,
+        meta=meta or {},
+    ))
+    old_rows = (
+        AiMemory.query.filter_by(username=username)
+        .order_by(AiMemory.created_at.desc())
+        .offset(AI_MEMORY_MAX_ITEMS * 4)
+        .limit(80)
+        .all()
+    )
+    for row in old_rows:
+        db.session.delete(row)
+
+
+def ai_context_for_user(username, chat_id=None, prompt="", client_history=None):
     chats = visible_chats(username)
     active = next((chat for chat in chats if chat["id"] == chat_id), None) if chat_id else None
     if not active and chats:
@@ -2244,6 +2422,8 @@ def ai_context_for_user(username, chat_id=None):
             ],
         },
         "notifications": "Kullanıcının eski bildirimleri tarayıcı içinde tutulur; AI onları uygulamada Bildirimler panelini açarak gösterebilir.",
+        "memory": ai_memory_for_user(username, chat_id, prompt, client_history),
+        "relevantChats": relevant_chat_context_for_ai(username, prompt, chat_id),
         "capabilities": [
             "sohbet ozeti",
             "cevap taslagi",
@@ -2622,7 +2802,54 @@ def local_research_answer(prompt, research):
     )
 
 
+def local_memory_answer(prompt, context):
+    lowered = (prompt or "").casefold()
+    ascii_lowered = fold_tr_ascii(lowered)
+    robust_save_memory = any(word in ascii_lowered for word in ["hafizanda tut", "hafizana al", "hafizana kaydet", "bunu hatirla", "kaydet"])
+    robust_save_memory = robust_save_memory or (("tut" in ascii_lowered or "kaydet" in ascii_lowered or "hatirla" in ascii_lowered) and ("haf" in ascii_lowered or "favori" in ascii_lowered))
+    if robust_save_memory:
+        return "Tamam, bunu Nexa AI hafizama aldim. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacagim."
+    robust_memory_requested = any(word in ascii_lowered for word in ["onceki", "gecmis", "hatirla", "ne konustuk", "son sohbet", "eski sohbet", "hafiza", "favori"])
+    robust_memory_requested = robust_memory_requested or ("haf" in ascii_lowered and any(word in ascii_lowered for word in ["neydi", "konus", "gecmis", "onceki"]))
+    if robust_memory_requested:
+        lowered = "onceki"
+    if any(word in ascii_lowered for word in ["hafizanda tut", "hafizana al", "hafizana kaydet", "bunu hatirla", "kaydet"]):
+        return "Tamam, bunu Nexa AI hafizama aldım. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacağım."
+    memory_requested = any(word in ascii_lowered for word in ["onceki", "gecmis", "hatirla", "ne konustuk", "son sohbet", "eski sohbet", "hafiza", "favori"])
+    if memory_requested:
+        lowered = "onceki"
+    if not any(word in lowered for word in ["önceki", "onceki", "geçmiş", "gecmis", "hatırla", "hatirla", "ne konuştuk", "ne konustuk", "son sohbet"]):
+        return ""
+    lines = []
+    memory = ((context.get("memory") or {}).get("serverMemory") or []) + ((context.get("memory") or {}).get("clientHistory") or [])
+    for item in memory[-10:]:
+        role = "Sen" if item.get("role") == "user" else "Nexa AI"
+        content = item.get("content") or item.get("text") or ""
+        if content:
+            lines.append(f"{role}: {content[:180]}")
+    for chat in (context.get("relevantChats") or [])[:3]:
+        messages = chat.get("lastMessages") or []
+        if messages:
+            lines.append(f"{chat.get('title')} sohbetinden son notlar:")
+            for message in messages[-5:]:
+                body = message.get("body") or message.get("attachment") or ""
+                if body:
+                    lines.append(f"- {message.get('sender')}: {str(body)[:160]}")
+    if not lines:
+        return "Hafızamda bu konuda yeterli kayıt bulamadım. Bundan sonraki Nexa AI konuşmalarını server hafızasına yazacağım."
+    return "Hafızamdan bulduklarım:\n" + "\n".join(lines[-18:])
+
+
 def local_should_research(prompt):
+    quick_lowered = (prompt or "").casefold()
+    quick_research_words = [
+        "internetten", "internet", "webde", "web", "google", "arastir", "araştır",
+        "son bilgi", "son durum", "en son", "kaynak", "bul", "bak", "guncel", "güncel",
+        "haber", "fiyat", "bugun", "bugün", "su an", "şu an", "anlik", "anlık",
+    ]
+    quick_app_words = ["mesaj at", "mesaj gonder", "mesaj gönder", "sohbeti sil", "arama baslat", "arama başlat"]
+    if len(quick_lowered) >= 8 and any(word in quick_lowered for word in quick_research_words) and not any(word in quick_lowered for word in quick_app_words):
+        return True
     lowered = (prompt or "").casefold()
     if len(lowered) < 12:
         return False
@@ -2676,6 +2903,58 @@ def wikipedia_research(query):
         }]
     except Exception:
         return []
+
+
+def strip_html_text(value):
+    value = re.sub(r"<script[\s\S]*?</script>", " ", value or "", flags=re.IGNORECASE)
+    value = re.sub(r"<style[\s\S]*?</style>", " ", value, flags=re.IGNORECASE)
+    value = re.sub(r"<[^>]+>", " ", value)
+    return re.sub(r"\s+", " ", html.unescape(value)).strip()
+
+
+def normalize_search_url(value):
+    url = html.unescape(value or "").strip()
+    if url.startswith("//"):
+        url = "https:" + url
+    if "duckduckgo.com/l/?" in url or "duckduckgo.com/l/?" in urllib.parse.unquote(url):
+        parsed = urllib.parse.urlparse(url)
+        query = urllib.parse.parse_qs(parsed.query)
+        target = (query.get("uddg") or [""])[0]
+        if target:
+            return urllib.parse.unquote(target)
+    return url
+
+
+def duckduckgo_html_research(query):
+    try:
+        response = requests.get(
+            "https://duckduckgo.com/html/",
+            params={"q": query[:180]},
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; NexaLineBot/1.0; +https://nexalineapp.xyz)",
+                "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.6",
+            },
+            timeout=8,
+        )
+        response.raise_for_status()
+        body = response.text
+    except Exception:
+        return []
+    results = []
+    blocks = re.findall(r'<div class="result[\s\S]*?</div>\s*</div>', body, flags=re.IGNORECASE)
+    if not blocks:
+        blocks = re.findall(r'<a rel="nofollow" class="result__a"[\s\S]*?(?=<a rel="nofollow" class="result__a"|$)', body, flags=re.IGNORECASE)
+    for block in blocks[:8]:
+        title_match = re.search(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)</a>', block, flags=re.IGNORECASE)
+        if not title_match:
+            continue
+        url = normalize_search_url(title_match.group(1))
+        title = strip_html_text(title_match.group(2))
+        snippet_match = re.search(r'<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)</a>|<div[^>]+class="result__snippet"[^>]*>([\s\S]*?)</div>', block, flags=re.IGNORECASE)
+        snippet = strip_html_text((snippet_match.group(1) or snippet_match.group(2)) if snippet_match else "")
+        if title and url and not any(item.get("url") == url for item in results):
+            results.append({"title": title[:180], "snippet": snippet[:700], "url": url})
+    return results[:5]
 
 
 def live_info_for_prompt(prompt, timezone_offset_minutes=0):
@@ -2737,6 +3016,9 @@ def local_ai_reply(prompt, context, actions, research=None):
     research_answer = local_research_answer(prompt, research)
     if research_answer:
         return research_answer
+    memory_answer = local_memory_answer(prompt, context)
+    if memory_answer:
+        return memory_answer
     live_info = context.get("liveInfo") or {}
     input_attachment = context.get("inputAttachment") or {}
     if input_attachment:
@@ -2785,6 +3067,37 @@ def local_ai_reply(prompt, context, actions, research=None):
 
 
 def web_research_if_requested(prompt, force=False):
+    if force or local_should_research(prompt):
+        query = re.sub(
+            r"\b(arastir|araştır|internetten|internette|internet|webde|web|google|haber|guncel|güncel|son durum|son bilgi|kaynak|bul|bak)\b",
+            " ",
+            prompt or "",
+            flags=re.IGNORECASE,
+        ).strip()
+        if len(query) >= 3:
+            results = []
+            try:
+                response = requests.get(
+                    "https://api.duckduckgo.com/",
+                    params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"},
+                    timeout=6,
+                )
+                response.raise_for_status()
+                data = response.json()
+            except Exception:
+                data = {}
+            if data.get("AbstractText"):
+                results.append({"title": data.get("Heading") or query, "snippet": data.get("AbstractText"), "url": data.get("AbstractURL"), "source": "duckduckgo-instant"})
+            for item in (data.get("RelatedTopics") or [])[:6]:
+                if isinstance(item, dict) and item.get("Text"):
+                    results.append({"title": item.get("FirstURL") or "Kaynak", "snippet": item.get("Text"), "url": item.get("FirstURL"), "source": "duckduckgo-instant"})
+            if not results:
+                results.extend(duckduckgo_html_research(query))
+            if not results:
+                results.extend(wikipedia_research(query))
+            if results:
+                return results[:5]
+            return [{"title": "Web arama", "snippet": "Canli web aramasinda guvenilir kisa sonuc bulunamadi.", "url": "", "source": "nexaline-search"}]
     if not force and not re.search(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", prompt or "", re.IGNORECASE):
         return []
     query = re.sub(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", " ", prompt or "", flags=re.IGNORECASE).strip()
@@ -2954,7 +3267,7 @@ def call_deepinfra_ai(prompt, context_text, research):
             "max_tokens": 900,
             "messages": [
                 {"role": "system", "content": AI_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Uygulama baÄŸlamÄ±:\n{context_text}\n\nWeb araÅŸtÄ±rma notlarÄ±:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanÄ±cÄ±:\n{prompt}"},
+                {"role": "user", "content": f"Uygulama baglami:\n{context_text}\n\nWeb arastirma notlari:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanici:\n{prompt}"},
             ],
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -2988,6 +3301,9 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
     research = web_research_if_requested(prompt)
     if provider["provider"] == "local" and not research and local_should_research(prompt):
         research = web_research_if_requested(prompt, force=True)
+    memory_reply = local_memory_answer(prompt, context)
+    if memory_reply:
+        return memory_reply, {"provider": "nexa-memory", "model": "persistent-memory", "ready": True}, research
     needs_vision = bool(gemini_inline_part_from_attachment(attachment))
     reply = ""
     for provider_name in ai_provider_attempts(needs_vision=needs_vision):
@@ -3108,7 +3424,7 @@ def rtc_config():
 @app.route("/ai/status")
 def ai_status():
     status = ai_provider_status()
-    return jsonify({"ok": True, "ai": status, "moderation": True, "actions": True})
+    return jsonify({"ok": True, "ai": status, "moderation": True, "actions": True, "memory": True, "webResearch": True})
 
 
 @app.route("/ai/chat", methods=["POST"])
@@ -3119,6 +3435,7 @@ def ai_chat():
     chat_id = data.get("chatId")
     assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Nexa AI").strip())[:40] or "Nexa AI"
     attachment = data.get("attachment") if isinstance(data.get("attachment"), dict) else None
+    client_history = data.get("clientHistory") if isinstance(data.get("clientHistory"), list) else []
 
     if not username or not db.session.get(User, username):
         return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
@@ -3129,7 +3446,7 @@ def ai_chat():
     if attachment and len(str(attachment.get("dataUrl") or "")) > MAX_ATTACHMENT_DATA_URL_CHARS:
         return jsonify({"ok": False, "message": "AI eki çok büyük."}), 400
 
-    context = ai_context_for_user(username, chat_id)
+    context = ai_context_for_user(username, chat_id, prompt, client_history)
     context["assistant"] = {"name": assistant_name}
     context["liveInfo"] = live_info_for_prompt(prompt, data.get("timezoneOffsetMinutes", 0))
     if attachment:
@@ -3137,6 +3454,8 @@ def ai_chat():
     actions = ai_detect_actions(prompt, username, chat_id, data.get("timezoneOffsetMinutes", 0))
     reply, provider, research = generate_ai_reply(prompt or "Bu eki incele ve yardımcı ol.", context, actions, attachment)
     add_points_once(username, POINT_RULES["ai_chat"], "ai_chat", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"prompt": prompt[:120]})
+    store_ai_memory(username, chat_id, "user", prompt or "Bu eki incele.", meta={"hasAttachment": bool(attachment)})
+    store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "actions": [action.get("type") for action in actions]})
     db.session.commit()
     return jsonify(
         {
@@ -3433,9 +3752,12 @@ def ai_text_tool():
         prompt = f"Bu metni imla, noktalama ve anlatım açısından düzelt. Anlamı değiştirme, sadece düzeltilmiş metni yaz:\n{text_value}"
     else:
         prompt = f"Bu metni kısa, işe yarar ve maddeli şekilde özetle:\n{text_value}"
-    context = ai_context_for_user(username, data.get("chatId"))
+    context = ai_context_for_user(username, data.get("chatId"), prompt)
     context["assistant"] = {"name": data.get("assistantName") or "Nexa AI"}
     reply, provider, research = generate_ai_reply(prompt, context, [])
+    store_ai_memory(username, data.get("chatId"), "user", prompt, provider="text-tool", meta={"tool": tool})
+    store_ai_memory(username, data.get("chatId"), "assistant", reply, provider=(provider or {}).get("provider"), meta={"tool": tool})
+    db.session.commit()
     return jsonify({"ok": True, "result": reply, "provider": provider, "research": research})
 
 
@@ -3467,6 +3789,9 @@ def ai_image():
     mime_match = re.match(r"data:([^;]+);", data_url)
     mime_type = mime_match.group(1) if mime_match else "image/svg+xml"
     extension = "png" if mime_type == "image/png" else "jpg" if mime_type == "image/jpeg" else "svg"
+    store_ai_memory(username, None, "user", f"Gorsel olustur: {prompt}", provider="image", meta={"variant": variant})
+    store_ai_memory(username, None, "assistant", note, provider=(provider or {}).get("provider"), meta={"type": "image", "mimeType": mime_type})
+    db.session.commit()
     return jsonify({"ok": True, "image": {"dataUrl": data_url, "name": f"nexa-ai-gorsel.{extension}", "type": mime_type}, "note": note, "provider": provider})
 
 
@@ -3489,8 +3814,10 @@ def ai_chat_summary_route():
     if not username or not chat or not user_can_see_chat(chat, username):
         return jsonify({"ok": False, "message": "Sohbet bulunamadi."}), 404
     messages = [message_to_dict(item) for item in recent_visible_messages(chat.id, username, min(80, RECENT_MESSAGE_SCAN_LIMIT))]
-    context = {"user": private_user(username), "activeChat": {"title": chat.title, "messages": messages}, "assistant": {"name": "Nexa AI"}}
     prompt = f"{chat.title} sohbetini kisa, islevsel ve maddeli ozetle. Onemli karar, tarih, dosya ve bekleyen aksiyonlari ayir."
+    context = ai_context_for_user(username, chat.id, prompt)
+    context["activeChat"] = {"title": chat.title, "messages": messages}
+    context["assistant"] = {"name": "Nexa AI"}
     reply, provider, research = generate_ai_reply(prompt, context, [])
     return jsonify({"ok": True, "summary": reply or local_chat_summary(messages), "provider": provider, "research": research})
 
@@ -3523,7 +3850,9 @@ def ai_search_route():
                 })
     matches.sort(key=lambda item: (item["score"], item["message"]["createdAt"]), reverse=True)
     summary_prompt = f"Arama sorgusu: {query}\nSonuclari kullaniciya kisa acikla ve en yakin 5 sonucu sec."
-    context = {"user": private_user(username), "matches": matches[:12], "assistant": {"name": "Nexa AI"}}
+    context = ai_context_for_user(username, chat_id, summary_prompt)
+    context["matches"] = matches[:12]
+    context["assistant"] = {"name": "Nexa AI"}
     reply, provider, research = generate_ai_reply(summary_prompt, context, [])
     return jsonify({"ok": True, "answer": reply, "results": matches[:20], "provider": provider, "research": research})
 
