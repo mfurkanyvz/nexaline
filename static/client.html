@@ -2066,8 +2066,29 @@
             display: grid;
             justify-items: center;
             gap: 24px;
+            min-height: min(68dvh, 560px);
+            align-content: center;
             padding: 26px 8px 8px;
             text-align: center;
+        }
+
+        .nexal-voice-stage textarea {
+            width: 100%;
+            max-width: 420px;
+            min-height: 92px;
+            padding: 14px;
+            border: 1px solid rgba(124, 98, 255, 0.24);
+            border-radius: 18px;
+            color: #f8fbff;
+            resize: vertical;
+            background: rgba(7, 12, 28, 0.76);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(14px);
+        }
+
+        .nexal-voice-stage .chip-row {
+            justify-content: center;
+            width: 100%;
         }
 
         .nexal-voice-orb {
@@ -8622,12 +8643,99 @@
         }
 
         function speakAiText(text) {
-            if (!("speechSynthesis" in window) || !text) return;
+            if (!("speechSynthesis" in window) || !text) return false;
             const utterance = new SpeechSynthesisUtterance(text.slice(0, 600));
             utterance.lang = "tr-TR";
             utterance.rate = state.aiSettings.voice === "male" ? 0.94 : 1;
             speechSynthesis.cancel();
             speechSynthesis.speak(utterance);
+            return true;
+        }
+
+        async function runAiTts(text) {
+            try {
+                const response = await fetch("/ai/tts", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username: state.me.username, text, voice: state.aiSettings.voice || "warm" })
+                });
+                return response.json();
+            } catch (_error) {
+                return { ok: false };
+            }
+        }
+
+        async function playAiAssistantVoice(text) {
+            if (!text) return false;
+            const data = await runAiTts(text);
+            if (data.ok && data.audioDataUrl) {
+                const audio = new Audio(data.audioDataUrl);
+                await audio.play().catch(() => {});
+                return true;
+            }
+            return speakAiText(text);
+        }
+
+        async function runAiStt(audioDataUrl) {
+            const response = await fetch("/ai/stt", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ username: state.me.username, audioDataUrl })
+            });
+            return response.json();
+        }
+
+        function captureAiSpeechWithRecorder(statusEl, buttonEl, orbEl) {
+            return new Promise(async (resolve, reject) => {
+                if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+                    reject(new Error("media-recorder-unsupported"));
+                    return;
+                }
+                let stream = null;
+                let recorder = null;
+                const chunks = [];
+                const cleanup = () => {
+                    stream?.getTracks().forEach(track => track.stop());
+                    if (buttonEl) buttonEl.textContent = "Başlat";
+                    orbEl?.classList.remove("user-speaking");
+                };
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const preferredType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+                    recorder = new MediaRecorder(stream, { mimeType: preferredType });
+                    recorder.ondataavailable = event => {
+                        if (event.data?.size) chunks.push(event.data);
+                    };
+                    recorder.onerror = event => {
+                        cleanup();
+                        reject(event.error || new Error("recording-error"));
+                    };
+                    recorder.onstop = async () => {
+                        cleanup();
+                        if (!chunks.length) {
+                            reject(new Error("empty-recording"));
+                            return;
+                        }
+                        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+                        resolve(await readFileAsDataUrl(blob));
+                    };
+                    if (buttonEl) {
+                        buttonEl.textContent = "Durdur";
+                        buttonEl.onclick = () => {
+                            if (recorder?.state === "recording") recorder.stop();
+                        };
+                    }
+                    if (statusEl) statusEl.textContent = "Dinliyorum...";
+                    orbEl?.classList.add("user-speaking");
+                    recorder.start();
+                    setTimeout(() => {
+                        if (recorder?.state === "recording") recorder.stop();
+                    }, 7500);
+                } catch (error) {
+                    cleanup();
+                    reject(error);
+                }
+            });
         }
 
         function openAiVoiceAssistant() {
@@ -8636,9 +8744,9 @@
                 body.innerHTML = `
                     <div class="nexal-voice-stage">
                         <div id="nexalVoiceOrb" class="nexal-voice-orb"><span class="mic">🎙</span></div>
-                        <strong id="nexalVoiceStatus">Dinliyorum...</strong>
+                        <strong id="nexalVoiceStatus">Dinlemeye hazır</strong>
                         <textarea id="nexalVoiceTextInput" rows="3" placeholder="Söylediklerin burada görünecek"></textarea>
-                        <div class="chip-row"><button id="nexalVoiceStartButton" class="nexal-pill-button primary" type="button">Başlat</button><button id="nexalVoiceKeyboardButton" class="nexal-pill-button" type="button">Klavyeye Geç</button></div>
+                        <div class="chip-row"><button id="nexalVoiceStartButton" class="nexal-pill-button primary" type="button">Başlat</button><button id="nexalVoiceSendTextButton" class="nexal-pill-button" type="button">AI'ya Gönder</button><button id="nexalVoiceKeyboardButton" class="nexal-pill-button" type="button">Klavyeye Geç</button></div>
                     </div>
                 `;
                 $("nexalVoiceKeyboardButton").onclick = () => {
@@ -8646,33 +8754,69 @@
                     openAiPanel();
                     setTimeout(() => $("aiInput")?.focus(), 80);
                 };
-                $("nexalVoiceStartButton").onclick = async () => {
+                const submitVoiceText = async text => {
+                    text = (text || $("nexalVoiceTextInput")?.value || "").trim();
+                    if (!text) {
+                        showToast("Önce bir şey söyle veya yaz.");
+                        return;
+                    }
+                    $("nexalVoiceOrb").classList.add("ai-speaking");
+                    $("nexalVoiceStatus").textContent = "Söylüyorum...";
+                    const data = await sendAiPrompt(text);
+                    const reply = data?.reply || state.aiMessages.slice().reverse().find(item => item.role === "assistant")?.text || "";
+                    await playAiAssistantVoice(reply);
+                    $("nexalVoiceOrb")?.classList.remove("ai-speaking");
+                    $("nexalVoiceStatus").textContent = "Dinlemeye hazır";
+                };
+                const browserSpeechFallback = () => new Promise((resolve, reject) => {
                     if (!SpeechRecognition) {
-                        showToast("Bu tarayıcı ses tanımayı desteklemiyor.");
+                        reject(new Error("speech-recognition-unsupported"));
                         return;
                     }
                     const recognition = new SpeechRecognition();
                     recognition.lang = "tr-TR";
                     recognition.interimResults = true;
+                    $("nexalVoiceStatus").textContent = "Dinliyorum...";
                     $("nexalVoiceOrb").classList.add("user-speaking");
                     recognition.onresult = event => {
                         const text = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
                         $("nexalVoiceTextInput").value = text;
                         $("nexalVoiceStatus").textContent = "Dinliyorum...";
                     };
-                    recognition.onend = async () => {
+                    recognition.onerror = error => reject(error);
+                    recognition.onend = () => {
                         $("nexalVoiceOrb").classList.remove("user-speaking");
-                        const text = $("nexalVoiceTextInput").value.trim();
-                        if (!text) return;
-                        $("nexalVoiceOrb").classList.add("ai-speaking");
-                        $("nexalVoiceStatus").textContent = "Söylüyorum...";
-                        const data = await sendAiPrompt(text);
-                        const reply = data?.reply || state.aiMessages.slice().reverse().find(item => item.role === "assistant")?.text || "";
-                        speakAiText(reply);
-                        setTimeout(() => $("nexalVoiceOrb")?.classList.remove("ai-speaking"), 1400);
+                        resolve($("nexalVoiceTextInput").value.trim());
                     };
                     recognition.start();
+                });
+                const startButton = $("nexalVoiceStartButton");
+                const startListening = async () => {
+                    startButton.onclick = () => {};
+                    try {
+                        let text = "";
+                        try {
+                            const audioDataUrl = await captureAiSpeechWithRecorder($("nexalVoiceStatus"), startButton, $("nexalVoiceOrb"));
+                            $("nexalVoiceStatus").textContent = "Metne çeviriyorum...";
+                            const data = await runAiStt(audioDataUrl);
+                            if (!data.ok) throw new Error(data.message || "stt-failed");
+                            text = data.text || "";
+                            $("nexalVoiceTextInput").value = text;
+                        } catch (_recordingError) {
+                            text = await browserSpeechFallback();
+                        }
+                        await submitVoiceText(text);
+                    } catch (_error) {
+                        showToast("Sesli asistan bu cihazda otomatik dinleyemedi. Metni yazıp AI'ya Gönder'e basabilirsin.");
+                        $("nexalVoiceStatus").textContent = "Yazılı komut bekliyorum";
+                    } finally {
+                        startButton.textContent = "Başlat";
+                        startButton.onclick = startListening;
+                        $("nexalVoiceOrb")?.classList.remove("user-speaking", "ai-speaking");
+                    }
                 };
+                startButton.onclick = startListening;
+                $("nexalVoiceSendTextButton").onclick = () => submitVoiceText();
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
@@ -8743,6 +8887,9 @@
         }
 
         async function sendAiPrompt(promptOverride = null, attachment = null) {
+            if (promptOverride && typeof promptOverride !== "string") {
+                promptOverride = null;
+            }
             const input = $("aiInput");
             const prompt = (promptOverride ?? input?.value ?? "").trim();
             if ((!prompt && !attachment) || state.aiBusy || !state.me) return null;
@@ -15775,7 +15922,7 @@
         $("modalCloseButton").onclick = closeModal;
         if ($("aiAssistantButton")) $("aiAssistantButton").onclick = toggleAiPanel;
         $("aiCloseButton").onclick = closeAiPanel;
-        $("aiSendButton").onclick = sendAiPrompt;
+        $("aiSendButton").onclick = () => sendAiPrompt();
         $("aiCommandButton").onclick = openAiCommandCenter;
         $("aiAttachButton").onclick = openAiAttachmentMenu;
         $("aiVoiceLiveButton").onclick = openAiVoiceAssistant;

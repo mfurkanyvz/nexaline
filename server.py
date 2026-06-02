@@ -3,6 +3,7 @@ import ipaddress
 import base64
 import hashlib
 import html
+import mimetypes
 import json
 import math
 import re
@@ -10,6 +11,7 @@ import socket
 import secrets
 import smtplib
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from uuid import uuid4
@@ -53,6 +55,7 @@ ADMIN_ATTACHMENT_INLINE_LIMIT = max(20_000, int(os.environ.get("ADMIN_ATTACHMENT
 SCHEDULE_POLL_SECONDS = max(5, int(os.environ.get("SCHEDULE_POLL_SECONDS", "15")))
 MAX_SCHEDULE_DAYS = max(1, int(os.environ.get("MAX_SCHEDULE_DAYS", "7")))
 MAX_ATTACHMENT_DATA_URL_CHARS = max(250_000, int(os.environ.get("MAX_ATTACHMENT_DATA_URL_CHARS", "5_500_000")))
+MAX_AI_AUDIO_DATA_URL_CHARS = max(80_000, int(os.environ.get("MAX_AI_AUDIO_DATA_URL_CHARS", "4_500_000")))
 RECENT_MESSAGE_SCAN_LIMIT = max(MAX_BOOTSTRAP_MESSAGES * 2, int(os.environ.get("RECENT_MESSAGE_SCAN_LIMIT", "120")))
 AI_TIMEOUT_SECONDS = max(4, int(os.environ.get("AI_TIMEOUT_SECONDS", "12")))
 AI_MAX_CONTEXT_MESSAGES = max(8, int(os.environ.get("AI_MAX_CONTEXT_MESSAGES", "16")))
@@ -2157,13 +2160,36 @@ ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "
 def ai_provider_status():
     provider = (os.environ.get("AI_PROVIDER") or "auto").strip().lower()
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
-    if provider in {"gemini", "google"} or (provider == "auto" and gemini_key):
-        return {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"), "ready": bool(gemini_key)}
-    if provider in {"openai", "openai-compatible"} or (provider == "auto" and os.environ.get("OPENAI_API_KEY")):
-        return {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY"))}
-    if provider == "ollama" or os.environ.get("OLLAMA_BASE_URL"):
-        return {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": True}
-    return {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
+    providers = {
+        "gemini": {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"), "ready": bool(gemini_key), "task": "chat/vision/web"},
+        "groq": {"provider": "groq", "model": os.environ.get("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile"), "ready": bool(os.environ.get("GROQ_API_KEY")), "task": "fast chat/stt"},
+        "deepinfra": {"provider": "deepinfra", "model": os.environ.get("DEEPINFRA_MODEL", "meta-llama/Llama-3.3-70B-Instruct-Turbo"), "ready": bool(os.environ.get("DEEPINFRA_API_KEY")), "task": "chat fallback"},
+        "openrouter": {"provider": "openrouter", "model": os.environ.get("OPENROUTER_MODEL", "openrouter/free"), "ready": bool(os.environ.get("OPENROUTER_API_KEY")), "task": "free chat fallback"},
+        "openai": {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY")), "task": "chat fallback"},
+        "ollama": {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": bool(os.environ.get("OLLAMA_BASE_URL")), "task": "local model"},
+        "huggingface": {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": bool(os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")), "task": "image fallback"},
+        "elevenlabs": {"provider": "elevenlabs", "model": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"), "ready": bool(os.environ.get("ELEVENLABS_API_KEY")), "task": "tts"},
+        "assemblyai": {"provider": "assemblyai", "model": os.environ.get("ASSEMBLYAI_SPEECH_MODEL", "best"), "ready": bool(os.environ.get("ASSEMBLYAI_API_KEY")), "task": "stt fallback"},
+    }
+    aliases = {"google": "gemini", "openai-compatible": "openai", "hf": "huggingface"}
+    provider = aliases.get(provider, provider)
+    if provider != "auto" and provider in providers:
+        return {**providers[provider], "providers": list(providers.values())}
+    for key in ("gemini", "groq", "deepinfra", "openrouter", "openai", "ollama"):
+        if providers[key]["ready"]:
+            return {**providers[key], "providers": list(providers.values())}
+    return {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True, "providers": list(providers.values())}
+
+
+def ai_provider_attempts(preferred=None, needs_vision=False):
+    preferred = (preferred or os.environ.get("AI_PROVIDER") or "auto").strip().lower()
+    preferred = {"google": "gemini", "openai-compatible": "openai"}.get(preferred, preferred)
+    order = ["gemini", "groq", "deepinfra", "openrouter", "openai", "ollama"]
+    if needs_vision:
+        order = ["gemini", "openai", "groq", "deepinfra", "openrouter", "ollama"]
+    if preferred != "auto" and preferred in order:
+        order = [preferred] + [item for item in order if item != preferred]
+    return order
 
 
 def compact_ai_message(message):
@@ -2863,6 +2889,80 @@ def call_openai_ai(prompt, context_text, research):
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
+def call_groq_ai(prompt, context_text, research):
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError("GROQ_API_KEY missing")
+    model = os.environ.get("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile")
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "temperature": 0.38,
+            "max_tokens": 900,
+            "messages": [
+                {"role": "system", "content": AI_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"},
+            ],
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
+def call_openrouter_ai(prompt, context_text, research):
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise RuntimeError("OPENROUTER_API_KEY missing")
+    model = os.environ.get("OPENROUTER_MODEL", "openrouter/free")
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz"),
+            "X-Title": "NexaLine",
+        },
+        json={
+            "model": model,
+            "temperature": 0.45,
+            "max_tokens": 900,
+            "messages": [
+                {"role": "system", "content": AI_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"},
+            ],
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
+def call_deepinfra_ai(prompt, context_text, research):
+    key = os.environ.get("DEEPINFRA_API_KEY")
+    if not key:
+        raise RuntimeError("DEEPINFRA_API_KEY missing")
+    model = os.environ.get("DEEPINFRA_MODEL", "meta-llama/Llama-3.3-70B-Instruct-Turbo")
+    response = requests.post(
+        "https://api.deepinfra.com/v1/openai/chat/completions",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={
+            "model": model,
+            "temperature": 0.42,
+            "max_tokens": 900,
+            "messages": [
+                {"role": "system", "content": AI_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Uygulama baÄŸlamÄ±:\n{context_text}\n\nWeb araÅŸtÄ±rma notlarÄ±:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanÄ±cÄ±:\n{prompt}"},
+            ],
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
 def call_ollama_ai(prompt, context_text, research):
     base_url = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
     model = os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2"))
@@ -2888,17 +2988,33 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
     research = web_research_if_requested(prompt)
     if provider["provider"] == "local" and not research and local_should_research(prompt):
         research = web_research_if_requested(prompt, force=True)
-    try:
-        if provider["provider"] == "gemini" and provider["ready"]:
-            reply = call_gemini_ai(prompt, context_text, research, attachment)
-        elif provider["provider"] == "openai" and provider["ready"]:
-            reply = call_openai_ai(prompt, context_text, research)
-        elif provider["provider"] == "ollama":
-            reply = call_ollama_ai(prompt, context_text, research)
-        else:
-            reply = local_ai_reply(prompt, context, actions, research)
-    except Exception as error:
-        app.logger.warning("AI provider failed: %s", error)
+    needs_vision = bool(gemini_inline_part_from_attachment(attachment))
+    reply = ""
+    for provider_name in ai_provider_attempts(needs_vision=needs_vision):
+        try:
+            if provider_name == "gemini" and (os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")):
+                reply = call_gemini_ai(prompt, context_text, research, attachment)
+                provider = {"provider": "gemini", "model": os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"), "ready": True}
+            elif provider_name == "groq" and os.environ.get("GROQ_API_KEY") and not needs_vision:
+                reply = call_groq_ai(prompt, context_text, research)
+                provider = {"provider": "groq", "model": os.environ.get("GROQ_CHAT_MODEL", "llama-3.3-70b-versatile"), "ready": True}
+            elif provider_name == "deepinfra" and os.environ.get("DEEPINFRA_API_KEY") and not needs_vision:
+                reply = call_deepinfra_ai(prompt, context_text, research)
+                provider = {"provider": "deepinfra", "model": os.environ.get("DEEPINFRA_MODEL", "meta-llama/Llama-3.3-70B-Instruct-Turbo"), "ready": True}
+            elif provider_name == "openrouter" and os.environ.get("OPENROUTER_API_KEY") and not needs_vision:
+                reply = call_openrouter_ai(prompt, context_text, research)
+                provider = {"provider": "openrouter", "model": os.environ.get("OPENROUTER_MODEL", "openrouter/free"), "ready": True}
+            elif provider_name == "openai" and os.environ.get("OPENAI_API_KEY"):
+                reply = call_openai_ai(prompt, context_text, research)
+                provider = {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": True}
+            elif provider_name == "ollama" and os.environ.get("OLLAMA_BASE_URL"):
+                reply = call_ollama_ai(prompt, context_text, research)
+                provider = {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": True}
+            if reply:
+                break
+        except Exception as error:
+            app.logger.warning("AI provider %s failed: %s", provider_name, error)
+    if not reply:
         provider = {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
         reply = local_ai_reply(prompt, context, actions, research)
     if research and "Kaynak" not in reply:
@@ -3062,6 +3178,55 @@ def local_generated_image_data_url(prompt, variant=0):
     return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii")
 
 
+def data_url_to_bytes(data_url, max_chars=MAX_ATTACHMENT_DATA_URL_CHARS):
+    data_url = str(data_url or "")
+    if len(data_url) > max_chars:
+        raise ValueError("data-url-too-large")
+    if "," not in data_url:
+        raise ValueError("invalid-data-url")
+    header, payload = data_url.split(",", 1)
+    mime_match = re.match(r"data:([^;]+)", header)
+    mime_type = mime_match.group(1) if mime_match else "application/octet-stream"
+    if "base64" in header:
+        return base64.b64decode(payload), mime_type
+    return payload.encode("utf-8"), mime_type
+
+
+def bytes_to_data_url(payload, mime_type):
+    return f"data:{mime_type};base64,{base64.b64encode(payload).decode('ascii')}"
+
+
+def call_huggingface_image(prompt):
+    key = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")
+    if not key:
+        raise RuntimeError("HF_TOKEN missing")
+    model = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
+    timeout_seconds = max(AI_TIMEOUT_SECONDS, 25)
+    endpoints = [
+        f"https://router.huggingface.co/hf-inference/models/{model}",
+        f"https://api-inference.huggingface.co/models/{model}",
+    ]
+    last_error = None
+    for endpoint in endpoints:
+        try:
+            response = requests.post(
+                endpoint,
+                headers={"Authorization": f"Bearer {key}", "Accept": "image/png"},
+                json={"inputs": prompt, "parameters": {"num_inference_steps": 4}},
+                timeout=timeout_seconds,
+            )
+            response.raise_for_status()
+            content_type = response.headers.get("Content-Type", "image/png").split(";")[0]
+            if content_type.startswith("image/") and response.content:
+                return bytes_to_data_url(response.content, content_type), "Hugging Face görsel modeliyle oluşturuldu."
+            data = response.json()
+            if isinstance(data, dict) and data.get("error"):
+                raise RuntimeError(data["error"])
+        except Exception as error:
+            last_error = error
+    raise RuntimeError(f"Hugging Face image failed: {last_error}")
+
+
 def call_gemini_image(prompt):
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
     if not key:
@@ -3087,6 +3252,165 @@ def call_gemini_image(prompt):
             mime_type = inline.get("mimeType") or inline.get("mime_type") or "image/png"
             return f"data:{mime_type};base64,{inline['data']}", note
     raise RuntimeError("Gemini image response has no image")
+
+
+def call_groq_stt(audio_bytes, mime_type):
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        raise RuntimeError("GROQ_API_KEY missing")
+    extension = mimetypes.guess_extension(mime_type or "") or ".webm"
+    if extension == ".oga":
+        extension = ".ogg"
+    filename = f"nexa-voice{extension}"
+    response = requests.post(
+        "https://api.groq.com/openai/v1/audio/transcriptions",
+        headers={"Authorization": f"Bearer {key}"},
+        data={
+            "model": os.environ.get("GROQ_STT_MODEL", "whisper-large-v3-turbo"),
+            "language": os.environ.get("GROQ_STT_LANGUAGE", "tr"),
+            "response_format": "json",
+        },
+        files={"file": (filename, audio_bytes, mime_type or "audio/webm")},
+        timeout=max(AI_TIMEOUT_SECONDS, 20),
+    )
+    response.raise_for_status()
+    return (response.json().get("text") or "").strip()
+
+
+def call_assemblyai_stt(audio_bytes, mime_type):
+    key = os.environ.get("ASSEMBLYAI_API_KEY")
+    if not key:
+        raise RuntimeError("ASSEMBLYAI_API_KEY missing")
+    headers = {"Authorization": key}
+    upload = requests.post(
+        "https://api.assemblyai.com/v2/upload",
+        headers=headers,
+        data=audio_bytes,
+        timeout=max(AI_TIMEOUT_SECONDS, 25),
+    )
+    upload.raise_for_status()
+    audio_url = upload.json().get("upload_url")
+    if not audio_url:
+        raise RuntimeError("AssemblyAI upload_url missing")
+    transcript_response = requests.post(
+        "https://api.assemblyai.com/v2/transcript",
+        headers={**headers, "Content-Type": "application/json"},
+        json={
+            "audio_url": audio_url,
+            "language_code": os.environ.get("ASSEMBLYAI_LANGUAGE_CODE", "tr"),
+            "speech_model": os.environ.get("ASSEMBLYAI_SPEECH_MODEL", "best"),
+        },
+        timeout=AI_TIMEOUT_SECONDS,
+    )
+    transcript_response.raise_for_status()
+    transcript_id = transcript_response.json().get("id")
+    if not transcript_id:
+        raise RuntimeError("AssemblyAI transcript id missing")
+    deadline = time.time() + int(os.environ.get("ASSEMBLYAI_STT_TIMEOUT", "45"))
+    while time.time() < deadline:
+        poll = requests.get(f"https://api.assemblyai.com/v2/transcript/{transcript_id}", headers=headers, timeout=AI_TIMEOUT_SECONDS)
+        poll.raise_for_status()
+        payload = poll.json()
+        status = payload.get("status")
+        if status == "completed":
+            return (payload.get("text") or "").strip()
+        if status == "error":
+            raise RuntimeError(payload.get("error") or "AssemblyAI transcript failed")
+        time.sleep(1.5)
+    raise RuntimeError("AssemblyAI transcript timeout")
+
+
+def elevenlabs_voice_id(voice_key):
+    explicit = os.environ.get(f"ELEVENLABS_VOICE_ID_{(voice_key or '').upper()}") or os.environ.get("ELEVENLABS_VOICE_ID")
+    if explicit:
+        return explicit
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise RuntimeError("ELEVENLABS_API_KEY missing")
+    response = requests.get("https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": key}, timeout=AI_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    voices = response.json().get("voices") or []
+    if not voices:
+        raise RuntimeError("ElevenLabs voice list empty")
+    target = (voice_key or "").casefold()
+    if target:
+        for voice in voices:
+            labels = json.dumps(voice.get("labels") or {}, ensure_ascii=False).casefold()
+            name = (voice.get("name") or "").casefold()
+            if target in name or target in labels:
+                return voice["voice_id"]
+    return voices[0]["voice_id"]
+
+
+def call_elevenlabs_tts(text_value, voice_key="warm"):
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise RuntimeError("ELEVENLABS_API_KEY missing")
+    voice_id = elevenlabs_voice_id(voice_key)
+    response = requests.post(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+        headers={"xi-api-key": key, "Content-Type": "application/json"},
+        json={
+            "text": text_value[:1200],
+            "model_id": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
+            "voice_settings": {
+                "stability": float(os.environ.get("ELEVENLABS_STABILITY", "0.48")),
+                "similarity_boost": float(os.environ.get("ELEVENLABS_SIMILARITY", "0.78")),
+            },
+        },
+        timeout=max(AI_TIMEOUT_SECONDS, 20),
+    )
+    response.raise_for_status()
+    return bytes_to_data_url(response.content, response.headers.get("Content-Type", "audio/mpeg").split(";")[0])
+
+
+@app.route("/ai/stt", methods=["POST"])
+def ai_stt():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    try:
+        audio_bytes, mime_type = data_url_to_bytes(data.get("audioDataUrl"), MAX_AI_AUDIO_DATA_URL_CHARS)
+        if not audio_bytes:
+            return jsonify({"ok": False, "message": "Ses kaydı boş."}), 400
+        transcript = ""
+        provider = {"provider": "local", "model": "none"}
+        if os.environ.get("GROQ_API_KEY"):
+            try:
+                transcript = call_groq_stt(audio_bytes, mime_type)
+                provider = {"provider": "groq", "model": os.environ.get("GROQ_STT_MODEL", "whisper-large-v3-turbo")}
+            except Exception as error:
+                app.logger.warning("Groq STT failed: %s", error)
+        if not transcript and os.environ.get("ASSEMBLYAI_API_KEY"):
+            try:
+                transcript = call_assemblyai_stt(audio_bytes, mime_type)
+                provider = {"provider": "assemblyai", "model": os.environ.get("ASSEMBLYAI_SPEECH_MODEL", "best")}
+            except Exception as error:
+                app.logger.warning("AssemblyAI STT failed: %s", error)
+        if not transcript:
+            return jsonify({"ok": False, "message": "Ses metne çevrilemedi."}), 400
+        return jsonify({"ok": True, "text": transcript, "provider": provider})
+    except Exception as error:
+        app.logger.warning("AI STT failed: %s", error)
+        return jsonify({"ok": False, "message": "Ses tanıma için GROQ_API_KEY veya ASSEMBLYAI_API_KEY gerekli; servisler şu an yanıt vermiyor."}), 503
+
+
+@app.route("/ai/tts", methods=["POST"])
+def ai_tts():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    text_value = re.sub(r"\s+", " ", (data.get("text") or "").strip())
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
+    if len(text_value) < 2:
+        return jsonify({"ok": False, "message": "Seslendirilecek metin yok."}), 400
+    try:
+        audio_data_url = call_elevenlabs_tts(text_value, data.get("voice") or "warm")
+        return jsonify({"ok": True, "audioDataUrl": audio_data_url, "provider": {"provider": "elevenlabs", "model": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")}})
+    except Exception as error:
+        app.logger.warning("AI TTS failed: %s", error)
+        return jsonify({"ok": False, "message": "Ses üretimi için ELEVENLABS_API_KEY gerekli veya servis şu an yanıt vermiyor."}), 503
 
 
 @app.route("/ai/text-tool", methods=["POST"])
@@ -3130,11 +3454,16 @@ def ai_image():
     provider = {"provider": "local", "model": "nexaline-free-image", "ready": True, "free": True}
     note = "Ücretsiz yerel görsel üretildi."
     try:
-        data_url, note = call_gemini_image(prompt)
-        provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
+        data_url, note = call_huggingface_image(prompt)
+        provider = {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": True}
     except Exception as error:
-        app.logger.info("AI image fallback: %s", error)
-        data_url = local_generated_image_data_url(prompt, variant)
+        app.logger.info("AI image HF fallback: %s", error)
+        try:
+            data_url, note = call_gemini_image(prompt)
+            provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
+        except Exception as error:
+            app.logger.info("AI image local fallback: %s", error)
+            data_url = local_generated_image_data_url(prompt, variant)
     mime_match = re.match(r"data:([^;]+);", data_url)
     mime_type = mime_match.group(1) if mime_match else "image/svg+xml"
     extension = "png" if mime_type == "image/png" else "jpg" if mime_type == "image/jpeg" else "svg"
