@@ -7112,9 +7112,36 @@
     </section>
 
     <script>
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-login-cache-fix-v1";
+
+        async function clearLegacyAppCaches() {
+            try {
+                if (!("caches" in window)) return;
+                if (localStorage.getItem("nexalineClientBuild") === NEXALINE_CLIENT_BUILD) return;
+                const keys = await caches.keys();
+                await Promise.all(keys.filter(key => key.startsWith("nexaline-")).map(key => caches.delete(key)));
+                localStorage.setItem("nexalineClientBuild", NEXALINE_CLIENT_BUILD);
+            } catch (error) {
+                console.warn("Eski NexaLine onbellegi temizlenemedi", error);
+            }
+        }
         if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+                const reloadKey = `nexalineSwReloaded:${NEXALINE_CLIENT_BUILD}`;
+                if (sessionStorage.getItem(reloadKey)) return;
+                sessionStorage.setItem(reloadKey, "1");
+                window.location.reload();
+            });
+
             window.addEventListener("load", () => {
-                navigator.serviceWorker.register("/sw.js").catch(error => console.warn("PWA kaydı yapılamadı", error));
+                clearLegacyAppCaches();
+                navigator.serviceWorker
+                    .register(`/sw.js?v=${encodeURIComponent(NEXALINE_CLIENT_BUILD)}`, { updateViaCache: "none" })
+                    .then(registration => {
+                        registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+                        registration.update?.().catch(() => {});
+                    })
+                    .catch(error => console.warn("PWA kaydı yapılamadı", error));
             });
         }
 

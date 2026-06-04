@@ -1,10 +1,6 @@
-const CACHE_NAME = "nexaline-pwa-v27";
+const CACHE_NAME = "nexaline-pwa-v30";
 const APP_SHELL = [
-  "/",
-  "/client.html",
   "/manifest.webmanifest",
-  "/static/client.html",
-  "/static/admin.html",
   "/static/vendor/socket.io.min.js",
   "/static/nexaline-mark.png",
   "/static/icons/icon-192.png",
@@ -47,6 +43,12 @@ self.addEventListener("activate", event => {
   );
 });
 
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", event => {
   const request = event.request;
   const url = new URL(request.url);
@@ -74,12 +76,7 @@ self.addEventListener("fetch", event => {
 
   if (request.mode === "navigate" || NETWORK_FIRST_PATHS.has(url.pathname)) {
     event.respondWith(
-      fetch(request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-          return response;
-        })
+      fetch(request, { cache: "no-store" })
         .catch(() => caches.match(request).then(cached => cached || caches.match("/").then(root => root || caches.match("/client.html"))))
     );
     return;
