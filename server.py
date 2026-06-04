@@ -1762,14 +1762,11 @@ def is_local_admin_request():
 
 
 def require_admin():
-    expected_token = os.environ.get("ADMIN_TOKEN") or os.environ.get("ADMIN_BOOTSTRAP_TOKEN") or DEV_ADMIN_TOKEN
+    accepted_tokens = {token for token in (os.environ.get("ADMIN_TOKEN"), os.environ.get("ADMIN_BOOTSTRAP_TOKEN"), DEV_ADMIN_TOKEN) if token}
     if is_local_admin_request():
         return None
 
-    if not expected_token:
-        return jsonify({"ok": False, "message": "ADMIN_TOKEN ayarlı değil."}), 503
-
-    if admin_token_from_request() != expected_token:
+    if admin_token_from_request() not in accepted_tokens:
         return jsonify({"ok": False, "message": "Yönetici token hatalı."}), 401
 
     return None
