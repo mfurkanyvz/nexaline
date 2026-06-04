@@ -4115,6 +4115,7 @@ def register_verify():
         code = (data.get("code") or "").strip()
         password = data.get("password") or ""
         confirm_password = data.get("confirmPassword")
+        device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
         display_name, display_name_error = normalize_display_name(data)
         if display_name_error:
             return jsonify({"ok": False, "message": display_name_error}), 400
@@ -4166,22 +4167,21 @@ def register_verify():
         if not password_hash:
             return jsonify({"ok": False, "message": "Şifre oluşturulmadan kayıt tamamlanamaz."}), 400
 
-        db.session.add(
-            User(
-                username=username,
-                password_hash=password_hash,
-                display_name=display_name[:120] or username,
-                email=verification.email,
-                email_normalized=verification.email_normalized,
-                email_verified=True,
-                avatar=tr_upper((display_name or username)[:2]),
-                about="NexaLine kullanıyorum.",
-            )
+        user = User(
+            username=username,
+            password_hash=password_hash,
+            display_name=display_name[:120] or username,
+            email=verification.email,
+            email_normalized=verification.email_normalized,
+            email_verified=True,
+            avatar=tr_upper((display_name or username)[:2]),
+            about="NexaLine kullanıyorum.",
         )
+        db.session.add(user)
         db.session.delete(verification)
         ensure_lobby()
-        db.session.commit()
-        return jsonify({"ok": True, "message": "Kayıt başarılı.", "user": private_user(username)})
+        db.session.flush()
+        return jsonify(login_success_payload(user, device_id, "Kayıt başarılı."))
     except Exception:
         db.session.rollback()
         app.logger.exception("Register verify failed")

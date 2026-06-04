@@ -10915,7 +10915,8 @@
                     ...state.pendingRegister,
                     code: state.registerVerifiedCode,
                     password,
-                    confirmPassword
+                    confirmPassword,
+                    deviceId: deviceId()
                 })
             });
             const data = await response.json();
