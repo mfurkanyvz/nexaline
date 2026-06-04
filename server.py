@@ -3368,6 +3368,55 @@ def client():
     return response
 
 
+@app.route("/reset-client")
+def reset_client():
+    html = """<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050911">
+  <title>NexaLine yenileniyor</title>
+  <style>
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050911;color:#fff;font-family:Arial,sans-serif}
+    .box{width:min(340px,calc(100vw - 36px));padding:28px;border:1px solid rgba(255,255,255,.12);border-radius:24px;background:rgba(17,24,39,.88);box-shadow:0 24px 80px rgba(0,0,0,.45);text-align:center}
+    .mark{width:72px;height:72px;margin:0 auto 14px;border-radius:22px;background:linear-gradient(135deg,#704CFF,#FF00B8);box-shadow:0 0 36px rgba(151,71,255,.55)}
+    h1{font-size:22px;margin:0 0 8px} p{color:#B0B7C3;margin:0}
+  </style>
+</head>
+<body>
+  <main class="box">
+    <div class="mark"></div>
+    <h1>NexaLine yenileniyor</h1>
+    <p>Eski giris onbellegi temizleniyor. Birazdan yeniden acilacak.</p>
+  </main>
+  <script>
+    (async () => {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(registration => registration.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+        }
+        localStorage.removeItem("nexalineUser");
+        localStorage.removeItem("nexalineClientBuild");
+        sessionStorage.clear();
+      } catch (error) {
+        console.warn("NexaLine reset tamamlanamadi", error);
+      }
+      location.replace("/?fresh=" + Date.now());
+    })();
+  </script>
+</body>
+</html>"""
+    response = app.response_class(html, mimetype="text/html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 @app.route("/manifest.webmanifest")
 def manifest():
     return send_from_directory("static", "manifest.webmanifest", mimetype="application/manifest+json")
