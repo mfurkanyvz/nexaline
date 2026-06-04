@@ -6601,6 +6601,23 @@
             }
         }
 
+        @media (min-width: 920px) {
+            #authScreen {
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                align-content: center !important;
+                justify-content: center !important;
+                gap: 22px !important;
+            }
+
+            #authScreen .auth-card,
+            #authScreen .qr-login-card {
+                width: min(420px, calc(50vw - 42px)) !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+        }
+
         .settings-back {
             width: auto !important;
             min-height: 0 !important;
