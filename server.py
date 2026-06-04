@@ -2186,9 +2186,9 @@ tema/gizlilik/AI ayarı değiştirme ve zamanlama gibi işlemler uygulama taraf�
 Bilmediğin veya internette doğrulanması gereken konuda eminmiş gibi davranma."""
 
 AI_SYSTEM_PROMPT += """
-Uygulama baglamindaki memory, clientHistory ve relevantChats alanlarini Nexa AI'nin ortak hafizasi gibi kullan.
-Saglayici degisse bile uslubunu, kullanicinin sana verdigi ismi ve onceki konusma bilgisini bu hafizadan koru.
-Kullanici internetten arastirma isterse web arastirma notlarini kullan, kaynaklari kisaca belirt ve sonuc yoksa bunu acik soyle.
+Uygulama bağlamındaki memory, clientHistory ve relevantChats alanlarını Nexa AI'nin ortak hafızası gibi kullan.
+Sağlayıcı değişse bile üslubunu, kullanıcının sana verdiği ismi ve önceki konuşma bilgisini bu hafızadan koru.
+Kullanıcı internetten araştırma isterse web araştırma notlarını kullan, kaynakları kısa ve okunur şekilde belirt; sonuç yoksa bunu açık söyle.
 """
 
 ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex", "erotik", "onlyfans"}
@@ -3384,7 +3384,7 @@ def reset_client():
   <main class="box">
     <div class="mark"></div>
     <h1>NexaLine yenileniyor</h1>
-    <p>Eski giris onbellegi temizleniyor. Birazdan yeniden acilacak.</p>
+    <p>Eski giriş önbelleği temizleniyor. Birazdan yeniden açılacak.</p>
   </main>
   <script>
     (async () => {
@@ -3401,7 +3401,7 @@ def reset_client():
         localStorage.removeItem("nexalineClientBuild");
         sessionStorage.clear();
       } catch (error) {
-        console.warn("NexaLine reset tamamlanamadi", error);
+        console.warn("NexaLine reset tamamlanamadı", error);
       }
       location.replace("/?fresh=" + Date.now());
     })();
@@ -3888,9 +3888,9 @@ def ai_search_route():
     query = (data.get("query") or "").strip()
     chat_id = data.get("chatId")
     if not username or not db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Once giris yapmalisin."}), 401
+        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
     if len(query) < 2:
-        return jsonify({"ok": False, "message": "Arama metni cok kisa."}), 400
+        return jsonify({"ok": False, "message": "Arama metni çok kısa."}), 400
     chats = [db.session.get(Chat, chat_id)] if chat_id else [
         Chat.query.get(member.chat_id) for member in ChatMember.query.filter_by(username=username).limit(AI_MAX_CHATS * 3).all()
     ]
@@ -3908,7 +3908,7 @@ def ai_search_route():
                     "score": score,
                 })
     matches.sort(key=lambda item: (item["score"], item["message"]["createdAt"]), reverse=True)
-    summary_prompt = f"Arama sorgusu: {query}\nSonuclari kullaniciya kisa acikla ve en yakin 5 sonucu sec."
+    summary_prompt = f"Arama sorgusu: {query}\nSonuçları kullanıcıya kısa açıkla ve en yakın 5 sonucu seç."
     context = ai_context_for_user(username, chat_id, summary_prompt)
     context["matches"] = matches[:12]
     context["assistant"] = {"name": "Nexa AI"}

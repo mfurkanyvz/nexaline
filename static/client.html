@@ -6989,6 +6989,394 @@
             }
         }
 
+        .ai-link {
+            display: inline;
+            color: #67e8f9 !important;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 3px;
+            overflow-wrap: anywhere;
+        }
+
+        .ai-bubble {
+            overflow-wrap: anywhere;
+            word-break: normal;
+            line-height: 1.42 !important;
+        }
+
+        .message-bubble,
+        .bubble {
+            border-radius: 16px !important;
+            padding: 10px 14px !important;
+            margin-bottom: 8px !important;
+            line-height: 1.4 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .10), 0 10px 26px rgba(0, 0, 0, .18) !important;
+        }
+
+        .single-open-media-card {
+            display: grid;
+            gap: 10px;
+            border-radius: 12px !important;
+            border: 1px solid rgba(255, 255, 255, .10) !important;
+            padding: 12px !important;
+            background: rgba(17, 24, 39, .74) !important;
+        }
+
+        .keyboard-input-container,
+        .composer,
+        .ai-composer {
+            transition: transform .2s ease-in-out, padding .2s ease-in-out !important;
+            will-change: transform;
+        }
+
+        .plus-menu-container,
+        .attachment-menu {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 16px !important;
+            padding: 20px !important;
+            background: #121212 !important;
+            border-radius: 22px !important;
+        }
+
+        .plus-menu-item-box,
+        .attachment-option {
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+            border-radius: 12px !important;
+            text-align: center !important;
+        }
+
+        .attachment-option > span:last-child {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+            width: 100%;
+            justify-items: center;
+        }
+
+        .attachment-option strong,
+        .attachment-option small {
+            max-width: 100%;
+            overflow-wrap: break-word !important;
+            word-break: normal !important;
+            hyphens: auto;
+        }
+
+        .empty-state-view {
+            display: flex;
+            min-height: 210px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 40px 20px;
+            opacity: .72;
+            text-align: center;
+        }
+
+        .empty-state-view strong {
+            color: var(--ref-text);
+            font-size: 18px;
+        }
+
+        .empty-state-view small {
+            max-width: 280px;
+            color: var(--ref-muted);
+            line-height: 1.45;
+        }
+
+        .empty-state-icon {
+            display: grid;
+            width: 64px;
+            height: 64px;
+            place-items: center;
+            margin-bottom: 6px;
+            border-radius: 24px;
+            color: #fff;
+            background: var(--ref-primary-gradient);
+            box-shadow: var(--ref-purple-glow);
+            font-size: 30px;
+        }
+
+        @media (max-width: 760px) {
+            .plus-menu-container,
+            .attachment-menu {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 14px !important;
+                padding: 16px !important;
+                background: transparent !important;
+            }
+
+            .attachment-option {
+                min-height: 118px !important;
+                border-radius: 24px !important;
+            }
+
+            .attachment-option-icon {
+                flex: 0 0 auto;
+            }
+        }
+
+        :root {
+            --nexa-radius-base: 16px;
+            --nexa-radius-object: 14px;
+            --nexa-radius-action: 12px;
+            --nexa-fluid-ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --nexa-sheet-ease: cubic-bezier(0.175, 0.885, 0.32, 1.125);
+        }
+
+        .main-dashboard-card,
+        .chat-item,
+        .contact-item,
+        .call-item,
+        .settings-option,
+        .toggle-row,
+        .profile-stat,
+        .profile-about,
+        .explore-card,
+        .vault-card,
+        .voice-room-card,
+        .voice-live-card,
+        .device-card,
+        .point-ledger-row,
+        .reward-card,
+        .ai-home-card,
+        .nexal-menu-card,
+        .nexal-command-card,
+        .nexal-task-card,
+        .nexal-tool-card,
+        .nexal-settings-row,
+        .community-card,
+        .badge-card,
+        .quest-card {
+            box-sizing: border-box !important;
+            border-radius: var(--nexa-radius-base) !important;
+            padding: 16px !important;
+        }
+
+        .chat-media-card,
+        .chat-voice-block,
+        .chat-location-card,
+        .file-pill,
+        .voice-card,
+        .location-card,
+        .poll-card,
+        .single-open-media-card,
+        .link-preview,
+        .story-media,
+        .bubble img,
+        .bubble video {
+            box-sizing: border-box !important;
+            border-radius: var(--nexa-radius-object) !important;
+            margin: 6px 0 !important;
+        }
+
+        .file-pill,
+        .voice-card,
+        .location-card,
+        .poll-card,
+        .single-open-media-card,
+        .link-preview {
+            padding: 12px !important;
+        }
+
+        .plus-button-action-box,
+        .plus-menu-item-box,
+        .attachment-option {
+            border-radius: var(--nexa-radius-action) !important;
+            border: 1px solid rgba(255, 255, 255, .08) !important;
+            background: linear-gradient(145deg, #1e1e1e, #121212) !important;
+        }
+
+        .page-view-container,
+        .section-panel,
+        .chat-list,
+        .contact-list,
+        .scroll-area,
+        .messages,
+        .ai-messages,
+        .settings-section,
+        .profile-page,
+        .explore-grid,
+        .voice-stage {
+            transition: transform .3s var(--nexa-fluid-ease), opacity .3s ease !important;
+            will-change: transform, opacity;
+        }
+
+        .nexa-ai-mode-button,
+        .nexal-pill-button,
+        .nexal-menu-card,
+        .nexal-command-card,
+        .nexal-task-card,
+        .nexal-tool-card,
+        .ai-home-card,
+        .attachment-option,
+        .filter-chip,
+        .nav-tab,
+        .icon-btn,
+        .send-btn,
+        .primary,
+        .secondary,
+        .mini-btn {
+            transition: transform .2s var(--nexa-fluid-ease), opacity .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease !important;
+        }
+
+        .nexa-ai-mode-button:active,
+        .nexal-pill-button:active,
+        .nexal-menu-card:active,
+        .nexal-command-card:active,
+        .nexal-task-card:active,
+        .nexal-tool-card:active,
+        .ai-home-card:active,
+        .attachment-option:active,
+        .filter-chip:active,
+        .nav-tab:active,
+        .icon-btn:active,
+        .send-btn:active,
+        .primary:active,
+        .secondary:active,
+        .mini-btn:active {
+            transform: scale(.95);
+        }
+
+        .bottom-sheet-menu,
+        .modal-panel.sheet .modal-box {
+            transition: transform .35s var(--nexa-sheet-ease), opacity .25s ease !important;
+            transform: translateY(0);
+            will-change: transform, opacity;
+        }
+
+        .grid-layout-four-columns,
+        .profile-grid,
+        .ai-home-grid,
+        .badge-grid,
+        .quest-grid,
+        .community-grid,
+        .explore-grid {
+            gap: 14px !important;
+            padding: 18px !important;
+        }
+
+        .status-circle-wrapper,
+        .chat-item > .avatar,
+        .contact-item > .avatar,
+        .call-item > .avatar,
+        .profile-preview > .attachment-option-icon,
+        .settings-option .option-icon,
+        .device-icon.attachment-option-icon,
+        .nexal-menu-card .nexal-card-icon,
+        .nexal-command-card .nexal-card-icon,
+        .nexal-task-card .nexal-card-icon,
+        .nexal-tool-card .nexal-card-icon {
+            margin-right: 12px;
+        }
+
+        .attachment-option-icon,
+        .nexal-card-icon,
+        .ai-mini-orb {
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 760px) {
+            .chat-item,
+            .contact-item,
+            .call-item,
+            .settings-option,
+            .toggle-row,
+            .profile-stat,
+            .profile-about,
+            .explore-card,
+            .vault-card,
+            .voice-room-card,
+            .voice-live-card,
+            .device-card,
+            .point-ledger-row,
+            .reward-card,
+            .ai-home-card,
+            .nexal-menu-card,
+            .nexal-command-card,
+            .nexal-task-card,
+            .nexal-tool-card,
+            .nexal-settings-row,
+            .community-card,
+            .badge-card,
+            .quest-card {
+                padding: 14px !important;
+            }
+
+            .grid-layout-four-columns,
+            .profile-grid,
+            .attachment-menu,
+            .ai-home-grid,
+            .badge-grid,
+            .quest-grid,
+            .community-grid,
+            .explore-grid {
+                gap: 12px !important;
+                padding: 14px !important;
+            }
+
+            .attachment-menu {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                background: transparent !important;
+            }
+
+            .status-circle-wrapper,
+            .chat-item > .avatar,
+            .contact-item > .avatar,
+            .call-item > .avatar,
+            .profile-preview > .attachment-option-icon,
+            .settings-option .option-icon,
+            .device-icon.attachment-option-icon,
+            .nexal-menu-card .nexal-card-icon,
+            .nexal-command-card .nexal-card-icon,
+            .nexal-task-card .nexal-card-icon,
+            .nexal-tool-card .nexal-card-icon {
+                margin-right: 10px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .page-view-container,
+            .section-panel,
+            .chat-list,
+            .contact-list,
+            .scroll-area,
+            .messages,
+            .ai-messages,
+            .settings-section,
+            .profile-page,
+            .explore-grid,
+            .voice-stage,
+            .nexa-ai-mode-button,
+            .nexal-pill-button,
+            .nexal-menu-card,
+            .nexal-command-card,
+            .nexal-task-card,
+            .nexal-tool-card,
+            .ai-home-card,
+            .attachment-option,
+            .filter-chip,
+            .nav-tab,
+            .icon-btn,
+            .send-btn,
+            .primary,
+            .secondary,
+            .mini-btn,
+            .bottom-sheet-menu,
+            .modal-panel.sheet .modal-box {
+                transition-duration: .001ms !important;
+                animation-duration: .001ms !important;
+            }
+        }
+
         .hidden,
         .auth-screen.hidden,
         .app.hidden,
@@ -7551,7 +7939,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-04-mobile-composer-qr-v3";
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-mobile-ui-polish-v5";
 
         async function clearLegacyAppCaches() {
             try {
@@ -7561,7 +7949,7 @@
                 await Promise.all(keys.filter(key => key.startsWith("nexaline-")).map(key => caches.delete(key)));
                 localStorage.setItem("nexalineClientBuild", NEXALINE_CLIENT_BUILD);
             } catch (error) {
-                console.warn("Eski NexaLine onbellegi temizlenemedi", error);
+                console.warn("Eski NexaLine önbelleği temizlenemedi", error);
             }
         }
         if ("serviceWorker" in navigator) {
@@ -9042,6 +9430,65 @@
                 .replaceAll("'", "&#039;");
         }
 
+        function decodeHumanText(value) {
+            try {
+                return decodeURIComponent(String(value ?? "").replace(/\+/g, " "));
+            } catch (_error) {
+                return String(value ?? "");
+            }
+        }
+
+        function safeHttpHref(value) {
+            const raw = String(value ?? "").trim();
+            if (!raw) return "";
+            const candidates = [raw, decodeHumanText(raw)];
+            for (const candidate of candidates) {
+                try {
+                    const parsed = new URL(candidate);
+                    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+                        return parsed.href;
+                    }
+                } catch (_error) {
+                    // Try the next representation.
+                }
+            }
+            return "";
+        }
+
+        function humanLinkLabel(label, href) {
+            const decodedLabel = decodeHumanText(label || "");
+            if (decodedLabel.trim()) {
+                return decodedLabel.trim();
+            }
+            try {
+                const parsed = new URL(href);
+                const path = decodeHumanText(parsed.pathname.replace(/^\/wiki\//, "").replaceAll("_", " ")).replace(/^\/+/, "");
+                return path ? `${parsed.hostname.replace(/^www\./, "")} • ${path}` : parsed.hostname.replace(/^www\./, "");
+            } catch (_error) {
+                return decodeHumanText(href);
+            }
+        }
+
+        function renderAiTextHtml(value) {
+            const raw = decodeHumanText(value ?? "");
+            const linkPattern = /\[([^\]]{1,160})\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/gi;
+            let cursor = 0;
+            let html = "";
+            raw.replace(linkPattern, (match, label, markdownHref, rawHref, offset) => {
+                html += escapeHtml(raw.slice(cursor, offset));
+                const href = safeHttpHref(markdownHref || rawHref);
+                if (href) {
+                    html += `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer" class="ai-link">${escapeHtml(humanLinkLabel(label, href))}</a>`;
+                } else {
+                    html += escapeHtml(match);
+                }
+                cursor = offset + match.length;
+                return match;
+            });
+            html += escapeHtml(raw.slice(cursor));
+            return html.replace(/\n/g, "<br>");
+        }
+
         function closeModal() {
             state.aiReminderOpen = false;
             setAttachmentSheetOpen(false);
@@ -9141,7 +9588,7 @@
             } else {
                 list.innerHTML = state.aiMessages.map(message => `
                     <div class="ai-bubble ${message.role === "user" ? "user" : ""}">
-                        ${escapeHtml(message.text)}
+                        ${renderAiTextHtml(message.text)}
                         ${message.actions?.length ? `<div class="ai-actions">${message.actions.map((action, index) => `<button data-ai-action="${escapeHtml(message.id)}:${index}" type="button">${escapeHtml(action.label || action.type)}</button>`).join("")}</div>` : ""}
                     </div>
                 `).join("");
@@ -9492,7 +9939,7 @@
             } else {
                 list.innerHTML = state.aiMessages.map(message => `
                     <div class="ai-bubble ${message.role === "user" ? "user" : ""}">
-                        ${escapeHtml(message.text || "")}
+                        ${renderAiTextHtml(message.text || "")}
                         ${renderAiAttachmentHtml(message.attachment)}
                         ${message.actions?.length ? `<div class="ai-actions">${message.actions.map((action, index) => `<button data-ai-action="${escapeHtml(message.id)}:${index}" type="button">${escapeHtml(action.label || action.type)}</button>`).join("")}</div>` : ""}
                     </div>
@@ -12123,6 +12570,16 @@
                 });
         }
 
+        function emptyStateMarkup(icon, title, body) {
+            return `
+                <div class="empty-state-view" role="status">
+                    <div class="empty-state-icon">${escapeHtml(icon)}</div>
+                    <strong>${escapeHtml(title)}</strong>
+                    <small>${escapeHtml(body)}</small>
+                </div>
+            `;
+        }
+
         function renderGroups() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const groupList = $("groupList");
@@ -12135,9 +12592,9 @@
             create.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Yeni grup</strong><div class="last-message">Kişi listesinden grup oluştur</div></div><span class="chat-time"></span>`;
             groupList.appendChild(create);
 
-            state.groupInvites
-                .filter(invite => invite.status === "pending" && invite.invitee?.username === state.me.username)
-                .forEach(invite => {
+            const pendingGroupInvites = state.groupInvites
+                .filter(invite => invite.status === "pending" && invite.invitee?.username === state.me.username);
+            pendingGroupInvites.forEach(invite => {
                     const button = document.createElement("button");
                     button.className = "chat-item";
                     const avatar = document.createElement("div");
@@ -12168,11 +12625,15 @@
                     groupList.appendChild(button);
                 });
 
-            visibleChatItems(state.chats)
+            const groups = visibleChatItems(state.chats)
                 .filter(chat => chat.type === "group")
                 .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
-                .sort((a, b) => Number(chatPrefs(b.id).pinned) - Number(chatPrefs(a.id).pinned))
-                .forEach(chat => {
+                .sort((a, b) => Number(chatPrefs(b.id).pinned) - Number(chatPrefs(a.id).pinned));
+            if (!groups.length && !pendingGroupInvites.length) {
+                groupList.insertAdjacentHTML("beforeend", emptyStateMarkup("☷", filter ? "Grup bulunamadı" : "Henüz grup yok", filter ? "Arama metnine uygun grup veya davet bulunamadı." : "Yeni grup oluşturduğunda ya da davet aldığında burada görünür."));
+                return;
+            }
+            groups.forEach(chat => {
                     const button = document.createElement("button");
                     button.className = "chat-item" + (chat.id === state.activeChatId ? " active" : "");
                     button.onclick = () => {
@@ -12303,14 +12764,18 @@
             callList.appendChild(filters);
 
             if (!state.callLogs.length) {
-                callList.insertAdjacentHTML("beforeend", `<button class="call-item"><div class="avatar"><img src="/static/nexaline-mark.png" alt=""></div><div><strong class="chat-title">Arama kaydı yok</strong><div class="last-message">Sesli ve görüntülü aramalar burada görünür</div></div><span class="chat-time"></span></button>`);
+                callList.insertAdjacentHTML("beforeend", emptyStateMarkup("☎", "Arama kaydı yok", "Sesli ve görüntülü aramalar burada görünür."));
                 return;
             }
 
-            state.callLogs
+            const logs = state.callLogs
                 .filter(log => state.callFilter === "all" || callLogType(log) === state.callFilter)
-                .filter(log => log.chatTitle.toLowerCase().includes(filter) || log.callerName.toLowerCase().includes(filter))
-                .forEach(log => {
+                .filter(log => log.chatTitle.toLowerCase().includes(filter) || log.callerName.toLowerCase().includes(filter));
+            if (!logs.length) {
+                callList.insertAdjacentHTML("beforeend", emptyStateMarkup("⌕", "Arama bulunamadı", "Seçili filtre veya arama metniyle eşleşen kayıt yok."));
+                return;
+            }
+            logs.forEach(log => {
                     const button = document.createElement("button");
                     button.className = "call-item" + (callLogType(log) === "missed" ? " missed" : "");
                     button.onclick = () => {
@@ -14560,7 +15025,7 @@
             const key = `nexalineViewOnce:${attachment.viewOnceId || attachment.dataUrl?.slice(0, 80)}`;
             const opened = localStorage.getItem(key) === "opened";
             const wrap = document.createElement("div");
-            wrap.className = "file-pill";
+            wrap.className = "file-pill single-open-media-card";
             if (opened) {
                 wrap.textContent = "Tek açımlık medya açıldı";
                 return wrap;
@@ -14582,7 +15047,7 @@
             const key = `nexalineViewOnceText:${attachment.viewOnceId || String(attachment.text || "").slice(0, 80)}`;
             const opened = localStorage.getItem(key) === "opened";
             const wrap = document.createElement("div");
-            wrap.className = "file-pill";
+            wrap.className = "file-pill single-open-media-card";
             if (opened) {
                 wrap.textContent = "Tek görülmelik mesaj okundu";
                 return wrap;
@@ -17320,7 +17785,7 @@
         });
 
         socket.on("auth:error", data => {
-            resetToAuth(data?.message || "Oturum kapandi. Yeniden giris yap.");
+            resetToAuth(data?.message || "Oturum kapandı. Yeniden giriş yap.");
         });
 
         socket.on("qr:ready", data => {
