@@ -8,6 +8,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -27,6 +28,7 @@ import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
@@ -39,6 +41,9 @@ public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 10;
     private static final int FILE_REQUEST = 11;
     private static final String CHANNEL_ID = "nexaline_messages";
+    private static final String PREFS_NAME = "nexaline_app";
+    private static final String WEBVIEW_RESET_KEY = "webview_reset_version";
+    private static final String WEBVIEW_RESET_VERSION = "2026-06-04-login-cache-fix";
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
 
@@ -142,7 +147,32 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl(BuildConfig.NEXALINE_URL);
+        if (resetWebViewStorageIfNeeded()) {
+            webView.loadUrl(BuildConfig.NEXALINE_URL + "/reset-client?apk=" + WEBVIEW_RESET_VERSION);
+        } else {
+            webView.loadUrl(BuildConfig.NEXALINE_URL + "?apk=" + WEBVIEW_RESET_VERSION);
+        }
+    }
+
+    private boolean resetWebViewStorageIfNeeded() {
+        SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        if (WEBVIEW_RESET_VERSION.equals(preferences.getString(WEBVIEW_RESET_KEY, ""))) {
+            return false;
+        }
+
+        try {
+            webView.clearCache(true);
+            webView.clearHistory();
+            WebStorage.getInstance().deleteAllData();
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.removeAllCookies(null);
+            cookieManager.removeSessionCookies(null);
+            cookieManager.flush();
+        } catch (Exception ignored) {
+        }
+
+        preferences.edit().putString(WEBVIEW_RESET_KEY, WEBVIEW_RESET_VERSION).apply();
+        return true;
     }
 
     private void showConnectionError() {
