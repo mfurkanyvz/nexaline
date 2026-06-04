@@ -7904,6 +7904,252 @@
             }
         }
 
+        /* Touch balance patch: synced bottom glass, proportional composer, compact message media. */
+        .nav-tabs {
+            --nav-sync-duration: 230ms;
+            --section-drag-x: 0px;
+            touch-action: pan-y;
+            user-select: none;
+        }
+
+        .nav-tabs::before {
+            transition:
+                left var(--nav-sync-duration) cubic-bezier(.22,.85,.24,1),
+                top var(--nav-sync-duration) cubic-bezier(.22,.85,.24,1),
+                width var(--nav-sync-duration) cubic-bezier(.22,.85,.24,1),
+                height var(--nav-sync-duration) cubic-bezier(.22,.85,.24,1),
+                filter var(--nav-sync-duration) ease,
+                box-shadow var(--nav-sync-duration) ease,
+                opacity var(--nav-sync-duration) ease !important;
+        }
+
+        .nav-tabs.dragging-nav::before,
+        .nav-tabs.indicator-no-transition::before {
+            transition: none !important;
+        }
+
+        .sidebar.section-dragging .section-frame-enter {
+            will-change: transform, opacity;
+        }
+
+        .composer .icon-btn {
+            width: 42px !important;
+            height: 42px !important;
+            min-width: 42px !important;
+            border-radius: 17px !important;
+        }
+
+        .message-input-shell {
+            min-height: 46px !important;
+            padding: 4px 8px 4px 13px !important;
+            border-radius: 26px !important;
+        }
+
+        #messageInput {
+            min-height: 38px !important;
+            padding: 8px 8px !important;
+            font-size: 15px !important;
+            line-height: 1.28 !important;
+        }
+
+        .gif-inline-button {
+            width: 40px !important;
+            height: 30px !important;
+            min-width: 40px !important;
+            border-radius: 13px !important;
+        }
+
+        .send-btn {
+            width: 42px !important;
+            height: 42px !important;
+            min-width: 42px !important;
+        }
+
+        .bubble {
+            max-width: min(72%, 520px) !important;
+            padding: 7px 10px !important;
+            border-radius: 14px !important;
+            line-height: 1.32 !important;
+        }
+
+        .bubble img {
+            max-width: min(238px, 70vw) !important;
+            max-height: 36vh !important;
+            margin-top: 5px !important;
+            border-radius: 12px !important;
+        }
+
+        .bubble video,
+        .story-media {
+            max-width: min(260px, 72vw) !important;
+            max-height: 38vh !important;
+            margin-top: 5px !important;
+            border-radius: 12px !important;
+        }
+
+        .file-pill,
+        .single-open-media-card {
+            width: fit-content;
+            max-width: min(260px, 76vw) !important;
+            margin-top: 4px !important;
+            padding: 6px 8px !important;
+            border-radius: 12px !important;
+            font-size: 12.5px !important;
+            line-height: 1.2 !important;
+        }
+
+        .call-direction-pill,
+        .call-kind-pill {
+            padding: 3px 7px !important;
+            border-radius: 999px !important;
+            font-size: 10.5px !important;
+            line-height: 1.1 !important;
+        }
+
+        .voice-card {
+            max-width: min(214px, 74vw) !important;
+            padding: 6px !important;
+            gap: 4px !important;
+            border-radius: 14px !important;
+        }
+
+        .voice-card .profile-preview {
+            min-height: 0 !important;
+        }
+
+        .voice-card .attachment-option-icon {
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+        }
+
+        .voice-card audio.voice-message,
+        .voice-message {
+            width: min(190px, 100%) !important;
+            height: 30px !important;
+        }
+
+        .voice-transcript {
+            padding: 2px 5px !important;
+            font-size: 8.5pt !important;
+        }
+
+        @media (max-width: 760px) {
+            .topbar {
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+                overflow: visible !important;
+            }
+
+            #meAvatar {
+                flex: 0 0 42px !important;
+            }
+
+            .topbar .identity {
+                flex: 0 1 auto !important;
+                width: auto !important;
+                max-width: min(48vw, 220px) !important;
+                margin: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #meName {
+                max-width: 100% !important;
+            }
+
+            #accountSwitcherButton {
+                position: static !important;
+                order: 3 !important;
+                flex: 0 0 30px !important;
+                width: 30px !important;
+                height: 30px !important;
+                min-width: 30px !important;
+                min-height: 30px !important;
+                margin-left: 2px !important;
+                transform: none !important;
+            }
+
+            .account-switcher-menu {
+                top: 64px !important;
+                left: 12px !important;
+            }
+
+            .mobile-brand-title,
+            .topbar .points-chip,
+            #mobileQrButton {
+                display: none !important;
+            }
+
+            .composer {
+                display: grid !important;
+                grid-template-columns: 40px 40px minmax(108px, 1fr) 40px 40px 40px !important;
+                align-items: center !important;
+                gap: 6px !important;
+                padding: 9px 8px max(9px, env(safe-area-inset-bottom)) !important;
+            }
+
+            #attachButton { order: 1; }
+            #emojiButton { order: 2; }
+            #messageInputShell { order: 3; grid-area: auto !important; }
+            #voiceButton,
+            #sendButton,
+            #cancelVoiceButton { order: 4; }
+            #locationButton { order: 5; }
+            #sendToolsButton { order: 6; }
+
+            #smartReplies,
+            #replyPreview,
+            #voiceWave,
+            #emojiPanel,
+            #attachmentPreview {
+                grid-column: 1 / -1 !important;
+            }
+
+            .composer .icon-btn,
+            .send-btn {
+                width: 40px !important;
+                height: 40px !important;
+                min-width: 40px !important;
+                border-radius: 16px !important;
+            }
+
+            .message-input-shell {
+                min-width: 0 !important;
+                min-height: 44px !important;
+            }
+
+            #messageInput {
+                min-height: 36px !important;
+                font-size: 15px !important;
+            }
+
+            .bubble {
+                max-width: min(78%, 300px) !important;
+                padding: 6px 9px !important;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .composer {
+                grid-template-columns: 38px 38px minmax(96px, 1fr) 38px 38px 38px !important;
+                gap: 5px !important;
+                padding-inline: 6px !important;
+            }
+
+            .composer .icon-btn,
+            .send-btn {
+                width: 38px !important;
+                height: 38px !important;
+                min-width: 38px !important;
+            }
+
+            .gif-inline-button {
+                width: 35px !important;
+                min-width: 35px !important;
+            }
+        }
+
         .hidden,
         .auth-screen.hidden,
         .app.hidden,
@@ -8469,7 +8715,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-04-ui-index-refac-v7";
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-touch-ui-balance-v8";
 
         async function clearLegacyAppCaches() {
             try {
@@ -12868,16 +13114,52 @@
             setNavBadge("contacts", 0);
         }
 
-        function updateNavIndicator() {
+        const SWIPE_SECTION_ORDER = ["stories", "calls", "chats", "contacts", "explore"];
+
+        function visibleNavTabs() {
+            return SWIPE_SECTION_ORDER
+                .map(section => document.querySelector(`.nav-tab[data-section="${section}"]`))
+                .filter(tab => tab && getComputedStyle(tab).display !== "none");
+        }
+
+        function setNavIndicatorRect(rect, navRect, instant = false) {
             const nav = document.querySelector(".nav-tabs");
-            const active = document.querySelector(".nav-tab.active");
-            if (!nav || !active) return;
+            if (!nav || !rect || !navRect) return;
+            if (instant) {
+                nav.classList.add("indicator-no-transition");
+            }
+            nav.style.setProperty("--indicator-left", `${rect.left - navRect.left}px`);
+            nav.style.setProperty("--indicator-top", `${rect.top - navRect.top}px`);
+            nav.style.setProperty("--indicator-width", `${rect.width}px`);
+            nav.style.setProperty("--indicator-height", `${rect.height}px`);
+            if (instant) {
+                requestAnimationFrame(() => nav.classList.remove("indicator-no-transition"));
+            }
+        }
+
+        function syncNavIndicatorToElement(element, instant = false) {
+            const nav = document.querySelector(".nav-tabs");
+            if (!nav || !element) return;
+            setNavIndicatorRect(element.getBoundingClientRect(), nav.getBoundingClientRect(), instant);
+        }
+
+        function syncNavIndicatorBetween(fromTab, toTab, progress) {
+            const nav = document.querySelector(".nav-tabs");
+            if (!nav || !fromTab || !toTab) return;
             const navRect = nav.getBoundingClientRect();
-            const activeRect = active.getBoundingClientRect();
-            nav.style.setProperty("--indicator-left", `${activeRect.left - navRect.left}px`);
-            nav.style.setProperty("--indicator-top", `${activeRect.top - navRect.top}px`);
-            nav.style.setProperty("--indicator-width", `${activeRect.width}px`);
-            nav.style.setProperty("--indicator-height", `${activeRect.height}px`);
+            const fromRect = fromTab.getBoundingClientRect();
+            const toRect = toTab.getBoundingClientRect();
+            const mix = clamp(progress, 0, 1);
+            setNavIndicatorRect({
+                left: fromRect.left + (toRect.left - fromRect.left) * mix,
+                top: fromRect.top + (toRect.top - fromRect.top) * mix,
+                width: fromRect.width + (toRect.width - fromRect.width) * mix,
+                height: fromRect.height + (toRect.height - fromRect.height) * mix
+            }, navRect, true);
+        }
+
+        function updateNavIndicator() {
+            syncNavIndicatorToElement(document.querySelector(".nav-tab.active"));
         }
 
         function renderSections() {
@@ -12906,18 +13188,20 @@
             $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
             $("newChatFab").classList.toggle("hidden", state.activeSection !== "chats");
             updateNavBadges();
+            updateNavIndicator();
             requestAnimationFrame(updateNavIndicator);
             updateAiAssistantVisibility();
             applyUiIndexMetadata();
         }
 
         function switchSectionBySwipe(direction) {
-            const ordered = ["stories", "calls", "chats", "contacts", "explore"];
+            const ordered = SWIPE_SECTION_ORDER;
             const current = ordered.includes(state.activeSection) ? state.activeSection : "chats";
             const index = ordered.indexOf(current);
             const nextIndex = Math.max(0, Math.min(ordered.length - 1, index + direction));
             const nextSection = ordered[nextIndex];
             if (!nextSection || nextSection === state.activeSection) return;
+            state.ignoreNextNavClickUntil = Date.now() + 360;
             const nav = document.querySelector(".nav-tabs");
             nav?.classList.add("swipe-glow");
             setTimeout(() => nav?.classList.remove("swipe-glow"), 360);
@@ -12933,25 +13217,107 @@
             const surface = $("sidebar");
             if (!surface || surface.dataset.swipeReady === "1") return;
             surface.dataset.swipeReady = "1";
+            const nav = document.querySelector(".nav-tabs");
             let startX = 0;
             let startY = 0;
-            let startedAt = 0;
-            surface.addEventListener("touchstart", event => {
-                if (!isMobileView() || event.touches.length !== 1 || state.activeChatId) return;
-                startX = event.touches[0].clientX;
-                startY = event.touches[0].clientY;
-                startedAt = Date.now();
+            let pointerId = null;
+            let dragging = false;
+            let dragTargetSection = null;
+            let dragActiveList = null;
+            let dragStartedAt = 0;
+
+            const resetDrag = () => {
+                pointerId = null;
+                dragging = false;
+                dragTargetSection = null;
+                dragStartedAt = 0;
+                nav?.classList.remove("dragging-nav", "swipe-glow");
+                surface.classList.remove("section-dragging");
+                if (dragActiveList) {
+                    dragActiveList.style.transform = "";
+                    dragActiveList.style.opacity = "";
+                    dragActiveList.style.transition = "";
+                    dragActiveList = null;
+                }
+                updateNavIndicator();
+            };
+
+            surface.addEventListener("pointerdown", event => {
+                if (!isMobileView() || state.activeChatId || !event.isPrimary || event.target.closest("input, textarea, select, audio, video")) return;
+                pointerId = event.pointerId;
+                startX = event.clientX;
+                startY = event.clientY;
+                dragging = false;
+                dragTargetSection = null;
+                dragStartedAt = Date.now();
+                const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
+                dragActiveList = $(map[state.activeSection] || "chatList");
             }, { passive: true });
-            surface.addEventListener("touchend", event => {
-                if (!isMobileView() || !startedAt || state.activeChatId) return;
-                const touch = event.changedTouches[0];
-                const dx = touch.clientX - startX;
-                const dy = touch.clientY - startY;
-                const quickEnough = Date.now() - startedAt < 800;
-                startedAt = 0;
-                if (!quickEnough || Math.abs(dx) < 54 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
-                switchSectionBySwipe(dx < 0 ? 1 : -1);
+
+            surface.addEventListener("pointermove", event => {
+                if (pointerId !== event.pointerId || state.activeChatId) return;
+                const dx = event.clientX - startX;
+                const dy = event.clientY - startY;
+                if (!dragging) {
+                    if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.18) return;
+                    dragging = true;
+                    surface.setPointerCapture?.(event.pointerId);
+                    nav?.classList.add("dragging-nav", "swipe-glow");
+                    surface.classList.add("section-dragging");
+                    if (dragActiveList) {
+                        dragActiveList.style.transition = "none";
+                    }
+                }
+                event.preventDefault();
+                const tabs = visibleNavTabs();
+                const currentTab = document.querySelector(`.nav-tab[data-section="${state.activeSection}"]`) || document.querySelector(".nav-tab.active");
+                const currentIndex = tabs.indexOf(currentTab);
+                if (!tabs.length || currentIndex < 0) return;
+                const direction = dx < 0 ? 1 : -1;
+                const targetIndex = Math.max(0, Math.min(tabs.length - 1, currentIndex + direction));
+                const targetTab = tabs[targetIndex] || currentTab;
+                dragTargetSection = targetTab.dataset.section;
+                const travel = Math.min(Math.max(nav?.clientWidth || 320, 260) * .34, 145);
+                const progress = clamp(Math.abs(dx) / travel, 0, 1);
+                syncNavIndicatorBetween(currentTab, targetTab, progress);
+                if (dragActiveList) {
+                    dragActiveList.style.transform = `translateX(${clamp(dx * .24, -42, 42)}px)`;
+                    dragActiveList.style.opacity = String(1 - progress * .26);
+                }
+            }, { passive: false });
+
+            surface.addEventListener("pointerup", event => {
+                if (pointerId !== event.pointerId) return;
+                const dx = event.clientX - startX;
+                const dy = event.clientY - startY;
+                const shouldSwitch = dragging && Date.now() - dragStartedAt < 1200 && Math.abs(dx) > 54 && Math.abs(dx) > Math.abs(dy) * 1.18 && dragTargetSection && dragTargetSection !== state.activeSection;
+                if (shouldSwitch) {
+                    state.ignoreNextNavClickUntil = Date.now() + 420;
+                    clearActiveNewMarker();
+                    state.activeSection = dragTargetSection;
+                    state.activeChatId = null;
+                    state.activeProfileUsername = null;
+                    nav?.classList.remove("dragging-nav");
+                    nav?.classList.add("swipe-glow");
+                    renderSections();
+                    renderActiveChat();
+                    setTimeout(() => nav?.classList.remove("swipe-glow"), 320);
+                    if (dragActiveList) {
+                        dragActiveList.style.transform = "";
+                        dragActiveList.style.opacity = "";
+                        dragActiveList.style.transition = "";
+                    }
+                    pointerId = null;
+                    dragging = false;
+                    dragTargetSection = null;
+                    dragActiveList = null;
+                    surface.classList.remove("section-dragging");
+                    return;
+                }
+                resetDrag();
             }, { passive: true });
+
+            surface.addEventListener("pointercancel", resetDrag, { passive: true });
         }
 
         function renderStories() {
@@ -18482,9 +18848,14 @@
         };
         document.querySelectorAll(".nav-tab").forEach(tab => {
             tab.onclick = () => {
-                if (state.activeSection === tab.dataset.section) {
+                if (state.ignoreNextNavClickUntil && Date.now() < state.ignoreNextNavClickUntil) {
                     return;
                 }
+                if (state.activeSection === tab.dataset.section) {
+                    syncNavIndicatorToElement(tab);
+                    return;
+                }
+                syncNavIndicatorToElement(tab, true);
                 clearActiveNewMarker();
                 state.activeSection = tab.dataset.section;
                 state.activeChatId = null;
