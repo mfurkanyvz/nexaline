@@ -3347,10 +3347,6 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
     if not reply:
         provider = {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
         reply = local_ai_reply(prompt, context, actions, research)
-    if research and "Kaynak" not in reply:
-        sources = "\n".join(f"- {item.get('title')}: {item.get('url')}" for item in research if item.get("url"))
-        if sources:
-            reply = f"{reply}\n\nKaynaklar:\n{sources}"
     return reply, provider, research
 
 

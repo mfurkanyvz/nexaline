@@ -6579,6 +6579,411 @@
         .ai-panel.hidden {
             display: none !important;
         }
+
+        @media (min-width: 761px) {
+            #authScreen {
+                min-height: 100dvh !important;
+                height: auto !important;
+                overflow-y: auto !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                padding: 24px !important;
+                scroll-padding: 24px;
+            }
+
+            #authScreen .auth-card,
+            #authScreen .qr-login-card {
+                flex: 0 0 auto;
+            }
+
+            #authScreen .qr-login-card {
+                margin-bottom: 24px !important;
+            }
+        }
+
+        .settings-back {
+            width: auto !important;
+            min-height: 0 !important;
+            justify-self: start !important;
+            padding: 9px 12px !important;
+            border-radius: 999px !important;
+            font-size: 13px !important;
+            line-height: 1 !important;
+        }
+
+        .settings-option .option-icon {
+            color: #fff !important;
+            background: var(--ref-primary-gradient, var(--primary-gradient)) !important;
+            box-shadow: 0 0 18px rgba(151, 71, 255, .32) !important;
+        }
+
+        .attachment-preview {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto auto;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 18px;
+            background: rgba(17,24,39,.88);
+        }
+
+        .attachment-preview img,
+        .attachment-preview video {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            object-fit: cover;
+        }
+
+        .toggle-row {
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: center !important;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            position: relative !important;
+            width: 78px !important;
+            height: 48px !important;
+            min-width: 78px !important;
+            appearance: none !important;
+            border-radius: 18px !important;
+            border: 1px solid rgba(255, 74, 74, .38) !important;
+            background: linear-gradient(145deg, rgba(70, 18, 30, .88), rgba(21, 27, 40, .9)) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 24px rgba(0,0,0,.24) !important;
+            cursor: pointer;
+        }
+
+        .toggle-row input[type="checkbox"]::before {
+            content: "OFF" !important;
+            position: absolute !important;
+            left: 33px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: auto !important;
+            height: auto !important;
+            border-radius: 0 !important;
+            color: rgba(255,255,255,.82) !important;
+            background: transparent !important;
+            font-size: 11px !important;
+            font-weight: 900 !important;
+            letter-spacing: .06em !important;
+            box-shadow: none !important;
+        }
+
+        .toggle-row input[type="checkbox"]::after {
+            content: "" !important;
+            position: absolute !important;
+            left: 6px !important;
+            top: 6px !important;
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 999px !important;
+            background: #f6fff8 !important;
+            box-shadow: 0 8px 18px rgba(0,0,0,.28) !important;
+            transition: transform .22s ease !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked {
+            border-color: rgba(0, 217, 111, .46) !important;
+            background: linear-gradient(145deg, rgba(0, 96, 52, .92), rgba(18, 42, 35, .92)) !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked::before {
+            content: "ON" !important;
+            left: 14px !important;
+            color: #fff !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked::after {
+            transform: translateX(30px) !important;
+        }
+
+        @media (max-width: 760px) {
+            .topbar,
+            .chat-top {
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 12 !important;
+            }
+
+            .topbar {
+                grid-template-columns: auto minmax(0, 1fr) auto !important;
+                grid-template-areas: "avatar user actions" !important;
+                overflow: hidden !important;
+            }
+
+            .topbar .identity,
+            .chat-top .identity {
+                min-width: 0 !important;
+                overflow: hidden !important;
+            }
+
+            #meName,
+            #activeTitle,
+            .chat-title {
+                display: block !important;
+                max-width: 100% !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+
+            .mobile-brand-title {
+                display: none !important;
+            }
+
+            .chat-top {
+                grid-template-columns: auto auto minmax(0, 1fr) auto !important;
+                gap: 12px !important;
+                min-height: 78px !important;
+                padding: 12px 14px !important;
+            }
+
+            .chat-top .icon-row {
+                display: flex !important;
+                flex: 0 0 auto !important;
+                overflow: visible !important;
+                gap: 8px !important;
+            }
+
+            #chatPrefsButton {
+                display: none !important;
+            }
+
+            .chat-top .icon-btn,
+            .settings-head .icon-btn,
+            #topSettingsButton,
+            #notificationButton {
+                width: 54px !important;
+                height: 54px !important;
+                min-height: 54px !important;
+                border-radius: 22px !important;
+                color: rgba(255,255,255,.88) !important;
+                background: rgba(255,255,255,.055) !important;
+                border: 1px solid rgba(255,255,255,.10) !important;
+            }
+
+            .composer {
+                position: sticky !important;
+                bottom: 0 !important;
+                z-index: 14 !important;
+                display: grid !important;
+                grid-template-columns: 56px 56px minmax(0, 1fr) 56px !important;
+                grid-template-areas:
+                    "smart smart smart smart"
+                    "reply reply reply reply"
+                    "preview preview preview preview"
+                    "attach emoji input action" !important;
+                align-items: center !important;
+                gap: 10px !important;
+                padding: 10px 14px max(12px, env(safe-area-inset-bottom)) !important;
+                border-radius: 0 !important;
+                background: rgba(5, 7, 13, .86) !important;
+                backdrop-filter: blur(22px) saturate(160%) !important;
+            }
+
+            #smartReplies { grid-area: smart; }
+            #replyPreview { grid-area: reply; }
+            #attachmentPreview { grid-area: preview; }
+            #attachButton { grid-area: attach; }
+            #emojiButton { grid-area: emoji; }
+            #messageInput { grid-area: input; }
+            #sendButton,
+            #voiceButton {
+                grid-area: action;
+            }
+
+            #locationButton,
+            #sendToolsButton {
+                display: none !important;
+            }
+
+            .composer .icon-btn,
+            .composer .send-btn {
+                width: 56px !important;
+                height: 56px !important;
+                min-height: 56px !important;
+                border-radius: 999px !important;
+                font-size: 24px !important;
+                border: 1px solid rgba(255,255,255,.10) !important;
+                background: rgba(255,255,255,.055) !important;
+            }
+
+            .composer textarea {
+                min-height: 58px !important;
+                max-height: 112px !important;
+                padding: 15px 18px !important;
+                border-radius: 24px !important;
+                font-size: 18px !important;
+                background: rgba(15, 26, 43, .82) !important;
+            }
+
+            .send-btn {
+                background: var(--ref-primary-gradient, var(--primary-gradient)) !important;
+                box-shadow: 0 0 24px rgba(224, 49, 200, .32) !important;
+            }
+
+            .attachment-preview {
+                display: grid;
+                grid-template-columns: auto minmax(0, 1fr) auto auto;
+                gap: 10px;
+                align-items: center;
+                padding: 10px;
+                border: 1px solid rgba(255,255,255,.10);
+                border-radius: 18px;
+                background: rgba(17,24,39,.88);
+            }
+
+            .attachment-preview.hidden {
+                display: none !important;
+            }
+
+            .attachment-preview img,
+            .attachment-preview video {
+                width: 54px;
+                height: 54px;
+                border-radius: 14px;
+                object-fit: cover;
+            }
+
+            .attachment-preview strong,
+            .attachment-preview small {
+                display: block;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .attachment-preview button {
+                width: 38px;
+                height: 38px;
+                min-height: 38px;
+                border-radius: 14px;
+                color: #fff;
+                background: rgba(255,255,255,.08);
+            }
+
+            .attachment-preview .view-once-toggle.active {
+                background: var(--ref-primary-gradient, var(--primary-gradient));
+            }
+
+            .modal-panel.sheet {
+                align-items: flex-end !important;
+                padding: 0 !important;
+                background: rgba(0,0,0,.18) !important;
+            }
+
+            .modal-panel.sheet .modal-box {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                max-height: min(52vh, 470px) !important;
+                margin: 0 !important;
+                border-radius: 30px 30px 0 0 !important;
+                overflow: hidden !important;
+            }
+
+            .modal-panel.sheet .modal-body {
+                max-height: calc(min(52vh, 470px) - 82px) !important;
+                overflow-y: auto !important;
+                padding: 18px 16px max(20px, env(safe-area-inset-bottom)) !important;
+            }
+
+            .modal-panel.sheet .modal-actions {
+                display: none !important;
+            }
+
+            .attachment-menu {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 12px !important;
+            }
+
+            .attachment-option {
+                min-height: 122px !important;
+                align-content: center !important;
+                justify-items: center !important;
+                text-align: center !important;
+                gap: 8px !important;
+                padding: 12px 8px !important;
+                border-radius: 22px !important;
+            }
+
+            .attachment-option strong,
+            .attachment-option small {
+                display: block !important;
+                max-width: 100% !important;
+                word-break: normal !important;
+                overflow-wrap: normal !important;
+                hyphens: none !important;
+            }
+
+            .attachment-option strong {
+                font-size: 14px !important;
+                line-height: 1.08 !important;
+            }
+
+            .attachment-option small {
+                font-size: 11px !important;
+                line-height: 1.2 !important;
+            }
+
+            .attachment-option-icon {
+                width: 48px !important;
+                height: 48px !important;
+                border-radius: 18px !important;
+            }
+
+            .ai-panel.nexal-mode,
+            .ai-panel {
+                grid-template-rows: auto minmax(0, 1fr) auto !important;
+            }
+
+            .ai-head {
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 3 !important;
+            }
+
+            .ai-composer {
+                position: sticky !important;
+                bottom: 0 !important;
+                display: grid !important;
+                grid-template-columns: 56px 56px minmax(0, 1fr) 56px 56px !important;
+                gap: 10px !important;
+                padding: 10px 14px max(12px, env(safe-area-inset-bottom)) !important;
+                background: rgba(5, 7, 13, .88) !important;
+                backdrop-filter: blur(22px) saturate(160%) !important;
+            }
+
+            .ai-composer .icon-btn,
+            .ai-composer .send-btn {
+                width: 56px !important;
+                height: 56px !important;
+                min-height: 56px !important;
+                border-radius: 999px !important;
+            }
+
+            .ai-composer textarea {
+                min-height: 58px !important;
+                max-height: 112px !important;
+                border-radius: 24px !important;
+                font-size: 17px !important;
+            }
+        }
+
+        .hidden,
+        .auth-screen.hidden,
+        .app.hidden,
+        .screen-transition.hidden,
+        .chat-pane.hidden,
+        .sidebar.hidden,
+        .modal-panel.hidden,
+        .call-overlay.hidden,
+        .ai-panel.hidden,
+        .attachment-preview.hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -6747,9 +7152,13 @@
                 <button id="locationButton" class="icon-btn" data-tool="location" title="Konum">⌖</button>
                 <button id="sendToolsButton" class="icon-btn" data-tool="timed" title="Zamanla ve kaybolan mesaj">⏱</button>
                 <button id="cancelVoiceButton" class="icon-btn danger hidden" title="Kaydı iptal et">×</button>
-                <input id="fileInput" class="hidden" type="file" accept="image/*,video/*,audio/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
+                <input id="fileInput" class="hidden" type="file" accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
+                <input id="mediaInput" class="hidden" type="file" accept="image/*,video/*">
+                <input id="audioInput" class="hidden" type="file" accept="audio/*">
+                <input id="musicInput" class="hidden" type="file" accept="audio/*">
                 <input id="cameraInput" class="hidden" type="file" accept="image/*,video/*" capture="environment">
                 <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
+                <div id="attachmentPreview" class="attachment-preview hidden"></div>
                 <textarea id="messageInput" placeholder="Mesaj"></textarea>
                 <button id="sendButton" class="send-btn" data-tool="send" title="Gönder">➤</button>
             </footer>
@@ -7125,7 +7534,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-04-login-visibility-fix-v2";
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-mobile-composer-qr-v3";
 
         async function clearLegacyAppCaches() {
             try {
@@ -8618,6 +9027,7 @@
 
         function closeModal() {
             state.aiReminderOpen = false;
+            setAttachmentSheetOpen(false);
             stopQrScanner();
             if (state.cameraCaptureStop) {
                 state.cameraCaptureStop();
@@ -8743,9 +9153,7 @@
                 };
             });
             list.scrollTop = list.scrollHeight;
-            $("aiStatus").textContent = state.aiStatus
-                ? `${state.aiStatus.provider} • ${state.aiStatus.model}`
-                : "Uygulama asistanı hazır";
+            $("aiStatus").textContent = state.aiBusy ? "düşünüyor" : "çevrimiçi";
             $("aiSendButton").disabled = state.aiBusy;
         }
 
@@ -9094,11 +9502,7 @@
                 };
             });
             list.scrollTop = list.scrollHeight;
-            const statusText = state.aiBusy
-                ? (state.aiActivity || "Düşünüyor...")
-                : state.aiStatus
-                    ? `Çevrimiçi • ${state.aiStatus.provider}`
-                    : "Çevrimiçi";
+            const statusText = state.aiBusy ? (state.aiActivity || "Düşünüyor...") : "Çevrimiçi";
             if ($("aiStatus")) $("aiStatus").textContent = statusText;
             if ($("aiSendButton")) $("aiSendButton").disabled = state.aiBusy;
         }
@@ -11071,7 +11475,7 @@
             setAvatar($("meAvatar"), state.me, state.me.displayName);
             $("meAvatar").classList.add("online");
             $("meAvatar").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
-            $("meName").textContent = state.me.displayName;
+            $("meName").textContent = state.me.username || state.me.displayName;
             $("meName").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
             $("meStatus").textContent = "";
             $("meStatus").classList.add("hidden");
@@ -11636,7 +12040,10 @@
                 .filter(chat => state.chatFilter === "groups" ? chat.type === "group" : state.chatFilter === "channels" ? chat.type === "channel" : chat.type !== "group")
                 .filter(chat => state.chatFilter !== "unread" || unreadCount(chat) > 0)
                 .filter(chat => !otherMember(chat) || !state.blockedUsers.includes(otherMember(chat).username))
-                .filter(chat => chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter))
+                .filter(chat => {
+                    const memberText = (chat.members || []).map(member => `${member.username || ""} ${member.displayName || ""}`).join(" ").toLowerCase();
+                    return chat.title.toLowerCase().includes(filter) || latestText(chat).toLowerCase().includes(filter) || memberText.includes(filter);
+                })
                 .sort((a, b) => Number(chatPrefs(b.id).pinned) - Number(chatPrefs(a.id).pinned))
                 .forEach(chat => {
                     const button = document.createElement("button");
@@ -13254,7 +13661,7 @@
             $("chatPrefsButton").classList.add("hidden");
             $("callButton").classList.add("hidden");
             $("videoButton").classList.add("hidden");
-            $("activeTitle").textContent = user.displayName;
+            $("activeTitle").textContent = user.username || user.displayName;
             $("activeStatus").textContent = contactLine(user);
             $("activeStatus").onclick = null;
             setAvatar($("activeAvatar"), user, user.displayName);
@@ -13295,7 +13702,7 @@
             title.className = "profile-title";
             title.innerHTML = `
                 <h2>${escapeHtml(user.displayName)}</h2>
-                <p>${escapeHtml(user.about || "NexaLine kullanıyor.")}</p>
+                <p>@${escapeHtml(user.username)} • ${escapeHtml(user.about || "NexaLine kullanıyor.")}</p>
                 <div class="profile-chip-row">
                     <span class="profile-chip">${escapeHtml(relationText)}</span>
                     <span class="profile-chip">${Number(user.points || 0)} puan</span>
@@ -13321,7 +13728,7 @@
 
             const about = document.createElement("div");
             about.className = "profile-about";
-            about.innerHTML = `<span>Hakkında</span><p>${escapeHtml(user.about || "Henüz hakkında yazısı yok.")}</p>`;
+            about.innerHTML = `<span>Hakkında</span><p>@${escapeHtml(user.username)} • ${escapeHtml(user.about || "NexaLine kullanıyor.")}</p>`;
 
             const actions = document.createElement("div");
             actions.className = "profile-actions";
@@ -13412,7 +13819,7 @@
             $("sendToolsButton").title = aiMode ? "Sesli asistan" : "Zamanla ve kaybolan mesaj";
             $("cancelVoiceButton").classList.add("hidden");
             $("messageInput").placeholder = aiMode ? `${aiDisplayName()} ile konuş` : "Mesaj";
-            $("activeTitle").textContent = chat.title;
+            $("activeTitle").textContent = aiMode ? chat.title : (chat.type === "direct" ? (otherMember(chat)?.username || chat.title) : chat.title);
             const chatSettingsHandler = aiMode ? () => { openSettings(); setSettingsView("ai"); } : openChatPreferences;
             setAvatar($("activeAvatar"), aiMode ? aiContact() : chat.type === "direct" ? otherMember(chat) : chat, chat.title);
             $("activeAvatar").classList.toggle("online", aiMode || isChatOnline(chat));
@@ -14011,6 +14418,10 @@
                 return pill;
             }
 
+            if (attachment.type === "view_once_text") {
+                return renderViewOnceTextAttachment(attachment);
+            }
+
             if (attachment.viewOnce && (attachment.type?.startsWith("image/") || attachment.type?.startsWith("video/"))) {
                 return renderViewOnceAttachment(attachment);
             }
@@ -14150,6 +14561,32 @@
             return wrap;
         }
 
+        function renderViewOnceTextAttachment(attachment) {
+            const key = `nexalineViewOnceText:${attachment.viewOnceId || String(attachment.text || "").slice(0, 80)}`;
+            const opened = localStorage.getItem(key) === "opened";
+            const wrap = document.createElement("div");
+            wrap.className = "file-pill";
+            if (opened) {
+                wrap.textContent = "Tek görülmelik mesaj okundu";
+                return wrap;
+            }
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "profile-action primary";
+            button.textContent = "Tek Mesajı Aç";
+            button.onclick = () => {
+                localStorage.setItem(key, "opened");
+                openModal("Tek görülmelik mesaj", body => {
+                    const text = document.createElement("div");
+                    text.className = "vault-card";
+                    text.textContent = attachment.text || "";
+                    body.appendChild(text);
+                }, [{ label: "Okudum", primary: true, onClick: () => { closeModal(); renderActiveChat(); } }], "sheet");
+            };
+            wrap.appendChild(button);
+            return wrap;
+        }
+
         function saveOutbox() {
             localStorage.setItem("nexalineOutbox", JSON.stringify(state.outbox.slice(-40)));
         }
@@ -14206,6 +14643,65 @@
             }, [{ label: "Kapat", onClick: closeModal }]);
         }
 
+        function setAttachmentSheetOpen(open) {
+            document.body.classList.toggle("attachment-sheet-open", Boolean(open));
+            const button = $("attachButton");
+            if (!button) return;
+            button.title = open ? "Klavyeye dön" : "Gönder";
+            button.innerHTML = open ? "⌨" : svgIcon("plus");
+        }
+
+        function closeSoftKeyboard() {
+            const active = document.activeElement;
+            if (active && typeof active.blur === "function") {
+                active.blur();
+            }
+            $("app")?.classList.remove("keyboard-open");
+        }
+
+        function attachmentPreviewMarkup(attachment) {
+            if (!attachment) return "";
+            const name = escapeHtml(attachment.name || "Ek");
+            const type = String(attachment.type || "");
+            if (type.startsWith("image/") && attachment.dataUrl) {
+                return `<img src="${escapeHtml(attachment.dataUrl)}" alt="${name}">`;
+            }
+            if (type.startsWith("video/") && attachment.dataUrl) {
+                return `<video src="${escapeHtml(attachment.dataUrl)}" muted playsinline></video>`;
+            }
+            return `<span class="attachment-option-icon">${svgIcon(type.startsWith("audio/") ? "music" : type === "poll" ? "poll" : type === "location" ? "location" : type === "view_once_text" ? "eye" : "file")}</span>`;
+        }
+
+        function syncAttachmentPreview() {
+            const preview = $("attachmentPreview");
+            if (!preview) return;
+            const attachment = state.attachment;
+            if (!attachment) {
+                preview.classList.add("hidden");
+                preview.innerHTML = "";
+                return;
+            }
+            const type = String(attachment.type || "");
+            const canViewOnce = type.startsWith("image/") || type.startsWith("video/");
+            preview.classList.remove("hidden");
+            preview.innerHTML = `
+                ${attachmentPreviewMarkup(attachment)}
+                <span><strong>${escapeHtml(attachment.name || "Ek hazır")}</strong><small>${attachment.viewOnce || type === "view_once_text" ? "Tek görülmelik" : "Göndermeye hazır"}</small></span>
+                ${canViewOnce ? `<button class="view-once-toggle ${attachment.viewOnce ? "active" : ""}" type="button" title="Tek açımlık">${attachment.viewOnce ? "1" : "∞"}</button>` : "<span></span>"}
+                <button class="attachment-clear" type="button" title="Kaldır">×</button>
+            `;
+            preview.querySelector(".attachment-clear")?.addEventListener("click", () => {
+                state.attachment = null;
+                $("messageInput").placeholder = isAiChat(activeChat()) ? `${aiDisplayName()} ile konuş` : "Mesaj";
+                updateComposerState();
+            });
+            preview.querySelector(".view-once-toggle")?.addEventListener("click", () => {
+                attachment.viewOnce = !attachment.viewOnce;
+                attachment.viewOnceId = attachment.viewOnce ? (attachment.viewOnceId || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`) : undefined;
+                updateComposerState();
+            });
+        }
+
         function sendMessage() {
             const input = $("messageInput");
             const body = input.value.trim();
@@ -14246,23 +14742,26 @@
             const input = $("messageInput");
             const hasContent = Boolean(input?.value.trim() || state.attachment);
             document.querySelector(".composer")?.classList.toggle("has-content", hasContent);
+            syncAttachmentPreview();
         }
 
         function openAttachmentMenu() {
+            closeSoftKeyboard();
+            setAttachmentSheetOpen(true);
             openModal("Gönder", body => {
                 const menu = document.createElement("div");
                 menu.className = "attachment-menu";
                 const items = [
                     ["file", "Belge", "Dosya seç", () => $("fileInput").click()],
-                    ["image", "Fotoğraflar ve Videolar", "Galeri veya dosya", () => $("fileInput").click()],
-                    ["eye", "Tek Açımlık Medya", "Fotoğraf veya video bir kez açılsın", () => { state.pendingViewOnce = true; $("fileInput").click(); }],
-                    ["camera", "Kamera", "Fotoğraf çek veya video kaydet", openCameraCapture],
-                    ["volume", "Ses", "Ses dosyası seç", () => $("fileInput").click()],
+                    ["image", "Fotoğraflar", "Galeri aç", () => $("mediaInput").click()],
+                    ["camera", "Kamera", "Cihaz kamerasını aç", openCameraCapture],
+                    ["volume", "Ses", "Ses dosyası seç", () => $("audioInput").click()],
                     ["contacts", "Kişi", "Arkadaş profili paylaş", openContactSharePicker],
                     ["poll", "Anket", "Soru ve seçeneklerle gönder", openPollCreator],
                     ["gif", "GIF", "Kısa hareketli ifade gönder", openGifPicker],
-                    ["music", "Müzik", "Ses veya müzik dosyası seç", () => $("fileInput").click()],
+                    ["music", "Müzik", "Müzik dosyası seç", () => $("musicInput").click()],
                     ["location", "Konum", "Mevcut konumunu gönder", sendCurrentLocation],
+                    ["eye", "Tek Mesaj", "Bir kez okunacak metin", openViewOnceTextComposer],
                     ["zap", "AI ile düzenle", "Yazdığın mesajı iyileştir", improveComposerWithAi]
                 ];
                 items.forEach(([icon, title, hint, action]) => {
@@ -14279,8 +14778,42 @@
                 body.appendChild(menu);
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
+        function openViewOnceTextComposer() {
+            openModal("Tek görülmelik mesaj", body => {
+                const input = document.createElement("textarea");
+                input.id = "viewOnceTextInput";
+                input.placeholder = "Bir kez okunacak mesajı yaz";
+                body.appendChild(input);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                {
+                    label: "Mesaja Ekle",
+                    primary: true,
+                    onClick: () => {
+                        const text = $("viewOnceTextInput")?.value.trim();
+                        if (!text) {
+                            showToast("Tek görülmelik mesaj boş olamaz.");
+                            return;
+                        }
+                        state.attachment = {
+                            type: "view_once_text",
+                            name: "Tek görülmelik mesaj",
+                            text,
+                            viewOnce: true,
+                            viewOnceId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`
+                        };
+                        $("messageInput").placeholder = "Tek görülmelik mesaj hazır";
+                        closeModal();
+                        updateComposerState();
+                    }
+                }
+            ], "sheet");
+        }
 
         async function openCameraCapture() {
+            closeModal();
+            $("cameraInput").click();
+            return;
             let stream = null;
             let facingMode = "environment";
             let capturedDataUrl = "";
@@ -16585,6 +17118,9 @@
         $("emojiButton").onclick = toggleEmojiPanel;
         $("locationButton").onclick = () => isAiChat(activeChat()) ? sendAiCurrentLocation() : sendCurrentLocation();
         $("fileInput").onchange = handleFile;
+        $("mediaInput").onchange = handleFile;
+        $("audioInput").onchange = handleFile;
+        $("musicInput").onchange = handleFile;
         $("cameraInput").onchange = handleFile;
         $("storyFileInput").onchange = handleStoryFile;
         $("installButton").onclick = openInstallPanel;
