@@ -6168,7 +6168,7 @@ def handle_view_once_opened(data):
     if username != message.sender:
         message.body = ""
         message.attachment = None
-        message.reply_to = None
+        message.reply_to = {"systemType": "view_once_opened"}
         message.deleted_at = datetime.now(timezone.utc)
         message.deleted_by = username
 

@@ -7584,6 +7584,281 @@
             transform: translateX(26px) !important;
         }
 
+        /* NexaLine system refac layer: invisible UI indexes + sleek interaction polish. */
+        [data-ui-index] {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav-tabs {
+            overflow: visible !important;
+        }
+
+        .nav-tabs::before {
+            pointer-events: none;
+            filter: saturate(1.25) drop-shadow(0 0 14px rgba(255, 0, 184, .22));
+            transition:
+                left .32s cubic-bezier(.2,.9,.2,1),
+                top .32s cubic-bezier(.2,.9,.2,1),
+                width .32s cubic-bezier(.2,.9,.2,1),
+                height .32s cubic-bezier(.2,.9,.2,1),
+                filter .28s ease,
+                opacity .28s ease !important;
+        }
+
+        .nav-tabs.swipe-glow::before {
+            filter: saturate(1.55) drop-shadow(0 0 22px rgba(255, 0, 184, .42)) drop-shadow(0 0 18px rgba(112, 76, 255, .30));
+        }
+
+        .nav-tab {
+            min-width: 0 !important;
+            padding-inline: 2px !important;
+        }
+
+        .nav-tab .nav-label,
+        .nav-label {
+            display: block;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 10.5px !important;
+            line-height: 1.05 !important;
+            letter-spacing: 0 !important;
+        }
+
+        .topbar,
+        .chat-top {
+            gap: 8px !important;
+        }
+
+        .topbar .identity,
+        .chat-top .identity {
+            min-width: 0;
+            margin-inline: 8px 4px;
+        }
+
+        .topbar .identity strong,
+        .chat-top .identity strong {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .topbar .icon-row,
+        .chat-top .icon-row {
+            flex: 0 0 auto;
+            gap: 7px !important;
+            margin-left: auto;
+        }
+
+        .topbar .icon-btn,
+        .chat-top .icon-btn,
+        .composer .icon-btn {
+            width: 36px !important;
+            height: 36px !important;
+            min-width: 36px !important;
+            border-radius: 15px !important;
+            border: 1px solid rgba(255, 255, 255, .08) !important;
+            background: rgba(255, 255, 255, .045) !important;
+            color: rgba(255, 255, 255, .84) !important;
+        }
+
+        .composer {
+            gap: 7px !important;
+            padding: 8px 10px max(8px, env(safe-area-inset-bottom)) !important;
+            background: rgba(10, 15, 26, .84) !important;
+            backdrop-filter: blur(18px) saturate(145%);
+        }
+
+        .message-input-shell {
+            min-height: 40px !important;
+            padding: 3px 7px 3px 12px !important;
+            border-radius: 24px !important;
+            border-color: rgba(255, 255, 255, .09) !important;
+        }
+
+        #messageInput {
+            min-height: 34px !important;
+            padding: 7px 8px !important;
+            font-size: 14px !important;
+            line-height: 1.25 !important;
+        }
+
+        .gif-inline-button {
+            width: 37px !important;
+            height: 27px !important;
+            min-width: 37px !important;
+            border-radius: 12px !important;
+            font-size: 10px !important;
+            letter-spacing: .2px !important;
+        }
+
+        .send-btn {
+            width: 39px !important;
+            height: 39px !important;
+            min-width: 39px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #704CFF, #FF00B8) !important;
+            box-shadow: 0 0 22px rgba(255, 0, 184, .22) !important;
+        }
+
+        .attachment-menu.compact-share-menu {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: clamp(7px, 2vw, 12px) !important;
+            width: 100%;
+        }
+
+        .compact-share-menu .attachment-option {
+            min-height: clamp(68px, 17vw, 84px) !important;
+            padding: 8px 4px !important;
+            border: 1px solid rgba(255, 255, 255, .08) !important;
+            border-radius: 18px !important;
+        }
+
+        .compact-share-menu .attachment-option-icon {
+            width: clamp(34px, 10vw, 44px) !important;
+            height: clamp(34px, 10vw, 44px) !important;
+            border-radius: 16px !important;
+        }
+
+        .single-open-media-card {
+            max-width: min(80%, 340px);
+            padding: 8px 10px !important;
+            user-select: none;
+        }
+
+        .view-once-opened {
+            display: inline-flex;
+            width: auto;
+            max-width: max-content;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 10px !important;
+            border-radius: 14px !important;
+            color: rgba(255,255,255,.76) !important;
+            background: #1f2c34 !important;
+            font-size: 12px !important;
+            user-select: none;
+        }
+
+        .voice-card {
+            max-width: min(245px, 82vw) !important;
+            gap: 5px !important;
+            padding: 8px !important;
+            border-radius: 16px !important;
+        }
+
+        .voice-card .profile-preview {
+            gap: 7px !important;
+            padding: 0 !important;
+        }
+
+        .voice-card .attachment-option-icon {
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+            border-radius: 12px !important;
+        }
+
+        .voice-card audio.voice-message,
+        .voice-message {
+            width: min(205px, 100%) !important;
+            height: 34px !important;
+            margin-top: 2px !important;
+        }
+
+        .voice-transcript {
+            padding: 3px 6px !important;
+            border-radius: 10px !important;
+            font-size: 9pt !important;
+            line-height: 1.25 !important;
+            opacity: .75 !important;
+        }
+
+        .message-meta {
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            gap: 4px !important;
+            margin-top: 2px !important;
+            pointer-events: none;
+        }
+
+        .message-meta button,
+        .reply-action,
+        .message-menu {
+            display: none !important;
+        }
+
+        .bubble-time {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+            color: rgba(255,255,255,.55);
+            font-size: 7.5pt;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .bubble {
+            -webkit-touch-callout: none;
+        }
+
+        .message-context-actions {
+            display: grid;
+            gap: 9px;
+        }
+
+        .message-context-row,
+        .message-reaction-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .message-context-row button,
+        .message-reaction-row button {
+            min-height: 42px;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 15px;
+            color: #fff;
+            background: rgba(255,255,255,.045);
+            font-weight: 800;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            width: 50px !important;
+            height: 28px !important;
+            min-width: 50px !important;
+            border-width: 1px !important;
+            background: rgba(255,255,255,.055) !important;
+            box-shadow: inset 0 1px 6px rgba(0,0,0,.28) !important;
+        }
+
+        .toggle-row input[type="checkbox"]::before {
+            left: 25px !important;
+            font-size: 8px !important;
+        }
+
+        .toggle-row input[type="checkbox"]::after {
+            top: 4px !important;
+            left: 4px !important;
+            width: 20px !important;
+            height: 20px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,.24) !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked::before {
+            left: 9px !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked::after {
+            transform: translateX(22px) !important;
+        }
+
         @media (max-width: 760px) {
             #messageInputShell {
                 grid-area: input;
@@ -8194,7 +8469,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-04-share-menu-gif-voice-v6";
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-ui-index-refac-v7";
 
         async function clearLegacyAppCaches() {
             try {
@@ -9791,6 +10066,7 @@
             $("modalPanel").className = `modal-panel ${variant || ""}`.trim();
             $("modalPanel").classList.remove("hidden");
             pushAppHistory("modal");
+            applyUiIndexMetadata($("modalPanel"));
         }
 
         function confirmModal(title, message, onConfirm) {
@@ -12200,6 +12476,8 @@
             renderActiveChat();
             updateAiAssistantVisibility();
             applyAdminDesign(window.nexalineDesign || {});
+            applyUiIndexMetadata();
+            setupSwipeNavigation();
         }
 
         function renderProfile() {
@@ -12435,6 +12713,129 @@
             return window.nexalineDesign?.logoUrl || DEFAULT_BRAND_LOGO;
         }
 
+        const NEXALINE_UI_INDEX_SELECTORS = [
+            ["1", ".nav-tabs"],
+            ["1-1", '.nav-tab[data-section="chats"], #chatList'],
+            ["1-2", '.nav-tab[data-section="calls"], #callList'],
+            ["1-3", '.nav-tab[data-section="contacts"], #contactList'],
+            ["1-4", '.nav-tab[data-section="explore"], .nav-tab[data-section="stories"], #exploreList, #storyList'],
+            ["1-5", ".nav-tabs"],
+            ["2", ".topbar, .chat-top"],
+            ["2-1", "#meAvatar, #meName, #accountSwitcherButton, #accountSwitcherMenu"],
+            ["2-2", "#searchInput"],
+            ["2-3", "#settingsButton, #topSettingsButton, #chatPrefsButton"],
+            ["2-4", "#archiveShortcutButton, #archiveBackButton, #archiveList"],
+            ["3", "#chatList"],
+            ["3-1", ".filter-chip"],
+            ["3-2", "#chatList .chat-item, #groupList .chat-item"],
+            ["3-3", "#newChatFab"],
+            ["3-3-1", ".new-chat-sheet"],
+            ["4", ".chat-pane, #messages"],
+            ["4-1", ".composer"],
+            ["4-1-1", "#messageInputShell, #messageInput"],
+            ["4-1-2", "#attachButton"],
+            ["4-1-3", "#emojiButton, #emojiPanel"],
+            ["4-1-4", "#gifInlineButton"],
+            ["4-1-5", "#voiceButton, #voiceWave"],
+            ["4-2", ".compact-share-menu"],
+            ["4-2-1", '[data-attachment-index="4-2-1"]'],
+            ["4-2-2", '[data-attachment-index="4-2-2"]'],
+            ["4-2-3", '[data-attachment-index="4-2-3"]'],
+            ["4-2-5", '[data-attachment-index="4-2-5"]'],
+            ["4-2-6", '[data-attachment-index="4-2-6"]'],
+            ["4-2-9", '[data-attachment-index="4-2-9"], .location-card'],
+            ["4-2-10", '[data-attachment-index="4-2-10"], .single-open-media-card'],
+            ["4-2-11", '[data-attachment-index="4-2-11"]'],
+            ["4-3", ".bubble"],
+            ["4-3-1", ".bubble > div:not(.message-meta):not(.sender):not(.reply-context)"],
+            ["4-3-2", ".single-open-media-card, .view-once-opened"],
+            ["4-3-3", ".location-card"],
+            ["4-3-4", ".file-pill"],
+            ["4-3-5", ".voice-card, .voice-message"],
+            ["4-3-6", ".voice-transcript"],
+            ["4-4", ".message-context-actions"],
+            ["4-4-1", ".message-reaction-row"],
+            ["4-4-2", '[data-context-action="reply"]'],
+            ["4-4-3", '[data-context-action="forward"]'],
+            ["4-4-4", '[data-context-action="copy"]'],
+            ["4-4-5", '[data-context-action="info"]'],
+            ["4-4-6", '[data-context-action="star"]'],
+            ["4-4-7", '[data-context-action="pin"]'],
+            ["4-4-8", '[data-context-action="report"]'],
+            ["4-4-9", '[data-context-action="delete"]'],
+            ["4-5", ".chat-settings-drawer, #modalPanel:has(#chatPinnedInput)"],
+            ["4-5-1", "#chatPinnedInput"],
+            ["4-5-2", "#chatMutedInput"],
+            ["4-5-3", "#chatLockedInput"],
+            ["4-5-4", ".theme-selector-grid, #modalBody [data-theme-key]"],
+            ["4-5-5", ".sound-panel"],
+            ["4-5-6", "#chatToneSelect, #systemSoundSelect"],
+            ["4-5-7", '[data-chat-ai-action="summary"]'],
+            ["4-5-8", '[data-chat-ai-action="search"]'],
+            ["4-5-9", '[data-chat-delete-action]'],
+            ["5", ".profile-page, .profile-hero, .profile-hero-card"],
+            ["5-1", ".profile-avatar-xl, .profile-title, #settingsAvatar"],
+            ["5-2", ".profile-grid, .profile-metrics-grid"],
+            ["5-3", ".profile-actions"],
+            ["5-3-1", ".remove-friend-sheet"],
+            ["5-4", ".profile-quick-call-action-bar, .profile-action"],
+            ["6", "#aiPanel, .ai-panel"],
+            ["6-1", "#aiMessages, .ai-messages"],
+            ["6-2", ".nexal-command-card, .ai-home-card"],
+            ["6-2-1", ".nexal-task-card"],
+            ["6-2-2", "#aiSummaryInput"],
+            ["6-2-3", "#aiTranslateInput"],
+            ["6-2-4", "#aiWritingFixInput"],
+            ["6-2-5", ".ai-summary-result"],
+            ["6-2-6", "#aiImagePrompt"],
+            ["6-3", ".nexal-settings-list"],
+            ["6-3-1", "#nextAiVoiceInput, #aiVoiceSelect"],
+            ["6-3-2", "#nextAiLengthInput, #aiLengthSelect"],
+            ["6-3-3", "#nextAiPersonalInput, #aiPersonalizeInput"],
+            ["6-3-4", "#nextAiHistoryInput, #aiHistoryInput"],
+            ["6-3-5", "#nextAiNotifyInput, #aiNotifyInput"],
+            ["6-3-6", "#nextAiFullAccessInput, #aiFullAccessInput"],
+            ["6-3-7", "#nextAiCensorInput, #aiCensorInput"],
+            ["6-3-8", ".ai-privacy-info"],
+            ["7", "#settingsPanel"],
+            ["7-1", "#settingsProfileSection"],
+            ["7-2", "#settingsPrivacySection"],
+            ["7-3", "#settingsAppearanceSection"],
+            ["7-4", "#pointsRailButton, .points-panel"],
+            ["7-5", ".vault-panel, #secretPinInput"],
+            ["7-6", ".nearby-panel"],
+            ["7-7", "#mobileQrButton, .qr-scanner"],
+            ["7-8", "#settingsDeviceSection, #settingsAccountSection"],
+            ["8", "#archiveList, .archive-view"],
+            ["8-1", ".archive-lock"],
+            ["8-2", "#archiveList"],
+            ["8-3", ".archive-message"]
+        ];
+
+        function setUiIndexMetadata(element, index) {
+            if (!element || !index) return;
+            element.setAttribute("data-ui-index", index);
+            element.setAttribute("debug-id", `NL-SYS-${index}`);
+        }
+
+        function applyUiIndexMetadata(root = document) {
+            NEXALINE_UI_INDEX_SELECTORS.forEach(([index, selector]) => {
+                try {
+                    if (root instanceof Element && root.matches(selector)) {
+                        setUiIndexMetadata(root, index);
+                    }
+                    root.querySelectorAll(selector).forEach(element => setUiIndexMetadata(element, index));
+                } catch (_error) {
+                    // Some older WebViews do not support newer selectors such as :has().
+                    const fallbackSelector = selector.replace(/:has\([^)]*\)/g, "");
+                    if (root instanceof Element && root.matches(fallbackSelector)) {
+                        setUiIndexMetadata(root, index);
+                    }
+                    root.querySelectorAll(fallbackSelector).forEach(element => setUiIndexMetadata(element, index));
+                }
+            });
+        }
+
         function setNavBadge(section, count) {
             const tab = document.querySelector(`.nav-tab[data-section="${section}"]`);
             if (!tab) return;
@@ -12507,6 +12908,50 @@
             updateNavBadges();
             requestAnimationFrame(updateNavIndicator);
             updateAiAssistantVisibility();
+            applyUiIndexMetadata();
+        }
+
+        function switchSectionBySwipe(direction) {
+            const ordered = ["stories", "calls", "chats", "contacts", "explore"];
+            const current = ordered.includes(state.activeSection) ? state.activeSection : "chats";
+            const index = ordered.indexOf(current);
+            const nextIndex = Math.max(0, Math.min(ordered.length - 1, index + direction));
+            const nextSection = ordered[nextIndex];
+            if (!nextSection || nextSection === state.activeSection) return;
+            const nav = document.querySelector(".nav-tabs");
+            nav?.classList.add("swipe-glow");
+            setTimeout(() => nav?.classList.remove("swipe-glow"), 360);
+            clearActiveNewMarker();
+            state.activeSection = nextSection;
+            state.activeChatId = null;
+            state.activeProfileUsername = null;
+            renderSections();
+            renderActiveChat();
+        }
+
+        function setupSwipeNavigation() {
+            const surface = $("sidebar");
+            if (!surface || surface.dataset.swipeReady === "1") return;
+            surface.dataset.swipeReady = "1";
+            let startX = 0;
+            let startY = 0;
+            let startedAt = 0;
+            surface.addEventListener("touchstart", event => {
+                if (!isMobileView() || event.touches.length !== 1 || state.activeChatId) return;
+                startX = event.touches[0].clientX;
+                startY = event.touches[0].clientY;
+                startedAt = Date.now();
+            }, { passive: true });
+            surface.addEventListener("touchend", event => {
+                if (!isMobileView() || !startedAt || state.activeChatId) return;
+                const touch = event.changedTouches[0];
+                const dx = touch.clientX - startX;
+                const dy = touch.clientY - startY;
+                const quickEnough = Date.now() - startedAt < 800;
+                startedAt = 0;
+                if (!quickEnough || Math.abs(dx) < 54 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
+                switchSectionBySwipe(dx < 0 ? 1 : -1);
+            }, { passive: true });
         }
 
         function renderStories() {
@@ -14342,6 +14787,45 @@
             bubble.addEventListener("pointercancel", reset);
         }
 
+        function attachLongPressMenu(bubble, message) {
+            let pressTimer = null;
+            let startX = 0;
+            let startY = 0;
+
+            const clearPress = () => {
+                if (pressTimer) {
+                    clearTimeout(pressTimer);
+                    pressTimer = null;
+                }
+            };
+
+            const isInteractiveTarget = target => Boolean(target?.closest?.("button, a, input, textarea, select, audio, video"));
+
+            bubble.addEventListener("pointerdown", event => {
+                if (message.deletedAt || isInteractiveTarget(event.target)) return;
+                startX = event.clientX;
+                startY = event.clientY;
+                clearPress();
+                pressTimer = setTimeout(() => {
+                    pressTimer = null;
+                    openMessageMenu(message);
+                }, event.pointerType === "mouse" ? 420 : 520);
+            });
+            bubble.addEventListener("pointermove", event => {
+                if (Math.abs(event.clientX - startX) > 10 || Math.abs(event.clientY - startY) > 10) {
+                    clearPress();
+                }
+            });
+            bubble.addEventListener("pointerup", clearPress);
+            bubble.addEventListener("pointercancel", clearPress);
+            bubble.addEventListener("pointerleave", clearPress);
+            bubble.addEventListener("contextmenu", event => {
+                if (message.deletedAt) return;
+                event.preventDefault();
+                openMessageMenu(message);
+            });
+        }
+
         function smartReplyOptions(chat) {
             if (!chat?.messages?.length) {
                 return ["Merhaba", "Müsait misin?", "Tamamdır"];
@@ -14620,9 +15104,10 @@
                 bubble.appendChild(sender);
 
                 if (message.deletedAt) {
+                    const viewOnceOpened = message.replyTo?.systemType === "view_once_opened";
                     const deleted = document.createElement("div");
-                    deleted.className = "deleted-message";
-                    deleted.textContent = "Bu mesaj silindi";
+                    deleted.className = "deleted-message" + (viewOnceOpened ? " view-once-opened" : "");
+                    deleted.textContent = viewOnceOpened ? "🔒 Tek açımlık medya açıldı" : "Bu mesaj silindi";
                     bubble.appendChild(deleted);
                 } else if (message.replyTo) {
                     const reply = document.createElement("div");
@@ -14690,34 +15175,16 @@
                 const edited = message.editedAt ? " · düzenlendi" : "";
                 const expires = message.expiresAt ? ` · ${formatTime(message.expiresAt)} silinir` : "";
                 if (isAiChat(chat)) {
-                    meta.innerHTML = `<span>${formatTime(message.createdAt)}</span>`;
+                    meta.innerHTML = `<span class="bubble-time">${formatTime(message.createdAt)}</span>`;
                 } else {
-                    const historyButton = message.versions?.length ? '<button class="reply-action message-version-button" type="button">Geçmiş</button>' : "";
-                    meta.innerHTML = `<button class="reply-action" type="button">Yanıtla</button><button class="reply-action react-action" type="button">Tepki</button>${historyButton}<button class="message-menu" type="button">Sil</button><span>${formatTime(message.createdAt)}${edited}${expires}</span><span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span>`;
-                    meta.querySelector(".reply-action").onclick = event => {
-                        event.stopPropagation();
-                        setReplyTo(message);
-                    };
-                    meta.querySelector(".message-menu").onclick = event => {
-                        event.stopPropagation();
-                        openMessageMenu(message);
-                    };
-                    meta.querySelector(".react-action").onclick = event => {
-                        event.stopPropagation();
-                        openReactionMenu(message);
-                    };
-                    const versionButton = meta.querySelector(".message-version-button");
-                    if (versionButton) {
-                        versionButton.onclick = event => {
-                            event.stopPropagation();
-                            openMessageHistory(message);
-                        };
-                    }
+                    meta.innerHTML = `<span class="bubble-time">${formatTime(message.createdAt)}${edited}${expires}<span class="ticks ${read ? "read" : delivered ? "delivered" : ""}">${mine ? (read || delivered ? "✓✓" : "✓") : ""}</span></span>`;
                 }
                 bubble.appendChild(meta);
                 if (!isAiChat(chat)) {
                     attachSwipeReply(bubble, message);
+                    attachLongPressMenu(bubble, message);
                 }
+                setUiIndexMetadata(bubble, "4-3");
                 messageBox.appendChild(bubble);
             });
 
@@ -15044,57 +15511,112 @@
 
         function openMessageMenu(message) {
             const mine = message.sender === state.me.username;
-            const actions = [
-                {
-                    label: "Benden sil",
-                    onClick: () => {
+            openModal("Mesaj", body => {
+                const wrap = document.createElement("div");
+                wrap.className = "message-context-actions";
+
+                const summary = document.createElement("p");
+                summary.textContent = message.body || message.attachment?.name || "Mesaj";
+
+                const reactionRow = document.createElement("div");
+                reactionRow.className = "message-reaction-row";
+                ["👍", "❤️", "😂", "🙏"].forEach(emoji => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = emoji;
+                    button.onclick = () => {
+                        socket.emit("message:react", { messageId: message.id, emoji });
                         closeModal();
-                        socket.emit("message:delete", { messageId: message.id, scope: "me" });
-                    }
-                }
-            ];
-            if (!message.deletedAt && (message.body || message.attachment?.name)) {
-                actions.unshift({
-                    label: "Kopyala",
-                    onClick: async () => {
-                        const text = message.body || message.attachment?.name || "";
+                    };
+                    reactionRow.appendChild(button);
+                });
+
+                const actionRow = document.createElement("div");
+                actionRow.className = "message-context-row";
+                const addAction = (key, label, handler) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.dataset.contextAction = key;
+                    button.textContent = label;
+                    button.onclick = handler;
+                    actionRow.appendChild(button);
+                };
+
+                addAction("reply", "Yanıtla", () => {
+                    setReplyTo(message);
+                    closeModal();
+                });
+                addAction("forward", "İlet", async () => {
+                    const text = message.body || message.attachment?.name || "";
+                    if (navigator.share && text) {
+                        try {
+                            await navigator.share({ title: "NexaLine", text });
+                        } catch (_error) {
+                            // Share cancellation is not an error for the user.
+                        }
+                    } else {
                         try {
                             await navigator.clipboard.writeText(text);
-                            showToast("Mesaj kopyalandı.");
+                            showToast("İletmek için mesaj panoya kopyalandı.");
                         } catch (_error) {
-                            showToast(text);
+                            showToast("İletme hazırlığı tamamlanamadı.");
                         }
-                        closeModal();
                     }
+                    closeModal();
                 });
-            }
-            if (mine && !message.deletedAt) {
-                actions.unshift({
-                    label: "Düzenle",
-                    onClick: () => editMessage(message)
+                addAction("copy", "Kopyala", async () => {
+                    const text = message.body || message.attachment?.name || "";
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        showToast("Mesaj kopyalandı.");
+                    } catch (_error) {
+                        showToast(text || "Kopyalanacak metin yok.");
+                    }
+                    closeModal();
                 });
-            }
-            if (message.versions?.length) {
-                actions.unshift({
-                    label: "Mesaj geçmişi",
-                    onClick: () => openMessageHistory(message)
+                addAction("delete", "Sil", () => {
+                    closeModal();
+                    socket.emit("message:delete", { messageId: message.id, scope: "me" });
                 });
-            }
-            if (mine || activeChat()?.members.find(member => member.username === state.me.username)?.isAdmin) {
-                actions.push({
-                    label: "Herkesten sil",
-                    primary: true,
-                    onClick: () => {
+
+                const extraRow = document.createElement("div");
+                extraRow.className = "message-context-row";
+                const addExtra = (key, label, handler) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.dataset.contextAction = key;
+                    button.textContent = label;
+                    button.onclick = handler;
+                    extraRow.appendChild(button);
+                };
+                if (mine) {
+                    addExtra("info", "Düzenle", () => editMessage(message));
+                }
+                if (message.versions?.length) {
+                    addExtra("info", "Geçmiş", () => openMessageHistory(message));
+                }
+                addExtra("star", "Yıldızla", () => {
+                    showToast("Mesaj yıldızlandı.");
+                    closeModal();
+                });
+                addExtra("pin", "Sabitle", () => {
+                    showToast("Mesaj sohbet içinde işaretlendi.");
+                    closeModal();
+                });
+                addExtra("report", "Şikayet", () => {
+                    showToast("Mesaj inceleme için işaretlendi.");
+                    closeModal();
+                });
+                if (mine || activeChat()?.members.find(member => member.username === state.me.username)?.isAdmin) {
+                    addExtra("delete", "Herkesten Sil", () => {
                         closeModal();
                         socket.emit("message:delete", { messageId: message.id, scope: "all" });
-                    }
-                });
-            }
-            openModal("Mesaj", body => {
-                const text = document.createElement("p");
-                text.textContent = message.deletedAt ? "Silinmiş mesaj" : (message.body || message.attachment?.name || "Mesaj");
-                body.appendChild(text);
-            }, actions);
+                    });
+                }
+
+                wrap.append(summary, reactionRow, actionRow, extraRow);
+                body.appendChild(wrap);
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
         function openMessageHistory(message) {
@@ -15180,11 +15702,13 @@
             if (attachment.type && attachment.type.startsWith("audio/")) {
                 const wrap = document.createElement("div");
                 wrap.className = "voice-card";
+                setUiIndexMetadata(wrap, "4-3-5");
                 const head = document.createElement("div");
                 head.className = "profile-preview";
                 head.innerHTML = `<span class="attachment-option-icon">${svgIcon("mic")}</span><span><strong>Sesli mesaj</strong><small>${escapeHtml(attachment.name || "NexaLine ses kaydı")}</small></span>`;
                 const audio = document.createElement("audio");
                 audio.className = "voice-message";
+                setUiIndexMetadata(audio, "4-3-5");
                 audio.controls = true;
                 audio.src = attachment.dataUrl;
                 const speed = document.createElement("button");
@@ -15200,6 +15724,7 @@
                 if (attachment.transcript) {
                     const transcript = document.createElement("div");
                     transcript.className = "voice-transcript";
+                    setUiIndexMetadata(transcript, "4-3-6");
                     transcript.textContent = `Yazıya döküm: ${attachment.transcript}`;
                     wrap.appendChild(transcript);
                 }
@@ -15226,6 +15751,7 @@
             if (attachment.type === "location") {
                 const link = document.createElement("a");
                 link.className = "location-card";
+                setUiIndexMetadata(link, "4-3-3");
                 link.href = attachment.url;
                 link.target = "_blank";
                 link.rel = "noreferrer";
@@ -15243,6 +15769,7 @@
                 const card = document.createElement("button");
                 card.type = "button";
                 card.className = "file-pill";
+                setUiIndexMetadata(card, "4-3-4");
                 const contact = attachment.contact || {};
                 card.textContent = `Kişi: ${contact.displayName || attachment.name || contact.username || "NexaLine"}`;
                 card.onclick = () => {
@@ -15256,6 +15783,7 @@
                 const poll = attachment.poll || {};
                 const wrap = document.createElement("div");
                 wrap.className = "poll-card";
+                setUiIndexMetadata(wrap, "4-2-6");
                 const key = `nexalinePoll:${attachment.pollId || poll.question}`;
                 const selected = localStorage.getItem(key);
                 const locked = selected !== null;
@@ -15284,6 +15812,7 @@
             if (attachment.type === "gif") {
                 const wrap = document.createElement("div");
                 wrap.className = "gif-card";
+                setUiIndexMetadata(wrap, "4-2-7");
                 const image = document.createElement("img");
                 image.src = attachment.dataUrl || animatedGifDataUrl(attachment.label || "Nexa", attachment.symbol || "✨", attachment.colors || ["#704CFF", "#FF00B8"]);
                 image.alt = attachment.name || "Nexa GIF";
@@ -15316,8 +15845,10 @@
             const opened = localStorage.getItem(key) === "opened" || openedBy.includes(state.me?.username);
             const wrap = document.createElement("div");
             wrap.className = "file-pill single-open-media-card";
+            setUiIndexMetadata(wrap, "4-3-2");
             if (opened) {
-                wrap.textContent = "Tek açımlık medya açıldı";
+                wrap.classList.add("view-once-opened");
+                wrap.textContent = "🔒 Tek açımlık medya açıldı";
                 return wrap;
             }
             const button = document.createElement("button");
@@ -15340,8 +15871,10 @@
             const opened = localStorage.getItem(key) === "opened" || openedBy.includes(state.me?.username);
             const wrap = document.createElement("div");
             wrap.className = "file-pill single-open-media-card";
+            setUiIndexMetadata(wrap, "4-3-2");
             if (opened) {
-                wrap.textContent = "Tek görülmelik mesaj okundu";
+                wrap.classList.add("view-once-opened");
+                wrap.textContent = "🔒 Tek açımlık medya açıldı";
                 return wrap;
             }
             const button = document.createElement("button");
@@ -15531,19 +16064,21 @@
                 const menu = document.createElement("div");
                 menu.className = "attachment-menu compact-share-menu";
                 const items = [
-                    ["file", "Belge", () => $("fileInput").click()],
-                    ["image", "Fotoğraf", () => $("mediaInput").click()],
-                    ["camera", "Kamera", openCameraCapture],
-                    ["location", "Konum", sendCurrentLocation],
-                    ["contacts", "Kişi", openContactSharePicker],
-                    ["poll", "Anket", openPollCreator],
-                    ["eye", "Tek Mesaj", openViewOnceTextComposer],
-                    ["zap", "AI Düzenle", improveComposerWithAi]
+                    ["4-2-1", "file", "Belge", () => $("fileInput").click()],
+                    ["4-2-2", "image", "Fotoğraf", () => $("mediaInput").click()],
+                    ["4-2-3", "camera", "Kamera", openCameraCapture],
+                    ["4-2-9", "location", "Konum", sendCurrentLocation],
+                    ["4-2-5", "contacts", "Kişi", openContactSharePicker],
+                    ["4-2-6", "poll", "Anket", openPollCreator],
+                    ["4-2-10", "eye", "Tek Mesaj", openViewOnceTextComposer],
+                    ["4-2-11", "zap", "AI Düzenle", improveComposerWithAi]
                 ];
-                items.forEach(([icon, title, action]) => {
+                items.forEach(([index, icon, title, action]) => {
                     const button = document.createElement("button");
                     button.type = "button";
                     button.className = "attachment-option";
+                    button.dataset.attachmentIndex = index;
+                    setUiIndexMetadata(button, index);
                     button.innerHTML = `<span class="attachment-option-icon">${svgIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong></span>`;
                     button.onclick = () => {
                         closeModal();
