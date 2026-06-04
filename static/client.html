@@ -6566,6 +6566,19 @@
                 scroll-behavior: auto !important;
             }
         }
+
+        /* Keep JS visibility state stronger than late mobile theme display rules. */
+        .hidden,
+        .auth-screen.hidden,
+        .app.hidden,
+        .screen-transition.hidden,
+        .chat-pane.hidden,
+        .sidebar.hidden,
+        .modal-panel.hidden,
+        .call-overlay.hidden,
+        .ai-panel.hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -7112,7 +7125,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-04-login-cache-fix-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-login-visibility-fix-v2";
 
         async function clearLegacyAppCaches() {
             try {
