@@ -1060,6 +1060,17 @@ def message_to_dict(message):
     }
 
 
+def is_view_once_attachment(attachment):
+    if not isinstance(attachment, dict):
+        return False
+    attachment_type = str(attachment.get("type") or "")
+    return bool(
+        attachment.get("viewOnce")
+        or attachment_type == "view_once_text"
+        or (attachment.get("viewOnceId") and (attachment_type.startswith("image/") or attachment_type.startswith("video/")))
+    )
+
+
 def compact_attachment_for_admin(attachment):
     if not attachment or not isinstance(attachment, dict):
         return attachment
@@ -6129,6 +6140,40 @@ def handle_message_read(data):
     if updated_ids:
         db.session.commit()
         emit("message:read", {"chatId": chat_id, "reader": username, "messageIds": updated_ids}, room=chat_id)
+
+
+@socketio.on("message:view_once_opened")
+def handle_view_once_opened(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    message = db.session.get(Message, data.get("messageId"))
+
+    if not username or not message or message.deleted_at:
+        return
+
+    chat = db.session.get(Chat, message.chat_id)
+    if not chat or not user_can_see_chat(chat, username):
+        return
+
+    attachment = dict(message.attachment or {})
+    if not is_view_once_attachment(attachment):
+        return
+
+    opened_by = list(attachment.get("openedBy") or [])
+    if username not in opened_by:
+        opened_by.append(username)
+        attachment["openedBy"] = opened_by
+        message.attachment = attachment
+
+    if username != message.sender:
+        message.body = ""
+        message.attachment = None
+        message.reply_to = None
+        message.deleted_at = datetime.now(timezone.utc)
+        message.deleted_by = username
+
+    db.session.commit()
+    emit("message:deleted", message_to_dict(message), room=chat.id)
 
 
 @socketio.on("message:delete")

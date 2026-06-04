@@ -7377,6 +7377,258 @@
             }
         }
 
+        .message-input-shell {
+            position: relative;
+            display: grid;
+            min-width: 0;
+            align-items: center;
+        }
+
+        .message-input-shell textarea {
+            width: 100% !important;
+            padding-right: 68px !important;
+            resize: none;
+        }
+
+        .gif-inline-button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            width: 46px;
+            height: 34px;
+            min-height: 34px;
+            transform: translateY(-50%);
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 999px;
+            color: #fff;
+            background: linear-gradient(135deg, rgba(112,76,255,.72), rgba(255,0,184,.68));
+            box-shadow: 0 0 18px rgba(151, 71, 255, .22);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .02em;
+        }
+
+        .gif-inline-button:active {
+            transform: translateY(-50%) scale(.95);
+        }
+
+        .composer .emoji-panel {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: calc(100% + 10px);
+            z-index: 24;
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            gap: 8px;
+            max-height: min(220px, 40vh);
+            overflow-y: auto;
+            padding: 12px;
+            border-radius: 22px;
+            background: rgba(7, 13, 23, .96);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, .42);
+            backdrop-filter: blur(18px) saturate(150%);
+        }
+
+        .composer .emoji-panel.hidden {
+            display: none !important;
+        }
+
+        .composer .emoji-panel button {
+            width: 100%;
+            height: 38px;
+            border-radius: 14px;
+            font-size: 20px;
+        }
+
+        .modal-panel.share-menu-sheet .modal-box,
+        .share-menu-sheet.modal-box,
+        .modal-panel.sheet .share-menu-sheet {
+            max-height: none !important;
+        }
+
+        .modal-panel.share-menu-sheet .modal-body,
+        .share-menu-sheet .modal-body {
+            overflow: visible !important;
+            max-height: none !important;
+        }
+
+        .attachment-menu.compact-share-menu {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 12px !important;
+            padding: 6px 0 0 !important;
+            background: transparent !important;
+            border-radius: 0 !important;
+        }
+
+        .compact-share-menu .attachment-option {
+            min-height: 86px !important;
+            gap: 8px !important;
+            padding: 10px 6px !important;
+            border-radius: 20px !important;
+            background: linear-gradient(145deg, rgba(255,255,255,.070), rgba(255,255,255,.026)), rgba(17,24,39,.88) !important;
+        }
+
+        .compact-share-menu .attachment-option small {
+            display: none !important;
+        }
+
+        .compact-share-menu .attachment-option strong {
+            overflow: hidden;
+            max-width: 100%;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px !important;
+            line-height: 1.1 !important;
+        }
+
+        .compact-share-menu .attachment-option-icon {
+            width: 46px !important;
+            height: 46px !important;
+            margin: 0 !important;
+            border-radius: 18px !important;
+        }
+
+        .gif-card {
+            display: grid;
+            gap: 8px;
+            overflow: hidden;
+            width: min(220px, 68vw);
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, .10);
+            border-radius: 16px;
+            background: rgba(17,24,39,.72);
+        }
+
+        .gif-card img {
+            width: 100%;
+            max-width: none;
+            height: 138px;
+            margin: 0;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .gif-card small {
+            color: var(--ref-muted);
+            font-size: 11px;
+        }
+
+        .gif-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .gif-picker-item {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+            padding: 8px;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 18px;
+            color: #fff;
+            background: rgba(17,24,39,.86);
+            text-align: center;
+        }
+
+        .gif-picker-item img {
+            width: 100%;
+            aspect-ratio: 1.45;
+            border-radius: 14px;
+            object-fit: cover;
+        }
+
+        .gif-picker-item span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .poll-option.locked {
+            cursor: default;
+            opacity: .72;
+        }
+
+        .poll-option:disabled {
+            cursor: default;
+            opacity: .72;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            width: 58px !important;
+            height: 32px !important;
+            min-width: 58px !important;
+            border-radius: 999px !important;
+        }
+
+        .toggle-row input[type="checkbox"]::before {
+            left: 28px !important;
+            font-size: 9px !important;
+        }
+
+        .toggle-row input[type="checkbox"]::after {
+            left: 4px !important;
+            top: 4px !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked::before {
+            left: 10px !important;
+        }
+
+        .toggle-row input[type="checkbox"]:checked::after {
+            transform: translateX(26px) !important;
+        }
+
+        @media (max-width: 760px) {
+            #messageInputShell {
+                grid-area: input;
+            }
+
+            #messageInput {
+                grid-area: auto !important;
+            }
+
+            .composer .emoji-panel {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                left: 10px;
+                right: 10px;
+                bottom: calc(100% + 8px);
+                max-height: min(238px, 38vh);
+            }
+
+            .attachment-menu.compact-share-menu {
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                gap: 9px !important;
+                padding: 2px 0 0 !important;
+            }
+
+            .gif-picker-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .compact-share-menu .attachment-option {
+                min-height: 78px !important;
+                padding: 8px 4px !important;
+                border-radius: 18px !important;
+            }
+
+            .compact-share-menu .attachment-option-icon {
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 16px !important;
+            }
+
+            .compact-share-menu .attachment-option strong {
+                font-size: 10.5px !important;
+            }
+        }
+
         .hidden,
         .auth-screen.hidden,
         .app.hidden,
@@ -7564,7 +7816,10 @@
                 <input id="cameraInput" class="hidden" type="file" accept="image/*,video/*" capture="environment">
                 <input id="storyFileInput" class="hidden" type="file" accept="image/*,video/*">
                 <div id="attachmentPreview" class="attachment-preview hidden"></div>
-                <textarea id="messageInput" placeholder="Mesaj"></textarea>
+                <div id="messageInputShell" class="message-input-shell">
+                    <textarea id="messageInput" placeholder="Mesaj"></textarea>
+                    <button id="gifInlineButton" class="gif-inline-button" type="button" title="GIF">GIF</button>
+                </div>
                 <button id="sendButton" class="send-btn" data-tool="send" title="Gönder">➤</button>
             </footer>
         </section>
@@ -7939,7 +8194,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-04-mobile-ui-polish-v5";
+        const NEXALINE_CLIENT_BUILD = "2026-06-04-share-menu-gif-voice-v6";
 
         async function clearLegacyAppCaches() {
             try {
@@ -8489,6 +8744,20 @@
 
         const $ = (id) => document.getElementById(id);
         const EMOJIS = ["😀", "😂", "😍", "🥰", "😎", "😢", "😡", "👍", "👏", "🙏", "❤️", "🔥", "🎉", "✅", "📍", "☕"];
+        const GIF_PRESETS = [
+            ["Kutlama", "🎉", "#704CFF", "#FF00B8"],
+            ["Alev", "🔥", "#FF4A4A", "#FFB800"],
+            ["Kahkaha", "😂", "#00D8FF", "#704CFF"],
+            ["Kalp", "❤️", "#FF00B8", "#FF4A4A"],
+            ["Tamam", "✅", "#00D96F", "#00D8FF"],
+            ["Parıltı", "✨", "#8D4EFF", "#00D8FF"],
+            ["Bravo", "👏", "#FFB800", "#FF00B8"],
+            ["Şaşkın", "😮", "#5D6BFF", "#B000FF"],
+            ["Kahve", "☕", "#7C4DFF", "#00D8FF"],
+            ["Konum", "📍", "#FF00B8", "#704CFF"],
+            ["Gülümse", "😊", "#00D96F", "#704CFF"],
+            ["Nexa", "✦", "#00D8FF", "#FF00B8"]
+        ];
         const STAGE_MOBILE_NAV_ORDER = ["stories", "calls", "chats", "contacts", "explore"];
         loadAdminDesign();
 
@@ -14388,7 +14657,7 @@
                 }
 
                 if (!message.deletedAt && !hiddenLabels.length && message.attachment) {
-                    bubble.appendChild(renderAttachment(message.attachment));
+                    bubble.appendChild(renderAttachment(message.attachment, message));
                 }
 
                 if (message.reactions && Object.keys(message.reactions).length) {
@@ -14889,7 +15158,7 @@
             }, [{ label: "Vazgeç", onClick: closeModal }]);
         }
 
-        function renderAttachment(attachment) {
+        function renderAttachment(attachment, message = null) {
             if (attachment.type === "call") {
                 const pill = document.createElement("div");
                 pill.className = "file-pill";
@@ -14901,11 +15170,11 @@
             }
 
             if (attachment.type === "view_once_text") {
-                return renderViewOnceTextAttachment(attachment);
+                return renderViewOnceTextAttachment(attachment, message);
             }
 
             if (attachment.viewOnce && (attachment.type?.startsWith("image/") || attachment.type?.startsWith("video/"))) {
-                return renderViewOnceAttachment(attachment);
+                return renderViewOnceAttachment(attachment, message);
             }
 
             if (attachment.type && attachment.type.startsWith("audio/")) {
@@ -14989,15 +15258,21 @@
                 wrap.className = "poll-card";
                 const key = `nexalinePoll:${attachment.pollId || poll.question}`;
                 const selected = localStorage.getItem(key);
+                const locked = selected !== null;
                 const title = document.createElement("strong");
                 title.textContent = poll.question || "Anket";
                 wrap.appendChild(title);
                 (poll.options || []).forEach((option, index) => {
                     const row = document.createElement("button");
                     row.type = "button";
-                    row.className = "poll-option" + (selected === String(index) ? " selected" : "");
+                    row.disabled = locked;
+                    row.className = "poll-option" + (selected === String(index) ? " selected" : "") + (locked ? " locked" : "");
                     row.textContent = option;
                     row.onclick = () => {
+                        if (localStorage.getItem(key) !== null) {
+                            showToast("Anket seçimi kilitlendi; tekrar değiştirilemez.");
+                            return;
+                        }
                         localStorage.setItem(key, String(index));
                         renderActiveChat();
                     };
@@ -15008,8 +15283,14 @@
 
             if (attachment.type === "gif") {
                 const wrap = document.createElement("div");
-                wrap.className = "file-pill";
-                wrap.textContent = `${attachment.symbol || "✨"} GIF`;
+                wrap.className = "gif-card";
+                const image = document.createElement("img");
+                image.src = attachment.dataUrl || animatedGifDataUrl(attachment.label || "Nexa", attachment.symbol || "✨", attachment.colors || ["#704CFF", "#FF00B8"]);
+                image.alt = attachment.name || "Nexa GIF";
+                image.loading = "lazy";
+                const label = document.createElement("small");
+                label.textContent = attachment.name || "Nexa GIF";
+                wrap.append(image, label);
                 return wrap;
             }
 
@@ -15021,9 +15302,18 @@
             return link;
         }
 
-        function renderViewOnceAttachment(attachment) {
-            const key = `nexalineViewOnce:${attachment.viewOnceId || attachment.dataUrl?.slice(0, 80)}`;
-            const opened = localStorage.getItem(key) === "opened";
+        function markViewOnceOpened(message, attachment) {
+            if (!message?.id) return;
+            socket.emit("message:view_once_opened", {
+                messageId: message.id,
+                viewOnceId: attachment?.viewOnceId || ""
+            });
+        }
+
+        function renderViewOnceAttachment(attachment, message = null) {
+            const key = `nexalineViewOnce:${message?.id || attachment.viewOnceId || attachment.dataUrl?.slice(0, 80)}`;
+            const openedBy = Array.isArray(attachment.openedBy) ? attachment.openedBy : [];
+            const opened = localStorage.getItem(key) === "opened" || openedBy.includes(state.me?.username);
             const wrap = document.createElement("div");
             wrap.className = "file-pill single-open-media-card";
             if (opened) {
@@ -15036,6 +15326,7 @@
             button.textContent = "Tek Açımlık Medyayı Aç";
             button.onclick = () => {
                 localStorage.setItem(key, "opened");
+                markViewOnceOpened(message, attachment);
                 openMediaViewer(attachment);
                 renderActiveChat();
             };
@@ -15043,9 +15334,10 @@
             return wrap;
         }
 
-        function renderViewOnceTextAttachment(attachment) {
-            const key = `nexalineViewOnceText:${attachment.viewOnceId || String(attachment.text || "").slice(0, 80)}`;
-            const opened = localStorage.getItem(key) === "opened";
+        function renderViewOnceTextAttachment(attachment, message = null) {
+            const key = `nexalineViewOnceText:${message?.id || attachment.viewOnceId || String(attachment.text || "").slice(0, 80)}`;
+            const openedBy = Array.isArray(attachment.openedBy) ? attachment.openedBy : [];
+            const opened = localStorage.getItem(key) === "opened" || openedBy.includes(state.me?.username);
             const wrap = document.createElement("div");
             wrap.className = "file-pill single-open-media-card";
             if (opened) {
@@ -15058,10 +15350,15 @@
             button.textContent = "Tek Mesajı Aç";
             button.onclick = () => {
                 localStorage.setItem(key, "opened");
+                markViewOnceOpened(message, attachment);
                 openModal("Tek görülmelik mesaj", body => {
                     const text = document.createElement("div");
                     text.className = "vault-card";
                     text.textContent = attachment.text || "";
+                    text.style.userSelect = "none";
+                    text.oncopy = event => event.preventDefault();
+                    text.oncut = event => event.preventDefault();
+                    text.oncontextmenu = event => event.preventDefault();
                     body.appendChild(text);
                 }, [{ label: "Okudum", primary: true, onClick: () => { closeModal(); renderActiveChat(); } }], "sheet");
             };
@@ -15232,25 +15529,22 @@
             setAttachmentSheetOpen(true);
             openModal("Gönder", body => {
                 const menu = document.createElement("div");
-                menu.className = "attachment-menu";
+                menu.className = "attachment-menu compact-share-menu";
                 const items = [
-                    ["file", "Belge", "Dosya seç", () => $("fileInput").click()],
-                    ["image", "Fotoğraflar", "Galeri aç", () => $("mediaInput").click()],
-                    ["camera", "Kamera", "Cihaz kamerasını aç", openCameraCapture],
-                    ["volume", "Ses", "Ses dosyası seç", () => $("audioInput").click()],
-                    ["contacts", "Kişi", "Arkadaş profili paylaş", openContactSharePicker],
-                    ["poll", "Anket", "Soru ve seçeneklerle gönder", openPollCreator],
-                    ["gif", "GIF", "Kısa hareketli ifade gönder", openGifPicker],
-                    ["music", "Müzik", "Müzik dosyası seç", () => $("musicInput").click()],
-                    ["location", "Konum", "Mevcut konumunu gönder", sendCurrentLocation],
-                    ["eye", "Tek Mesaj", "Bir kez okunacak metin", openViewOnceTextComposer],
-                    ["zap", "AI ile düzenle", "Yazdığın mesajı iyileştir", improveComposerWithAi]
+                    ["file", "Belge", () => $("fileInput").click()],
+                    ["image", "Fotoğraf", () => $("mediaInput").click()],
+                    ["camera", "Kamera", openCameraCapture],
+                    ["location", "Konum", sendCurrentLocation],
+                    ["contacts", "Kişi", openContactSharePicker],
+                    ["poll", "Anket", openPollCreator],
+                    ["eye", "Tek Mesaj", openViewOnceTextComposer],
+                    ["zap", "AI Düzenle", improveComposerWithAi]
                 ];
-                items.forEach(([icon, title, hint, action]) => {
+                items.forEach(([icon, title, action]) => {
                     const button = document.createElement("button");
                     button.type = "button";
                     button.className = "attachment-option";
-                    button.innerHTML = `<span class="attachment-option-icon">${svgIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small></span>`;
+                    button.innerHTML = `<span class="attachment-option-icon">${svgIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong></span>`;
                     button.onclick = () => {
                         closeModal();
                         action();
@@ -15258,7 +15552,7 @@
                     menu.appendChild(button);
                 });
                 body.appendChild(menu);
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet share-menu-sheet");
         }
         function openViewOnceTextComposer() {
             openModal("Tek görülmelik mesaj", body => {
@@ -15406,30 +15700,64 @@
             await startStream();
         }
 
+        function animatedGifDataUrl(label, symbol, colors = ["#704CFF", "#FF00B8"]) {
+            const [first, second] = colors;
+            const safeLabel = escapeHtml(label).replaceAll("&quot;", "'");
+            const safeSymbol = escapeHtml(symbol);
+            const svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="360" height="220" viewBox="0 0 360 220">
+                    <defs>
+                        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+                            <stop offset="0%" stop-color="${first}"/>
+                            <stop offset="100%" stop-color="${second}"/>
+                        </linearGradient>
+                        <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    </defs>
+                    <rect width="360" height="220" rx="34" fill="#070D17"/>
+                    <circle cx="70" cy="54" r="88" fill="${first}" opacity=".23">
+                        <animate attributeName="r" values="70;96;70" dur="1.4s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="296" cy="182" r="100" fill="${second}" opacity=".20">
+                        <animate attributeName="r" values="92;116;92" dur="1.7s" repeatCount="indefinite"/>
+                    </circle>
+                    <g filter="url(#glow)">
+                        <circle cx="180" cy="104" r="58" fill="url(#g)">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.08;1" dur="1.1s" repeatCount="indefinite" additive="sum"/>
+                        </circle>
+                        <text x="180" y="124" text-anchor="middle" font-size="62" font-family="Apple Color Emoji, Segoe UI Emoji, sans-serif">${safeSymbol}</text>
+                    </g>
+                    <text x="180" y="184" text-anchor="middle" fill="#fff" font-size="24" font-weight="800" font-family="Inter,Arial,sans-serif">${safeLabel}</text>
+                </svg>`;
+            return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        }
+
         function openGifPicker() {
-            const gifs = ["✨", "🔥", "🎉", "💫", "😂", "❤️"];
             openModal("GIF", body => {
                 const panel = document.createElement("div");
-                panel.className = "emoji-panel";
-                gifs.forEach(item => {
+                panel.className = "gif-picker-grid";
+                GIF_PRESETS.forEach(([label, symbol, first, second]) => {
                     const button = document.createElement("button");
                     button.type = "button";
-                    button.textContent = item;
+                    button.className = "gif-picker-item";
+                    const dataUrl = animatedGifDataUrl(label, symbol, [first, second]);
+                    button.innerHTML = `<img src="${dataUrl}" alt="${escapeHtml(label)}"><span>${escapeHtml(label)}</span>`;
                     button.onclick = () => {
                         state.attachment = {
                             type: "gif",
-                            name: "Nexa GIF",
-                            dataUrl: "",
-                            symbol: item
+                            name: `${label} GIF`,
+                            dataUrl,
+                            symbol,
+                            label,
+                            colors: [first, second]
                         };
-                        $("messageInput").placeholder = `${item} GIF hazir`;
+                        $("messageInput").placeholder = `${label} GIF hazır`;
                         updateComposerState();
                         closeModal();
                     };
                     panel.appendChild(button);
                 });
                 body.appendChild(panel);
-            }, [{ label: "Kapat", onClick: closeModal }]);
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
         async function improveComposerWithAi() {
@@ -15440,7 +15768,7 @@
                 return;
             }
             try {
-                showToast("Nexa AI mesaji duzenliyor...");
+                showToast("Nexa AI mesajı düzenliyor...");
                 const response = await fetch("/ai/chat", {
                     method: "POST",
                     headers: authHeaders(),
@@ -15453,14 +15781,24 @@
                 });
                 const data = await response.json();
                 if (!data.ok) {
-                    showToast(data.message || "AI duzenleyemedi.");
+                    showToast(data.message || "AI düzenleyemedi.");
                     return;
                 }
-                input.value = (data.reply || text).replace(/^["“]|["”]$/g, "").trim();
+                input.value = cleanAiEditedText(data.reply || text);
+                input.focus();
                 updateComposerState();
             } catch (_error) {
-                showToast("AI duzenleme su an kullanilamiyor.");
+                showToast("AI düzenleme şu an kullanılamıyor.");
             }
+        }
+
+        function cleanAiEditedText(value) {
+            const lines = String(value || "")
+                .replace(/^["“]|["”]$/g, "")
+                .split(/\r?\n/)
+                .map(line => line.trim())
+                .filter(line => line && !/^kaynaklar\s*:/i.test(line) && !/^https?:\/\//i.test(line));
+            return (lines.join(" ") || String(value || "")).replace(/^["“]|["”]$/g, "").trim();
         }
 
         function openContactSharePicker() {
@@ -15567,7 +15905,12 @@
             ]);
         }
 
-        function toggleEmojiPanel() {
+        function closeEmojiPanel() {
+            $("emojiPanel")?.classList.add("hidden");
+        }
+
+        function toggleEmojiPanel(event = null) {
+            event?.stopPropagation?.();
             const panel = $("emojiPanel");
             if (panel.innerHTML === "") {
                 EMOJIS.forEach(emoji => {
@@ -15578,6 +15921,7 @@
                         $("messageInput").value += emoji;
                         $("messageInput").focus();
                         updateComposerState();
+                        closeEmojiPanel();
                     };
                     panel.appendChild(button);
                 });
@@ -15934,12 +16278,16 @@
             ] : [{ label: "Kapat", onClick: closeModal }]);
         }
 
+        function resetVoiceRecordUi() {
+            $("voiceButton").classList.remove("recording");
+            $("voiceButton").innerHTML = svgIcon("mic");
+            $("cancelVoiceButton").classList.add("hidden");
+        }
+
         async function toggleVoiceRecording() {
             if (state.recorder && state.recorder.state === "recording") {
                 state.recorder.stop();
-                $("voiceButton").classList.remove("recording");
-                $("voiceButton").textContent = "●";
-                $("cancelVoiceButton").classList.add("hidden");
+                resetVoiceRecordUi();
                 stopVoiceWave();
                 stopVoiceTranscript();
                 return;
@@ -15959,7 +16307,12 @@
             }
             state.recordedChunks = [];
             state.cancelRecording = false;
-            state.recorder = new MediaRecorder(stream);
+            const preferredType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+                ? "audio/webm;codecs=opus"
+                : MediaRecorder.isTypeSupported("audio/webm")
+                    ? "audio/webm"
+                    : "";
+            state.recorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
             startVoiceWave(stream);
             startVoiceTranscript();
             state.recorder.ondataavailable = event => {
@@ -15971,32 +16324,43 @@
                 stream.getTracks().forEach(track => track.stop());
                 stopVoiceWave();
                 stopVoiceTranscript();
-                $("cancelVoiceButton").classList.add("hidden");
+                resetVoiceRecordUi();
                 if (state.cancelRecording) {
                     state.recordedChunks = [];
                     $("messageInput").placeholder = "Mesaj";
+                    updateComposerState();
                     return;
                 }
-                const blob = new Blob(state.recordedChunks, { type: "audio/webm" });
+                if (!state.recordedChunks.length) {
+                    showToast("Ses kaydı alınamadı. Tekrar dene.");
+                    $("messageInput").placeholder = "Mesaj";
+                    updateComposerState();
+                    return;
+                }
+                const blob = new Blob(state.recordedChunks, { type: preferredType || state.recorder.mimeType || "audio/webm" });
                 if (blob.size > MAX_CLIENT_ATTACHMENT_BYTES) {
                     showToast("Ses kaydı çok uzun. Daha kısa kayıt al.");
                     state.recordedChunks = [];
                     $("messageInput").placeholder = "Mesaj";
+                    updateComposerState();
                     return;
                 }
                 const reader = new FileReader();
                 reader.onload = () => {
+                    const mime = blob.type || "audio/webm";
                     state.attachment = {
                         name: `sesli-mesaj-${Date.now()}.webm`,
-                        type: "audio/webm",
+                        type: mime,
                         dataUrl: reader.result,
                         transcript: state.voiceTranscript
                     };
-                    $("messageInput").placeholder = state.voiceTranscript ? "Sesli mesaj ve metin hazir" : "Sesli mesaj hazir";
+                    $("messageInput").placeholder = state.voiceTranscript ? "Sesli mesaj ve metin hazır" : "Sesli mesaj hazır";
+                    state.recordedChunks = [];
+                    updateComposerState();
                 };
                 reader.readAsDataURL(blob);
             };
-            state.recorder.start();
+            state.recorder.start(250);
             $("voiceButton").classList.add("recording");
             $("voiceButton").textContent = "■";
             $("cancelVoiceButton").classList.remove("hidden");
@@ -16006,9 +16370,7 @@
             if (state.recorder && state.recorder.state === "recording") {
                 state.cancelRecording = true;
                 state.recorder.stop();
-                $("voiceButton").classList.remove("recording");
-                $("voiceButton").textContent = "●";
-                $("cancelVoiceButton").classList.add("hidden");
+                resetVoiceRecordUi();
                 stopVoiceWave();
                 stopVoiceTranscript();
                 showToast("Ses kaydı iptal edildi.");
@@ -17597,7 +17959,8 @@
             };
         });
         $("attachButton").onclick = () => isAiChat(activeChat()) ? openAiCommandCenter() : openAttachmentMenu();
-        $("emojiButton").onclick = toggleEmojiPanel;
+        $("emojiButton").onclick = event => toggleEmojiPanel(event);
+        $("gifInlineButton").onclick = openGifPicker;
         $("locationButton").onclick = () => isAiChat(activeChat()) ? sendAiCurrentLocation() : sendCurrentLocation();
         $("fileInput").onchange = handleFile;
         $("mediaInput").onchange = handleFile;
@@ -17755,6 +18118,12 @@
                 closeModal();
                 closeSettings();
             }
+        });
+        document.addEventListener("pointerdown", event => {
+            const panel = $("emojiPanel");
+            if (!panel || panel.classList.contains("hidden")) return;
+            if (event.target.closest("#emojiPanel, #emojiButton")) return;
+            closeEmojiPanel();
         });
         $("messages").addEventListener("dragover", event => {
             event.preventDefault();
