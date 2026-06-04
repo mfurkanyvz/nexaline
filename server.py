@@ -1784,6 +1784,7 @@ def reset_all_user_data():
     ChatArchive.query.delete(synchronize_session=False)
     PointLedger.query.delete(synchronize_session=False)
     AiTask.query.delete(synchronize_session=False)
+    AiMemory.query.delete(synchronize_session=False)
     CommunityAnnouncement.query.delete(synchronize_session=False)
     CommunityMember.query.delete(synchronize_session=False)
     Community.query.delete(synchronize_session=False)
