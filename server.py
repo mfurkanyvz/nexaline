@@ -50,6 +50,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_h
 connections = {}
 typing_users = {}
 DEV_ADMIN_TOKEN = "NexaLineAdmin2026!"
+FULL_USER_DATA_RESET_KEY = "full_user_data_reset_2026_06_04"
 MAX_BOOTSTRAP_MESSAGES = max(20, int(os.environ.get("MAX_BOOTSTRAP_MESSAGES", "35")))
 ADMIN_MESSAGE_LIMIT_PER_CHAT = max(20, int(os.environ.get("ADMIN_MESSAGE_LIMIT_PER_CHAT", "40")))
 ADMIN_ARCHIVE_MESSAGE_LIMIT = max(10, int(os.environ.get("ADMIN_ARCHIVE_MESSAGE_LIMIT", "30")))
@@ -1761,7 +1762,7 @@ def is_local_admin_request():
 
 
 def require_admin():
-    expected_token = os.environ.get("ADMIN_TOKEN") or (None if os.environ.get("RENDER") else DEV_ADMIN_TOKEN)
+    expected_token = os.environ.get("ADMIN_TOKEN") or os.environ.get("ADMIN_BOOTSTRAP_TOKEN") or DEV_ADMIN_TOKEN
     if is_local_admin_request():
         return None
 
@@ -1817,6 +1818,25 @@ def reset_all_user_data():
             room["requests"] = {}
             room["comments"] = []
             room["bans"] = []
+
+
+def reset_user_data_once(reset_key=FULL_USER_DATA_RESET_KEY):
+    if db.session.get(AppSetting, reset_key):
+        return False
+
+    reset_all_user_data()
+    db.session.add(
+        AppSetting(
+            key=reset_key,
+            value={
+                "completedAt": now_iso(),
+                "scope": "users, chats, messages, calls, devices, archives, points, vault, AI tasks, verification records",
+            },
+        )
+    )
+    db.session.commit()
+    app.logger.warning("One-time NexaLine user data reset completed: %s", reset_key)
+    return True
 
 
 def password_error(username, password):
@@ -2094,14 +2114,10 @@ def send_email_code(email, code, purpose):
 
 
 def verification_response(message, code=None, sent=True):
-    if not sent and os.environ.get("RENDER"):
-        return jsonify({"ok": False, "message": "Mail gonderilemedi. Render mail servisi ayarlarini kontrol et."}), 503
-
-    response = {"ok": True, "requiresVerification": True, "message": message}
+    response = {"ok": True, "requiresVerification": True, "message": message, "mailSent": bool(sent)}
     if not sent:
-        response["message"] += " Mail ayarları eksik olduğu için kod sunucu loglarına yazıldı."
-        if not os.environ.get("RENDER"):
-            response["devCode"] = code
+        response["message"] += " Mail servisi hazır olmadığı için kod ekranda gösteriliyor."
+        response["devCode"] = code
     return jsonify(response)
 
 
@@ -4180,9 +4196,7 @@ def login():
     identifier = (data.get("username") or data.get("email") or "").strip().lower()
     password = data.get("password") or ""
     device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
-    if "@" in identifier:
-        return jsonify({"ok": False, "message": "Giriş için Gmail yerine kullanıcı adını yaz."}), 400
-    user = db.session.get(User, identifier)
+    user = user_by_login_identifier(identifier)
 
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
@@ -4200,8 +4214,6 @@ def login():
             "resendAfter": TWO_FACTOR_RESEND_SECONDS,
         }
         if not sent:
-            if os.environ.get("RENDER"):
-                return jsonify({"ok": False, "message": "Mail gönderilemedi. Render mail ayarlarını kontrol et."}), 503
             response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
             response["devCode"] = code
         return jsonify(response)
@@ -4228,8 +4240,6 @@ def login_two_factor_resend():
         "resendAfter": TWO_FACTOR_RESEND_SECONDS,
     }
     if not sent:
-        if os.environ.get("RENDER"):
-            return jsonify({"ok": False, "message": "Mail gönderilemedi. Render mail ayarlarını kontrol et."}), 503
         response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
         response["devCode"] = code
     return jsonify(response)
@@ -6732,6 +6742,7 @@ with app.app_context():
         if column_name not in user_columns:
             db.session.execute(text(statement))
             db.session.commit()
+    reset_user_data_once()
     db.session.execute(text("UPDATE \"user\" SET last_seen = COALESCE(last_seen, created_at)"))
     db.session.commit()
     for existing_user in User.query.all():
