@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-    <meta name="theme-color" content="#10131b">
+    <meta name="theme-color" content="#050911">
     <meta name="application-name" content="NexaLine">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -17,22 +17,22 @@
     <script src="/static/vendor/socket.io.min.js"></script>
     <style>
         :root {
-            --ink: #070a10;
-            --panel: #121722;
-            --panel-2: #181f2b;
-            --panel-3: #202937;
-            --line: #303848;
-            --text: #eef4ff;
-            --muted: #8f99ac;
-            --red: #e23a4f;
-            --blue: #357fef;
-            --green: #24c872;
-            --incoming: #1f2724;
-            --outgoing: #075e54;
-            --gold: #e7b84d;
-            --app-bg: #0d1219;
-            --chat-bg: #10151d;
-            --shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+            --ink: #050911;
+            --panel: #111827;
+            --panel-2: #141D2A;
+            --panel-3: #161F30;
+            --line: rgba(255,255,255,0.08);
+            --text: #FFFFFF;
+            --muted: #8A94A6;
+            --red: #FF00B8;
+            --blue: #704CFF;
+            --green: #00D96F;
+            --incoming: #141D2A;
+            --outgoing: linear-gradient(90deg, #704CFF 0%, #8D4EFF 25%, #B000FF 50%, #FF00B8 100%);
+            --gold: #FFB800;
+            --app-bg: #050911;
+            --chat-bg: #070D17;
+            --shadow: 0 10px 40px rgba(0,0,0,0.45);
             --app-height: 100vh;
             --keyboard-inset: 0px;
             --admin-font-size: 16px;
@@ -54,14 +54,14 @@
         }
 
         :root[data-theme="light"] {
-            --ink: #eef2f7;
-            --panel: #ffffff;
-            --panel-2: #f3f6fb;
-            --panel-3: #e6edf7;
-            --line: #cfd7e6;
-            --text: #101722;
-            --muted: #5f6b7f;
-            --shadow: 0 20px 60px rgba(30, 42, 62, 0.18);
+            --ink: #050911;
+            --panel: #111827;
+            --panel-2: #141D2A;
+            --panel-3: #161F30;
+            --line: rgba(255,255,255,0.08);
+            --text: #FFFFFF;
+            --muted: #8A94A6;
+            --shadow: 0 10px 40px rgba(0,0,0,0.45);
         }
 
         * {
@@ -4701,10 +4701,20 @@
         .chat-filter-row,
         .call-filter-row,
         .explore-chip-row {
-            display: flex;
-            gap: 8px;
-            padding: 8px 10px 10px;
-            overflow-x: auto;
+          display: flex;
+          gap: 8px;
+          padding: 8px 10px 10px;
+          overflow-x: auto;
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        .chat-filter-row::-webkit-scrollbar,
+        .call-filter-row::-webkit-scrollbar,
+        .explore-chip-row::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+          display: none;
         }
 
         .filter-chip,
@@ -5863,6 +5873,690 @@
             }
         }
 
+        /* NexaLine reference visual system from the supplied Stage 1-9 boards. */
+        :root,
+        :root[data-theme="light"] {
+            --ref-bg: #050911;
+            --ref-bg-2: #070D17;
+            --ref-bg-3: #0A101A;
+            --ref-card: #111827;
+            --ref-card-2: #141D2A;
+            --ref-card-3: #161F30;
+            --ref-panel: #182130;
+            --ref-text: #FFFFFF;
+            --ref-muted: #8A94A6;
+            --ref-secondary: #B0B7C3;
+            --ref-placeholder: #6B7280;
+            --ref-purple: #704CFF;
+            --ref-purple-2: #8D4EFF;
+            --ref-violet: #9747FF;
+            --ref-neon: #B000FF;
+            --ref-pink: #FF00B8;
+            --ref-cyan: #00D8FF;
+            --ref-blue: #5D6BFF;
+            --ref-success: #00D96F;
+            --ref-error: #FF4A4A;
+            --ref-warning: #FFB800;
+            --ref-line: rgba(255,255,255,0.08);
+            --ref-line-strong: rgba(255,255,255,0.12);
+            --ref-glass: rgba(255,255,255,0.03);
+            --ref-primary-gradient: linear-gradient(90deg, #704CFF 0%, #8D4EFF 25%, #B000FF 50%, #FF00B8 100%);
+            --ref-secondary-gradient: linear-gradient(90deg, #00D8FF 0%, #5D6BFF 100%);
+            --ref-avatar-gradient: linear-gradient(135deg, #00D8FF, #704CFF, #FF00B8);
+            --ref-card-shadow: 0 10px 40px rgba(0,0,0,0.45);
+            --ref-button-shadow: 0 10px 30px rgba(112,76,255,0.25);
+            --ref-purple-glow: 0 0 10px rgba(112,76,255,.88), 0 0 20px rgba(151,71,255,.58), 0 0 40px rgba(255,0,184,.28);
+            --ink: var(--ref-bg);
+            --panel: var(--ref-card);
+            --panel-2: var(--ref-card-2);
+            --panel-3: var(--ref-card-3);
+            --line: var(--ref-line);
+            --text: var(--ref-text);
+            --muted: var(--ref-muted);
+            --red: var(--ref-pink);
+            --blue: var(--ref-purple);
+            --green: var(--ref-success);
+            --gold: var(--ref-warning);
+            --app-bg: var(--ref-bg);
+            --chat-bg: var(--ref-bg-2);
+            --incoming: rgba(20,29,42,.92);
+            --outgoing: var(--ref-primary-gradient);
+            --shadow: var(--ref-card-shadow);
+            --primary-gradient: var(--ref-primary-gradient);
+            --avatar-gradient: var(--ref-avatar-gradient);
+            --kit-red: var(--ref-purple);
+            --kit-red-glow: var(--ref-pink);
+            --kit-blue: var(--ref-cyan);
+            --kit-green: var(--ref-success);
+            --kit-surface: rgba(17,24,39,.84);
+            --kit-surface-2: rgba(20,29,42,.88);
+            --kit-border: var(--ref-line);
+            --master-bg: var(--ref-bg);
+            --master-panel: rgba(17,24,39,.84);
+            --master-panel-2: rgba(20,29,42,.88);
+            --master-line: var(--ref-line);
+            --master-blue: var(--ref-purple);
+            --master-purple: var(--ref-violet);
+            --master-cyan: var(--ref-cyan);
+            --master-danger: var(--ref-error);
+            --nx-bg: var(--ref-bg);
+            --nx-bg-soft: var(--ref-bg-2);
+            --nx-surface: rgba(17,24,39,.84);
+            --nx-surface-2: rgba(20,29,42,.88);
+            --nx-border: var(--ref-line);
+            --nx-text: var(--ref-text);
+            --nx-muted: var(--ref-muted);
+            --nx-blue: var(--ref-purple);
+            --nx-purple: var(--ref-violet);
+            --nx-cyan: var(--ref-cyan);
+            --nx-green: var(--ref-success);
+            --nx-yellow: var(--ref-warning);
+            --nx-danger: var(--ref-error);
+            --nx-gradient: var(--ref-primary-gradient);
+            --nx-glass: rgba(255,255,255,.03);
+            --stage-bg: var(--ref-bg);
+            --stage-bg-2: var(--ref-bg-2);
+            --stage-card: rgba(17,24,39,.84);
+            --stage-card-2: rgba(20,29,42,.88);
+            --stage-line: var(--ref-line);
+            --stage-text: var(--ref-text);
+            --stage-muted: var(--ref-muted);
+            --stage-blue: var(--ref-purple);
+            --stage-purple: var(--ref-violet);
+            --stage-pink: var(--ref-pink);
+            --stage-cyan: var(--ref-cyan);
+            --stage-green: var(--ref-success);
+            --stage-yellow: var(--ref-warning);
+            --stage-danger: var(--ref-error);
+            --stage-gradient: var(--ref-primary-gradient);
+            --stage-gradient-soft: linear-gradient(135deg, rgba(112,76,255,.24), rgba(151,71,255,.18) 48%, rgba(255,0,184,.18));
+            --stage-glass: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.03));
+        }
+
+        body,
+        :root[data-theme="light"] body {
+            color: var(--ref-text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Manrope", Arial, Helvetica, sans-serif;
+            background:
+                radial-gradient(circle at 16% -4%, rgba(112,76,255,.32), transparent 30%),
+                radial-gradient(circle at 84% 8%, rgba(255,0,184,.20), transparent 28%),
+                radial-gradient(circle at 50% 110%, rgba(0,216,255,.12), transparent 38%),
+                linear-gradient(180deg, #03060B 0%, var(--ref-bg) 48%, #03060B 100%) !important;
+        }
+
+        .auth-screen,
+        :root[data-theme="light"] .auth-screen,
+        .app,
+        :root[data-theme="light"] .app {
+            background:
+                radial-gradient(circle at 18% -8%, rgba(112,76,255,.28), transparent 32%),
+                radial-gradient(circle at 90% 18%, rgba(255,0,184,.18), transparent 30%),
+                radial-gradient(circle at 14% 92%, rgba(0,216,255,.10), transparent 34%),
+                linear-gradient(180deg, #03060B 0%, var(--ref-bg) 54%, #03060B 100%) !important;
+        }
+
+        .auth-card,
+        .qr-login-card,
+        .sidebar,
+        .topbar,
+        .chat-top,
+        .composer,
+        .ai-panel,
+        .settings-box,
+        .modal-box,
+        .story-box,
+        .call-box,
+        .chat-item,
+        .contact-item,
+        .call-item,
+        .settings-option,
+        .toggle-row,
+        .profile-hero,
+        .profile-hero-card,
+        .profile-stat,
+        .profile-about,
+        .explore-card,
+        .vault-card,
+        .voice-room-card,
+        .ai-home-card,
+        .nexal-menu-card,
+        .nexal-command-card,
+        .nexal-task-card,
+        .nexal-settings-row,
+        .nexal-tool-card,
+        .badge-card,
+        .quest-card,
+        .community-card,
+        .voice-live-card,
+        .attachment-option,
+        .point-ledger-row,
+        .reward-card {
+            color: var(--ref-text) !important;
+            border: 1px solid var(--ref-line) !important;
+            background: linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.026)), rgba(17,24,39,.84) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), var(--ref-card-shadow) !important;
+            backdrop-filter: blur(20px) saturate(150%);
+        }
+
+        .auth-card,
+        .qr-login-card,
+        .ai-panel,
+        .settings-box,
+        .modal-box,
+        .call-box {
+            border-radius: 24px !important;
+        }
+
+        .chat-item,
+        .contact-item,
+        .call-item,
+        .settings-option,
+        .toggle-row,
+        .profile-stat,
+        .profile-about,
+        .explore-card,
+        .vault-card,
+        .voice-room-card,
+        .ai-home-card,
+        .nexal-menu-card,
+        .nexal-command-card,
+        .nexal-task-card,
+        .nexal-settings-row,
+        .nexal-tool-card,
+        .badge-card,
+        .quest-card,
+        .community-card,
+        .voice-live-card,
+        .attachment-option,
+        .point-ledger-row,
+        .reward-card {
+            border-radius: 20px !important;
+        }
+
+        .brand h1,
+        .section-label,
+        .chat-title,
+        .identity strong,
+        .profile-title h2,
+        .ai-panel strong,
+        .ai-home-card strong,
+        .badge-card strong,
+        .quest-card strong,
+        .community-card strong,
+        .voice-live-card strong,
+        .nexal-menu-card strong,
+        .nexal-command-card strong,
+        .nexal-task-card strong,
+        .nexal-settings-row strong,
+        .nexal-tool-card strong {
+            color: var(--ref-text) !important;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .brand-subtitle,
+        .last-message,
+        .chat-time,
+        .identity small,
+        .profile-title p,
+        .ai-panel small,
+        .ai-home-card small,
+        .badge-card small,
+        .quest-card small,
+        .community-card small,
+        .voice-live-card small,
+        .nexal-menu-card small,
+        .nexal-command-card small,
+        .nexal-task-card small,
+        .nexal-settings-row small,
+        .nexal-tool-card small {
+            color: var(--ref-muted) !important;
+        }
+
+        input,
+        textarea,
+        select,
+        .field,
+        .search-box input,
+        .composer textarea,
+        .ai-composer textarea,
+        .settings-box input,
+        .settings-box textarea,
+        .settings-box select,
+        .modal-body input,
+        .modal-body textarea,
+        .modal-body select {
+            min-height: 56px;
+            color: var(--ref-text) !important;
+            border: 1px solid var(--ref-line) !important;
+            border-radius: 16px !important;
+            background: rgba(17,24,39,.86) !important;
+            outline: 0;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--ref-placeholder) !important;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus,
+        .field:focus {
+            border-color: var(--ref-violet) !important;
+            box-shadow: 0 0 20px rgba(151,71,255,0.35) !important;
+        }
+
+        .primary,
+        button.primary,
+        .auth-tab.active,
+        .send-btn,
+        .new-chat-fab,
+        .filter-chip.active,
+        .points-chip,
+        .nexal-pill-button.primary,
+        .nexal-task-tabs button.active,
+        .badge-card.unlocked .attachment-option-icon,
+        .pin-dots span.filled {
+            color: #fff !important;
+            background: var(--ref-primary-gradient) !important;
+            box-shadow: var(--ref-button-shadow), 0 0 26px rgba(255,0,184,.16) !important;
+        }
+
+        .secondary,
+        .text-btn,
+        .filter-chip,
+        .mini-btn,
+        .auth-tab,
+        .nexal-pill-button,
+        .nexal-task-tabs button {
+            color: var(--ref-secondary) !important;
+            border: 1px solid var(--ref-line-strong) !important;
+            background: rgba(255,255,255,.03) !important;
+        }
+
+        .danger,
+        button.danger,
+        .mini-btn.danger {
+            color: #fff !important;
+            background: linear-gradient(135deg, #FF4A4A, #B000FF) !important;
+            box-shadow: 0 10px 30px rgba(255,74,74,.20) !important;
+        }
+
+        .accept {
+            color: #03130A !important;
+            background: linear-gradient(135deg, #00D96F, #00D8FF) !important;
+        }
+
+        .brand-mark,
+        .transition-mark,
+        .ai-mini-orb,
+        .nexal-orb,
+        .nexal-voice-orb,
+        .avatar,
+        .profile-avatar-preview,
+        .attachment-option-icon,
+        .nexal-card-icon {
+            background: var(--ref-avatar-gradient) !important;
+            box-shadow: var(--ref-purple-glow) !important;
+        }
+
+        .brand-mark,
+        .transition-mark {
+            background: transparent !important;
+        }
+
+        .avatar.online,
+        #meAvatar.online {
+            border-color: var(--ref-success) !important;
+            box-shadow: 0 0 0 3px rgba(0,217,111,.14), 0 0 24px rgba(0,217,111,.22) !important;
+        }
+
+        .avatar.online::after {
+            background: var(--ref-success) !important;
+            border-color: var(--ref-bg-2) !important;
+        }
+
+        .nav-tabs {
+            border-color: var(--ref-line) !important;
+            background: rgba(255,255,255,.03) !important;
+            backdrop-filter: blur(20px) saturate(160%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), var(--ref-card-shadow) !important;
+        }
+
+        .nav-tabs::before {
+            background: linear-gradient(135deg, rgba(112,76,255,.40), rgba(151,71,255,.30), rgba(255,0,184,.22)) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 10px 30px rgba(112,76,255,.25) !important;
+        }
+
+        .nav-tab {
+            color: var(--ref-placeholder) !important;
+            background: transparent !important;
+        }
+
+        .nav-tab.active,
+        .nav-tab.active .nav-icon {
+            color: #fff !important;
+        }
+
+        .nav-tab.active .nav-icon {
+            filter: drop-shadow(0 0 12px rgba(255,0,184,.44));
+        }
+
+        .nexa-svg {
+            stroke-width: 2;
+        }
+
+        .chat-pane,
+        .messages,
+        .ai-messages {
+            background:
+                radial-gradient(circle at 18% 2%, rgba(112,76,255,.12), transparent 30%),
+                radial-gradient(circle at 88% 88%, rgba(255,0,184,.09), transparent 30%),
+                var(--ref-bg) !important;
+        }
+
+        .bubble {
+            color: var(--ref-text) !important;
+            border: 1px solid var(--ref-line) !important;
+            border-radius: 18px !important;
+            background: rgba(20,29,42,.92) !important;
+            box-shadow: 0 10px 26px rgba(0,0,0,.22);
+        }
+
+        .bubble.mine,
+        .bubble.outgoing {
+            border-color: rgba(151,71,255,.42) !important;
+            background: var(--ref-primary-gradient) !important;
+        }
+
+        .chat-item.active,
+        .contact-item.active,
+        .call-item.active {
+            border-color: rgba(151,71,255,.36) !important;
+            background: linear-gradient(135deg, rgba(112,76,255,.20), rgba(255,0,184,.10)), rgba(20,29,42,.90) !important;
+        }
+
+        .points-progress,
+        .nexal-progress,
+        progress {
+            background: rgba(255,255,255,.08) !important;
+        }
+
+        .points-progress span,
+        .nexal-progress span,
+        progress::-webkit-progress-value {
+            background: var(--ref-primary-gradient) !important;
+            box-shadow: 0 0 18px rgba(151,71,255,.32);
+        }
+
+        .nexal-toggle.on {
+            background: var(--ref-primary-gradient) !important;
+        }
+
+        .ai-panel {
+            border-radius: 28px !important;
+            overflow: hidden;
+        }
+
+        .ai-panel.nexal-mode,
+        .ai-panel {
+            border-color: rgba(151,71,255,.32) !important;
+            background:
+                radial-gradient(circle at 50% -10%, rgba(112,76,255,.22), transparent 34%),
+                linear-gradient(180deg, rgba(7,13,23,.96), rgba(5,9,17,.96)) !important;
+        }
+
+        .ai-composer,
+        .ai-head {
+            border-color: var(--ref-line) !important;
+            background: rgba(7,13,23,.72) !important;
+            backdrop-filter: blur(20px);
+        }
+
+        .nexal-voice-orb {
+            border-radius: 999px;
+            animation: nexalSpin 5.5s linear infinite, refGlowPulse 2.5s ease-in-out infinite;
+        }
+
+        .notification-dot,
+        .nav-badge,
+        .unread-badge {
+            color: #fff !important;
+            background: var(--ref-primary-gradient) !important;
+            box-shadow: 0 0 18px rgba(255,0,184,.34) !important;
+        }
+
+        button,
+        .chat-item,
+        .contact-item,
+        .call-item,
+        .settings-option,
+        .attachment-option,
+        .ai-home-card,
+        .nexal-menu-card,
+        .nexal-command-card,
+        .nexal-tool-card {
+            transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+        }
+
+        button:hover,
+        .chat-item:hover,
+        .contact-item:hover,
+        .call-item:hover,
+        .attachment-option:hover,
+        .ai-home-card:hover,
+        .nexal-menu-card:hover,
+        .nexal-command-card:hover,
+        .nexal-tool-card:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active,
+        .chat-item:active,
+        .contact-item:active,
+        .call-item:active {
+            transform: scale(.97);
+        }
+
+        @keyframes refGlowPulse {
+            0%, 100% { filter: brightness(1); box-shadow: 0 0 10px rgba(112,76,255,.68), 0 0 20px rgba(151,71,255,.42), 0 0 40px rgba(255,0,184,.24); }
+            50% { filter: brightness(1.16); box-shadow: 0 0 16px rgba(112,76,255,.92), 0 0 30px rgba(151,71,255,.62), 0 0 54px rgba(255,0,184,.34); }
+        }
+
+        @media (min-width: 761px) {
+            .app {
+                grid-template-columns: var(--admin-rail-width) minmax(320px, var(--admin-sidebar-width)) minmax(0, 1fr);
+            }
+
+            .nav-tabs {
+                border-right: 1px solid var(--ref-line) !important;
+                border-radius: 0 !important;
+                background: rgba(7,13,23,.84) !important;
+            }
+
+            .nav-tab.active {
+                box-shadow: inset 3px 0 0 var(--ref-pink), 0 0 18px rgba(151,71,255,.18) !important;
+            }
+        }
+
+        @media (max-width: 760px) {
+            html,
+            body {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+            }
+
+            body {
+                font-size: var(--admin-mobile-font-size);
+            }
+
+            .auth-screen {
+                display: flex !important;
+                width: 100vw !important;
+                min-height: var(--app-height) !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)) !important;
+                overflow-x: hidden !important;
+            }
+
+            .auth-card {
+                width: 100% !important;
+                max-width: 358px !important;
+                padding: 24px 20px 20px;
+                border-radius: 28px !important;
+            }
+
+            .qr-login-card {
+                display: none !important;
+            }
+
+            @media (max-width: 520px) {
+                .auth-screen {
+                    align-items: flex-start !important;
+                }
+            }
+
+            .brand {
+                margin-bottom: 20px;
+            }
+
+            .brand h1 {
+                font-size: 22px;
+            }
+
+            .topbar {
+                min-height: 72px;
+                padding: 12px 14px;
+                border-width: 0 0 1px !important;
+                background: rgba(7,13,23,.76) !important;
+                box-shadow: none !important;
+            }
+
+            #installButton,
+            #storyButton,
+            #newGroupButton,
+            #mobileQrButton,
+            #pointsRailButton {
+                display: none !important;
+            }
+
+            #notificationButton,
+            #topSettingsButton {
+                display: grid !important;
+                width: 38px;
+                height: 38px;
+                min-height: 38px;
+                border-radius: 16px;
+            }
+
+            .section-head {
+                padding: 14px 14px 8px;
+            }
+
+            .section-label {
+                font-size: 24px;
+                font-weight: 900;
+            }
+
+            .search-box {
+                padding: 8px 14px 10px;
+            }
+
+            .search-box input {
+                height: 46px;
+                min-height: 46px;
+                padding-left: 16px;
+            }
+
+            .chat-list,
+            .story-list,
+            .contact-list,
+            #friendList,
+            #archiveList,
+            #callList,
+            #groupList {
+                padding: 4px 10px 104px;
+            }
+
+            .chat-item,
+            .contact-item,
+            .call-item {
+                margin: 7px 0;
+                padding: 12px;
+                border-radius: 22px !important;
+            }
+
+            .nav-tabs {
+                left: 14px !important;
+                right: 14px !important;
+                bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+                height: 70px !important;
+                display: grid !important;
+                grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+                gap: 6px !important;
+                padding: 7px !important;
+                border-radius: 30px !important;
+                background: rgba(5,9,17,.64) !important;
+            }
+
+            .nav-tab[data-section="groups"],
+            .nav-tab[data-section="friends"],
+            .settings-rail-button {
+                display: none !important;
+            }
+
+            .nav-tab[data-section="stories"] { display: grid !important; order: 1 !important; }
+            .nav-tab[data-section="calls"] { display: grid !important; order: 2 !important; }
+            .nav-tab[data-section="chats"] { display: grid !important; order: 3 !important; }
+            .nav-tab[data-section="contacts"] { display: grid !important; order: 4 !important; }
+            .nav-tab[data-section="explore"] { display: grid !important; order: 5 !important; }
+
+            .nav-tab {
+                min-width: 0 !important;
+                min-height: 54px !important;
+                padding: 7px 3px !important;
+                border-radius: 22px !important;
+                font-size: 10px;
+            }
+
+            .nav-tab .nav-label {
+                display: block !important;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: 10px;
+                font-weight: 750;
+            }
+
+            .composer {
+                left: 0;
+                right: 0;
+                gap: 8px;
+                padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+                border-width: 1px 0 0 !important;
+                border-radius: 0 !important;
+                background: rgba(5,9,17,.82) !important;
+            }
+
+            .composer textarea {
+                min-height: 44px;
+                border-radius: 24px !important;
+            }
+
+            .modal-panel {
+                background: rgba(0,0,0,.54);
+                backdrop-filter: blur(16px);
+            }
+
+            .modal-box {
+                border-radius: 30px 30px 24px 24px !important;
+            }
+        }
+
         @media (max-width: 760px) and (prefers-reduced-motion: reduce) {
             *,
             *::before,
@@ -6685,6 +7379,27 @@
                 accent: "#2f80ff"
             }
         });
+        Object.keys(CHAT_BACKGROUND_THEME_MAP).forEach(key => {
+            CHAT_BACKGROUND_THEME_MAP[key] = CHAT_THEME_DEFAULT;
+        });
+        Object.keys(CHAT_THEMES).forEach(key => {
+            if (key !== CHAT_THEME_DEFAULT) {
+                delete CHAT_THEMES[key];
+            }
+        });
+        Object.assign(CHAT_THEMES[CHAT_THEME_DEFAULT], {
+            label: "NexaLine Neon",
+            backgroundColor: "#050911",
+            backgroundImage: "radial-gradient(circle at 18% 0%, rgba(112,76,255,.22), transparent 30%), radial-gradient(circle at 88% 18%, rgba(255,0,184,.14), transparent 30%), radial-gradient(circle at 12% 88%, rgba(0,216,255,.08), transparent 34%)",
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+            incoming: "rgba(20,29,42,.92)",
+            outgoing: "linear-gradient(90deg, #704CFF 0%, #8D4EFF 25%, #B000FF 50%, #FF00B8 100%)",
+            incomingText: "#FFFFFF",
+            outgoingText: "#FFFFFF",
+            border: "rgba(255,255,255,.08)",
+            accent: "#9747FF"
+        });
         const SYSTEM_SOUND_LABELS = {
             classic: "Klasik Bip",
             notify: "Nexa Pop",
@@ -7167,7 +7882,7 @@
         function applyTheme(theme = state.theme) {
             state.theme = theme === "light" ? "light" : "dark";
             document.documentElement.dataset.theme = state.theme;
-            document.querySelector('meta[name="theme-color"]')?.setAttribute("content", state.theme === "light" ? "#eef2f7" : "#10141d");
+            document.querySelector('meta[name="theme-color"]')?.setAttribute("content", "#050911");
             localStorage.setItem(THEME_KEY, state.theme);
         }
 
