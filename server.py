@@ -2203,6 +2203,333 @@ Sağlayıcı değişse bile üslubunu, kullanıcının sana verdiği ismi ve ön
 Kullanıcı internetten araştırma isterse web araştırma notlarını kullan, kaynakları kısa ve okunur şekilde belirt; sonuç yoksa bunu açık söyle.
 """
 
+def ai_get_system_tools():
+    """Nexa AI'nin uygulama aksiyonu gerektiğinde JSON olarak seçeceği araçlar."""
+    base_schema = {"type": "object", "properties": {}}
+    return [
+        {
+            "name": "update_user_profile",
+            "description": "Kullanıcının profil bilgilerini günceller.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "about": {"type": "string"},
+                    "status": {"type": "string"},
+                },
+            },
+        },
+        {
+            "name": "focus_chat",
+            "description": "Belirli bir sohbeti açar veya ona odaklanır.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chatId": {"type": "string"},
+                    "chatName": {"type": "string"},
+                },
+            },
+        },
+        {
+            "name": "set_privacy_setting",
+            "description": "Gizlilik ayarlarını değiştirir.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "setting": {"type": "string"},
+                    "value": {"type": "boolean"},
+                },
+            },
+        },
+        {"name": "set_theme", "description": "Temayı dark/light olarak değiştirir.", "parameters": base_schema},
+        {"name": "set_censor_filter", "description": "AI sansür filtresini açar veya kapatır.", "parameters": base_schema},
+        {"name": "set_ai_enabled", "description": "Nexa AI'yi açar veya kapatır.", "parameters": base_schema},
+        {"name": "set_ai_auto_approve", "description": "Nexa AI tam yetki/onay modunu değiştirir.", "parameters": base_schema},
+        {"name": "set_ai_name", "description": "Nexa AI özel adını değiştirir.", "parameters": base_schema},
+        {"name": "open_settings", "description": "Ayarlar ekranını veya bir ayar sekmesini açar.", "parameters": base_schema},
+        {"name": "set_chat_preference", "description": "Sohbet sabitleme, sessize alma veya kilit ayarını değiştirir.", "parameters": base_schema},
+        {"name": "delete_chat", "description": "Sohbet silme/arşivleme aksiyonu hazırlar.", "parameters": base_schema},
+        {"name": "start_call", "description": "Sesli veya görüntülü arama başlatır.", "parameters": base_schema},
+        {"name": "schedule_call", "description": "Planlı arama aksiyonu hazırlar.", "parameters": base_schema},
+        {"name": "end_call", "description": "Aktif aramayı kapatır.", "parameters": base_schema},
+        {"name": "send_message", "description": "Hedef sohbete mesaj gönderme aksiyonu hazırlar.", "parameters": base_schema},
+        {"name": "schedule_message", "description": "Zamanlı mesaj gönderme aksiyonu hazırlar.", "parameters": base_schema},
+        {"name": "draft_message", "description": "Hedef sohbet için mesaj taslağı hazırlar.", "parameters": base_schema},
+        {"name": "reply_message", "description": "Bir mesaja yanıt aksiyonu hazırlar.", "parameters": base_schema},
+        {"name": "react_message", "description": "Bir mesaja emoji tepkisi bırakır.", "parameters": base_schema},
+        {"name": "create_group", "description": "Yeni grup oluşturur.", "parameters": base_schema},
+        {"name": "update_group", "description": "Grup adını veya üyelerini günceller.", "parameters": base_schema},
+        {"name": "create_story", "description": "Yeni durum/güncelleme paylaşır.", "parameters": base_schema},
+        {"name": "delete_story", "description": "Son durum/güncellemeyi siler.", "parameters": base_schema},
+        {"name": "contact_request", "description": "Arkadaş veya mesajlaşma isteği gönderir.", "parameters": base_schema},
+        {"name": "open_notifications", "description": "Bildirim merkezini açar.", "parameters": base_schema},
+    ]
+
+
+AI_SYSTEM_PROMPT += f"""
+Uygulama içinde bir işlem gerekiyorsa regex/kelime eşleşmesi gibi davranma; kullanıcının niyetini bağlama göre anla.
+İşlem gerekmiyorsa normal doğal cevap ver. İşlem gerekiyorsa SADECE geçerli JSON döndür.
+Geçerli format:
+{{"reply":"Kullanıcıya kısa açıklama","actions":[{{"action":"tool_name","parameters":{{}}}}]}}
+Tek işlem için {{"action":"tool_name","parameters":{{}}}} formatı da geçerlidir.
+JSON içinde markdown, kod bloğu veya fazladan metin kullanma.
+Geçerli araçlar:
+{json.dumps(ai_get_system_tools(), ensure_ascii=False, indent=2)}
+"""
+
+
+def ai_parse_bool(value, default=False):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    lowered = fold_tr_ascii(str(value or "")).strip()
+    if lowered in {"1", "true", "evet", "on", "acik", "ac", "aktif", "enable", "enabled"}:
+        return True
+    if lowered in {"0", "false", "hayir", "off", "kapali", "kapat", "pasif", "disable", "disabled"}:
+        return False
+    return default
+
+
+def ai_extract_intent_json(text_value):
+    raw = (text_value or "").strip()
+    if not raw:
+        return None
+    candidates = [raw]
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw, re.IGNORECASE)
+    if fence:
+        candidates.insert(0, fence.group(1).strip())
+    if "{" in raw and "}" in raw:
+        candidates.append(raw[raw.find("{"): raw.rfind("}") + 1])
+    if "[" in raw and "]" in raw:
+        candidates.append(raw[raw.find("["): raw.rfind("]") + 1])
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except Exception:
+            continue
+        if isinstance(parsed, (dict, list)):
+            return parsed
+    return None
+
+
+def ai_action_params(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except Exception:
+            value = {}
+    return value if isinstance(value, dict) else {}
+
+
+def ai_context_chats(context):
+    chats = []
+    active = (context or {}).get("activeChat")
+    if isinstance(active, dict):
+        chats.append(active)
+    for key in ("chats", "relevantChats"):
+        for chat in (context or {}).get(key) or []:
+            if isinstance(chat, dict) and chat not in chats:
+                chats.append(chat)
+    return chats
+
+
+def ai_resolve_chat_id(context, params):
+    direct = str(params.get("chatId") or params.get("chat_id") or "").strip()
+    if direct:
+        return direct
+    target = fold_tr_ascii(
+        params.get("chatName")
+        or params.get("chat_name")
+        or params.get("target")
+        or params.get("name")
+        or params.get("username")
+        or ""
+    )
+    for chat in ai_context_chats(context):
+        chat_id = str(chat.get("id") or "").strip()
+        haystack = fold_tr_ascii(
+            " ".join(
+                str(item or "")
+                for item in [chat.get("title"), chat.get("name"), chat.get("username"), chat.get("displayName"), chat_id]
+            )
+        )
+        if chat_id and target and target in haystack:
+            return chat_id
+    active = (context or {}).get("activeChat") or {}
+    return str(active.get("id") or "").strip() or None
+
+
+def ai_normalize_tool_action(tool_call, context=None):
+    if not isinstance(tool_call, dict):
+        return None
+    raw_name = (
+        tool_call.get("action")
+        or tool_call.get("name")
+        or tool_call.get("tool")
+        or tool_call.get("function")
+        or tool_call.get("type")
+        or ""
+    )
+    name = fold_tr_ascii(str(raw_name)).replace("-", "_").replace(" ", "_")
+    params = ai_action_params(
+        tool_call.get("parameters")
+        or tool_call.get("params")
+        or tool_call.get("arguments")
+        or tool_call.get("input")
+    )
+    label = str(tool_call.get("label") or params.get("label") or "").strip()
+    chat_id = ai_resolve_chat_id(context, params)
+
+    if name in {"update_user_profile", "update_profile", "profile_update"}:
+        action = {"type": "update_profile", "label": label or "Profil bilgilerini güncelle"}
+        display_name = params.get("name") or params.get("displayName") or params.get("display_name")
+        about = params.get("about") or params.get("status") or params.get("bio")
+        if display_name:
+            action["displayName"] = str(display_name)[:80]
+        if about:
+            action["about"] = str(about)[:180]
+        return action if len(action) > 2 else None
+
+    if name in {"focus_chat", "open_chat"} and chat_id:
+        return {"type": "open_chat", "chatId": chat_id, "label": label or "Sohbeti aç"}
+
+    if name in {"set_privacy_setting", "set_privacy"}:
+        setting = fold_tr_ascii(params.get("setting") or params.get("key") or "")
+        value = ai_parse_bool(params.get("value", params.get("enabled", True)), True)
+        privacy_fields = {
+            "last_seen": "lastSeenHidden",
+            "son_gorulme": "lastSeenHidden",
+            "lastseen": "lastSeenHidden",
+            "online": "onlineHidden",
+            "cevrim_ici": "onlineHidden",
+            "read_receipts": "readReceiptsOff",
+            "okundu": "readReceiptsOff",
+            "mavi_tik": "readReceiptsOff",
+            "email": "emailHidden",
+            "gmail": "emailHidden",
+        }
+        for key, field in privacy_fields.items():
+            if key in setting:
+                return {"type": "set_privacy", "privacy": {field: value}, "label": label or "Gizlilik ayarını güncelle"}
+        privacy = params.get("privacy") if isinstance(params.get("privacy"), dict) else {}
+        return {"type": "set_privacy", "privacy": privacy, "label": label or "Gizlilik ayarlarını güncelle"} if privacy else None
+
+    if name == "set_theme":
+        theme = str(params.get("theme") or params.get("mode") or "dark").strip().lower()
+        return {"type": "set_theme", "theme": theme, "label": label or "Temayı güncelle"}
+
+    if name in {"set_censor_filter", "set_censor"}:
+        return {"type": "set_censor", "enabled": ai_parse_bool(params.get("enabled", params.get("value", True)), True), "label": label or "AI sansür filtresini güncelle"}
+
+    if name in {"set_ai_enabled", "set_ai_auto_approve"}:
+        return {"type": name, "enabled": ai_parse_bool(params.get("enabled", params.get("value", True)), True), "label": label or "Nexa AI ayarını güncelle"}
+
+    if name == "set_ai_name":
+        ai_name = str(params.get("name") or params.get("assistantName") or "").strip()[:40]
+        return {"type": "set_ai_name", "name": ai_name, "label": label or f"Nexa AI adını {ai_name} yap"} if ai_name else None
+
+    if name == "open_settings":
+        return {"type": "open_settings", "section": str(params.get("section") or "menu"), "label": label or "Ayarları aç"}
+
+    if name in {"set_chat_preference", "set_chat_pref"} and chat_id:
+        action = {"type": "set_chat_pref", "chatId": chat_id, "label": label or "Sohbet ayarını güncelle"}
+        for key in ("pinned", "muted", "locked"):
+            if key in params:
+                action[key] = ai_parse_bool(params.get(key))
+        return action if len(action) > 3 else None
+
+    if name == "delete_chat" and chat_id:
+        return {"type": "delete_chat", "chatId": chat_id, "mode": params.get("mode") or "archive", "label": label or "Sohbeti sil"}
+
+    if name in {"start_call", "schedule_call"} and chat_id:
+        action = {
+            "type": name,
+            "chatId": chat_id,
+            "audioOnly": ai_parse_bool(params.get("audioOnly", params.get("audio_only", True)), True),
+            "label": label or ("Planlı arama hazırla" if name == "schedule_call" else "Arama başlat"),
+        }
+        if name == "schedule_call" and params.get("callAt"):
+            action["callAt"] = params.get("callAt")
+        return action
+
+    if name == "end_call":
+        return {"type": "end_call", "label": label or "Aktif aramayı kapat"}
+
+    if name in {"send_message", "schedule_message", "draft_message"} and chat_id:
+        body = str(params.get("body") or params.get("message") or params.get("text") or "").strip()
+        action = {"type": name, "chatId": chat_id, "body": body, "label": label or "Mesaj aksiyonunu hazırla"}
+        if name == "schedule_message" and params.get("sendAt"):
+            action["sendAt"] = params.get("sendAt")
+        return action if body or name == "draft_message" else None
+
+    if name in {"reply_message", "react_message"} and chat_id:
+        action = {"type": name, "chatId": chat_id, "label": label or "Mesaj aksiyonunu hazırla"}
+        if params.get("messageId"):
+            action["messageId"] = params.get("messageId")
+        if name == "reply_message":
+            action["body"] = str(params.get("body") or params.get("message") or "").strip()
+        else:
+            action["emoji"] = str(params.get("emoji") or "👍")
+        return action
+
+    if name in {"create_group", "update_group"}:
+        action = {"type": name, "label": label or ("Grubu güncelle" if name == "update_group" else "Grup oluştur")}
+        if chat_id:
+            action["chatId"] = chat_id
+        if params.get("title"):
+            action["title"] = str(params.get("title"))[:80]
+        if isinstance(params.get("members"), list):
+            action["members"] = [str(item).strip() for item in params["members"] if str(item).strip()]
+        return action
+
+    if name == "create_story":
+        body = str(params.get("body") or params.get("text") or "").strip()
+        return {"type": "create_story", "body": body, "label": label or "Yeni güncelleme paylaş"} if body else None
+
+    if name == "delete_story":
+        return {"type": "delete_story", "label": label or "Son güncellemeyi sil"}
+
+    if name == "contact_request":
+        target = str(params.get("username") or params.get("target") or "").strip().lower()
+        return {"type": "contact_request", "username": target, "label": label or "İstek gönder"} if target else None
+
+    if name == "open_notifications":
+        return {"type": "open_notifications", "label": label or "Bildirimleri aç"}
+
+    return None
+
+
+def process_ai_intent(ai_response_text, context=None):
+    """Model JSON aksiyon döndürdüyse frontend'in mevcut aksiyon şemasına çevirir."""
+    parsed = ai_extract_intent_json(ai_response_text)
+    if parsed is None:
+        return {"is_intent": False, "reply": ai_response_text, "actions": []}
+
+    reply = ""
+    calls = []
+    if isinstance(parsed, list):
+        calls = parsed
+    elif isinstance(parsed, dict):
+        reply = str(parsed.get("reply") or parsed.get("message") or parsed.get("text") or "").strip()
+        if isinstance(parsed.get("actions"), list):
+            calls = parsed["actions"]
+        elif isinstance(parsed.get("function_call"), dict):
+            calls = [parsed["function_call"]]
+        elif any(key in parsed for key in ("action", "name", "tool", "function", "type")):
+            calls = [parsed]
+
+    actions = []
+    for call in calls:
+        action = ai_normalize_tool_action(call, context)
+        if action:
+            actions.append(action)
+
+    if not reply and actions:
+        reply = "İşlemi hazırladım. Onaylarsan uygulayacağım."
+    return {"is_intent": bool(actions or reply), "reply": reply or ai_response_text, "actions": actions}
+
+
 ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex", "erotik", "onlyfans"}
 ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "siktir", "amk", "aq"}
 
@@ -2589,164 +2916,6 @@ def parse_ai_schedule(prompt, timezone_offset_minutes=0):
         scheduled = scheduled + timedelta(days=1)
     return scheduled.isoformat()
 
-
-def ai_detect_actions(prompt, username, active_chat_id=None, timezone_offset_minutes=0):
-    actions = []
-    lowered = (prompt or "").lower()
-    chat = find_chat_for_ai(username, prompt, active_chat_id)
-    mentioned_users = ai_mentioned_usernames(prompt, username)
-    if any(word in lowered for word in ["açık tema", "acik tema", "light theme", "beyaz tema"]):
-        actions.append({"type": "set_theme", "theme": "light", "label": "Temayı açık yap"})
-    if any(word in lowered for word in ["koyu tema", "dark theme", "gece modu", "siyah tema"]):
-        actions.append({"type": "set_theme", "theme": "dark", "label": "Temayı koyu yap"})
-    wants_censor_off = (
-        any(word in lowered for word in ["sansürü kapat", "sansuru kapat", "sansür filtresini kapat", "sansur filtresini kapat", "filtreyi kapat", "sansür kapansın", "sansur kapansin"])
-        or (("sansür" in lowered or "sansur" in lowered or "filtre" in lowered) and any(word in lowered for word in ["kapat", "kapalı", "kapali", "kapansın", "kapansin"]))
-    )
-    wants_censor_on = (
-        any(word in lowered for word in ["sansürü aç", "sansuru ac", "sansür aç", "sansur ac", "+18 filtre", "filtreyi aç", "filtreyi ac"])
-        or (("sansür" in lowered or "sansur" in lowered or "filtre" in lowered) and any(word in lowered for word in ["aç", "ac", "açık", "acik", "açılsın", "acilsin"]))
-    )
-    if wants_censor_off:
-        actions.append({"type": "set_censor", "enabled": False, "label": "AI sansür filtresini kapat"})
-    elif wants_censor_on or ("sansür" in lowered or "sansur" in lowered or "+18" in lowered or "filtre" in lowered):
-        actions.append({"type": "set_censor", "enabled": True, "label": "AI sansür filtresini aç"})
-    if any(word in lowered for word in ["next ai kapat", "nexa ai kapat", "nex ai kapat", "asistanı kapat", "asistani kapat", "yapay zekayı kapat", "yapay zekayi kapat"]):
-        actions.append({"type": "set_ai_enabled", "enabled": False, "label": "Nexa AI'ı kapat"})
-    if any(word in lowered for word in ["next ai aç", "next ai ac", "nexa ai aç", "nexa ai ac", "nex ai aç", "nex ai ac", "asistanı aç", "asistani ac", "yapay zekayı aç", "yapay zekayi ac"]):
-        actions.append({"type": "set_ai_enabled", "enabled": True, "label": "Nexa AI'ı aç"})
-    if any(word in lowered for word in ["tam yetki ver", "tam erişim ver", "tam erisim ver", "onaysız yap", "onaysiz yap", "izin almadan yap", "direkt yap"]):
-        actions.append({"type": "set_ai_auto_approve", "enabled": True, "label": "Nexa AI tam yetkisini aç"})
-    if any(word in lowered for word in ["tam yetki kapat", "tam erişimi kapat", "tam erisimi kapat", "onay al", "önce onay", "once onay"]):
-        actions.append({"type": "set_ai_auto_approve", "enabled": False, "label": "Nexa AI her işlemde onay alsın"})
-    ai_name = extract_value_after_phrases(
-        prompt,
-        [
-            r"(?:next ai adını|next ai adini|nex ai adını|nex ai adini|asistan adını|asistan adini|senin adın|senin adin|adını|adini)",
-        ],
-        40,
-    )
-    if ai_name and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun"]):
-        actions.append({"type": "set_ai_name", "name": ai_name, "label": f"Nexa AI adını “{ai_name}” yap"})
-    settings_section = None
-    if "next ai ayar" in lowered or "nexa ai ayar" in lowered or "ai ayar" in lowered or "asistan ayar" in lowered:
-        settings_section = "ai"
-    elif "gizlilik ayar" in lowered:
-        settings_section = "privacy"
-    elif "görünüm ayar" in lowered or "gorunum ayar" in lowered or "tema ayar" in lowered:
-        settings_section = "appearance"
-    elif "profil ayar" in lowered:
-        settings_section = "profile"
-    elif "hesap ayar" in lowered:
-        settings_section = "account"
-    elif "ayarları aç" in lowered or "ayarlari ac" in lowered or "ayarları göster" in lowered or "ayarlari goster" in lowered:
-        settings_section = "menu"
-    if settings_section:
-        actions.append({"type": "open_settings", "section": settings_section, "label": "Ayarları aç"})
-    privacy = {}
-    if ("son görülme" in lowered or "son gorulme" in lowered) and any(word in lowered for word in ["gizle", "kapat", "kapalı", "kapali"]):
-        privacy["lastSeenHidden"] = True
-    if ("son görülme" in lowered or "son gorulme" in lowered) and any(word in lowered for word in ["göster", "goster", "aç", "ac", "açık", "acik"]):
-        privacy["lastSeenHidden"] = False
-    if ("çevrim içi" in lowered or "cevrim ici" in lowered or "online" in lowered) and any(word in lowered for word in ["gizle", "kapat", "kapalı", "kapali"]):
-        privacy["onlineHidden"] = True
-    if ("çevrim içi" in lowered or "cevrim ici" in lowered or "online" in lowered) and any(word in lowered for word in ["göster", "goster", "aç", "ac", "açık", "acik"]):
-        privacy["onlineHidden"] = False
-    if ("okundu" in lowered or "mavi tik" in lowered) and any(word in lowered for word in ["kapat", "kapalı", "kapali", "gizle"]):
-        privacy["readReceiptsOff"] = True
-    if ("okundu" in lowered or "mavi tik" in lowered) and any(word in lowered for word in ["aç", "ac", "açık", "acik", "göster", "goster"]):
-        privacy["readReceiptsOff"] = False
-    if "gmail" in lowered and any(word in lowered for word in ["gizle", "kapat", "kapalı", "kapali"]):
-        privacy["emailHidden"] = True
-    if "gmail" in lowered and any(word in lowered for word in ["göster", "goster", "aç", "ac", "açık", "acik"]):
-        privacy["emailHidden"] = False
-    if privacy:
-        actions.append({"type": "set_privacy", "privacy": privacy, "label": "Gizlilik ayarlarını güncelle"})
-    new_name = extract_value_after_phrases(
-        prompt,
-        [
-            r"(?:ismimi|adımı|adimi|profil adımı|profil adimi)",
-            r"(?:görünen adımı|gorunen adimi|kullanıcı adımı değil ismimi|kullanici adimi degil ismimi)",
-        ],
-        80,
-    )
-    if new_name and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun"]):
-        actions.append({"type": "update_profile", "displayName": new_name, "label": f"Adımı “{new_name}” yap"})
-    new_about = extract_value_after_phrases(prompt, [r"(?:hakkımda|hakkimda|bio|biyografi)"], 180)
-    if new_about and any(word in lowered for word in ["değiştir", "degistir", "yap", "olsun", "yaz"]):
-        actions.append({"type": "update_profile", "about": new_about, "label": "Hakkımda bilgisini güncelle"})
-    if chat and any(word in lowered for word in ["sabitle", "pinle"]):
-        actions.append({"type": "set_chat_pref", "chatId": chat["id"], "pinned": True, "label": f"{chat['title']} sohbetini sabitle"})
-    if chat and any(word in lowered for word in ["sessize al", "sustur", "bildirim kapat"]):
-        actions.append({"type": "set_chat_pref", "chatId": chat["id"], "muted": True, "label": f"{chat['title']} sohbetini sessize al"})
-    if chat and any(word in lowered for word in ["gizli sohbet", "kilitle", "sakla"]):
-        actions.append({"type": "set_chat_pref", "chatId": chat["id"], "locked": True, "label": f"{chat['title']} sohbetini kilitle"})
-    if chat and any(word in lowered for word in ["sohbeti aç", "sohbeti ac", "sohbet aç", "sohbet ac", "mesaj kutusunu aç", "mesaj kutusunu ac", "chat aç", "chat ac"]):
-        actions.append({"type": "open_chat", "chatId": chat["id"], "label": f"{chat['title']} sohbetini aç"})
-    if chat and any(word in lowered for word in ["sohbeti sil", "sohbet sil", "konuşmayı sil", "konusmayi sil", "listemden kaldır", "listemden kaldir"]):
-        delete_mode = "permanent" if any(word in lowered for word in ["kalıcı", "kalici", "tamamen"]) else "archive"
-        actions.append({"type": "delete_chat", "chatId": chat["id"], "mode": delete_mode, "label": f"{chat['title']} sohbetini sil"})
-    wants_call = chat and not any(word in lowered for word in ["araştır", "arastir", "webde ara", "internette ara"]) and (
-        any(word in lowered for word in ["arama yap", "sesli ara", "görüntülü ara", "goruntulu ara", "telefon et", "kameralı ara", "kamerali ara"])
-        or re.search(r"\b(ara|arasana|arayabilir misin|arayalım|arayalim)\b", lowered)
-    )
-    if wants_call:
-        video_call = any(word in lowered for word in ["görüntülü", "goruntulu", "kamera", "kameralı", "kamerali", "video"])
-        audio_call = any(word in lowered for word in ["sesli", "telefon"])
-        call_at = parse_ai_schedule(prompt, timezone_offset_minutes)
-        if call_at:
-            actions.append({"type": "schedule_call", "chatId": chat["id"], "audioOnly": not video_call, "callAt": call_at, "label": f"{chat['title']} için planlı arama başlat"})
-        elif not video_call and not audio_call:
-            actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": True, "label": "Sesli ara"})
-            actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": False, "label": "Görüntülü ara"})
-        else:
-            actions.append({"type": "start_call", "chatId": chat["id"], "audioOnly": not video_call, "label": f"{chat['title']} için {'görüntülü' if video_call else 'sesli'} arama başlat"})
-    if any(word in lowered for word in ["aramayı kapat", "aramayi kapat", "aramayı bitir", "aramayi bitir", "çağrıyı kapat", "cagriyi kapat"]):
-        actions.append({"type": "end_call", "label": "Aktif aramayı kapat"})
-    if chat and any(word in lowered for word in ["ifade bırak", "ifade birak", "tepki bırak", "tepki birak", "reaksiyon", "emoji bırak", "emoji birak"]):
-        target = ai_last_target_message(chat, username)
-        emoji = "❤️" if any(word in lowered for word in ["kalp", "beğen", "begen", "sevgi"]) else "👍"
-        if target:
-            actions.append({"type": "react_message", "chatId": chat["id"], "messageId": target["id"], "emoji": emoji, "label": f"{chat['title']} son mesaja tepki bırak"})
-    if chat and any(word in lowered for word in ["yanıtla", "yanitla", "cevap ver", "reply"]):
-        target = ai_last_target_message(chat, username)
-        reply_body = extract_quoted_text(prompt) or "Tamam, gördüm. Birazdan net döneceğim."
-        if target:
-            actions.append({"type": "reply_message", "chatId": chat["id"], "messageId": target["id"], "body": reply_body, "label": f"{chat['title']} son mesaja yanıt ver"})
-    if any(word in lowered for word in ["grup aç", "grup ac", "grup oluştur", "grup olustur", "yeni grup"]):
-        title = extract_quoted_text(prompt) or extract_value_after_phrases(prompt, [r"(?:grup adı|grup adi|grubun adı|grubun adi)"], 80) or "Yeni grup"
-        actions.append({"type": "create_group", "title": title, "members": mentioned_users, "label": f"“{title}” grubunu oluştur"})
-    if chat and chat.get("type") == "group" and any(word in lowered for word in ["grup adını", "grup adini", "grubun adını", "grubun adini", "gruba ekle", "gruba kişi ekle", "gruba kisi ekle"]):
-        title = extract_value_after_phrases(prompt, [r"(?:grup adını|grup adini|grubun adını|grubun adini)"], 80)
-        action = {"type": "update_group", "chatId": chat["id"], "members": mentioned_users, "label": f"{chat['title']} grubunu yönet"}
-        if title:
-            action["title"] = title
-        actions.append(action)
-    if any(word in lowered for word in ["güncelleme paylaş", "guncelleme paylas", "durum paylaş", "durum paylas", "story paylaş", "story paylas"]):
-        body_text = extract_quoted_text(prompt) or extract_value_after_phrases(prompt, [r"(?:güncelleme|guncelleme|durum|story)"], 220)
-        if body_text:
-            actions.append({"type": "create_story", "body": body_text, "label": "Yeni güncelleme paylaş"})
-    if any(word in lowered for word in ["güncellemeyi sil", "guncellemeyi sil", "durumu sil", "story sil", "eski güncellemeyi sil", "eski guncellemeyi sil"]):
-        actions.append({"type": "delete_story", "label": "Son güncellemeyi sil"})
-    if mentioned_users and any(word in lowered for word in ["istek at", "istek gönder", "istek gonder", "mesajlaşma isteği", "mesajlasma istegi", "sohbet isteği", "sohbet istegi"]):
-        actions.append({"type": "contact_request", "username": mentioned_users[0], "label": "Mesajlaşma isteği gönder"})
-    if any(word in lowered for word in ["bildirimleri aç", "bildirimleri ac", "eski bildirim", "bildirim geçmişi", "bildirim gecmisi"]):
-        actions.append({"type": "open_notifications", "label": "Bildirimleri aç"})
-    body = extract_quoted_text(prompt)
-    wants_send_message = any(word in lowered for word in ["mesaj at", "mesaj gönder", "mesaj gonder", "gönder", "gonder"])
-    wants_draft_message = any(word in lowered for word in ["yaz", "cevap hazırla", "cevap hazirla", "taslak"])
-    wants_message = wants_send_message or wants_draft_message
-    if chat and wants_message:
-        send_at = parse_ai_schedule(prompt, timezone_offset_minutes)
-        if send_at:
-            body = body or "Mesaj taslağını buraya yazabilirsin."
-            actions.append({"type": "schedule_message", "chatId": chat["id"], "body": body, "sendAt": send_at, "label": f"{chat['title']} için zamanlı mesaj hazırla"})
-        elif wants_send_message and body:
-            actions.append({"type": "send_message", "chatId": chat["id"], "body": body, "label": f"{chat['title']} sohbetine mesajı gönder"})
-        else:
-            body = body or "Mesaj taslağını buraya yazabilirsin."
-            actions.append({"type": "draft_message", "chatId": chat["id"], "body": body, "label": f"{chat['title']} için mesajı kutuya hazırla"})
-    return actions
 
 
 LOCAL_AI_STOPWORDS = {
@@ -3561,8 +3730,13 @@ def ai_chat():
     context["liveInfo"] = live_info_for_prompt(prompt, data.get("timezoneOffsetMinutes", 0))
     if attachment:
         context["inputAttachment"] = attachment_context_for_ai(attachment)
-    actions = ai_detect_actions(prompt, username, chat_id, data.get("timezoneOffsetMinutes", 0))
+    actions = []
     reply, provider, research = generate_ai_reply(prompt or "Bu eki incele ve yardımcı ol.", context, actions, attachment)
+    intent = process_ai_intent(reply, context)
+    if intent.get("is_intent"):
+        reply = intent.get("reply") or "İşlemi hazırladım. Onaylarsan uygulayacağım."
+        actions = intent.get("actions") or []
+        provider = {**(provider or {}), "intent": bool(actions)}
     add_points_once(username, POINT_RULES["ai_chat"], "ai_chat", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"prompt": prompt[:120]})
     store_ai_memory(username, chat_id, "user", prompt or "Bu eki incele.", meta={"hasAttachment": bool(attachment)})
     store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "actions": [action.get("type") for action in actions]})

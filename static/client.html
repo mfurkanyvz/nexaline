@@ -7048,6 +7048,24 @@
             line-height: 1.42 !important;
         }
 
+        .nexal-container {
+            display: flex;
+            min-height: 0;
+            flex-direction: column;
+            gap: 12px;
+            color: var(--ref-text, #f8fafc);
+        }
+
+        .nexal-container .ai-bubble,
+        .nexal-container .nexal-menu-card,
+        .nexal-container .nexal-command-card,
+        .nexal-container .nexal-task-card,
+        .nexal-container .nexal-tool-card,
+        .nexal-container .nexal-settings-row {
+            font-family: inherit;
+            letter-spacing: 0;
+        }
+
         .message-bubble,
         .bubble {
             border-radius: 16px !important;
@@ -10924,7 +10942,29 @@
             ]);
         }
 
-        function saveAiHistory() {
+        class NexaAiEngine {
+            constructor(appState) {
+                this.state = appState;
+                this.renderFrame = 0;
+            }
+
+            init() {
+                this.renderPanel();
+            }
+
+            renderPanel() {
+                return this.renderAiPanel();
+            }
+
+            async sendMessage(prompt = null, attachment = null) {
+                return this.sendAiPrompt(prompt, attachment);
+            }
+
+            handleAction(action, autoApproved = false) {
+                return this.applyAiAction(action, autoApproved);
+            }
+
+            saveAiHistory() {
             if (state.aiSettings?.saveHistory === false) {
                 localStorage.removeItem(AI_HISTORY_KEY);
                 localStorage.removeItem(aiHistoryKey());
@@ -10935,263 +10975,7 @@
             localStorage.setItem(aiHistoryKey(), history);
         }
 
-        function addAiMessage(role, text, actions = []) {
-            state.aiMessages.push({
-                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                role,
-                text,
-                actions,
-                createdAt: new Date().toISOString()
-            });
-            saveAiHistory();
-            renderAiPanel();
-            if (state.me) {
-                renderChats();
-                if (isAiChatId(state.activeChatId)) {
-                    renderActiveChat();
-                }
-            }
-        }
-
-        function renderAiPanel() {
-            const list = $("aiMessages");
-            if (!list) return;
-            if (!state.aiMessages.length) {
-                list.innerHTML = `
-                    <div class="ai-bubble">Merhaba, ben ${escapeHtml(aiDisplayName())}. Arkadaş gibi sohbet eder, asistan gibi uygulama komutlarını çalıştırırım.</div>
-                    <div class="ai-home-grid">
-                        <button class="ai-home-card" type="button" data-ai-home="chat"><span class="attachment-option-icon">${svgIcon("chats")}</span><strong>Yeni Sohbet</strong><small>AI ile normal konuşma başlat</small></button>
-                        <button class="ai-home-card" type="button" data-ai-home="commands"><span class="attachment-option-icon">${svgIcon("zap")}</span><strong>Komutlar</strong><small>Hazır komutları çalıştır</small></button>
-                        <button class="ai-home-card" type="button" data-ai-home="tasks"><span class="attachment-option-icon">${svgIcon("clock")}</span><strong>Görevler</strong><small>Hatırlatma ve yapılacaklar</small></button>
-                        <button class="ai-home-card" type="button" data-ai-home="tools"><span class="attachment-option-icon">${svgIcon("palette")}</span><strong>AI Araçları</strong><small>Özet, çeviri, düzeltme, ses</small></button>
-                    </div>
-                    <div class="ai-quick">
-                        <button data-ai-quick="Merhaba">Merhaba</button>
-                        <button data-ai-quick="Bu sohbeti kısaca özetle">Sohbeti özetle</button>
-                        <button data-ai-quick="Son mesaja kısa ve kibar cevap hazırla">Cevap hazırla</button>
-                        <button data-ai-quick="AI sansür filtresini aç">Sansürü aç</button>
-                        <button data-ai-quick="AI sansür filtresini kapat">Sansürü kapat</button>
-                        <button data-ai-quick="Temayı açık tema yap">Açık tema</button>
-                    </div>
-                `;
-            } else {
-                list.innerHTML = state.aiMessages.map(message => `
-                    <div class="ai-bubble ${message.role === "user" ? "user" : ""}">
-                        ${renderAiTextHtml(message.text)}
-                        ${message.actions?.length ? `<div class="ai-actions">${message.actions.map((action, index) => `<button data-ai-action="${escapeHtml(message.id)}:${index}" type="button">${escapeHtml(action.label || action.type)}</button>`).join("")}</div>` : ""}
-                    </div>
-                `).join("");
-            }
-            list.querySelectorAll("[data-ai-quick]").forEach(button => {
-                button.onclick = () => {
-                    $("aiInput").value = button.dataset.aiQuick;
-                    sendAiPrompt();
-                };
-            });
-            list.querySelectorAll("[data-ai-home]").forEach(button => {
-                button.onclick = () => {
-                    const target = button.dataset.aiHome;
-                    if (target === "chat") $("aiInput").focus();
-                    if (target === "commands") openAiCommandCenter();
-                    if (target === "tasks") openAiTasksPanel();
-                    if (target === "tools") openAiToolsPanel();
-                };
-            });
-            list.querySelectorAll("[data-ai-action]").forEach(button => {
-                button.onclick = () => {
-                    const [messageId, index] = button.dataset.aiAction.split(":");
-                    const message = state.aiMessages.find(item => item.id === messageId);
-                    const action = message?.actions?.[Number(index)];
-                    if (action) applyAiAction(action);
-                };
-            });
-            list.scrollTop = list.scrollHeight;
-            $("aiStatus").textContent = state.aiBusy ? "düşünüyor" : "çevrimiçi";
-            $("aiSendButton").disabled = state.aiBusy;
-        }
-
-        async function openAiCommandCenter() {
-            let commands = [];
-            try {
-                const response = await fetch("/ai/commands");
-                const data = await response.json();
-                commands = data.commands || [];
-            } catch (_error) {
-                commands = [];
-            }
-            openModal("AI Komutları", body => {
-                body.innerHTML = `
-                    <div class="ai-home-grid">
-                        ${commands.map(command => `
-                            <button class="ai-home-card" type="button" data-ai-command="${escapeHtml(command.id)}">
-                                <span class="attachment-option-icon">${svgIcon(command.id.includes("translate") ? "type" : command.id.includes("call") ? "calls" : "zap")}</span>
-                                <strong>${escapeHtml(command.title)}</strong>
-                                <small>${escapeHtml(command.prompt)}</small>
-                            </button>
-                        `).join("") || '<div class="ai-home-card"><strong>Komut listesi alınamadı</strong><small>AI sohbet kutusuna direkt yazabilirsin.</small></div>'}
-                    </div>
-                `;
-                body.querySelectorAll("[data-ai-command]").forEach(button => {
-                    button.onclick = () => {
-                        const command = commands.find(item => item.id === button.dataset.aiCommand);
-                        if (!command) return;
-                        closeModal();
-                        $("aiInput").value = command.prompt;
-                        $("aiInput").focus();
-                    };
-                });
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
-        }
-
-        async function loadAiTasks() {
-            try {
-                const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}`);
-                const data = await response.json();
-                if (data.ok) state.aiTasks = data.tasks || [];
-            } catch (_error) {
-                showToast("AI görevleri alınamadı.");
-            }
-        }
-
-        async function openAiTasksPanel() {
-            await loadAiTasks();
-            openModal("AI Görevlerim", body => {
-                const rows = state.aiTasks || [];
-                body.innerHTML = `
-                    <div class="form-grid">
-                        <input id="aiTaskTitleInput" maxlength="180" placeholder="Yeni görev">
-                        <input id="aiTaskTimeInput" type="datetime-local">
-                        <select id="aiTaskRepeatInput">
-                            <option value="none">Tek sefer</option>
-                            <option value="daily">Her gün</option>
-                            <option value="weekly">Her hafta</option>
-                            <option value="monthly">Her ay</option>
-                        </select>
-                        <button id="addAiTaskButton" class="primary" type="button">Görev Ekle</button>
-                    </div>
-                    <div class="quest-grid">
-                        ${rows.length ? rows.map(task => `
-                            <div class="quest-card">
-                                <strong>${escapeHtml(task.title)}</strong>
-                                <small>${escapeHtml(task.repeat || "none")} ${task.remindAt ? "• " + new Date(task.remindAt).toLocaleString("tr-TR") : ""}</small>
-                                <div class="points-progress" style="--points-progress:${task.completedAt ? 100 : 35}%"><span></span></div>
-                                <div class="chip-row">
-                                    <button class="mini-btn" type="button" data-ai-task-complete="${escapeHtml(task.id)}">${task.completedAt ? "Aktife Al" : "Tamamla"}</button>
-                                    <button class="mini-btn danger" type="button" data-ai-task-delete="${escapeHtml(task.id)}">Sil</button>
-                                </div>
-                            </div>
-                        `).join("") : '<div class="quest-card"><strong>Henüz görev yok</strong><small>Bir görev ekleyip AI ile takip edebilirsin.</small></div>'}
-                    </div>
-                `;
-                $("addAiTaskButton").onclick = async () => {
-                    const title = $("aiTaskTitleInput").value.trim();
-                    if (!title) {
-                        showToast("Görev başlığı yaz.");
-                        return;
-                    }
-                    const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}`, {
-                        method: "POST",
-                        headers: authHeaders(),
-                        body: JSON.stringify({ title, remindAt: $("aiTaskTimeInput").value || null, repeat: $("aiTaskRepeatInput").value })
-                    });
-                    const data = await response.json();
-                    showToast(data.message || "Görev güncellendi.");
-                    if (data.ok) {
-                        state.aiTasks = data.tasks || [];
-                        closeModal();
-                        openAiTasksPanel();
-                    }
-                };
-                body.querySelectorAll("[data-ai-task-complete]").forEach(button => {
-                    button.onclick = async () => {
-                        const task = state.aiTasks.find(item => item.id === button.dataset.aiTaskComplete);
-                        const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}/${encodeURIComponent(button.dataset.aiTaskComplete)}`, {
-                            method: "PATCH",
-                            headers: authHeaders(),
-                            body: JSON.stringify({ completed: !task?.completedAt })
-                        });
-                        const data = await response.json();
-                        if (data.ok) state.aiTasks = data.tasks || [];
-                        closeModal();
-                        openAiTasksPanel();
-                    };
-                });
-                body.querySelectorAll("[data-ai-task-delete]").forEach(button => {
-                    button.onclick = async () => {
-                        const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}/${encodeURIComponent(button.dataset.aiTaskDelete)}`, {
-                            method: "DELETE",
-                            headers: authHeaders()
-                        });
-                        const data = await response.json();
-                        if (data.ok) state.aiTasks = data.tasks || [];
-                        closeModal();
-                        openAiTasksPanel();
-                    };
-                });
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
-        }
-
-        function openAiToolsPanel() {
-            openModal("AI Araçları", body => {
-                body.innerHTML = `
-                    <div class="ai-home-grid">
-                        <button class="ai-home-card" data-ai-tool="Özetle: " type="button"><strong>Özet</strong><small>Metni kısa maddelere indir</small></button>
-                        <button class="ai-home-card" data-ai-tool="Türkçeye çevir: " type="button"><strong>Çeviri</strong><small>TR/EN doğal çeviri</small></button>
-                        <button class="ai-home-card" data-ai-tool="Yazıyı düzelt: " type="button"><strong>Yazı Düzelt</strong><small>İmla ve anlatımı toparla</small></button>
-                        <button class="ai-home-card" data-ai-tool="Bana sesli asistan gibi cevap ver: " type="button"><strong>Sesli Asistan</strong><small>Mikrofonla konuş</small></button>
-                    </div>
-                    <textarea id="aiToolTextInput" placeholder="İşlenecek metin veya komut"></textarea>
-                `;
-                body.querySelectorAll("[data-ai-tool]").forEach(button => {
-                    button.onclick = () => {
-                        const text = $("aiToolTextInput").value.trim();
-                        closeModal();
-                        sendAiPrompt(`${button.dataset.aiTool}${text}`);
-                    };
-                });
-            }, [
-                { label: "Sesli Asistan", onClick: () => { closeModal(); openAiVoiceAssistant(); } },
-                { label: "Kapat", onClick: closeModal }
-            ], "sheet");
-        }
-
-        function openAiVoiceAssistant() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            openModal("Sesli Asistan", body => {
-                body.innerHTML = `
-                    <div class="voice-live-card" style="text-align:center">
-                        <span class="attachment-option-icon" style="margin:auto">${svgIcon("mic")}</span>
-                        <strong id="aiVoiceStatus">Dinlemeye hazır</strong>
-                        <small>Konuşmayı metne çevirip Nexa AI'ya göndereceğim.</small>
-                    </div>
-                    <textarea id="aiVoiceTextInput" placeholder="Duyulan metin burada görünecek"></textarea>
-                `;
-            }, [
-                { label: "Başlat", primary: true, onClick: () => {
-                    if (!SpeechRecognition) {
-                        showToast("Bu tarayıcı ses tanımayı desteklemiyor.");
-                        return;
-                    }
-                    const recognition = new SpeechRecognition();
-                    recognition.lang = "tr-TR";
-                    recognition.interimResults = true;
-                    recognition.onresult = event => {
-                        const text = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
-                        $("aiVoiceTextInput").value = text;
-                        $("aiVoiceStatus").textContent = "Dinleniyor...";
-                    };
-                    recognition.onend = () => {
-                        const text = $("aiVoiceTextInput").value.trim();
-                        closeModal();
-                        if (text) sendAiPrompt(text);
-                    };
-                    recognition.start();
-                } },
-                { label: "Kapat", onClick: closeModal }
-            ], "sheet");
-        }
-
-        async function loadAiStatus() {
+                async loadAiStatus() {
             try {
                 const response = await fetch("/ai/status");
                 const data = await response.json();
@@ -11204,11 +10988,11 @@
             }
         }
 
-        function aiPlanTasksKey() {
+            aiPlanTasksKey() {
             return `nexalineAiPlanTasks:${state.me?.username || "guest"}`;
         }
 
-        function nextAiPlanTime(task, from = new Date()) {
+            nextAiPlanTime(task, from = new Date()) {
             const base = new Date(from);
             if (task.repeat === "hourly") {
                 base.setMinutes(0, 0, 0);
@@ -11224,7 +11008,7 @@
             return next.toISOString();
         }
 
-        function defaultAiPlanTasks() {
+            defaultAiPlanTasks() {
             const seeds = [
                 ["morning-sport", "Sabah sporu yap", "Her gün 07:00", "07:00", "daily", true],
                 ["drink-water", "Su içmeyi unutma", "Her saat başı", "10:00", "hourly", false],
@@ -11246,7 +11030,7 @@
             }));
         }
 
-        function loadAiPlanTasks() {
+            loadAiPlanTasks() {
             const stored = readStoredJson(aiPlanTasksKey(), null);
             if (Array.isArray(stored) && stored.length) return stored;
             const defaults = defaultAiPlanTasks();
@@ -11254,12 +11038,12 @@
             return defaults;
         }
 
-        function saveAiPlanTasks(tasks) {
+            saveAiPlanTasks(tasks) {
             localStorage.setItem(aiPlanTasksKey(), JSON.stringify(tasks));
             state.aiPlanTasks = tasks;
         }
 
-        function upsertAiPlanTask(taskId, patch) {
+            upsertAiPlanTask(taskId, patch) {
             const tasks = loadAiPlanTasks();
             const index = tasks.findIndex(task => task.id === taskId);
             if (index >= 0) {
@@ -11269,7 +11053,7 @@
             return tasks[index] || null;
         }
 
-        function renderAiAttachmentHtml(attachment) {
+            renderAiAttachmentHtml(attachment) {
             if (!attachment) return "";
             const name = escapeHtml(attachment.name || "Nexa eki");
             const type = String(attachment.type || "");
@@ -11284,7 +11068,7 @@
             return `<div class="ai-attachment-preview"><span class="file-pill">Dosya: ${name}</span></div>`;
         }
 
-        function addAiMessage(role, text, actions = [], attachment = null) {
+            addAiMessage(role, text, actions = [], attachment = null) {
             state.aiMessages.push({
                 id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
                 role,
@@ -11303,11 +11087,13 @@
             }
         }
 
-        function renderAiPanel() {
+            renderAiPanel() {
             const panel = $("aiPanel");
             const list = $("aiMessages");
             if (!panel || !list) return;
             panel.classList.add("nexal-mode");
+            panel.classList.add("nexal-container");
+            list.classList.add("nexal-container");
             if ($("aiPanelTitle")) $("aiPanelTitle").textContent = aiDisplayName();
             if (!state.aiMessages.length) {
                 list.innerHTML = `
@@ -11360,7 +11146,7 @@
             if ($("aiSendButton")) $("aiSendButton").disabled = state.aiBusy;
         }
 
-        function aiCommandItems() {
+            aiCommandItems() {
             return [
                 { id: "tasks", icon: "✓", color: "green", title: "Günlük plan oluştur", hint: "Bugün için plan yap", run: openAiTasksPanel },
                 { id: "summarize", icon: "▤", color: "blue", title: "Metin özetle", hint: "Uzun metinleri kısalt", run: openAiSummarizerPanel },
@@ -11371,7 +11157,7 @@
             ];
         }
 
-        function openAiCommandCenter() {
+            openAiCommandCenter() {
             openModal("Komut Örnekleri", body => {
                 body.innerHTML = `<div class="nexal-command-list">${aiCommandItems().map(item => `
                     <button class="nexal-command-card" type="button" data-ai-command="${item.id}">
@@ -11391,7 +11177,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function filteredAiPlanTasks(filter) {
+            filteredAiPlanTasks(filter) {
             const tasks = loadAiPlanTasks();
             if (filter === "active") return tasks.filter(task => task.active && !task.completedAt && !task.failedAt);
             if (filter === "done") return tasks.filter(task => task.completedAt);
@@ -11399,7 +11185,7 @@
             return tasks;
         }
 
-        function openAiTasksPanel(filter = "all") {
+            openAiTasksPanel(filter = "all") {
             const tasks = filteredAiPlanTasks(filter);
             openModal("Günlük Plan Oluştur", body => {
                 body.innerHTML = `
@@ -11473,16 +11259,16 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function textFromSelectedChat(chatId) {
+            textFromSelectedChat(chatId) {
             const chat = state.chats.find(item => item.id === chatId);
             return (chat?.messages || []).slice(-80).map(message => `${message.senderName}: ${message.body || message.attachment?.name || "medya"}`).join("\n");
         }
 
-        function chatSelectOptions() {
+            chatSelectOptions() {
             return state.chats.filter(chat => !isAiChat(chat)).map(chat => `<option value="${escapeHtml(chat.id)}">${escapeHtml(chat.title)}</option>`).join("");
         }
 
-        async function runAiTextTool(tool, text, extra = {}) {
+                async runAiTextTool(tool, text, extra = {}) {
             const response = await fetch("/ai/text-tool", {
                 method: "POST",
                 headers: authHeaders(),
@@ -11491,7 +11277,7 @@
             return response.json();
         }
 
-        function openAiSummarizerPanel() {
+            openAiSummarizerPanel() {
             openModal("Metin Özetle", body => {
                 body.innerHTML = `
                     <div class="nexal-form-grid">
@@ -11515,7 +11301,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function openAiTranslatePanel() {
+            openAiTranslatePanel() {
             openModal("Çeviri Yap", body => {
                 body.innerHTML = `
                     <div class="nexal-form-grid">
@@ -11539,7 +11325,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function openAiWritingFixPanel() {
+            openAiWritingFixPanel() {
             openModal("Yazıyı Düzelt", body => {
                 body.innerHTML = `
                     <div class="nexal-form-grid">
@@ -11563,7 +11349,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function openAiImageGenerator() {
+            openAiImageGenerator() {
             openModal("Görsel Oluştur", body => {
                 body.innerHTML = `
                     <div class="nexal-form-grid">
@@ -11603,7 +11389,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function openAiSettingsPanel() {
+            openAiSettingsPanel() {
             openModal("AI Ayarları", body => {
                 body.innerHTML = `
                     <div class="nexal-settings-list">
@@ -11654,7 +11440,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        function speakAiText(text) {
+            speakAiText(text) {
             if (!("speechSynthesis" in window) || !text) return false;
             const utterance = new SpeechSynthesisUtterance(text.slice(0, 600));
             utterance.lang = "tr-TR";
@@ -11664,7 +11450,7 @@
             return true;
         }
 
-        async function runAiTts(text) {
+                async runAiTts(text) {
             try {
                 const response = await fetch("/ai/tts", {
                     method: "POST",
@@ -11677,7 +11463,7 @@
             }
         }
 
-        async function playAiAssistantVoice(text) {
+                async playAiAssistantVoice(text) {
             if (!text) return false;
             const data = await runAiTts(text);
             if (data.ok && data.audioDataUrl) {
@@ -11688,7 +11474,7 @@
             return speakAiText(text);
         }
 
-        async function runAiStt(audioDataUrl) {
+                async runAiStt(audioDataUrl) {
             const response = await fetch("/ai/stt", {
                 method: "POST",
                 headers: authHeaders(),
@@ -11697,7 +11483,7 @@
             return response.json();
         }
 
-        function captureAiSpeechWithRecorder(statusEl, buttonEl, orbEl) {
+            captureAiSpeechWithRecorder(statusEl, buttonEl, orbEl) {
             return new Promise(async (resolve, reject) => {
                 if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
                     reject(new Error("media-recorder-unsupported"));
@@ -11750,7 +11536,7 @@
             });
         }
 
-        function openAiVoiceAssistant() {
+            openAiVoiceAssistant() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             openModal("Sesli Asistan", body => {
                 body.innerHTML = `
@@ -11832,7 +11618,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        async function startAiSpeechInput() {
+                async startAiSpeechInput() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 openAiVoiceAssistant();
@@ -11851,7 +11637,7 @@
             recognition.start();
         }
 
-        function openAiAttachmentMenu() {
+            openAiAttachmentMenu() {
             openModal("Nexa AI'ya gönder", body => {
                 body.innerHTML = `
                     <div class="nexal-command-list">
@@ -11870,7 +11656,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
-        async function sendAiCurrentLocation() {
+                async sendAiCurrentLocation() {
             if (!navigator.geolocation) return showToast("Konum bu cihazda desteklenmiyor.");
             navigator.geolocation.getCurrentPosition(position => {
                 const lat = position.coords.latitude;
@@ -11886,7 +11672,7 @@
             }, () => showToast("Konum izni alınamadı."), { enableHighAccuracy: true, timeout: 10000 });
         }
 
-        async function handleAiFile(event) {
+                async handleAiFile(event) {
             const file = event.target.files?.[0];
             event.target.value = "";
             if (!file) return;
@@ -11898,7 +11684,7 @@
             }
         }
 
-        async function sendAiPrompt(promptOverride = null, attachment = null) {
+                async sendAiPrompt(promptOverride = null, attachment = null) {
             if (promptOverride && typeof promptOverride !== "string") {
                 promptOverride = null;
             }
@@ -11965,7 +11751,7 @@
             }
         }
 
-        function startAiPlanReminderEngine() {
+            startAiPlanReminderEngine() {
             if (state.aiPlanTimer) return;
             const tick = () => {
                 if (!state.me || state.aiReminderOpen) return;
@@ -11978,7 +11764,7 @@
             setTimeout(tick, 1500);
         }
 
-        function showAiTaskReminder(task) {
+            showAiTaskReminder(task) {
             state.aiReminderOpen = true;
             const message = `${task.title}. Tamam yapacağım demezsen 5 dakika sonra tekrar hatırlatırım.`;
             if (state.aiSettings.notifications && "Notification" in window && Notification.permission === "granted") {
@@ -12013,7 +11799,7 @@
             ], "sheet");
         }
 
-        function openAiPanel() {
+            openAiPanel() {
             $("aiPanel").classList.remove("hidden");
             pushAppHistory("ai");
             if (!state.aiPlanTasks) state.aiPlanTasks = loadAiPlanTasks();
@@ -12023,11 +11809,11 @@
             setTimeout(() => $("aiInput").focus(), 80);
         }
 
-        function closeAiPanel() {
+            closeAiPanel() {
             $("aiPanel").classList.add("hidden");
         }
 
-        function toggleAiPanel() {
+            toggleAiPanel() {
             if ($("aiPanel").classList.contains("hidden")) {
                 openAiPanel();
             } else {
@@ -12035,7 +11821,7 @@
             }
         }
 
-        function promptTargetsAiName(prompt) {
+            promptTargetsAiName(prompt) {
             const normalize = value => String(value || "")
                 .toLocaleLowerCase("tr-TR")
                 .replace(/[^\p{L}\p{N}\s]/gu, "")
@@ -12044,7 +11830,7 @@
             return normalize(prompt) === normalize(aiDisplayName());
         }
 
-        async function sendAiPromptLegacy(promptOverride = null) {
+                async sendAiPromptLegacy(promptOverride = null) {
             const input = $("aiInput");
             const prompt = (promptOverride ?? input?.value ?? "").trim();
             if (!prompt || state.aiBusy || !state.me) return;
@@ -12102,7 +11888,7 @@
             }
         }
 
-        function focusChatForAi(chatId) {
+            focusChatForAi(chatId) {
             const chat = state.chats.find(item => item.id === chatId);
             if (!chat) return null;
             state.activeSection = chat.type === "group" ? "groups" : "chats";
@@ -12113,7 +11899,7 @@
             return chat;
         }
 
-        async function updateProfileFromAi(action) {
+                async updateProfileFromAi(action) {
             const displayName = action.displayName || state.me.displayName || "";
             const about = action.about || state.me.about || "";
             const response = await fetch(`/account/${state.me.username}/profile`, {
@@ -12135,7 +11921,7 @@
             showToast("Profil AI onayıyla güncellendi.");
         }
 
-        async function updatePrivacyFromAi(action) {
+                async updatePrivacyFromAi(action) {
             const nextPrivacy = {
                 ...(state.me.privacy || {}),
                 ...(action.privacy || {})
@@ -12153,7 +11939,7 @@
             }
         }
 
-        function runAiActionWithPermission(title, message, autoApproved, onRun) {
+            runAiActionWithPermission(title, message, autoApproved, onRun) {
             if (autoApproved || state.aiSettings.autoApprove) {
                 onRun?.();
                 return;
@@ -12161,7 +11947,7 @@
             confirmModal(title, message, onRun);
         }
 
-        function aiTargetMessage(chat, messageId = null) {
+            aiTargetMessage(chat, messageId = null) {
             if (!chat) return null;
             if (messageId) {
                 const found = chat.messages.find(message => message.id === messageId);
@@ -12172,7 +11958,7 @@
                 .find(message => !message.deletedAt && message.sender !== state.me.username) || null;
         }
 
-        function aiReplyPayload(message) {
+            aiReplyPayload(message) {
             if (!message) return null;
             return {
                 id: message.id,
@@ -12183,7 +11969,7 @@
             };
         }
 
-        function userByAiName(value) {
+            userByAiName(value) {
             const needle = String(value || "").toLocaleLowerCase("tr-TR").replace(/^@/, "").trim();
             if (!needle) return null;
             return state.users.find(user =>
@@ -12193,7 +11979,7 @@
             ) || null;
         }
 
-        function applyAiAction(action, autoApproved = false) {
+            applyAiAction(action, autoApproved = false) {
             if (!action) return;
             if (action.type === "set_theme") {
                 applyTheme(action.theme);
@@ -12436,7 +12222,7 @@
             }
         }
 
-        function aiModerationLabels(text) {
+            aiModerationLabels(text) {
             const lowered = (text || "").toLowerCase();
             const labels = [];
             if (/(\+18|porno|porn|cinsel|nude|nudes|seks|sex|erotik|onlyfans)/i.test(lowered)) labels.push("+18");
@@ -12445,12 +12231,69 @@
             return labels;
         }
 
-        function shouldHideMessageWithAi(message) {
+            shouldHideMessageWithAi(message) {
             if (!state.aiCensorEnabled || !message?.body || message.sender === state.me?.username || message.sender === AI_SENDER || state.aiRevealedMessages[message.id]) {
                 return [];
             }
             return aiModerationLabels(message.body);
         }
+
+        }
+
+        const nexaAiEngine = new NexaAiEngine(state);
+        window.nexaAiEngine = nexaAiEngine;
+
+        function saveAiHistory(...args) { return nexaAiEngine.saveAiHistory(...args); }
+        async function loadAiStatus(...args) { return nexaAiEngine.loadAiStatus(...args); }
+        function aiPlanTasksKey(...args) { return nexaAiEngine.aiPlanTasksKey(...args); }
+        function nextAiPlanTime(...args) { return nexaAiEngine.nextAiPlanTime(...args); }
+        function defaultAiPlanTasks(...args) { return nexaAiEngine.defaultAiPlanTasks(...args); }
+        function loadAiPlanTasks(...args) { return nexaAiEngine.loadAiPlanTasks(...args); }
+        function saveAiPlanTasks(...args) { return nexaAiEngine.saveAiPlanTasks(...args); }
+        function upsertAiPlanTask(...args) { return nexaAiEngine.upsertAiPlanTask(...args); }
+        function renderAiAttachmentHtml(...args) { return nexaAiEngine.renderAiAttachmentHtml(...args); }
+        function addAiMessage(...args) { return nexaAiEngine.addAiMessage(...args); }
+        function renderAiPanel(...args) { return nexaAiEngine.renderPanel(...args); }
+        function aiCommandItems(...args) { return nexaAiEngine.aiCommandItems(...args); }
+        function openAiCommandCenter(...args) { return nexaAiEngine.openAiCommandCenter(...args); }
+        function filteredAiPlanTasks(...args) { return nexaAiEngine.filteredAiPlanTasks(...args); }
+        function openAiTasksPanel(...args) { return nexaAiEngine.openAiTasksPanel(...args); }
+        function textFromSelectedChat(...args) { return nexaAiEngine.textFromSelectedChat(...args); }
+        function chatSelectOptions(...args) { return nexaAiEngine.chatSelectOptions(...args); }
+        async function runAiTextTool(...args) { return nexaAiEngine.runAiTextTool(...args); }
+        function openAiSummarizerPanel(...args) { return nexaAiEngine.openAiSummarizerPanel(...args); }
+        function openAiTranslatePanel(...args) { return nexaAiEngine.openAiTranslatePanel(...args); }
+        function openAiWritingFixPanel(...args) { return nexaAiEngine.openAiWritingFixPanel(...args); }
+        function openAiImageGenerator(...args) { return nexaAiEngine.openAiImageGenerator(...args); }
+        function openAiSettingsPanel(...args) { return nexaAiEngine.openAiSettingsPanel(...args); }
+        function speakAiText(...args) { return nexaAiEngine.speakAiText(...args); }
+        async function runAiTts(...args) { return nexaAiEngine.runAiTts(...args); }
+        async function playAiAssistantVoice(...args) { return nexaAiEngine.playAiAssistantVoice(...args); }
+        async function runAiStt(...args) { return nexaAiEngine.runAiStt(...args); }
+        function captureAiSpeechWithRecorder(...args) { return nexaAiEngine.captureAiSpeechWithRecorder(...args); }
+        function openAiVoiceAssistant(...args) { return nexaAiEngine.openAiVoiceAssistant(...args); }
+        async function startAiSpeechInput(...args) { return nexaAiEngine.startAiSpeechInput(...args); }
+        function openAiAttachmentMenu(...args) { return nexaAiEngine.openAiAttachmentMenu(...args); }
+        async function sendAiCurrentLocation(...args) { return nexaAiEngine.sendAiCurrentLocation(...args); }
+        async function handleAiFile(...args) { return nexaAiEngine.handleAiFile(...args); }
+        async function sendAiPrompt(...args) { return nexaAiEngine.sendMessage(...args); }
+        function startAiPlanReminderEngine(...args) { return nexaAiEngine.startAiPlanReminderEngine(...args); }
+        function showAiTaskReminder(...args) { return nexaAiEngine.showAiTaskReminder(...args); }
+        function openAiPanel(...args) { return nexaAiEngine.openAiPanel(...args); }
+        function closeAiPanel(...args) { return nexaAiEngine.closeAiPanel(...args); }
+        function toggleAiPanel(...args) { return nexaAiEngine.toggleAiPanel(...args); }
+        function promptTargetsAiName(...args) { return nexaAiEngine.promptTargetsAiName(...args); }
+        async function sendAiPromptLegacy(...args) { return nexaAiEngine.sendAiPromptLegacy(...args); }
+        function focusChatForAi(...args) { return nexaAiEngine.focusChatForAi(...args); }
+        async function updateProfileFromAi(...args) { return nexaAiEngine.updateProfileFromAi(...args); }
+        async function updatePrivacyFromAi(...args) { return nexaAiEngine.updatePrivacyFromAi(...args); }
+        function runAiActionWithPermission(...args) { return nexaAiEngine.runAiActionWithPermission(...args); }
+        function aiTargetMessage(...args) { return nexaAiEngine.aiTargetMessage(...args); }
+        function aiReplyPayload(...args) { return nexaAiEngine.aiReplyPayload(...args); }
+        function userByAiName(...args) { return nexaAiEngine.userByAiName(...args); }
+        function applyAiAction(...args) { return nexaAiEngine.handleAction(...args); }
+        function aiModerationLabels(...args) { return nexaAiEngine.aiModerationLabels(...args); }
+        function shouldHideMessageWithAi(...args) { return nexaAiEngine.shouldHideMessageWithAi(...args); }
 
         function createFilePicker({ label, accept, onFile }) {
             const wrap = document.createElement("div");
