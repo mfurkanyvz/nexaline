@@ -4256,29 +4256,39 @@ def ai_commands():
 
 @app.route("/ai/sync-all", methods=["GET"])
 def ai_sync_all():
-    username = (request.args.get("username") or "").strip().lower()
-    if not username or not db.session.get(User, username):
-        return jsonify({"ok": False, "message": "AI senkronizasyonu için geçerli kullanıcı gerekli."}), 401
-    state_payload = ai_full_state_for(username)
-    return jsonify({"ok": True, **state_payload})
+    try:
+        username = (request.args.get("username") or "").strip().lower()
+        if not username or not db.session.get(User, username):
+            return jsonify({"ok": False, "message": "AI senkronizasyonu için geçerli kullanıcı gerekli."}), 401
+        state_payload = ai_full_state_for(username)
+        return jsonify({"ok": True, **state_payload})
+    except Exception as error:
+        db.session.rollback()
+        app.logger.exception("AI sync failed: %s", error)
+        return jsonify({"ok": False, "message": "Nexa AI hafıza birimi erişilemiyor."}), 500
 
 
 @app.route("/ai/settings/<username>", methods=["POST"])
 def ai_settings_update(username):
-    username = username.strip().lower()
-    user = db.session.get(User, username)
-    if not user:
-        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
-    data = request.get_json() or {}
-    settings = ai_settings_for_user(user)
-    allowed = {"enabled", "name", "image", "autoApprove", "voice", "responseLength", "persona", "saveHistory", "notifications", "censorEnabled"}
-    for key in allowed:
-        if key in data:
-            settings[key] = data[key]
-    settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Nexa AI")).strip()[:40] or "Nexa AI"
-    user.ai_settings = {key: settings.get(key) for key in allowed}
-    db.session.commit()
-    return jsonify({"ok": True, "message": "Nexa AI ayarları sunucuda güncellendi.", "settings": ai_settings_for_user(user)})
+    try:
+        username = username.strip().lower()
+        user = db.session.get(User, username)
+        if not user:
+            return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+        data = request.get_json() or {}
+        settings = ai_settings_for_user(user)
+        allowed = {"enabled", "name", "image", "autoApprove", "voice", "responseLength", "persona", "saveHistory", "notifications", "censorEnabled"}
+        for key in allowed:
+            if key in data:
+                settings[key] = data[key]
+        settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Nexa AI")).strip()[:40] or "Nexa AI"
+        user.ai_settings = {key: settings.get(key) for key in allowed}
+        db.session.commit()
+        return jsonify({"ok": True, "message": "Nexa AI ayarları sunucuda güncellendi.", "settings": ai_settings_for_user(user)})
+    except Exception as error:
+        db.session.rollback()
+        app.logger.exception("AI settings update failed: %s", error)
+        return jsonify({"ok": False, "message": "Nexa AI ayar birimi güncellenemedi."}), 500
 
 
 AI_RISKY_ACTIONS = {
@@ -4434,29 +4444,34 @@ def execute_ai_server_action(user, action):
 
 @app.route("/ai/action-execute", methods=["POST"])
 def ai_action_execute():
-    data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
-    user = db.session.get(User, username)
-    action = data.get("action") if isinstance(data.get("action"), dict) else {}
-    confirmed = bool(data.get("confirmed"))
-    if not user:
-        return jsonify({"ok": False, "message": "AI aksiyonu için kullanıcı bulunamadı."}), 401
-    if not action.get("type"):
-        return jsonify({"ok": False, "message": "AI aksiyon paketi eksik."}), 400
+    try:
+        data = request.get_json() or {}
+        username = (data.get("username") or "").strip().lower()
+        user = db.session.get(User, username)
+        action = data.get("action") if isinstance(data.get("action"), dict) else {}
+        confirmed = bool(data.get("confirmed"))
+        if not user:
+            return jsonify({"ok": False, "message": "AI aksiyonu için kullanıcı bulunamadı."}), 401
+        if not action.get("type"):
+            return jsonify({"ok": False, "message": "AI aksiyon paketi eksik."}), 400
 
-    risky = action.get("type") in AI_RISKY_ACTIONS
-    if risky and not confirmed and not ai_user_has_full_access(user):
-        return jsonify({
-            "ok": False,
-            "requiresConfirmation": True,
-            "message": ai_action_confirm_message(action),
-            "action": action,
-        })
+        risky = action.get("type") in AI_RISKY_ACTIONS
+        if risky and not confirmed and not ai_user_has_full_access(user):
+            return jsonify({
+                "ok": False,
+                "requiresConfirmation": True,
+                "message": ai_action_confirm_message(action),
+                "action": action,
+            })
 
-    result = execute_ai_server_action(user, action)
-    if result.get("error"):
-        return jsonify({"ok": False, "message": result["error"]}), result.get("status", 400)
-    return jsonify({"ok": True, **result})
+        result = execute_ai_server_action(user, action)
+        if result.get("error"):
+            return jsonify({"ok": False, "message": result["error"]}), result.get("status", 400)
+        return jsonify({"ok": True, **result})
+    except Exception as error:
+        db.session.rollback()
+        app.logger.exception("AI action execute failed: %s", error)
+        return jsonify({"ok": False, "message": "Nexa AI aksiyon birimi işlemi tamamlayamadı."}), 500
 
 
 @app.route("/ai/tasks/<username>", methods=["GET", "POST"])

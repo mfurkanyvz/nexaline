@@ -9380,9 +9380,6 @@
         const NOTIFICATION_MUTE_KEY = "nexalineNotificationMuteUntil";
         const SYSTEM_SOUND_KEY = "nexalineSystemSound";
         const ACCOUNT_LIST_KEY = "nexalineAccounts";
-        const AI_HISTORY_KEY = "nexalineAiHistory";
-        const AI_CENSOR_KEY = "nexalineAiCensor";
-        const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
         const AI_CACHE_KEY_PREFIX = "nexalineAiServerCache";
         const DEVICE_ID_KEY = "nexalineDeviceId";
         const AI_CHAT_ID = "__next_ai_chat__";
@@ -9717,18 +9714,6 @@
                 const text = String(message?.text || "");
                 return !text.includes("AI çekirdeği hazır") && !text.includes("GEMINI_API_KEY");
             });
-        }
-
-        function aiSettingsKey() {
-            return `${AI_SETTINGS_KEY_PREFIX}:${state.me?.username || "guest"}`;
-        }
-
-        function aiCensorKey() {
-            return `${AI_CENSOR_KEY}:${state.me?.username || "guest"}`;
-        }
-
-        function aiHistoryKey() {
-            return `${AI_HISTORY_KEY}:${state.me?.username || "guest"}`;
         }
 
         function aiCacheKey() {
@@ -10968,7 +10953,12 @@
             }
 
             renderPanel() {
-                return this.renderAiPanel();
+                if (this.renderFrame) return;
+                const schedule = window.requestAnimationFrame || (callback => window.setTimeout(callback, 16));
+                this.renderFrame = schedule(() => {
+                    this.renderFrame = 0;
+                    this.renderAiPanel();
+                });
             }
 
             async sendMessage(prompt = null, attachment = null) {
