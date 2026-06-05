@@ -8572,6 +8572,78 @@
             }
         }
 
+        .view-once-compose-shell {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 52px;
+            align-items: end;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 8px 8px 12px;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 24px;
+            background: rgba(69, 73, 75, .72);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+
+        .view-once-compose-shell textarea {
+            min-height: 96px !important;
+            max-height: 190px !important;
+            margin: 0 !important;
+            padding: 10px 4px !important;
+            border: 0 !important;
+            border-radius: 18px !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            font-size: 16px !important;
+            line-height: 1.35 !important;
+        }
+
+        .view-once-inline-send {
+            display: grid;
+            width: 50px;
+            height: 50px;
+            min-width: 50px;
+            place-items: center;
+            margin-bottom: 2px;
+            border-radius: 50%;
+            color: #07140a;
+            background: #00d96f;
+            box-shadow: 0 8px 22px rgba(0, 217, 111, .30);
+            transition: transform 140ms ease, opacity 140ms ease, filter 140ms ease;
+        }
+
+        .view-once-inline-send:disabled {
+            opacity: .38;
+            filter: grayscale(.5);
+            cursor: not-allowed;
+        }
+
+        .view-once-inline-send:not(:disabled):active {
+            transform: scale(.94);
+        }
+
+        .view-once-inline-send .nexa-svg {
+            width: 29px;
+            height: 29px;
+            stroke-width: 2.8;
+            transform: translateX(1px);
+        }
+
+        @media (max-width: 760px) {
+            .view-once-compose-shell {
+                grid-template-columns: minmax(0, 1fr) 50px;
+                gap: 7px;
+                padding: 8px;
+                border-radius: 26px;
+            }
+
+            .view-once-compose-shell textarea {
+                min-height: 128px !important;
+                font-size: 17px !important;
+            }
+        }
+
         .hidden,
         .auth-screen.hidden,
         .app.hidden,
@@ -9137,7 +9209,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-mobile-composer-v10";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-view-once-send-v11";
 
         async function clearLegacyAppCaches() {
             try {
@@ -16994,10 +17066,45 @@
         }
         function openViewOnceTextComposer() {
             openModal("Tek görülmelik mesaj", body => {
+                const shell = document.createElement("div");
+                shell.className = "view-once-compose-shell";
                 const input = document.createElement("textarea");
                 input.id = "viewOnceTextInput";
                 input.placeholder = "Bir kez okunacak mesajı yaz";
-                body.appendChild(input);
+                const send = document.createElement("button");
+                send.id = "viewOnceInlineSendButton";
+                send.type = "button";
+                send.className = "view-once-inline-send";
+                send.title = "Tek mesajı gönder";
+                send.setAttribute("aria-label", "Tek mesajı gönder");
+                send.disabled = true;
+                send.innerHTML = svgIcon("send");
+
+                const sendFromInlineButton = () => {
+                    const text = input.value.trim();
+                    if (!text) {
+                        showToast("Tek görülmelik mesaj boş olamaz.");
+                        input.focus();
+                        return;
+                    }
+                    if (sendViewOnceTextNow(text)) {
+                        closeModal();
+                    }
+                };
+
+                input.addEventListener("input", () => {
+                    send.disabled = !input.value.trim();
+                });
+                input.addEventListener("keydown", event => {
+                    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                        event.preventDefault();
+                        sendFromInlineButton();
+                    }
+                });
+                send.onclick = sendFromInlineButton;
+                shell.append(input, send);
+                body.appendChild(shell);
+                setTimeout(() => input.focus(), 80);
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 {
@@ -17019,20 +17126,6 @@
                         $("messageInput").placeholder = "Tek görülmelik mesaj hazır";
                         closeModal();
                         updateComposerState();
-                    }
-                },
-                {
-                    label: "Gönder",
-                    primary: true,
-                    onClick: () => {
-                        const text = $("viewOnceTextInput")?.value.trim();
-                        if (!text) {
-                            showToast("Tek görülmelik mesaj boş olamaz.");
-                            return;
-                        }
-                        if (sendViewOnceTextNow(text)) {
-                            closeModal();
-                        }
                     }
                 }
             ], "sheet");
