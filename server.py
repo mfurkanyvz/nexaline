@@ -137,6 +137,7 @@ class User(db.Model):
     theme_preference = db.Column(db.String(20), nullable=False, default="dark")
     font_size_preference = db.Column(db.String(20), nullable=False, default="medium")
     notification_sound = db.Column(db.String(40), nullable=False, default="classic")
+    ai_settings = db.Column(db.JSON, nullable=True)
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
     temporary_status = db.Column(db.String(80), nullable=True)
     temporary_status_expires_at = db.Column(db.DateTime, nullable=True)
@@ -1469,6 +1470,84 @@ def ai_task_to_dict(row):
 def ai_tasks_for(username):
     rows = AiTask.query.filter_by(username=username).order_by(AiTask.completed_at.isnot(None), AiTask.created_at.desc()).limit(120).all()
     return [ai_task_to_dict(row) for row in rows]
+
+
+def default_ai_settings():
+    return {
+        "enabled": True,
+        "name": "Nexa AI",
+        "image": "",
+        "autoApprove": False,
+        "voice": "warm",
+        "responseLength": "medium",
+        "persona": "",
+        "saveHistory": True,
+        "notifications": True,
+        "censorEnabled": True,
+    }
+
+
+def ai_settings_for_user(user):
+    stored = user.ai_settings if isinstance(user.ai_settings, dict) else {}
+    settings = {**default_ai_settings(), **stored}
+    settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Nexa AI")).strip()[:40] or "Nexa AI"
+    settings["theme"] = user.theme_preference or "dark"
+    settings["fontSize"] = user.font_size_preference or "medium"
+    settings["notificationSound"] = user.notification_sound or "classic"
+    return settings
+
+
+def ai_memory_message_to_dict(row):
+    meta = row.meta if isinstance(row.meta, dict) else {}
+    actions = meta.get("actions")
+    return {
+        "id": row.id,
+        "role": "user" if row.role == "user" else "assistant",
+        "text": row.content or "",
+        "actions": actions if isinstance(actions, list) and actions and isinstance(actions[0], dict) else [],
+        "provider": row.provider or "",
+        "chatId": row.chat_id,
+        "createdAt": to_iso(row.created_at),
+    }
+
+
+def ai_memory_messages_for(username):
+    rows = (
+        AiMemory.query.filter_by(username=username)
+        .order_by(AiMemory.created_at.desc())
+        .limit(80)
+        .all()
+    )
+    return [ai_memory_message_to_dict(row) for row in reversed(rows)]
+
+
+def ai_task_plan_to_dict(row):
+    base = ai_task_to_dict(row)
+    remind_at = row.remind_at or row.created_at
+    return {
+        **base,
+        "hint": row.description or row.repeat or "",
+        "time": remind_at.strftime("%H:%M") if remind_at else "09:00",
+        "active": row.completed_at is None,
+        "attempts": 0,
+        "failedAt": "",
+        "nextAt": to_iso(row.remind_at) if row.remind_at and row.completed_at is None else "",
+    }
+
+
+def ai_full_state_for(username):
+    user = db.session.get(User, username)
+    if not user:
+        return None
+    return {
+        "memory": ai_memory_messages_for(username),
+        "tasks": [
+            ai_task_plan_to_dict(row)
+            for row in AiTask.query.filter_by(username=username).order_by(AiTask.created_at.desc()).limit(120).all()
+        ],
+        "settings": ai_settings_for_user(user),
+        "syncedAt": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def community_to_dict(row, viewer=None):
@@ -3739,7 +3818,7 @@ def ai_chat():
         provider = {**(provider or {}), "intent": bool(actions)}
     add_points_once(username, POINT_RULES["ai_chat"], "ai_chat", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"prompt": prompt[:120]})
     store_ai_memory(username, chat_id, "user", prompt or "Bu eki incele.", meta={"hasAttachment": bool(attachment)})
-    store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "actions": [action.get("type") for action in actions]})
+    store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "actions": actions})
     db.session.commit()
     return jsonify(
         {
@@ -4173,6 +4252,33 @@ AI_COMMANDS = [
 @app.route("/ai/commands")
 def ai_commands():
     return jsonify({"ok": True, "commands": AI_COMMANDS})
+
+
+@app.route("/ai/sync-all", methods=["GET"])
+def ai_sync_all():
+    username = (request.args.get("username") or "").strip().lower()
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "AI senkronizasyonu için geçerli kullanıcı gerekli."}), 401
+    state_payload = ai_full_state_for(username)
+    return jsonify({"ok": True, **state_payload})
+
+
+@app.route("/ai/settings/<username>", methods=["POST"])
+def ai_settings_update(username):
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    data = request.get_json() or {}
+    settings = ai_settings_for_user(user)
+    allowed = {"enabled", "name", "image", "autoApprove", "voice", "responseLength", "persona", "saveHistory", "notifications", "censorEnabled"}
+    for key in allowed:
+        if key in data:
+            settings[key] = data[key]
+    settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Nexa AI")).strip()[:40] or "Nexa AI"
+    user.ai_settings = {key: settings.get(key) for key in allowed}
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Nexa AI ayarları sunucuda güncellendi.", "settings": ai_settings_for_user(user)})
 
 
 @app.route("/ai/tasks/<username>", methods=["GET", "POST"])
@@ -7029,6 +7135,7 @@ with app.app_context():
         "theme_preference": "ALTER TABLE \"user\" ADD COLUMN theme_preference VARCHAR(20) DEFAULT 'dark' NOT NULL",
         "font_size_preference": "ALTER TABLE \"user\" ADD COLUMN font_size_preference VARCHAR(20) DEFAULT 'medium' NOT NULL",
         "notification_sound": "ALTER TABLE \"user\" ADD COLUMN notification_sound VARCHAR(40) DEFAULT 'classic' NOT NULL",
+        "ai_settings": "ALTER TABLE \"user\" ADD COLUMN ai_settings JSON",
         "temporary_status": "ALTER TABLE \"user\" ADD COLUMN temporary_status VARCHAR(80)",
         "temporary_status_expires_at": "ALTER TABLE \"user\" ADD COLUMN temporary_status_expires_at TIMESTAMP",
         "nearby_enabled": "ALTER TABLE \"user\" ADD COLUMN nearby_enabled BOOLEAN DEFAULT FALSE NOT NULL",

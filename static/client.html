@@ -9383,6 +9383,7 @@
         const AI_HISTORY_KEY = "nexalineAiHistory";
         const AI_CENSOR_KEY = "nexalineAiCensor";
         const AI_SETTINGS_KEY_PREFIX = "nexalineNextAiSettings";
+        const AI_CACHE_KEY_PREFIX = "nexalineAiServerCache";
         const DEVICE_ID_KEY = "nexalineDeviceId";
         const AI_CHAT_ID = "__next_ai_chat__";
         const AI_SENDER = "__next_ai__";
@@ -9730,14 +9731,19 @@
             return `${AI_HISTORY_KEY}:${state.me?.username || "guest"}`;
         }
 
+        function aiCacheKey() {
+            return `${AI_CACHE_KEY_PREFIX}:${state.me?.username || "guest"}`;
+        }
+
         function archivePinKey() {
             return `${ARCHIVE_PIN_KEY_PREFIX}:${state.me?.username || "guest"}`;
         }
 
         function loadAiSettings() {
+            const cached = readStoredJson(aiCacheKey(), {});
             state.aiSettings = {
                 ...defaultAiSettings(),
-                ...readStoredJson(aiSettingsKey(), {})
+                ...(cached.settings || {})
             };
             if (!state.aiSettings.name?.trim()) {
                 state.aiSettings.name = DEFAULT_AI_NAME;
@@ -9745,23 +9751,32 @@
             if (state.aiSettings.name.trim().toLowerCase() === "next ai") {
                 state.aiSettings.name = DEFAULT_AI_NAME;
             }
-            const userCensor = localStorage.getItem(aiCensorKey());
-            state.aiCensorEnabled = userCensor === null
-                ? localStorage.getItem(AI_CENSOR_KEY) !== "off"
-                : userCensor !== "off";
-            state.aiMessages = sanitizeAiHistory(readStoredJson(aiHistoryKey(), readStoredJson(AI_HISTORY_KEY, [])));
+            state.aiCensorEnabled = state.aiSettings.censorEnabled !== false;
+            state.aiMessages = sanitizeAiHistory(cached.memory || []);
+            state.aiPlanTasks = cached.tasks || [];
             state.aiAvatarDraft = state.aiSettings.image || "";
         }
 
         function saveAiSettings() {
             state.aiSettings.name = (state.aiSettings.name || DEFAULT_AI_NAME).trim().slice(0, 40) || DEFAULT_AI_NAME;
-            localStorage.setItem(aiSettingsKey(), JSON.stringify(state.aiSettings));
+            if (!state.me?.username) return;
+            fetch(`/ai/settings/${encodeURIComponent(state.me.username)}`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ ...state.aiSettings, censorEnabled: state.aiCensorEnabled })
+            }).then(response => response.json()).then(data => {
+                if (data.ok && data.settings) {
+                    state.aiSettings = { ...state.aiSettings, ...data.settings };
+                    state.aiCensorEnabled = state.aiSettings.censorEnabled !== false;
+                    const cached = readStoredJson(aiCacheKey(), {});
+                    localStorage.setItem(aiCacheKey(), JSON.stringify({ ...cached, settings: state.aiSettings }));
+                }
+            }).catch(() => {});
         }
 
         function saveAiCensorSetting() {
-            const value = state.aiCensorEnabled ? "on" : "off";
-            localStorage.setItem(AI_CENSOR_KEY, value);
-            localStorage.setItem(aiCensorKey(), value);
+            state.aiSettings.censorEnabled = state.aiCensorEnabled !== false;
+            saveAiSettings();
         }
 
         const state = {
@@ -9797,8 +9812,8 @@
             theme: localStorage.getItem(THEME_KEY) || "dark",
             lockedChatsUnlocked: false,
             aiBusy: false,
-            aiMessages: sanitizeAiHistory(readStoredJson(AI_HISTORY_KEY, [])),
-            aiCensorEnabled: localStorage.getItem(AI_CENSOR_KEY) !== "off",
+            aiMessages: [],
+            aiCensorEnabled: true,
             aiSettings: defaultAiSettings(),
             aiAvatarDraft: "",
             aiRevealedMessages: {},
@@ -10964,15 +10979,43 @@
                 return this.applyAiAction(action, autoApproved);
             }
 
-            saveAiHistory() {
-            if (state.aiSettings?.saveHistory === false) {
-                localStorage.removeItem(AI_HISTORY_KEY);
-                localStorage.removeItem(aiHistoryKey());
-                return;
+            async syncWithServer({ render = true } = {}) {
+                if (!state.me?.username) return null;
+                try {
+                    const response = await fetch(`/ai/sync-all?username=${encodeURIComponent(state.me.username)}`, {
+                        method: "GET",
+                        headers: authHeaders()
+                    });
+                    const data = await response.json();
+                    if (!data.ok) {
+                        showToast(data.message || "Nexa AI durumu alınamadı.");
+                        return data;
+                    }
+                    state.aiMessages = sanitizeAiHistory(data.memory || []);
+                    state.aiPlanTasks = data.tasks || [];
+                    state.aiSettings = { ...defaultAiSettings(), ...(data.settings || {}) };
+                    state.aiCensorEnabled = state.aiSettings.censorEnabled !== false;
+                    state.aiAvatarDraft = state.aiSettings.image || "";
+                    localStorage.setItem(aiCacheKey(), JSON.stringify({
+                        memory: state.aiMessages,
+                        tasks: state.aiPlanTasks,
+                        settings: state.aiSettings,
+                        syncedAt: data.syncedAt || new Date().toISOString()
+                    }));
+                    if (render) {
+                        this.renderPanel();
+                        if (isAiChatId(state.activeChatId)) renderActiveChat();
+                        renderChats();
+                    }
+                    return data;
+                } catch (error) {
+                    showToast("Nexa AI hafıza birimine erişilemedi.");
+                    return { ok: false, message: "Nexa AI hafıza birimine erişilemedi." };
+                }
             }
-            const history = JSON.stringify(state.aiMessages.slice(-40));
-            localStorage.setItem(AI_HISTORY_KEY, history);
-            localStorage.setItem(aiHistoryKey(), history);
+
+            saveAiHistory() {
+            return;
         }
 
                 async loadAiStatus() {
@@ -11031,15 +11074,13 @@
         }
 
             loadAiPlanTasks() {
-            const stored = readStoredJson(aiPlanTasksKey(), null);
-            if (Array.isArray(stored) && stored.length) return stored;
+            if (Array.isArray(state.aiPlanTasks) && state.aiPlanTasks.length) return state.aiPlanTasks;
             const defaults = defaultAiPlanTasks();
-            localStorage.setItem(aiPlanTasksKey(), JSON.stringify(defaults));
+            state.aiPlanTasks = defaults;
             return defaults;
         }
 
             saveAiPlanTasks(tasks) {
-            localStorage.setItem(aiPlanTasksKey(), JSON.stringify(tasks));
             state.aiPlanTasks = tasks;
         }
 
@@ -11050,6 +11091,13 @@
                 tasks[index] = { ...tasks[index], ...patch };
             }
             saveAiPlanTasks(tasks);
+            if (state.me?.username && !String(taskId).startsWith("custom-") && !String(taskId).includes("morning-") && !String(taskId).includes("drink-") && !String(taskId).includes("read-") && !String(taskId).includes("shopping-") && !String(taskId).includes("meeting-")) {
+                fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}/${encodeURIComponent(taskId)}`, {
+                    method: "PATCH",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ completed: Boolean(patch.completedAt) || patch.active === false })
+                }).then(() => this.syncWithServer({ render: false })).catch(() => {});
+            }
             return tasks[index] || null;
         }
 
@@ -11236,25 +11284,26 @@
                         showToast("Görev adını yaz.");
                         return;
                     }
-                    const tasks = loadAiPlanTasks();
-                    const task = {
-                        id: `custom-${Date.now()}`,
-                        title,
-                        hint: repeat === "hourly" ? "Her saat" : repeat === "daily" ? `Her gün ${time}` : time,
-                        time,
-                        repeat,
-                        active: true,
-                        attempts: 0,
-                        completedAt: "",
-                        failedAt: "",
-                        nextAt: nextAiPlanTime({ time, repeat })
-                    };
-                    tasks.push(task);
-                    saveAiPlanTasks(tasks);
-                    showToast("Yeni görev aktif edildi.");
-                    closeModal();
-                    setTimeout(() => openAiTasksPanel("active"), 80);
-                    startAiPlanReminderEngine();
+                    fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}`, {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({
+                            title,
+                            description: repeat === "hourly" ? "Her saat" : repeat === "daily" ? `Her g?n ${time}` : time,
+                            remindAt: repeat === "none" ? new Date().toISOString() : "",
+                            repeat: repeat === "hourly" ? "daily" : repeat
+                        })
+                    }).then(response => response.json()).then(async data => {
+                        if (!data.ok) {
+                            showToast(data.message || "G?rev eklenemedi.");
+                            return;
+                        }
+                        showToast("Yeni g?rev sunucuya eklendi.");
+                        await this.syncWithServer({ render: false });
+                        closeModal();
+                        setTimeout(() => openAiTasksPanel("active"), 80);
+                        startAiPlanReminderEngine();
+                    }).catch(() => showToast("G?rev birimi eri?ilemiyor."));
                 };
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
@@ -11744,6 +11793,7 @@
             } finally {
                 state.aiBusy = false;
                 state.aiActivity = "";
+                await this.syncWithServer({ render: false });
                 renderAiPanel();
                 if (isAiChatId(state.activeChatId)) {
                     renderActiveChat();
@@ -11802,9 +11852,12 @@
             openAiPanel() {
             $("aiPanel").classList.remove("hidden");
             pushAppHistory("ai");
-            if (!state.aiPlanTasks) state.aiPlanTasks = loadAiPlanTasks();
+            if (!state.aiPlanTasks) state.aiPlanTasks = [];
             startAiPlanReminderEngine();
-            loadAiStatus();
+            this.syncWithServer({ render: false }).finally(() => {
+                loadAiStatus();
+                renderAiPanel();
+            });
             renderAiPanel();
             setTimeout(() => $("aiInput").focus(), 80);
         }
