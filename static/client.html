@@ -8398,7 +8398,7 @@
             }
         }
 
-        /* Mobile composer v16: 25px aligned slim capsule, no nested icon boxes. */
+        /* Mobile composer v17: 25px controls with 5px top/gap alignment. */
         @media (max-width: 760px) {
             .composer {
                 display: grid !important;
@@ -8411,9 +8411,9 @@
                     "preview preview preview preview"
                     "attach emoji input voice" !important;
                 align-items: start !important;
-                gap: 4px !important;
+                gap: 5px !important;
                 min-height: 40px !important;
-                padding: .5px 10px max(6px, env(safe-area-inset-bottom)) !important;
+                padding: 5px 10px max(6px, env(safe-area-inset-bottom)) !important;
                 border-top: 1px solid rgba(255,255,255,.06) !important;
                 background: rgba(35, 38, 40, .98) !important;
                 backdrop-filter: blur(16px) saturate(120%) !important;
@@ -8522,7 +8522,7 @@
                 min-height: 25px !important;
                 max-height: 66px !important;
                 margin: 0 !important;
-                padding: 3px 22px 2px 10px !important;
+                padding: 3px 32px 2px 10px !important;
                 border: 0 !important;
                 border-radius: 999px !important;
                 outline: none !important;
@@ -8542,10 +8542,10 @@
                 top: 50% !important;
                 right: 5px !important;
                 display: grid !important;
-                width: 15px !important;
-                height: 15px !important;
-                min-width: 15px !important;
-                min-height: 15px !important;
+                width: 21px !important;
+                height: 21px !important;
+                min-width: 21px !important;
+                min-height: 21px !important;
                 place-items: center !important;
                 padding: 0 !important;
                 border: 0 !important;
@@ -8557,9 +8557,9 @@
             }
 
             .gif-inline-button .nexa-svg {
-                width: 14px !important;
-                height: 14px !important;
-                stroke-width: 1.05 !important;
+                width: 19px !important;
+                height: 19px !important;
+                stroke-width: 1.12 !important;
             }
 
             .send-btn,
@@ -9269,7 +9269,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-25px-v16";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-gap-v17";
 
         async function clearLegacyAppCaches() {
             try {
