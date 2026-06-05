@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#050911">
     <meta name="application-name" content="NexaLine">
     <meta name="mobile-web-app-capable" content="yes">
@@ -8419,6 +8419,19 @@
                 backdrop-filter: blur(16px) saturate(120%) !important;
             }
 
+            .composer #smartReplies:empty,
+            .composer #replyPreview:empty,
+            .composer #voiceWave:not(.active),
+            .composer #attachmentPreview.hidden,
+            .composer #emojiPanel.hidden {
+                display: none !important;
+                height: 0 !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+            }
+
             .composer.has-content {
                 grid-template-columns: 25px minmax(0, 1fr) 25px !important;
                 grid-template-areas:
@@ -8590,6 +8603,24 @@
                 padding: 7px 9px !important;
                 border-radius: 18px !important;
                 background: rgba(17, 24, 39, .82) !important;
+            }
+
+            .app.chat-open .chat-pane {
+                height: var(--app-height) !important;
+                max-height: var(--app-height) !important;
+            }
+
+            .app.chat-open.keyboard-open .composer {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: max(var(--keyboard-inset), env(safe-area-inset-bottom)) !important;
+                z-index: 44 !important;
+                transform: translate3d(0, 0, 0) !important;
+            }
+
+            .app.chat-open.keyboard-open .messages {
+                padding-bottom: 58px !important;
             }
         }
 
@@ -9269,7 +9300,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-gap-v17";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-keyboard-v18";
 
         async function clearLegacyAppCaches() {
             try {
@@ -10105,9 +10136,13 @@
             const keyboardInset = viewport
                 ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
                 : 0;
+            const messageInput = $("messageInput");
+            const inputFocused = document.activeElement === messageInput;
+            const isMobileViewport = window.matchMedia("(max-width: 760px)").matches;
+            const detectedKeyboard = keyboardInset > 20 || viewportHeight < window.innerHeight - 40;
             const keyboardOpen = Boolean(
-                document.activeElement === $("messageInput")
-                && (keyboardInset > 60 || viewportHeight < window.innerHeight - 80)
+                inputFocused
+                && (detectedKeyboard || isMobileViewport)
             );
             document.documentElement.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
             document.documentElement.style.setProperty("--keyboard-inset", `${Math.round(keyboardInset)}px`);
@@ -10116,7 +10151,7 @@
                 requestAnimationFrame(() => {
                     const messageBox = $("messages");
                     messageBox.scrollTop = messageBox.scrollHeight;
-                    if (document.activeElement === $("messageInput")) {
+                    if (inputFocused) {
                         document.querySelector(".composer")?.scrollIntoView({ block: "end" });
                     }
                 });
