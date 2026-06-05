@@ -8358,7 +8358,7 @@
         @media (max-width: 760px) {
             .composer {
                 display: grid !important;
-                grid-template-columns: 42px 40px minmax(0, 1fr) 42px !important;
+                grid-template-columns: 48px 38px minmax(0, 1fr) 48px !important;
                 grid-template-areas:
                     "smart smart smart smart"
                     "reply reply reply reply"
@@ -8367,16 +8367,16 @@
                     "preview preview preview preview"
                     "attach emoji input voice" !important;
                 align-items: center !important;
-                gap: 6px !important;
-                min-height: 68px !important;
-                padding: 8px 9px max(10px, env(safe-area-inset-bottom)) !important;
-                border-top: 1px solid rgba(255,255,255,.08) !important;
-                background: rgba(36, 39, 42, .98) !important;
-                backdrop-filter: blur(18px) saturate(130%) !important;
+                gap: 7px !important;
+                min-height: 70px !important;
+                padding: 9px 12px max(11px, env(safe-area-inset-bottom)) !important;
+                border-top: 1px solid rgba(255,255,255,.06) !important;
+                background: rgba(35, 38, 40, .98) !important;
+                backdrop-filter: blur(16px) saturate(120%) !important;
             }
 
             .composer.has-content {
-                grid-template-columns: 42px minmax(0, 1fr) 50px !important;
+                grid-template-columns: 48px minmax(0, 1fr) 52px !important;
                 grid-template-areas:
                     "smart smart smart"
                     "reply reply reply"
@@ -8416,14 +8416,14 @@
             }
 
             .composer .icon-btn {
-                width: 40px !important;
-                height: 48px !important;
-                min-width: 40px !important;
-                min-height: 48px !important;
+                width: 48px !important;
+                height: 52px !important;
+                min-width: 48px !important;
+                min-height: 52px !important;
                 padding: 0 !important;
                 border: 0 !important;
                 border-radius: 0 !important;
-                color: rgba(255,255,255,.94) !important;
+                color: rgba(255,255,255,.92) !important;
                 background: transparent !important;
                 box-shadow: none !important;
                 overflow: visible !important;
@@ -8432,18 +8432,25 @@
             .composer .icon-btn .nexa-svg {
                 width: 31px !important;
                 height: 31px !important;
-                stroke-width: 2.25 !important;
+                stroke-width: 1.62 !important;
             }
 
             #attachButton .nexa-svg {
-                width: 38px !important;
-                height: 38px !important;
-                stroke-width: 1.85 !important;
+                width: 46px !important;
+                height: 46px !important;
+                stroke-width: 1.42 !important;
+            }
+
+            #emojiButton .nexa-svg {
+                width: 31px !important;
+                height: 31px !important;
+                stroke-width: 1.62 !important;
             }
 
             #voiceButton .nexa-svg {
-                width: 36px !important;
-                height: 36px !important;
+                width: 43px !important;
+                height: 43px !important;
+                stroke-width: 1.55 !important;
             }
 
             .message-input-shell {
@@ -8451,23 +8458,23 @@
                 display: block !important;
                 width: 100% !important;
                 min-width: 0 !important;
-                min-height: 50px !important;
+                min-height: 51px !important;
                 padding: 0 !important;
                 overflow: hidden !important;
-                border: 1px solid rgba(255,255,255,.08) !important;
+                border: 1px solid rgba(255,255,255,.055) !important;
                 border-radius: 999px !important;
-                background: rgba(69, 73, 75, .86) !important;
-                box-shadow: inset 0 1px 0 rgba(255,255,255,.06) !important;
+                background: rgba(66, 70, 72, .86) !important;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 1px 0 rgba(0,0,0,.12) !important;
             }
 
             .message-input-shell textarea,
             #messageInput {
                 display: block !important;
                 width: 100% !important;
-                min-height: 50px !important;
+                min-height: 51px !important;
                 max-height: 104px !important;
                 margin: 0 !important;
-                padding: 13px 52px 12px 18px !important;
+                padding: 13px 52px 12px 19px !important;
                 border: 0 !important;
                 border-radius: 999px !important;
                 outline: none !important;
@@ -8485,12 +8492,12 @@
             .gif-inline-button {
                 position: absolute !important;
                 top: 50% !important;
-                right: 10px !important;
+                right: 11px !important;
                 display: grid !important;
-                width: 34px !important;
-                height: 34px !important;
-                min-width: 34px !important;
-                min-height: 34px !important;
+                width: 35px !important;
+                height: 35px !important;
+                min-width: 35px !important;
+                min-height: 35px !important;
                 place-items: center !important;
                 padding: 0 !important;
                 border: 0 !important;
@@ -8502,9 +8509,9 @@
             }
 
             .gif-inline-button .nexa-svg {
-                width: 29px !important;
-                height: 29px !important;
-                stroke-width: 2.1 !important;
+                width: 32px !important;
+                height: 32px !important;
+                stroke-width: 1.55 !important;
             }
 
             .send-btn,
@@ -8522,9 +8529,9 @@
             }
 
             #sendButton .nexa-svg {
-                width: 30px !important;
-                height: 30px !important;
-                stroke-width: 2.8 !important;
+                width: 31px !important;
+                height: 31px !important;
+                stroke-width: 2.28 !important;
                 transform: translateX(1px);
             }
 
@@ -8538,24 +8545,24 @@
 
         @media (max-width: 380px) {
             .composer {
-                grid-template-columns: 38px 36px minmax(0, 1fr) 38px !important;
-                gap: 5px !important;
-                padding-inline: 7px !important;
+                grid-template-columns: 44px 35px minmax(0, 1fr) 44px !important;
+                gap: 6px !important;
+                padding-inline: 9px !important;
             }
 
             .composer.has-content {
-                grid-template-columns: 38px minmax(0, 1fr) 46px !important;
+                grid-template-columns: 44px minmax(0, 1fr) 48px !important;
             }
 
             .composer .icon-btn {
-                width: 36px !important;
-                min-width: 36px !important;
+                width: 44px !important;
+                min-width: 44px !important;
             }
 
             .message-input-shell,
             .message-input-shell textarea,
             #messageInput {
-                min-height: 48px !important;
+                min-height: 49px !important;
             }
 
             #messageInput {
@@ -8565,10 +8572,10 @@
             }
 
             #sendButton {
-                width: 46px !important;
-                height: 46px !important;
-                min-width: 46px !important;
-                min-height: 46px !important;
+                width: 48px !important;
+                height: 48px !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
             }
         }
 
@@ -9209,7 +9216,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-view-once-send-v11";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-polish-v12";
 
         async function clearLegacyAppCaches() {
             try {
