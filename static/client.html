@@ -8479,7 +8479,7 @@
                 height: 25px !important;
                 min-width: 25px !important;
                 min-height: 25px !important;
-                margin-top: 0 !important;
+                margin-top: 2px !important;
                 padding: 0 !important;
                 border: 0 !important;
                 border-radius: 0 !important;
@@ -8521,7 +8521,7 @@
                 min-width: 0 !important;
                 height: 25px !important;
                 min-height: 25px !important;
-                margin-top: -1px !important;
+                margin-top: 1px !important;
                 padding: 0 !important;
                 overflow: hidden !important;
                 border: 1px solid rgba(255,255,255,.045) !important;
@@ -8586,7 +8586,7 @@
                 height: 25px !important;
                 min-width: 25px !important;
                 min-height: 25px !important;
-                margin-top: 0 !important;
+                margin-top: 2px !important;
                 padding: 0 !important;
                 place-items: center !important;
                 border-radius: 50% !important;
@@ -9304,7 +9304,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-lift-v19";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-nudge-v20";
 
         async function clearLegacyAppCaches() {
             try {
@@ -10150,7 +10150,7 @@
             );
             const appHeight = keyboardOpen
                 ? viewportHeight
-                : Math.max(window.innerHeight, viewportHeight);
+                : (viewport ? viewportHeight : window.innerHeight);
             const keyboardInset = keyboardOpen ? rawKeyboardInset : 0;
             document.documentElement.style.setProperty("--app-height", `${Math.round(appHeight)}px`);
             document.documentElement.style.setProperty("--keyboard-inset", `${Math.round(keyboardInset)}px`);
