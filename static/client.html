@@ -8398,11 +8398,11 @@
             }
         }
 
-        /* Mobile composer v15: 36px aligned slim capsule, no nested icon boxes. */
+        /* Mobile composer v16: 25px aligned slim capsule, no nested icon boxes. */
         @media (max-width: 760px) {
             .composer {
                 display: grid !important;
-                grid-template-columns: 36px 32px minmax(0, 1fr) 36px !important;
+                grid-template-columns: 25px 25px minmax(0, 1fr) 25px !important;
                 grid-template-areas:
                     "smart smart smart smart"
                     "reply reply reply reply"
@@ -8412,15 +8412,15 @@
                     "attach emoji input voice" !important;
                 align-items: start !important;
                 gap: 4px !important;
-                min-height: 44px !important;
-                padding: 2px 10px max(6px, env(safe-area-inset-bottom)) !important;
+                min-height: 40px !important;
+                padding: .5px 10px max(6px, env(safe-area-inset-bottom)) !important;
                 border-top: 1px solid rgba(255,255,255,.06) !important;
                 background: rgba(35, 38, 40, .98) !important;
                 backdrop-filter: blur(16px) saturate(120%) !important;
             }
 
             .composer.has-content {
-                grid-template-columns: 36px minmax(0, 1fr) 38px !important;
+                grid-template-columns: 25px minmax(0, 1fr) 25px !important;
                 grid-template-areas:
                     "smart smart smart"
                     "reply reply reply"
@@ -8461,10 +8461,10 @@
 
             .composer .icon-btn {
                 align-self: start !important;
-                width: 36px !important;
-                height: 36px !important;
-                min-width: 36px !important;
-                min-height: 36px !important;
+                width: 25px !important;
+                height: 25px !important;
+                min-width: 25px !important;
+                min-height: 25px !important;
                 margin-top: 0 !important;
                 padding: 0 !important;
                 border: 0 !important;
@@ -8476,27 +8476,27 @@
             }
 
             .composer .icon-btn .nexa-svg {
-                width: 24px !important;
-                height: 24px !important;
-                stroke-width: 1.32 !important;
+                width: 18px !important;
+                height: 18px !important;
+                stroke-width: 1.18 !important;
             }
 
             #attachButton .nexa-svg {
-                width: 34px !important;
-                height: 34px !important;
-                stroke-width: 1.16 !important;
+                width: 24px !important;
+                height: 24px !important;
+                stroke-width: 1.05 !important;
             }
 
             #emojiButton .nexa-svg {
-                width: 25px !important;
-                height: 25px !important;
-                stroke-width: 1.32 !important;
+                width: 18px !important;
+                height: 18px !important;
+                stroke-width: 1.18 !important;
             }
 
             #voiceButton .nexa-svg {
-                width: 33px !important;
-                height: 33px !important;
-                stroke-width: 1.22 !important;
+                width: 24px !important;
+                height: 24px !important;
+                stroke-width: 1.08 !important;
             }
 
             .message-input-shell {
@@ -8505,7 +8505,7 @@
                 align-self: start !important;
                 width: 100% !important;
                 min-width: 0 !important;
-                min-height: 36px !important;
+                min-height: 25px !important;
                 margin-top: 0 !important;
                 padding: 0 !important;
                 overflow: hidden !important;
@@ -8519,18 +8519,18 @@
             #messageInput {
                 display: block !important;
                 width: 100% !important;
-                min-height: 36px !important;
-                max-height: 78px !important;
+                min-height: 25px !important;
+                max-height: 66px !important;
                 margin: 0 !important;
-                padding: 6px 38px 5px 14px !important;
+                padding: 3px 22px 2px 10px !important;
                 border: 0 !important;
                 border-radius: 999px !important;
                 outline: none !important;
                 color: #fff !important;
                 background: transparent !important;
                 box-shadow: none !important;
-                font-size: 16px !important;
-                line-height: 1.15 !important;
+                font-size: 14.5px !important;
+                line-height: 1.1 !important;
             }
 
             #messageInput::placeholder {
@@ -8540,12 +8540,12 @@
             .gif-inline-button {
                 position: absolute !important;
                 top: 50% !important;
-                right: 7px !important;
+                right: 5px !important;
                 display: grid !important;
-                width: 25px !important;
-                height: 25px !important;
-                min-width: 25px !important;
-                min-height: 25px !important;
+                width: 15px !important;
+                height: 15px !important;
+                min-width: 15px !important;
+                min-height: 15px !important;
                 place-items: center !important;
                 padding: 0 !important;
                 border: 0 !important;
@@ -8557,18 +8557,18 @@
             }
 
             .gif-inline-button .nexa-svg {
-                width: 23px !important;
-                height: 23px !important;
-                stroke-width: 1.28 !important;
+                width: 14px !important;
+                height: 14px !important;
+                stroke-width: 1.05 !important;
             }
 
             .send-btn,
             #sendButton {
                 align-self: start !important;
-                width: 36px !important;
-                height: 36px !important;
-                min-width: 36px !important;
-                min-height: 36px !important;
+                width: 25px !important;
+                height: 25px !important;
+                min-width: 25px !important;
+                min-height: 25px !important;
                 margin-top: 0 !important;
                 padding: 0 !important;
                 place-items: center !important;
@@ -8579,9 +8579,9 @@
             }
 
             #sendButton .nexa-svg {
-                width: 23px !important;
-                height: 23px !important;
-                stroke-width: 1.9 !important;
+                width: 16px !important;
+                height: 16px !important;
+                stroke-width: 1.65 !important;
                 transform: translateX(1px);
             }
 
@@ -9269,7 +9269,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-align-v15";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-25px-v16";
 
         async function clearLegacyAppCaches() {
             try {
