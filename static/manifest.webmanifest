@@ -1,7 +1,7 @@
 {
   "name": "NexaLine",
   "short_name": "NexaLine",
-  "description": "NexaLine mesajlasma uygulamasi",
+  "description": "NexaLine; mesajlaşma, chat, sesli ve görüntülü arama, grup sohbeti, topluluk, durum paylaşımı ve Nexa AI asistan özellikleri sunan modern sosyal iletişim platformu.",
   "lang": "tr",
   "dir": "ltr",
   "start_url": "/",
@@ -11,7 +11,7 @@
   "orientation": "portrait",
   "background_color": "#050911",
   "theme_color": "#050911",
-  "categories": ["social", "communication"],
+  "categories": ["social", "communication", "productivity"],
   "shortcuts": [
     {
       "name": "Sohbetler",

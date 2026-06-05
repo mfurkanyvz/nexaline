@@ -68,6 +68,7 @@ AI_RELEVANT_CHAT_LIMIT = max(3, int(os.environ.get("AI_RELEVANT_CHAT_LIMIT", "8"
 AI_RELEVANT_CHAT_MESSAGES = max(8, int(os.environ.get("AI_RELEVANT_CHAT_MESSAGES", "32")))
 QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "60")))
 TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECONDS", "45")))
+PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz")).rstrip("/")
 POINT_RULES = {
     "daily_login": 10,
     "message": 1,
@@ -3372,6 +3373,45 @@ def index():
 def client():
     response = send_from_directory("static", "client.html")
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    body = "\n".join(
+        [
+            "User-agent: *",
+            "Allow: /",
+            f"Sitemap: {PUBLIC_SITE_URL}/sitemap.xml",
+            "",
+        ]
+    )
+    response = app.response_class(body, mimetype="text/plain")
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    today = datetime.now(timezone.utc).date().isoformat()
+    url_entries = [
+        ("/", "1.0", "daily"),
+        ("/client.html", "0.8", "weekly"),
+        ("/manifest.webmanifest", "0.4", "monthly"),
+    ]
+    urls = []
+    for path, priority, changefreq in url_entries:
+        loc = html.escape(f"{PUBLIC_SITE_URL}{path}", quote=True)
+        urls.append(
+            f"  <url><loc>{loc}</loc><lastmod>{today}</lastmod>"
+            f"<changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>"
+        )
+    body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    body += "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
+    body += "\n".join(urls)
+    body += "\n</urlset>\n"
+    response = app.response_class(body, mimetype="application/xml")
+    response.headers["Cache-Control"] = "public, max-age=3600"
     return response
 
 

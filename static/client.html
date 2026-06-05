@@ -10,10 +10,54 @@
     <meta name="apple-mobile-web-app-title" content="NexaLine">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
-    <title>NexaLine</title>
+    <meta name="description" content="NexaLine; sohbet, mesajlaşma, sesli ve görüntülü arama, grup, topluluk, durum paylaşımı ve Nexa AI asistan özellikleri sunan modern sosyal iletişim platformudur.">
+    <meta name="keywords" content="NexaLine, Nexaline, mesajlaşma, mesajlaşma uygulaması, chat, sohbet, sohbet uygulaması, online sohbet, görüntülü arama, sesli arama, grup sohbeti, sosyal medya, durum paylaşma, yapay zeka asistanı, Nexa AI, arkadaşlık, topluluk, Türkçe chat">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="author" content="NexaLine">
+    <meta name="publisher" content="NexaLine">
+    <link rel="canonical" href="https://nexalineapp.xyz/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NexaLine">
+    <meta property="og:title" content="NexaLine - Modern Mesajlaşma ve Sosyal Sohbet Platformu">
+    <meta property="og:description" content="NexaLine ile mesajlaş, sohbet et, grup kur, sesli ve görüntülü ara, durum paylaş ve Nexa AI asistanıyla iletişimini daha akıllı hale getir.">
+    <meta property="og:url" content="https://nexalineapp.xyz/">
+    <meta property="og:image" content="https://nexalineapp.xyz/static/icons/icon-512.png">
+    <meta property="og:locale" content="tr_TR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NexaLine - Mesajlaşma, Chat ve Sosyal İletişim">
+    <meta name="twitter:description" content="Sohbet, mesajlaşma, arama, topluluk ve Nexa AI asistan özellikleriyle modern iletişim platformu.">
+    <meta name="twitter:image" content="https://nexalineapp.xyz/static/icons/icon-512.png">
+    <title>NexaLine - Mesajlaşma, Chat ve Sosyal İletişim Platformu</title>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "NexaLine",
+      "applicationCategory": "CommunicationApplication",
+      "operatingSystem": "Web, Android, PWA",
+      "url": "https://nexalineapp.xyz/",
+      "description": "NexaLine; mesajlaşma, chat, sesli ve görüntülü arama, grup sohbeti, topluluk, durum paylaşımı ve Nexa AI asistan özellikleri sunan modern sosyal iletişim platformudur.",
+      "image": "https://nexalineapp.xyz/static/icons/icon-512.png",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "TRY"
+      },
+      "featureList": [
+        "Mesajlaşma",
+        "Sohbet",
+        "Sesli arama",
+        "Görüntülü arama",
+        "Grup sohbeti",
+        "Topluluklar",
+        "Durum paylaşımı",
+        "Nexa AI asistan"
+      ]
+    }
+    </script>
     <script src="/static/vendor/socket.io.min.js"></script>
     <style>
         :root {
@@ -8354,11 +8398,11 @@
             }
         }
 
-        /* Mobile composer v10: WhatsApp-like single capsule, no nested icon boxes. */
+        /* Mobile composer v13: slim WhatsApp-like single capsule, no nested icon boxes. */
         @media (max-width: 760px) {
             .composer {
                 display: grid !important;
-                grid-template-columns: 48px 38px minmax(0, 1fr) 48px !important;
+                grid-template-columns: 42px 34px minmax(0, 1fr) 42px !important;
                 grid-template-areas:
                     "smart smart smart smart"
                     "reply reply reply reply"
@@ -8367,16 +8411,16 @@
                     "preview preview preview preview"
                     "attach emoji input voice" !important;
                 align-items: center !important;
-                gap: 7px !important;
-                min-height: 70px !important;
-                padding: 9px 12px max(11px, env(safe-area-inset-bottom)) !important;
+                gap: 5px !important;
+                min-height: 58px !important;
+                padding: 4px 10px max(7px, env(safe-area-inset-bottom)) !important;
                 border-top: 1px solid rgba(255,255,255,.06) !important;
                 background: rgba(35, 38, 40, .98) !important;
                 backdrop-filter: blur(16px) saturate(120%) !important;
             }
 
             .composer.has-content {
-                grid-template-columns: 48px minmax(0, 1fr) 52px !important;
+                grid-template-columns: 42px minmax(0, 1fr) 46px !important;
                 grid-template-areas:
                     "smart smart smart"
                     "reply reply reply"
@@ -8416,10 +8460,10 @@
             }
 
             .composer .icon-btn {
-                width: 48px !important;
-                height: 52px !important;
-                min-width: 48px !important;
-                min-height: 52px !important;
+                width: 42px !important;
+                height: 44px !important;
+                min-width: 42px !important;
+                min-height: 44px !important;
                 padding: 0 !important;
                 border: 0 !important;
                 border-radius: 0 !important;
@@ -8430,27 +8474,27 @@
             }
 
             .composer .icon-btn .nexa-svg {
-                width: 31px !important;
-                height: 31px !important;
-                stroke-width: 1.62 !important;
+                width: 28px !important;
+                height: 28px !important;
+                stroke-width: 1.5 !important;
             }
 
             #attachButton .nexa-svg {
-                width: 46px !important;
-                height: 46px !important;
-                stroke-width: 1.42 !important;
+                width: 40px !important;
+                height: 40px !important;
+                stroke-width: 1.3 !important;
             }
 
             #emojiButton .nexa-svg {
-                width: 31px !important;
-                height: 31px !important;
-                stroke-width: 1.62 !important;
+                width: 28px !important;
+                height: 28px !important;
+                stroke-width: 1.5 !important;
             }
 
             #voiceButton .nexa-svg {
-                width: 43px !important;
-                height: 43px !important;
-                stroke-width: 1.55 !important;
+                width: 38px !important;
+                height: 38px !important;
+                stroke-width: 1.42 !important;
             }
 
             .message-input-shell {
@@ -8458,30 +8502,30 @@
                 display: block !important;
                 width: 100% !important;
                 min-width: 0 !important;
-                min-height: 51px !important;
+                min-height: 44px !important;
                 padding: 0 !important;
                 overflow: hidden !important;
-                border: 1px solid rgba(255,255,255,.055) !important;
+                border: 1px solid rgba(255,255,255,.045) !important;
                 border-radius: 999px !important;
-                background: rgba(66, 70, 72, .86) !important;
-                box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 1px 0 rgba(0,0,0,.12) !important;
+                background: rgba(64, 68, 70, .84) !important;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.038), 0 1px 0 rgba(0,0,0,.10) !important;
             }
 
             .message-input-shell textarea,
             #messageInput {
                 display: block !important;
                 width: 100% !important;
-                min-height: 51px !important;
-                max-height: 104px !important;
+                min-height: 44px !important;
+                max-height: 92px !important;
                 margin: 0 !important;
-                padding: 13px 52px 12px 19px !important;
+                padding: 10px 47px 9px 16px !important;
                 border: 0 !important;
                 border-radius: 999px !important;
                 outline: none !important;
                 color: #fff !important;
                 background: transparent !important;
                 box-shadow: none !important;
-                font-size: 18px !important;
+                font-size: 17px !important;
                 line-height: 1.2 !important;
             }
 
@@ -8492,12 +8536,12 @@
             .gif-inline-button {
                 position: absolute !important;
                 top: 50% !important;
-                right: 11px !important;
+                right: 9px !important;
                 display: grid !important;
-                width: 35px !important;
-                height: 35px !important;
-                min-width: 35px !important;
-                min-height: 35px !important;
+                width: 30px !important;
+                height: 30px !important;
+                min-width: 30px !important;
+                min-height: 30px !important;
                 place-items: center !important;
                 padding: 0 !important;
                 border: 0 !important;
@@ -8509,17 +8553,17 @@
             }
 
             .gif-inline-button .nexa-svg {
-                width: 32px !important;
-                height: 32px !important;
-                stroke-width: 1.55 !important;
+                width: 28px !important;
+                height: 28px !important;
+                stroke-width: 1.45 !important;
             }
 
             .send-btn,
             #sendButton {
-                width: 50px !important;
-                height: 50px !important;
-                min-width: 50px !important;
-                min-height: 50px !important;
+                width: 46px !important;
+                height: 46px !important;
+                min-width: 46px !important;
+                min-height: 46px !important;
                 padding: 0 !important;
                 place-items: center !important;
                 border-radius: 50% !important;
@@ -8529,9 +8573,9 @@
             }
 
             #sendButton .nexa-svg {
-                width: 31px !important;
-                height: 31px !important;
-                stroke-width: 2.28 !important;
+                width: 28px !important;
+                height: 28px !important;
+                stroke-width: 2.15 !important;
                 transform: translateX(1px);
             }
 
@@ -8545,37 +8589,39 @@
 
         @media (max-width: 380px) {
             .composer {
-                grid-template-columns: 44px 35px minmax(0, 1fr) 44px !important;
-                gap: 6px !important;
-                padding-inline: 9px !important;
+                grid-template-columns: 39px 32px minmax(0, 1fr) 39px !important;
+                gap: 4px !important;
+                padding-inline: 8px !important;
             }
 
             .composer.has-content {
-                grid-template-columns: 44px minmax(0, 1fr) 48px !important;
+                grid-template-columns: 39px minmax(0, 1fr) 43px !important;
             }
 
             .composer .icon-btn {
-                width: 44px !important;
-                min-width: 44px !important;
+                width: 39px !important;
+                min-width: 39px !important;
+                height: 42px !important;
+                min-height: 42px !important;
             }
 
             .message-input-shell,
             .message-input-shell textarea,
             #messageInput {
-                min-height: 49px !important;
+                min-height: 42px !important;
             }
 
             #messageInput {
-                padding-left: 15px !important;
-                padding-right: 48px !important;
-                font-size: 17px !important;
+                padding-left: 14px !important;
+                padding-right: 43px !important;
+                font-size: 16.5px !important;
             }
 
             #sendButton {
-                width: 48px !important;
-                height: 48px !important;
-                min-width: 48px !important;
-                min-height: 48px !important;
+                width: 43px !important;
+                height: 43px !important;
+                min-width: 43px !important;
+                min-height: 43px !important;
             }
         }
 
@@ -9216,7 +9262,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-polish-v12";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-composer-seo-v13";
 
         async function clearLegacyAppCaches() {
             try {
