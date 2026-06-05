@@ -8354,6 +8354,224 @@
             }
         }
 
+        /* Mobile composer v10: WhatsApp-like single capsule, no nested icon boxes. */
+        @media (max-width: 760px) {
+            .composer {
+                display: grid !important;
+                grid-template-columns: 42px 40px minmax(0, 1fr) 42px !important;
+                grid-template-areas:
+                    "smart smart smart smart"
+                    "reply reply reply reply"
+                    "wave wave wave wave"
+                    "emojiPanel emojiPanel emojiPanel emojiPanel"
+                    "preview preview preview preview"
+                    "attach emoji input voice" !important;
+                align-items: center !important;
+                gap: 6px !important;
+                min-height: 68px !important;
+                padding: 8px 9px max(10px, env(safe-area-inset-bottom)) !important;
+                border-top: 1px solid rgba(255,255,255,.08) !important;
+                background: rgba(36, 39, 42, .98) !important;
+                backdrop-filter: blur(18px) saturate(130%) !important;
+            }
+
+            .composer.has-content {
+                grid-template-columns: 42px minmax(0, 1fr) 50px !important;
+                grid-template-areas:
+                    "smart smart smart"
+                    "reply reply reply"
+                    "wave wave wave"
+                    "emojiPanel emojiPanel emojiPanel"
+                    "preview preview preview"
+                    "attach input send" !important;
+            }
+
+            #smartReplies { grid-area: smart !important; }
+            #replyPreview { grid-area: reply !important; }
+            #voiceWave { grid-area: wave !important; }
+            #emojiPanel { grid-area: emojiPanel !important; }
+            #attachmentPreview { grid-area: preview !important; }
+            #attachButton { grid-area: attach !important; order: initial !important; }
+            #emojiButton { grid-area: emoji !important; order: initial !important; }
+            #messageInputShell { grid-area: input !important; order: initial !important; }
+            #voiceButton { grid-area: voice !important; order: initial !important; }
+            #sendButton { grid-area: send !important; order: initial !important; }
+
+            #locationButton,
+            #sendToolsButton {
+                display: none !important;
+            }
+
+            .composer.has-content #emojiButton,
+            .composer.has-content #voiceButton {
+                display: none !important;
+            }
+
+            .composer:not(.has-content) #sendButton {
+                display: none !important;
+            }
+
+            .composer.has-content #sendButton {
+                display: grid !important;
+            }
+
+            .composer .icon-btn {
+                width: 40px !important;
+                height: 48px !important;
+                min-width: 40px !important;
+                min-height: 48px !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                color: rgba(255,255,255,.94) !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                overflow: visible !important;
+            }
+
+            .composer .icon-btn .nexa-svg {
+                width: 31px !important;
+                height: 31px !important;
+                stroke-width: 2.25 !important;
+            }
+
+            #attachButton .nexa-svg {
+                width: 38px !important;
+                height: 38px !important;
+                stroke-width: 1.85 !important;
+            }
+
+            #voiceButton .nexa-svg {
+                width: 36px !important;
+                height: 36px !important;
+            }
+
+            .message-input-shell {
+                position: relative !important;
+                display: block !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                min-height: 50px !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                border: 1px solid rgba(255,255,255,.08) !important;
+                border-radius: 999px !important;
+                background: rgba(69, 73, 75, .86) !important;
+                box-shadow: inset 0 1px 0 rgba(255,255,255,.06) !important;
+            }
+
+            .message-input-shell textarea,
+            #messageInput {
+                display: block !important;
+                width: 100% !important;
+                min-height: 50px !important;
+                max-height: 104px !important;
+                margin: 0 !important;
+                padding: 13px 52px 12px 18px !important;
+                border: 0 !important;
+                border-radius: 999px !important;
+                outline: none !important;
+                color: #fff !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                font-size: 18px !important;
+                line-height: 1.2 !important;
+            }
+
+            #messageInput::placeholder {
+                color: rgba(255,255,255,.55) !important;
+            }
+
+            .gif-inline-button {
+                position: absolute !important;
+                top: 50% !important;
+                right: 10px !important;
+                display: grid !important;
+                width: 34px !important;
+                height: 34px !important;
+                min-width: 34px !important;
+                min-height: 34px !important;
+                place-items: center !important;
+                padding: 0 !important;
+                border: 0 !important;
+                border-radius: 50% !important;
+                color: #fff !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                transform: translateY(-50%) !important;
+            }
+
+            .gif-inline-button .nexa-svg {
+                width: 29px !important;
+                height: 29px !important;
+                stroke-width: 2.1 !important;
+            }
+
+            .send-btn,
+            #sendButton {
+                width: 50px !important;
+                height: 50px !important;
+                min-width: 50px !important;
+                min-height: 50px !important;
+                padding: 0 !important;
+                place-items: center !important;
+                border-radius: 50% !important;
+                color: #07140a !important;
+                background: #00d96f !important;
+                box-shadow: 0 8px 22px rgba(0, 217, 111, .32) !important;
+            }
+
+            #sendButton .nexa-svg {
+                width: 30px !important;
+                height: 30px !important;
+                stroke-width: 2.8 !important;
+                transform: translateX(1px);
+            }
+
+            .attachment-preview {
+                margin: 0 2px 2px !important;
+                padding: 7px 9px !important;
+                border-radius: 18px !important;
+                background: rgba(17, 24, 39, .82) !important;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .composer {
+                grid-template-columns: 38px 36px minmax(0, 1fr) 38px !important;
+                gap: 5px !important;
+                padding-inline: 7px !important;
+            }
+
+            .composer.has-content {
+                grid-template-columns: 38px minmax(0, 1fr) 46px !important;
+            }
+
+            .composer .icon-btn {
+                width: 36px !important;
+                min-width: 36px !important;
+            }
+
+            .message-input-shell,
+            .message-input-shell textarea,
+            #messageInput {
+                min-height: 48px !important;
+            }
+
+            #messageInput {
+                padding-left: 15px !important;
+                padding-right: 48px !important;
+                font-size: 17px !important;
+            }
+
+            #sendButton {
+                width: 46px !important;
+                height: 46px !important;
+                min-width: 46px !important;
+                min-height: 46px !important;
+            }
+        }
+
         .hidden,
         .auth-screen.hidden,
         .app.hidden,
@@ -8919,7 +9137,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-05-touch-ui-balance-v9";
+        const NEXALINE_CLIENT_BUILD = "2026-06-05-mobile-composer-v10";
 
         async function clearLegacyAppCaches() {
             try {
@@ -9558,6 +9776,7 @@
                 locationButton: "location",
                 sendToolsButton: "clock",
                 sendButton: "send",
+                gifInlineButton: "gif",
                 cancelVoiceButton: "x",
                 modalCloseButton: "x",
                 closeSettingsButton: "x",
@@ -16708,6 +16927,39 @@
             syncAttachmentPreview();
         }
 
+        function sendViewOnceTextNow(text) {
+            const chat = activeChat();
+            if (!chat) {
+                showToast("Önce bir sohbet aç.");
+                return false;
+            }
+            const attachment = {
+                type: "view_once_text",
+                name: "Tek görülmelik mesaj",
+                text,
+                viewOnce: true,
+                viewOnceId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`
+            };
+            const payload = {
+                chatId: chat.id,
+                body: "",
+                attachment,
+                replyTo: state.replyTo,
+                expiresInSeconds: state.disappearingSeconds || 0
+            };
+            if (socket.connected) {
+                socket.emit("message:send", payload);
+            } else {
+                queueMessage(payload);
+            }
+            NexaAudio.play("outgoing");
+            clearReply();
+            state.attachment = null;
+            $("messageInput").placeholder = isAiChat(chat) ? `${aiDisplayName()} ile konuş` : "Mesaj";
+            updateComposerState();
+            return true;
+        }
+
         function openAttachmentMenu() {
             closeSoftKeyboard();
             setAttachmentSheetOpen(true);
@@ -16767,6 +17019,20 @@
                         $("messageInput").placeholder = "Tek görülmelik mesaj hazır";
                         closeModal();
                         updateComposerState();
+                    }
+                },
+                {
+                    label: "Gönder",
+                    primary: true,
+                    onClick: () => {
+                        const text = $("viewOnceTextInput")?.value.trim();
+                        if (!text) {
+                            showToast("Tek görülmelik mesaj boş olamaz.");
+                            return;
+                        }
+                        if (sendViewOnceTextNow(text)) {
+                            closeModal();
+                        }
                     }
                 }
             ], "sheet");
@@ -17223,26 +17489,16 @@
             navigator.geolocation.getCurrentPosition(position => {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
-                const payload = {
-                    chatId: chat.id,
-                    body: "Mevcut konumum",
-                    attachment: {
-                        type: "location",
-                        name: "Canlı konum kartı",
-                        lat,
-                        lng,
-                        url: `https://www.google.com/maps?q=${lat},${lng}`
-                    },
-                    replyTo: state.replyTo,
-                    expiresInSeconds: state.disappearingSeconds || 0
+                state.attachment = {
+                    type: "location",
+                    name: "Mevcut konum",
+                    lat,
+                    lng,
+                    url: `https://www.google.com/maps?q=${lat},${lng}`
                 };
-                if (socket.connected) {
-                    socket.emit("message:send", payload);
-                } else {
-                    queueMessage(payload);
-                }
-                NexaAudio.play("outgoing");
-                clearReply();
+                $("messageInput").placeholder = "Konum hazır, mesaj ekleyebilirsin";
+                updateComposerState();
+                showToast("Konum hazır. Gönder tuşuna basınca paylaşılacak.");
             }, () => showToast("Konum izni alınamadı."), { enableHighAccuracy: true, timeout: 12000 });
         }
 
