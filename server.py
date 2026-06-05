@@ -4281,6 +4281,184 @@ def ai_settings_update(username):
     return jsonify({"ok": True, "message": "Nexa AI ayarları sunucuda güncellendi.", "settings": ai_settings_for_user(user)})
 
 
+AI_RISKY_ACTIONS = {
+    "update_profile",
+    "set_privacy",
+    "set_theme",
+    "set_censor",
+    "set_ai_enabled",
+    "set_ai_auto_approve",
+    "set_ai_name",
+    "set_chat_pref",
+    "delete_chat",
+    "start_call",
+    "schedule_call",
+    "end_call",
+    "send_message",
+    "schedule_message",
+    "reply_message",
+    "react_message",
+    "create_group",
+    "update_group",
+    "create_story",
+    "delete_story",
+    "contact_request",
+}
+
+
+def ai_user_has_full_access(user):
+    settings = ai_settings_for_user(user)
+    return bool(settings.get("autoApprove"))
+
+
+def ai_action_confirm_message(action):
+    label = action.get("label") or action.get("type") or "AI işlemi"
+    return f"{label} işlemini yapmak için onay gerekiyor."
+
+
+def ai_action_chat_for_user(action, username):
+    chat_id = action.get("chatId") or action.get("chat_id")
+    chat = db.session.get(Chat, chat_id) if chat_id else None
+    if not chat or not user_can_see_chat(chat, username):
+        return None
+    return chat
+
+
+def execute_ai_server_action(user, action):
+    action_type = action.get("type")
+    username = user.username
+
+    if action_type == "update_profile":
+        if action.get("displayName"):
+            user.display_name = re.sub(r"\s+", " ", str(action.get("displayName")).strip())[:120] or user.display_name
+        if action.get("about"):
+            user.about = re.sub(r"\s+", " ", str(action.get("about")).strip())[:255] or user.about
+        db.session.commit()
+        return {"message": "Profil bilgileri güncellendi.", "state": ai_full_state_for(username)}
+
+    if action_type == "set_privacy":
+        privacy = action.get("privacy") if isinstance(action.get("privacy"), dict) else {}
+        if "lastSeenHidden" in privacy:
+            user.hide_last_seen = bool(privacy["lastSeenHidden"])
+        if "onlineHidden" in privacy:
+            user.hide_online = bool(privacy["onlineHidden"])
+        if "readReceiptsOff" in privacy:
+            user.disable_read_receipts = bool(privacy["readReceiptsOff"])
+        if "emailHidden" in privacy:
+            user.hide_email = bool(privacy["emailHidden"])
+        user.privacy_settings = {**(user.privacy_settings or {}), **privacy}
+        db.session.commit()
+        return {"message": "Gizlilik ayarları güncellendi.", "state": ai_full_state_for(username)}
+
+    if action_type == "set_theme":
+        theme = str(action.get("theme") or "dark").strip().lower()
+        user.theme_preference = "light" if theme == "light" else "dark"
+        db.session.commit()
+        return {"message": "Tema ayarı güncellendi.", "state": ai_full_state_for(username), "clientAction": action}
+
+    if action_type in {"set_censor", "set_ai_enabled", "set_ai_auto_approve", "set_ai_name"}:
+        settings = ai_settings_for_user(user)
+        if action_type == "set_censor":
+            settings["censorEnabled"] = action.get("enabled") is not False
+        elif action_type == "set_ai_enabled":
+            settings["enabled"] = action.get("enabled") is not False
+        elif action_type == "set_ai_auto_approve":
+            settings["autoApprove"] = action.get("enabled") is not False
+        elif action_type == "set_ai_name":
+            settings["name"] = re.sub(r"\s+", " ", str(action.get("name") or "Nexa AI").strip())[:40] or "Nexa AI"
+        user.ai_settings = {key: settings.get(key) for key in default_ai_settings().keys()}
+        db.session.commit()
+        return {"message": "Nexa AI ayarı güncellendi.", "state": ai_full_state_for(username)}
+
+    if action_type == "delete_chat":
+        chat = ai_action_chat_for_user(action, username)
+        if not chat:
+            return {"error": "Sohbet bulunamadı veya yetkin yok.", "status": 404}
+        if (action.get("mode") or "archive") == "archive":
+            archive_chat_for_user(chat, username, "deleted")
+            message = "Sohbet arşive alındı."
+        else:
+            hide_chat_messages_for_user(chat, username)
+            message = "Sohbet kalıcı olarak gizlendi."
+        ScheduledMessage.query.filter_by(sender=username, chat_id=chat.id).delete(synchronize_session=False)
+        db.session.commit()
+        for sid in connected_sids_for(username):
+            socketio.emit("chat:remove", {"chatId": chat.id}, room=sid)
+            socketio.emit("archive:update", visible_archives(username), room=sid)
+        return {"message": message, "state": ai_full_state_for(username)}
+
+    if action_type == "send_message":
+        chat = ai_action_chat_for_user(action, username)
+        body = re.sub(r"\s+", " ", str(action.get("body") or "").strip())
+        if not chat or not body:
+            return {"error": "Mesaj gönderilecek sohbet veya metin bulunamadı.", "status": 400}
+        send_error = chat_send_error(username, chat)
+        if send_error:
+            return {"error": send_error, "status": 403}
+        message = create_chat_message(chat, username, body, action.get("attachment"), action.get("replyTo"), action.get("expiresInSeconds"))
+        db.session.commit()
+        socketio.emit("message:new", message_to_dict(message), room=chat.id)
+        return {"message": "Mesaj gönderildi.", "state": ai_full_state_for(username)}
+
+    if action_type == "schedule_message":
+        chat = ai_action_chat_for_user(action, username)
+        body = re.sub(r"\s+", " ", str(action.get("body") or "").strip())
+        if not chat or not body:
+            return {"error": "Zamanlı mesaj için sohbet veya metin eksik.", "status": 400}
+        try:
+            send_at = datetime.fromisoformat(str(action.get("sendAt")).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return {"error": "Zamanlı mesaj tarihi okunamadı.", "status": 400}
+        if send_at.tzinfo is None:
+            send_at = send_at.replace(tzinfo=timezone.utc)
+        row = ScheduledMessage(
+            id=uuid4().hex,
+            chat_id=chat.id,
+            sender=username,
+            body=body,
+            attachment=action.get("attachment"),
+            reply_to=action.get("replyTo") if isinstance(action.get("replyTo"), dict) else None,
+            expires_in_seconds=parse_expiry_seconds(action.get("expiresInSeconds")),
+            send_at=send_at,
+        )
+        db.session.add(row)
+        db.session.commit()
+        emit_scheduled_update(username)
+        return {"message": "Zamanlı mesaj oluşturuldu.", "state": ai_full_state_for(username)}
+
+    if action_type in {"open_chat", "open_settings", "start_call", "schedule_call", "end_call", "draft_message", "reply_message", "react_message", "create_group", "update_group", "create_story", "delete_story", "contact_request", "set_chat_pref"}:
+        return {"message": "Sunucu yetki verdi.", "clientAction": action, "state": ai_full_state_for(username)}
+
+    return {"error": "Bu AI aksiyonu tanınmıyor.", "status": 400}
+
+
+@app.route("/ai/action-execute", methods=["POST"])
+def ai_action_execute():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    user = db.session.get(User, username)
+    action = data.get("action") if isinstance(data.get("action"), dict) else {}
+    confirmed = bool(data.get("confirmed"))
+    if not user:
+        return jsonify({"ok": False, "message": "AI aksiyonu için kullanıcı bulunamadı."}), 401
+    if not action.get("type"):
+        return jsonify({"ok": False, "message": "AI aksiyon paketi eksik."}), 400
+
+    risky = action.get("type") in AI_RISKY_ACTIONS
+    if risky and not confirmed and not ai_user_has_full_access(user):
+        return jsonify({
+            "ok": False,
+            "requiresConfirmation": True,
+            "message": ai_action_confirm_message(action),
+            "action": action,
+        })
+
+    result = execute_ai_server_action(user, action)
+    if result.get("error"):
+        return jsonify({"ok": False, "message": result["error"]}), result.get("status", 400)
+    return jsonify({"ok": True, **result})
+
+
 @app.route("/ai/tasks/<username>", methods=["GET", "POST"])
 def ai_tasks(username):
     username = username.strip().lower()

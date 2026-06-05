@@ -12032,7 +12032,43 @@
             ) || null;
         }
 
-            applyAiAction(action, autoApproved = false) {
+            async applyAiAction(action, autoApproved = false) {
+            if (!action || !state.me?.username) return;
+            try {
+                const response = await fetch("/ai/action-execute", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username: state.me.username, action, confirmed: autoApproved })
+                });
+                const data = await response.json();
+                if (data.requiresConfirmation) {
+                    confirmModal("Nexa AI onay?", data.message || "Bu i?lem i?in onay gerekiyor.", () => this.applyAiAction(action, true));
+                    return;
+                }
+                if (!data.ok) {
+                    showToast(data.message || "AI aksiyonu uygulanamad?.");
+                    return;
+                }
+                if (data.state) {
+                    state.aiMessages = sanitizeAiHistory(data.state.memory || state.aiMessages || []);
+                    state.aiPlanTasks = data.state.tasks || state.aiPlanTasks || [];
+                    state.aiSettings = { ...defaultAiSettings(), ...(data.state.settings || state.aiSettings || {}) };
+                    state.aiCensorEnabled = state.aiSettings.censorEnabled !== false;
+                    localStorage.setItem(aiCacheKey(), JSON.stringify(data.state));
+                }
+                if (data.clientAction) {
+                    this.applyAiActionLocally(data.clientAction, true);
+                } else {
+                    await this.syncWithServer({ render: false });
+                    render();
+                }
+                showToast(data.message || "Nexa AI i?lemi tamamland?.");
+            } catch (error) {
+                showToast("AI aksiyon sunucusuna eri?ilemedi.");
+            }
+        }
+
+            applyAiActionLocally(action, autoApproved = false) {
             if (!action) return;
             if (action.type === "set_theme") {
                 applyTheme(action.theme);
