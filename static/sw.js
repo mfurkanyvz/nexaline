@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v51-premium-glass";
+const CACHE_NAME = "nexaline-pwa-v52-clean-mobile-client";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
@@ -6,14 +6,14 @@ const APP_SHELL = [
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
   "/static/icons/maskable-512.png",
-  "/static/icons/apple-touch-icon.png"
+  "/static/icons/apple-touch-icon.png",
+  "/static/client.html"
 ];
 const NETWORK_FIRST_PATHS = new Set([
   "/",
   "/client.html",
   "/static/client.html",
   "/static/admin.html",
-  "/static/theme.css",
   "/static/service-worker.js",
   "/sw.js"
 ]);
