@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v52-clean-mobile-client";
+const CACHE_NAME = "nexaline-pwa-v52-original-upgrade";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
@@ -6,14 +6,14 @@ const APP_SHELL = [
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
   "/static/icons/maskable-512.png",
-  "/static/icons/apple-touch-icon.png",
-  "/static/client.html"
+  "/static/icons/apple-touch-icon.png"
 ];
 const NETWORK_FIRST_PATHS = new Set([
   "/",
   "/client.html",
   "/static/client.html",
   "/static/admin.html",
+  "/static/theme.css",
   "/static/service-worker.js",
   "/sw.js"
 ]);
@@ -24,15 +24,45 @@ self.addEventListener("install", event => {
   );
 });
 
+self.addEventListener("push", event => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (error) {
+    data = { title: "NexaLine", message: event.data ? event.data.text() : "Yeni bildirim" };
+  }
+
+  const type = data.type || "message";
+  const targetUrl = data.url || (data.chatId ? `/chat/${encodeURIComponent(data.chatId)}` : "/");
+  const options = {
+    body: data.message || data.body || "Yeni bildirim",
+    icon: data.icon || "/static/icons/icon-192.png",
+    badge: data.badge || "/static/icons/icon-192.png",
+    tag: data.tag || `${type}-${data.chatId || Date.now()}`,
+    renotify: type === "call.audio" || type === "call.video",
+    requireInteraction: type === "call.audio" || type === "call.video",
+    data: {
+      url: targetUrl,
+      type,
+      chatId: data.chatId || null,
+      callKind: data.callKind || null
+    },
+    actions: [{ action: "open", title: "Goruntule" }]
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || "NexaLine", options));
+});
+
 self.addEventListener("notificationclick", event => {
   event.notification.close();
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
-      const target = clientList.find(client => "focus" in client);
+      const targetUrl = event.notification.data?.url || "/";
+      const target = clientList.find(client => client.url.includes(targetUrl) && "focus" in client) || clientList.find(client => "focus" in client);
       if (target) {
         return target.focus();
       }
-      return clients.openWindow("/");
+      return clients.openWindow(targetUrl);
     })
   );
 });

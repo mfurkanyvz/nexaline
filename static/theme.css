@@ -1029,3 +1029,221 @@ textarea {
 .account-switcher-menu.hidden {
     display: none;
 }
+
+/* --- PDF iskeleti korunarak premium cam modernizasyon katmani --- */
+body :where(div, button) {
+    transition: all 0.3s ease;
+}
+
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nexa-svg {
+    width: 1.25em;
+    height: 1.25em;
+    display: inline-block;
+    vertical-align: -0.18em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.35;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.auth-card,
+.qr-login-card,
+.chat-item,
+.contact-item,
+.contact-row,
+.call-item,
+.call-row,
+.story-item,
+.explore-card,
+.voice-room-card,
+.community-card,
+.profile-card,
+.archive-card,
+.settings-box,
+.modal-panel,
+.bottom-sheet,
+.account-switcher-menu,
+.notification-panel,
+.message-bubble,
+.attachment-option,
+.file-pill,
+.x-compose-card,
+.x-feed-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px) saturate(135%);
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+}
+
+.story-list:not(.hidden) {
+    display: block;
+    overflow: hidden auto;
+    padding: 8px 10px 120px;
+}
+
+.story-bubbles {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px 4px 14px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+}
+
+.story-bubbles::-webkit-scrollbar {
+    display: none;
+}
+
+.story-bubbles .story-item {
+    flex: 0 0 82px;
+    min-height: 104px;
+    padding: 10px 6px;
+    border-radius: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    scroll-snap-align: start;
+    color: #fff;
+}
+
+.story-bubbles .story-item .avatar {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(0, 242, 255, 0.42), 0 0 20px rgba(255, 0, 184, 0.25);
+}
+
+.story-bubbles .story-item > div:not(.avatar) {
+    width: 100%;
+    text-align: center;
+}
+
+.story-bubbles .story-item .chat-title {
+    display: block;
+    max-width: 74px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+.story-bubbles .story-item .last-message,
+.story-bubbles .story-item .chat-time {
+    display: none;
+}
+
+.x-feed {
+    display: grid;
+    gap: 14px;
+    padding: 2px 4px 20px;
+}
+
+.x-compose-card,
+.x-feed-card {
+    border-radius: 24px;
+    padding: 14px;
+}
+
+.x-compose-head {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 10px;
+}
+
+.x-compose-head strong,
+.x-feed-card strong {
+    color: #fff;
+}
+
+.x-compose-head small,
+.x-feed-card small,
+.x-feed-card p {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.x-compose-card textarea {
+    width: 100%;
+    min-height: 76px;
+    resize: vertical;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 18px;
+    background: rgba(5, 7, 10, 0.42);
+    color: #fff;
+    padding: 12px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.x-compose-card textarea:focus {
+    border-color: rgba(0, 242, 255, 0.56);
+    box-shadow: 0 0 0 3px rgba(0, 242, 255, 0.12);
+}
+
+.x-photo-preview img,
+.x-feed-image {
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover;
+    border-radius: 18px;
+    margin-top: 10px;
+}
+
+.x-feed-list {
+    display: grid;
+    gap: 12px;
+}
+
+.x-feed-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.x-feed-avatar-slot .avatar {
+    width: 42px;
+    height: 42px;
+}
+
+.x-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.x-actions button {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.86);
+    border-radius: 999px;
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.x-actions button.primary {
+    background: linear-gradient(135deg, #00f2ff, #ff00b8);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.24);
+}
+
+.x-actions button:hover,
+.x-actions button:focus-visible,
+.nav-tab.active,
+.icon-btn:hover,
+.icon-btn:focus-visible {
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.22);
+}

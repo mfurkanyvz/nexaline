@@ -2718,6 +2718,7 @@ def ai_provider_status():
         "deepinfra": {"provider": "deepinfra", "model": os.environ.get("DEEPINFRA_MODEL", "meta-llama/Llama-3.3-70B-Instruct-Turbo"), "ready": bool(os.environ.get("DEEPINFRA_API_KEY")), "task": "chat fallback"},
         "openrouter": {"provider": "openrouter", "model": os.environ.get("OPENROUTER_MODEL", "openrouter/free"), "ready": bool(os.environ.get("OPENROUTER_API_KEY")), "task": "free chat fallback"},
         "openai": {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY")), "task": "chat fallback"},
+        "openai_tts": {"provider": "openai_tts", "model": os.environ.get("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"), "ready": bool(os.environ.get("OPENAI_API_KEY")), "task": "tts"},
         "ollama": {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": bool(os.environ.get("OLLAMA_BASE_URL")), "task": "local model"},
         "huggingface": {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": bool(os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")), "task": "image fallback"},
         "elevenlabs": {"provider": "elevenlabs", "model": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"), "ready": bool(os.environ.get("ELEVENLABS_API_KEY")), "task": "tts"},
@@ -4160,6 +4161,48 @@ def elevenlabs_voice_id(voice_key):
     return voices[0]["voice_id"]
 
 
+def openai_tts_voice(voice_key):
+    voice = (voice_key or "warm").strip().casefold()
+    mapping = {
+        "warm": os.environ.get("OPENAI_TTS_VOICE_WARM", "nova"),
+        "female": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
+        "kadin": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
+        "kadın": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
+        "male": os.environ.get("OPENAI_TTS_VOICE_MALE", "onyx"),
+        "erkek": os.environ.get("OPENAI_TTS_VOICE_MALE", "onyx"),
+        "calm": os.environ.get("OPENAI_TTS_VOICE_CALM", "alloy"),
+        "energetic": os.environ.get("OPENAI_TTS_VOICE_ENERGETIC", "shimmer"),
+    }
+    return mapping.get(voice, os.environ.get("OPENAI_TTS_VOICE", "nova"))
+
+
+def call_openai_tts(text_value, voice_key="warm"):
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY missing")
+    model = os.environ.get("OPENAI_TTS_MODEL", "gpt-4o-mini-tts")
+    base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    payload = {
+        "model": model,
+        "voice": openai_tts_voice(voice_key),
+        "input": text_value[:1200],
+        "response_format": "mp3",
+    }
+    if model.startswith("gpt-4o"):
+        payload["instructions"] = (
+            "Duygulu, dogal, sicak ve konusma diline yakin Turkce ses kullan. "
+            "Cumleleri acele etmeden, arkadasca ve net oku."
+        )
+    response = requests.post(
+        f"{base_url}/audio/speech",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=max(AI_TIMEOUT_SECONDS, 30),
+    )
+    response.raise_for_status()
+    return bytes_to_data_url(response.content, response.headers.get("Content-Type", "audio/mpeg").split(";")[0])
+
+
 def call_elevenlabs_tts(text_value, voice_key="warm"):
     key = os.environ.get("ELEVENLABS_API_KEY")
     if not key:
@@ -4174,12 +4217,39 @@ def call_elevenlabs_tts(text_value, voice_key="warm"):
             "voice_settings": {
                 "stability": float(os.environ.get("ELEVENLABS_STABILITY", "0.48")),
                 "similarity_boost": float(os.environ.get("ELEVENLABS_SIMILARITY", "0.78")),
+                "style": float(os.environ.get("ELEVENLABS_STYLE", "0.45")),
+                "use_speaker_boost": os.environ.get("ELEVENLABS_SPEAKER_BOOST", "1") != "0",
             },
         },
         timeout=max(AI_TIMEOUT_SECONDS, 20),
     )
     response.raise_for_status()
     return bytes_to_data_url(response.content, response.headers.get("Content-Type", "audio/mpeg").split(";")[0])
+
+
+def call_human_tts(text_value, voice_key="warm"):
+    errors = []
+    if os.environ.get("OPENAI_API_KEY"):
+        try:
+            return call_openai_tts(text_value, voice_key), {
+                "provider": "openai",
+                "model": os.environ.get("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"),
+                "voice": openai_tts_voice(voice_key),
+            }
+        except Exception as error:
+            errors.append(f"OpenAI TTS: {error}")
+            app.logger.warning("OpenAI TTS failed, trying fallback: %s", error)
+    if os.environ.get("ELEVENLABS_API_KEY"):
+        try:
+            return call_elevenlabs_tts(text_value, voice_key), {
+                "provider": "elevenlabs",
+                "model": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
+                "voice": voice_key or "warm",
+            }
+        except Exception as error:
+            errors.append(f"ElevenLabs TTS: {error}")
+            app.logger.warning("ElevenLabs TTS failed: %s", error)
+    raise RuntimeError("; ".join(errors) or "TTS provider missing")
 
 
 @app.route("/ai/stt", methods=["POST"])
@@ -4224,11 +4294,11 @@ def ai_tts():
     if len(text_value) < 2:
         return jsonify({"ok": False, "message": "Seslendirilecek metin yok."}), 400
     try:
-        audio_data_url = call_elevenlabs_tts(text_value, data.get("voice") or "warm")
-        return jsonify({"ok": True, "audioDataUrl": audio_data_url, "provider": {"provider": "elevenlabs", "model": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")}})
+        audio_data_url, provider = call_human_tts(text_value, data.get("voice") or "warm")
+        return jsonify({"ok": True, "audioDataUrl": audio_data_url, "provider": provider})
     except Exception as error:
         app.logger.warning("AI TTS failed: %s", error)
-        return jsonify({"ok": False, "message": "Ses üretimi için ELEVENLABS_API_KEY gerekli veya servis şu an yanıt vermiyor."}), 503
+        return jsonify({"ok": False, "message": "Ses uretimi icin OPENAI_API_KEY veya ELEVENLABS_API_KEY gerekli; servis su an yanit vermiyor."}), 503
 
 
 @app.route("/ai/text-tool", methods=["POST"])
