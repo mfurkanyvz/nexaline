@@ -897,3 +897,32 @@ textarea {
         scroll-behavior: auto;
     }
 }
+
+.hidden,
+[hidden],
+#authScreen.hidden,
+#app.hidden,
+#screenTransition.hidden,
+#paneTransition.hidden,
+#emptyChat.hidden,
+#callPanel.hidden,
+.screen-transition.hidden,
+.pane-transition.hidden,
+.empty-chat.hidden,
+.call-panel.hidden,
+.modal.hidden,
+.sidebar.hidden,
+.chat-pane.hidden,
+.chat-list.hidden,
+.contact-list.hidden,
+.story-list.hidden,
+.scroll-area.hidden,
+.icon-btn.hidden,
+.field.hidden,
+.text-btn.hidden,
+.primary.hidden,
+.secondary.hidden,
+.auth-progress.hidden,
+.account-switcher-menu.hidden {
+    display: none;
+}
