@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v50-glass-theme";
+const CACHE_NAME = "nexaline-pwa-v51-premium-glass";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",

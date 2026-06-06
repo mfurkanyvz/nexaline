@@ -1,3 +1,106 @@
+/* --- NexaLine premium glass reference layer --- */
+:root {
+    --bg-dark: #05070a;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+    --accent-blue: #00f2ff;
+    --accent-green: #00d96f;
+    --accent-pink: #ff00b8;
+    --text-main: #e0e0e0;
+    --radius: 24px;
+}
+
+html,
+body {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+}
+
+body {
+    background:
+        radial-gradient(circle at 18% 0%, rgba(0, 242, 255, 0.1), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(255, 0, 184, 0.09), transparent 30%),
+        #05070a;
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+}
+
+.glass-card,
+.card,
+.message,
+.auth-card,
+.qr-login-card,
+.modal-panel,
+.settings-box,
+.chat-item,
+.contact-row,
+.call-row,
+.community-card,
+.profile-card,
+.voice-room-card,
+.vault-card,
+.archive-card,
+.ai-card,
+.nexal-container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(130%);
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    border: var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    color: #fff;
+}
+
+.nav-bar,
+.mobile-nav {
+    position: fixed;
+    left: 15px;
+    right: 15px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    min-height: 70px;
+    background: rgba(10, 12, 16, 0.82);
+    backdrop-filter: blur(30px) saturate(145%);
+    -webkit-backdrop-filter: blur(30px) saturate(145%);
+    border: var(--glass-border);
+    border-radius: 40px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.48);
+}
+
+.nav-item,
+.nav-tab {
+    color: rgba(224, 224, 224, 0.62);
+    transition: color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.nav-item.active,
+.nav-tab.active {
+    color: var(--accent-blue);
+    text-shadow: 0 0 14px rgba(0, 242, 255, 0.45);
+}
+
+.ai-trigger,
+.voice-btn,
+.accent-glow {
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.25), 0 0 28px rgba(255, 0, 184, 0.12);
+}
+
+.ai-trigger {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #000;
+}
+
 /* --- static/theme.css --- */
 :root {
     --bg-dark: #05070a;
