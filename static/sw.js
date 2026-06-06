@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v49";
+const CACHE_NAME = "nexaline-pwa-v50-glass-theme";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
@@ -13,6 +13,8 @@ const NETWORK_FIRST_PATHS = new Set([
   "/client.html",
   "/static/client.html",
   "/static/admin.html",
+  "/static/theme.css",
+  "/static/service-worker.js",
   "/sw.js"
 ]);
 

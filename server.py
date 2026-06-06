@@ -43,6 +43,7 @@ if database_url.startswith("postgres://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_http_buffer_size=10_000_000)
@@ -69,6 +70,9 @@ AI_RELEVANT_CHAT_MESSAGES = max(8, int(os.environ.get("AI_RELEVANT_CHAT_MESSAGES
 QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "60")))
 TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECONDS", "45")))
 PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz")).rstrip("/")
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", f"mailto:{os.environ.get('SMTP_USER', 'admin@nexalineapp.xyz')}").strip()
 POINT_RULES = {
     "daily_login": 10,
     "message": 1,
@@ -162,6 +166,18 @@ class DeviceSession(db.Model):
     last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     revoked_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship("User")
+
+
+class PushSubscription(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    subscription = db.Column(db.JSON, nullable=False)
+    user_agent = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     user = db.relationship("User")
 
@@ -1710,6 +1726,86 @@ def blocked_users_for(username):
 
 def connected_sids_for(username):
     return [sid for sid, connected_user in connections.items() if connected_user == username]
+
+
+def push_payload_for_chat(chat_id, title, message, notification_type="message", url=None, call_kind=None):
+    target_url = url or f"/chat/{chat_id}"
+    return {
+        "title": title or "NexaLine",
+        "message": message or "Yeni bildirim",
+        "type": notification_type or "message",
+        "chatId": chat_id,
+        "callKind": call_kind,
+        "url": target_url,
+        "tag": f"{notification_type or 'message'}-{chat_id}",
+        "icon": "/static/icons/icon-192.png",
+        "badge": "/static/icons/icon-192.png",
+    }
+
+
+def send_web_push_subscription(subscription_row, payload):
+    if not (VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY):
+        return False
+    try:
+        from pywebpush import WebPushException, webpush
+    except Exception:
+        return False
+
+    try:
+        webpush(
+            subscription_info=subscription_row.subscription,
+            data=json.dumps(payload, ensure_ascii=False),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims={"sub": VAPID_SUBJECT},
+        )
+        return True
+    except WebPushException as error:
+        status_code = getattr(getattr(error, "response", None), "status_code", None)
+        if status_code in {404, 410}:
+            db.session.delete(subscription_row)
+            db.session.commit()
+        app.logger.warning("Web Push bildirimi gonderilemedi: %s", error)
+        return False
+    except Exception as error:
+        app.logger.warning("Web Push bildirimi hazirlanamadi: %s", error)
+        return False
+
+
+def send_push_notification(
+    chat_id,
+    title,
+    message,
+    notification_type="message",
+    sender=None,
+    target_usernames=None,
+    url=None,
+    call_kind=None,
+    emit_socket=True,
+):
+    chat = db.session.get(Chat, chat_id)
+    if not chat:
+        return {"ok": False, "message": "Sohbet bulunamadı.", "sent": 0, "socket": 0}
+
+    if target_usernames is None:
+        targets = chat_member_names(chat)
+    else:
+        targets = [str(username).strip().lower() for username in target_usernames if username]
+
+    targets = sorted({username for username in targets if username and username != sender and user_can_see_chat(chat, username)})
+    payload = push_payload_for_chat(chat_id, title, message, notification_type, url, call_kind)
+    web_push_sent = 0
+    socket_sent = 0
+
+    for username in targets:
+        for subscription in PushSubscription.query.filter_by(username=username).all():
+            if send_web_push_subscription(subscription, payload):
+                web_push_sent += 1
+        if emit_socket:
+            for sid in connected_sids_for(username):
+                socketio.emit("push:notification", payload, room=sid)
+                socket_sent += 1
+
+    return {"ok": True, "payload": payload, "sent": web_push_sent, "socket": socket_sent, "targets": targets}
 
 
 def device_label(user_agent):
@@ -3624,6 +3720,14 @@ def client():
     return response
 
 
+@app.route("/chat/<path:chat_id>")
+@app.route("/call/<path:chat_id>")
+def client_deeplink(chat_id):
+    response = send_from_directory("static", "client.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 @app.route("/robots.txt")
 def robots_txt():
     body = "\n".join(
@@ -3777,6 +3881,38 @@ def health():
 @app.route("/rtc-config")
 def rtc_config():
     return jsonify({"ok": True, "iceServers": rtc_servers(), "secureContext": request.is_secure})
+
+
+@app.route("/push/public-key")
+def push_public_key():
+    if not VAPID_PUBLIC_KEY:
+        return jsonify({"ok": False, "message": "Web Push VAPID anahtarı henüz yapılandırılmadı.", "publicKey": ""})
+    return jsonify({"ok": True, "publicKey": VAPID_PUBLIC_KEY})
+
+
+@app.route("/push/subscribe", methods=["POST"])
+def push_subscribe():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    subscription = data.get("subscription") or {}
+    endpoint = (subscription.get("endpoint") or "").strip()
+
+    if not username or not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Bildirim aboneliği için geçerli kullanıcı bulunamadı."}), 400
+    if not endpoint:
+        return jsonify({"ok": False, "message": "Bildirim aboneliği endpoint bilgisi eksik."}), 400
+
+    row = PushSubscription.query.filter_by(endpoint=endpoint).first()
+    if not row:
+        row = PushSubscription(id=uuid4().hex, username=username, endpoint=endpoint, subscription=subscription)
+        db.session.add(row)
+    else:
+        row.username = username
+        row.subscription = subscription
+        row.updated_at = datetime.now(timezone.utc)
+    row.user_agent = request.headers.get("User-Agent", "")[:600]
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Bildirim aboneliği kaydedildi."})
 
 
 @app.route("/ai/status")
@@ -6519,6 +6655,17 @@ def handle_message_send(data):
     message = create_chat_message(chat, username, body, attachment, reply_to, data.get("expiresInSeconds"))
     db.session.commit()
     emit("message:new", message_to_dict(message), room=chat.id)
+    sender_name = public_user(username)["displayName"]
+    notification_body = body or (attachment or {}).get("name") or "Yeni mesaj"
+    send_push_notification(
+        chat.id,
+        chat.title if chat.type == "group" else sender_name,
+        notification_body,
+        notification_type="message",
+        sender=username,
+        url=f"/chat/{chat.id}",
+        emit_socket=False,
+    )
 
 
 @socketio.on("message:schedule")
@@ -6560,6 +6707,17 @@ def handle_message_schedule(data):
         message = create_chat_message(chat, username, body, attachment, reply_to, data.get("expiresInSeconds"))
         db.session.commit()
         emit("message:new", message_to_dict(message), room=chat.id)
+        sender_name = public_user(username)["displayName"]
+        notification_body = body or (attachment or {}).get("name") or "Yeni mesaj"
+        send_push_notification(
+            chat.id,
+            chat.title if chat.type == "group" else sender_name,
+            notification_body,
+            notification_type="message",
+            sender=username,
+            url=f"/chat/{chat.id}",
+            emit_socket=False,
+        )
         return
 
     if send_at > now + timedelta(days=MAX_SCHEDULE_DAYS):
@@ -6882,9 +7040,34 @@ def forward_call_event(event_name, data):
             return
         for sid in connected_sids_for(target):
             emit(event_name, payload, room=sid)
+        if event_name == "call:offer":
+            call_kind = "audio" if data.get("audioOnly", True) else "video"
+            send_push_notification(
+                chat.id,
+                "NexaLine arama",
+                f"{payload['fromName']} arıyor",
+                notification_type=f"call.{call_kind}",
+                sender=username,
+                target_usernames=[target],
+                url=f"/call/{chat.id}",
+                call_kind=call_kind,
+                emit_socket=False,
+            )
         return
 
     emit(event_name, payload, room=chat.id, include_self=False)
+    if event_name == "call:offer":
+        call_kind = "audio" if data.get("audioOnly", True) else "video"
+        send_push_notification(
+            chat.id,
+            "NexaLine arama",
+            f"{payload['fromName']} arıyor",
+            notification_type=f"call.{call_kind}",
+            sender=username,
+            url=f"/call/{chat.id}",
+            call_kind=call_kind,
+            emit_socket=False,
+        )
 
 
 def emit_call_logs_for_chat(chat):
@@ -6944,6 +7127,17 @@ def deliver_due_scheduled_messages():
                 db.session.delete(row)
                 db.session.commit()
                 socketio.emit("message:new", message_to_dict(message), room=chat.id)
+                sender_name = public_user(row.sender)["displayName"]
+                notification_body = row.body or (row.attachment or {}).get("name") or "Yeni mesaj"
+                send_push_notification(
+                    chat.id,
+                    chat.title if chat.type == "group" else sender_name,
+                    notification_body,
+                    notification_type="message",
+                    sender=row.sender,
+                    url=f"/chat/{chat.id}",
+                    emit_socket=False,
+                )
                 emit_scheduled_update(row.sender)
             else:
                 db.session.delete(row)
