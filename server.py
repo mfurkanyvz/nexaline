@@ -6924,11 +6924,11 @@ def handle_user_join(data):
 
     if not db.session.get(User, username):
         emit("auth:error", {"message": "Önce giriş yapmalısın."})
-        return
+        return {"ok": False, "message": "Önce giriş yapmalısın."}
 
     if device_revoked(username, device_id):
         emit("auth:error", {"message": "Bu cihaz oturumu uzaktan kapatildi."})
-        return
+        return {"ok": False, "message": "Bu cihaz oturumu uzaktan kapatildi."}
 
     connections[request.sid] = username
     user = db.session.get(User, username)
@@ -6948,6 +6948,7 @@ def handle_user_join(data):
         emit("app:state", app_state_for_user(username))
     broadcast_presence()
     emit_general_group_updates()
+    return {"ok": True, "username": username}
 
 
 @socketio.on("contact:respond")

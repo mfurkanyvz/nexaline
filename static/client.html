@@ -634,7 +634,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-07-ai-call-voice-v4";
+        const NEXALINE_CLIENT_BUILD = "2026-06-07-mobile-safe-area-v5";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1499,9 +1499,61 @@
             }
         }
 
+        let safeAreaProbe = null;
+
+        function measureSafeAreaInsets() {
+            if (!safeAreaProbe) {
+                safeAreaProbe = document.createElement("div");
+                safeAreaProbe.setAttribute("aria-hidden", "true");
+                safeAreaProbe.style.cssText = [
+                    "position:fixed",
+                    "inset:0",
+                    "width:0",
+                    "height:0",
+                    "visibility:hidden",
+                    "pointer-events:none",
+                    "padding-top:env(safe-area-inset-top, 0px)",
+                    "padding-right:env(safe-area-inset-right, 0px)",
+                    "padding-bottom:env(safe-area-inset-bottom, 0px)",
+                    "padding-left:env(safe-area-inset-left, 0px)"
+                ].join(";");
+                document.body.appendChild(safeAreaProbe);
+            }
+            const styles = getComputedStyle(safeAreaProbe);
+            return {
+                top: parseFloat(styles.paddingTop) || 0,
+                right: parseFloat(styles.paddingRight) || 0,
+                bottom: parseFloat(styles.paddingBottom) || 0,
+                left: parseFloat(styles.paddingLeft) || 0
+            };
+        }
+
+        function updateSafeAreaFallback(viewportHeight, viewportTop) {
+            const measured = measureSafeAreaInsets();
+            const isIos = /iP(hone|ad|od)/.test(navigator.userAgent)
+                || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+            const portrait = window.innerHeight >= window.innerWidth;
+            const screenLongEdge = Math.max(window.screen?.width || 0, window.screen?.height || 0);
+            const screenShortEdge = Math.min(window.screen?.width || 0, window.screen?.height || 0);
+            const tallScreen = screenShortEdge > 0 && screenLongEdge / screenShortEdge >= 2;
+            const viewportCoverage = screenLongEdge > 0 ? viewportHeight / screenLongEdge : 0;
+            const needsIosFallback = isIos
+                && portrait
+                && tallScreen
+                && viewportCoverage >= 0.84
+                && viewportTop < 8;
+            const safeTopFallback = needsIosFallback && measured.top < 20 ? 59 : 0;
+            const safeBottomFallback = needsIosFallback && measured.bottom < 10 ? 34 : 0;
+            document.documentElement.style.setProperty("--safe-top-fallback", `${safeTopFallback}px`);
+            document.documentElement.style.setProperty("--safe-bottom-fallback", `${safeBottomFallback}px`);
+        }
+
         function updateAppViewportHeight() {
             const viewport = window.visualViewport;
             const viewportHeight = viewport?.height || window.innerHeight;
+            const viewportTop = Math.max(0, viewport?.offsetTop || 0);
+            const viewportLeft = Math.max(0, viewport?.offsetLeft || 0);
+            const viewportWidth = viewport?.width || window.innerWidth;
             const rawKeyboardInset = viewport
                 ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
                 : 0;
@@ -1517,16 +1569,17 @@
                 ? viewportHeight
                 : (viewport ? viewportHeight : window.innerHeight);
             const keyboardInset = keyboardOpen ? rawKeyboardInset : 0;
+            updateSafeAreaFallback(viewportHeight, viewportTop);
             document.documentElement.style.setProperty("--app-height", `${Math.round(appHeight)}px`);
+            document.documentElement.style.setProperty("--viewport-top", `${Math.round(viewportTop)}px`);
+            document.documentElement.style.setProperty("--viewport-left", `${Math.round(viewportLeft)}px`);
+            document.documentElement.style.setProperty("--viewport-width", `${Math.round(viewportWidth)}px`);
             document.documentElement.style.setProperty("--keyboard-inset", `${Math.round(keyboardInset)}px`);
             $("app")?.classList.toggle("keyboard-open", keyboardOpen);
             if (state.me && activeChat()) {
                 requestAnimationFrame(() => {
                     const messageBox = $("messages");
                     messageBox.scrollTop = messageBox.scrollHeight;
-                    if (inputFocused) {
-                        document.querySelector(".composer")?.scrollIntoView({ block: "end" });
-                    }
                 });
             }
         }
@@ -4729,9 +4782,17 @@
             openApp();
         }
 
-        function joinRealtime() {
+        function joinRealtime(onReady = null) {
             if (state.me?.username && socket.connected) {
-                socket.emit("user:join", { username: state.me.username, includeState: false, deviceId: deviceId() });
+                socket.emit(
+                    "user:join",
+                    { username: state.me.username, includeState: false, deviceId: deviceId() },
+                    result => {
+                        if (result?.ok && typeof onReady === "function") {
+                            onReady();
+                        }
+                    }
+                );
             }
         }
 
@@ -12362,8 +12423,7 @@
 
         socket.on("connect", () => {
             if (state.me?.username) {
-                joinRealtime();
-                socket.emit("background-sync", { mode: "register" });
+                joinRealtime(() => socket.emit("background-sync", { mode: "register" }));
                 flushOutbox();
                 if (!state.bootReady && !state.bootstrapLoading) {
                     loadBootstrap().catch(() => {});
@@ -12765,6 +12825,12 @@
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight);
         window.visualViewport?.addEventListener("scroll", updateAppViewportHeight);
+        window.addEventListener("orientationchange", () => {
+            [80, 260, 520].forEach(delay => setTimeout(updateAppViewportHeight, delay));
+        });
+        window.addEventListener("pageshow", () => {
+            requestAnimationFrame(updateAppViewportHeight);
+        });
         $("messageInput").addEventListener("focus", () => {
             [60, 180, 360, 620].forEach(delay => setTimeout(updateAppViewportHeight, delay));
         });
