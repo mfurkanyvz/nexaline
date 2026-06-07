@@ -265,6 +265,19 @@ class StoryView(db.Model):
     )
 
 
+class UpdatePost(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    body = db.Column(db.Text, nullable=False, default="")
+    media = db.Column(db.JSON, nullable=False, default=list)
+    liked_by = db.Column(db.JSON, nullable=False, default=list)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    edited_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+
+    user = db.relationship("User")
+
+
 class CallLog(db.Model):
     id = db.Column(db.String(40), primary_key=True)
     chat_id = db.Column(db.String(140), db.ForeignKey("chat.id"), nullable=False)
@@ -1050,6 +1063,37 @@ def active_stories(viewer=None):
     return [story_to_dict(story, viewer) for story in stories]
 
 
+def update_post_to_dict(post, viewer=None):
+    liked_by = list(post.liked_by or [])
+    owner = public_user(post.username, viewer)
+    return {
+        "id": post.id,
+        "username": post.username,
+        "displayName": owner["displayName"],
+        "body": post.body or "",
+        "media": list(post.media or [])[:4],
+        "createdAt": to_iso(post.created_at),
+        "editedAt": to_iso(post.edited_at) if post.edited_at else None,
+        "expiresAt": to_iso(post.expires_at),
+        "likes": len(liked_by),
+        "userLiked": bool(viewer and viewer in liked_by),
+        "source": "server",
+    }
+
+
+def active_update_posts(viewer=None):
+    now = datetime.now(timezone.utc)
+    UpdatePost.query.filter(UpdatePost.expires_at <= now).delete(synchronize_session=False)
+    db.session.commit()
+    rows = (
+        UpdatePost.query.filter(UpdatePost.expires_at > now)
+        .order_by(UpdatePost.created_at.desc())
+        .limit(80)
+        .all()
+    )
+    return [update_post_to_dict(row, viewer) for row in rows]
+
+
 def attachment_error(attachment):
     if not attachment:
         return None
@@ -1651,6 +1695,7 @@ def app_state_for_user(username):
         "chats": visible_chats(username),
         "generalGroup": general_group_state(username),
         "stories": active_stories(username),
+        "updatesFeed": active_update_posts(username),
         "callLogs": visible_call_logs(username),
         "contactRequests": visible_contact_requests(username),
         "groupInvites": visible_group_invites(username),
@@ -1922,6 +1967,11 @@ def broadcast_presence():
 def broadcast_stories():
     for sid, username in connections.items():
         socketio.emit("stories:update", active_stories(username), room=sid, namespace="/")
+
+
+def broadcast_update_posts():
+    for sid, username in connections.items():
+        socketio.emit("updates:feed", active_update_posts(username), room=sid, namespace="/")
 
 
 def emit_general_group_updates():
@@ -6098,6 +6148,7 @@ def delete_account(username):
         if owned_story_ids:
             StoryView.query.filter(StoryView.story_id.in_(owned_story_ids)).delete(synchronize_session=False)
         Story.query.filter_by(username=username).delete(synchronize_session=False)
+        UpdatePost.query.filter_by(username=username).delete(synchronize_session=False)
         CallLog.query.filter_by(caller=username).delete(synchronize_session=False)
         Message.query.filter_by(sender=username).delete(synchronize_session=False)
         BlockedUser.query.filter(db.or_(BlockedUser.blocker == username, BlockedUser.blocked == username)).delete(synchronize_session=False)
@@ -7435,6 +7486,84 @@ def handle_story_reply(data):
         for sid in connected_sids_for(member):
             join_room(chat.id, sid=sid)
             socketio.emit("chat:upsert", chat_for_user(chat, member), room=sid)
+
+
+@socketio.on("updates:create")
+def handle_update_post_create(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    body = (data.get("body") or "").strip()[:2000]
+    media = data.get("media") if isinstance(data.get("media"), list) else []
+    media = [item for item in media[:4] if isinstance(item, dict)]
+    if not username or (not body and not media):
+        emit("notice", {"message": "Paylaşmak için yazı veya fotoğraf ekle."})
+        return
+    for attachment in media:
+        error = attachment_error(attachment)
+        if error:
+            emit("notice", {"message": error})
+            return
+        if not str(attachment.get("type") or "").startswith("image/"):
+            emit("notice", {"message": "Güncelleme akışına yalnızca fotoğraf eklenebilir."})
+            return
+    post = UpdatePost(
+        id=uuid4().hex,
+        username=username,
+        body=body,
+        media=media,
+        liked_by=[],
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+    )
+    db.session.add(post)
+    add_points(username, POINT_RULES["story"], "update_post")
+    db.session.commit()
+    broadcast_update_posts()
+
+
+@socketio.on("updates:edit")
+def handle_update_post_edit(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    post = db.session.get(UpdatePost, data.get("postId"))
+    body = (data.get("body") or "").strip()[:2000]
+    if not username or not post or post.username != username:
+        emit("notice", {"message": "Bu paylaşımı düzenleme yetkin yok."})
+        return
+    if not body and not post.media:
+        emit("notice", {"message": "Paylaşım boş bırakılamaz."})
+        return
+    post.body = body
+    post.edited_at = datetime.now(timezone.utc)
+    db.session.commit()
+    broadcast_update_posts()
+
+
+@socketio.on("updates:delete")
+def handle_update_post_delete(data):
+    username = connections.get(request.sid)
+    post = db.session.get(UpdatePost, (data or {}).get("postId"))
+    if not username or not post or post.username != username:
+        emit("notice", {"message": "Bu paylaşımı silme yetkin yok."})
+        return
+    db.session.delete(post)
+    db.session.commit()
+    broadcast_update_posts()
+
+
+@socketio.on("updates:like")
+def handle_update_post_like(data):
+    username = connections.get(request.sid)
+    post = db.session.get(UpdatePost, (data or {}).get("postId"))
+    if not username or not post:
+        return
+    liked_by = list(post.liked_by or [])
+    if username in liked_by:
+        liked_by.remove(username)
+    else:
+        liked_by.append(username)
+    post.liked_by = liked_by
+    db.session.commit()
+    broadcast_update_posts()
 
 
 def forward_call_event(event_name, data):

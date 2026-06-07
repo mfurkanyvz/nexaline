@@ -1096,7 +1096,9 @@
             users: [],
             chats: [],
             stories: [],
-            updatesFeed: readStoredJson("nexalineUpdatesFeed", []),
+            updatesFeed: [],
+            updatesDraft: "",
+            updatesMedia: [],
             callLogs: [],
             archives: [],
             scheduledMessages: [],
@@ -1143,6 +1145,7 @@
             callFilter: "all",
             newMessageMarkers: {},
             openNextChat: false,
+            pendingUpdateReply: null,
             pendingViewOnce: false,
             archiveUnlocked: false,
             archiveItems: [],
@@ -4056,6 +4059,10 @@
             state.communities = data.communities || state.communities || [];
             state.aiTasks = data.aiTasks || state.aiTasks || [];
             state.nearbyUsers = data.nearbyUsers || state.nearbyUsers || [];
+            if (Array.isArray(data.updatesFeed)) {
+                state.updatesFeed = data.updatesFeed;
+                saveUpdatesFeed();
+            }
         }
 
         function isMobileView() {
@@ -5379,6 +5386,7 @@
             document.querySelectorAll(".nav-tab").forEach(tab => {
                 tab.classList.toggle("active", tab.dataset.section === state.activeSection);
             });
+            document.querySelector(".sidebar")?.setAttribute("data-active-section", state.activeSection);
             $("sectionTitle").textContent = labels[state.activeSection];
             ["chatList", "groupList", "storyList", "callList", "exploreList", "friendList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
             const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
@@ -5655,43 +5663,18 @@
         }
 
         function pruneUpdatesFeed() {
-            const cutoff = Date.now() - (24 * 60 * 60 * 1000);
             state.updatesFeed = (state.updatesFeed || []).filter(post => {
-                const createdAt = new Date(post.createdAt || 0).getTime();
-                return Number.isFinite(createdAt) && createdAt > cutoff;
+                const expiresAt = post.expiresAt
+                    ? new Date(post.expiresAt).getTime()
+                    : new Date(post.createdAt || 0).getTime() + (24 * 60 * 60 * 1000);
+                return Number.isFinite(expiresAt) && expiresAt > Date.now();
             });
             return state.updatesFeed;
         }
 
         function saveUpdatesFeed() {
             pruneUpdatesFeed();
-            localStorage.setItem("nexalineUpdatesFeed", JSON.stringify((state.updatesFeed || []).slice(0, 80)));
-        }
-
-        function defaultUpdatesFeed() {
-            const latestStories = (state.stories || []).slice(0, 4).map(story => ({
-                id: `story-${story.id || story.createdAt}`,
-                username: story.username,
-                displayName: story.user?.displayName || story.username || "NexaLine",
-                body: story.body || "Yeni bir guncelleme paylasti.",
-                image: story.attachment?.type?.startsWith("image/") ? story.attachment.dataUrl : "",
-                createdAt: story.createdAt,
-                likes: Number(story.likes || 0),
-                userLiked: false,
-                source: "story"
-            }));
-            if (latestStories.length) return latestStories;
-            return [{
-                id: "welcome-feed",
-                username: "nexaline",
-                displayName: "NexaLine",
-                body: "Guncellemeler akisi hazir. Yazi veya fotograf paylas, gelen yanitlari ozel mesaja cevir.",
-                image: "",
-                createdAt: new Date().toISOString(),
-                likes: 0,
-                userLiked: false,
-                source: "system"
-            }];
+            localStorage.setItem("nexalineUpdatesFeedCache", JSON.stringify((state.updatesFeed || []).slice(0, 80)));
         }
 
         function renderUpdatesFeed() {
@@ -5703,34 +5686,35 @@
             compose.className = "x-compose-card";
             compose.innerHTML = `
                 <div class="x-compose-head">
-                    <strong>Guncellemeler Akisi</strong>
-                    <small>Foto/yazi paylas, begeni al, yanitlari DM'e tasi</small>
+                    <strong>Güncellemeler</strong>
+                    <small>Yazı paylaş veya galeriden en fazla dört fotoğraf seç</small>
                 </div>
-                <textarea id="updatesFeedBody" maxlength="420" placeholder="Bugun ne paylasmak istersin?"></textarea>
-                <div id="updatesFeedPreview" class="x-photo-preview hidden"></div>
+                <textarea id="updatesFeedBody" maxlength="420" placeholder="Bugün ne paylaşmak istersin?">${escapeHtml(state.updatesDraft || "")}</textarea>
+                <div id="updatesFeedPreview" class="x-photo-preview x-photo-grid hidden"></div>
                 <div class="x-actions">
-                    <button id="updatesFeedPhotoButton" type="button">${svgIcon("image")} Foto</button>
-                    <button id="updatesFeedPublishButton" type="button" class="primary">${svgIcon("send")} Paylas</button>
+                    <button id="updatesFeedPhotoButton" type="button">${svgIcon("image")} Fotoğraf</button>
+                    <button id="updatesFeedPublishButton" type="button" class="primary">${svgIcon("send")} Paylaş</button>
                 </div>
             `;
             const photoInput = document.createElement("input");
             photoInput.id = "updatesFeedPhotoInput";
             photoInput.type = "file";
             photoInput.accept = "image/*";
+            photoInput.multiple = true;
             photoInput.className = "hidden";
-            let imageData = "";
+            let selectedMedia = Array.isArray(state.updatesMedia) ? state.updatesMedia : [];
             compose.appendChild(photoInput);
             wrapper.appendChild(compose);
 
             const list = document.createElement("div");
             list.className = "x-feed-list";
             pruneUpdatesFeed();
-            if (!state.updatesFeed?.length) {
-                state.updatesFeed = defaultUpdatesFeed();
-                saveUpdatesFeed();
-            }
             const posts = state.updatesFeed.slice(0, 20);
-            posts.forEach(post => list.appendChild(renderUpdatesFeedPost(post)));
+            if (!posts.length) {
+                list.innerHTML = `<div class="empty-state-view"><div class="empty-state-icon">${svgIcon("image")}</div><strong>Henüz güncelleme yok</strong><span>İlk paylaşımı sen yapabilirsin.</span></div>`;
+            } else {
+                posts.forEach(post => list.appendChild(renderUpdatesFeedPost(post)));
+            }
             wrapper.appendChild(list);
 
             setTimeout(() => {
@@ -5740,28 +5724,48 @@
                 const photoButton = $("updatesFeedPhotoButton");
                 const input = $("updatesFeedPhotoInput");
                 if (!bodyInput || !publish || !photoButton || !input) return;
+                bodyInput.oninput = () => {
+                    state.updatesDraft = bodyInput.value;
+                };
+                if (selectedMedia.length && preview) {
+                    preview.classList.remove("hidden");
+                    preview.innerHTML = selectedMedia.map((item, index) =>
+                        `<img src="${escapeHtml(item.dataUrl)}" alt="Güncelleme fotoğrafı ${index + 1}">`
+                    ).join("");
+                }
                 photoButton.onclick = () => input.click();
-                input.onchange = event => {
-                    const file = event.target.files?.[0];
-                    if (!file) return;
-                    readImageFile(file, dataUrl => {
-                        if (!dataUrl) return;
-                        imageData = dataUrl;
+                input.onchange = async event => {
+                    const files = [...(event.target.files || [])].slice(0, 4);
+                    if (!files.length) return;
+                    try {
+                        selectedMedia = (await Promise.all(files.map(file => prepareAttachmentFile(file))))
+                            .filter(item => item?.type?.startsWith("image/"))
+                            .slice(0, 4);
+                        state.updatesMedia = selectedMedia;
                         if (preview) {
-                            preview.classList.remove("hidden");
-                            preview.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="Guncelleme fotografi">`;
+                            preview.classList.toggle("hidden", !selectedMedia.length);
+                            preview.innerHTML = selectedMedia.map((item, index) =>
+                                `<img src="${escapeHtml(item.dataUrl)}" alt="Güncelleme fotoğrafı ${index + 1}">`
+                            ).join("");
                         }
-                    });
+                    } catch (error) {
+                        selectedMedia = [];
+                        state.updatesMedia = [];
+                        showToast("Fotoğraflar hazırlanamadı. Daha küçük dosyalar seç.");
+                    }
                 };
                 publish.onclick = () => {
                     const body = bodyInput.value.trim();
-                    if (!body && !imageData) {
-                        showToast("Paylasmak icin yazi veya fotograf ekle.");
+                    if (!body && !selectedMedia.length) {
+                        showToast("Paylaşmak için yazı veya fotoğraf ekle.");
                         return;
                     }
-                    createUpdatesFeedPost(body, imageData);
+                    createUpdatesFeedPost(body, selectedMedia);
                     bodyInput.value = "";
-                    imageData = "";
+                    state.updatesDraft = "";
+                    input.value = "";
+                    selectedMedia = [];
+                    state.updatesMedia = [];
                     if (preview) {
                         preview.classList.add("hidden");
                         preview.innerHTML = "";
@@ -5779,91 +5783,114 @@
             const avatar = document.createElement("div");
             avatar.className = "avatar";
             setAvatar(avatar, owner, post.displayName || owner.displayName || "NL");
-            const media = post.image ? `<img class="x-feed-image" src="${escapeHtml(post.image)}" alt="Guncelleme gorseli">` : "";
+            const mediaItems = Array.isArray(post.media) && post.media.length
+                ? post.media
+                : (post.image ? [{ dataUrl: post.image, type: "image/png" }] : []);
+            const media = mediaItems.length
+                ? `<div class="x-feed-media-grid media-count-${Math.min(4, mediaItems.length)}">${mediaItems.slice(0, 4).map((item, index) =>
+                    `<img class="x-feed-image" src="${escapeHtml(item.dataUrl || "")}" alt="Güncelleme görseli ${index + 1}">`
+                ).join("")}</div>`
+                : "";
             const isOwner = post.username === state.me?.username;
-            const likeCount = isOwner ? `<span>${Number(post.likes || 0)}</span>` : "";
+            const likeCount = Number(post.likes || 0);
             row.innerHTML = `
                 <div class="x-feed-meta">
                     <div class="x-feed-avatar-slot"></div>
                     <div>
                         <strong>${escapeHtml(post.displayName || owner.displayName || "NexaLine")}</strong>
-                        <small>${escapeHtml(relativeTime(post.createdAt || new Date().toISOString()))}</small>
+                        <small>${escapeHtml(relativeTime(post.createdAt || new Date().toISOString()))}${post.editedAt ? " · düzenlendi" : ""}</small>
                     </div>
+                    ${isOwner ? `<button type="button" class="x-feed-more" aria-label="Paylaşım seçenekleri">⋮</button>` : ""}
                 </div>
                 <p>${escapeHtml(post.body || "")}</p>
                 ${media}
                 <div class="x-actions">
-                    <button type="button" data-feed-action="like" class="${post.userLiked ? "liked" : ""}" aria-label="Beğen">${svgIcon("heart")} ${likeCount}</button>
-                    <button type="button" data-feed-action="reply">${svgIcon("chats")} Ozel mesaj</button>
-                    <button type="button" data-feed-action="share">${svgIcon("image")} Duruma ekle</button>
+                    <button type="button" data-feed-action="like" class="${post.userLiked ? "liked" : ""}" aria-label="Beğen">${svgIcon("heart")} <span>${likeCount}</span></button>
+                    ${isOwner ? `<button type="button" data-feed-action="share">${svgIcon("image")} Duruma ekle</button>` : `<button type="button" data-feed-action="reply">${svgIcon("chats")} Özel mesaj</button>`}
                 </div>
+                ${isOwner ? `<div class="x-feed-menu hidden"><button type="button" data-feed-action="edit">Düzenle</button><button type="button" data-feed-action="delete" class="danger">Sil</button></div>` : ""}
             `;
             row.querySelector(".x-feed-avatar-slot")?.appendChild(avatar);
             row.querySelector('[data-feed-action="like"]').onclick = () => likeUpdatesFeedPost(post.id);
-            row.querySelector('[data-feed-action="reply"]').onclick = () => replyUpdatesFeedPost(post);
-            row.querySelector('[data-feed-action="share"]').onclick = () => shareUpdatesFeedPhoto(post);
+            row.querySelector('[data-feed-action="reply"]')?.addEventListener("click", () => replyUpdatesFeedPost(post));
+            row.querySelector('[data-feed-action="share"]')?.addEventListener("click", () => shareUpdatesFeedPhoto(post));
+            row.querySelector(".x-feed-more")?.addEventListener("click", event => {
+                event.stopPropagation();
+                row.querySelector(".x-feed-menu")?.classList.toggle("hidden");
+            });
+            row.querySelector('[data-feed-action="edit"]')?.addEventListener("click", () => editUpdatesFeedPost(post));
+            row.querySelector('[data-feed-action="delete"]')?.addEventListener("click", () => deleteUpdatesFeedPost(post));
             return row;
         }
 
-        function createUpdatesFeedPost(body, imageData = "") {
-            const post = {
-                id: `feed-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                username: state.me?.username || "me",
-                displayName: state.me?.displayName || state.me?.username || "Ben",
-                body,
-                image: imageData,
-                createdAt: new Date().toISOString(),
-                likes: 0,
-                userLiked: false,
-                source: "local"
-            };
-            state.updatesFeed = [post, ...(state.updatesFeed || [])].slice(0, 80);
-            saveUpdatesFeed();
-            if (imageData || body) {
-                socket.emit("story:create", {
-                    body,
-                    attachment: imageData ? { type: "image/png", dataUrl: imageData, name: "guncelleme.png" } : null
-                });
-            }
-            renderStories();
-            showToast("Guncelleme paylasildi.");
+        function createUpdatesFeedPost(body, media = []) {
+            socket.emit("updates:create", { body, media: media.slice(0, 4) });
+            showToast("Güncelleme paylaşılıyor.");
         }
 
         function likeUpdatesFeedPost(postId) {
-            const post = (state.updatesFeed || []).find(item => item.id === postId);
-            if (!post) return;
-            post.userLiked = !post.userLiked;
-            post.likes = Math.max(0, Number(post.likes || 0) + (post.userLiked ? 1 : -1));
-            saveUpdatesFeed();
-            renderStories();
+            socket.emit("updates:like", { postId });
         }
 
         function replyUpdatesFeedPost(post) {
-            if (!post?.username || post.username === "nexaline") {
-                showToast("Bu guncelleme sistem duyurusu.");
+            if (!post?.username || post.username === state.me?.username) {
                 return;
             }
             const user = state.users.find(item => item.username === post.username);
             if (!user) {
-                showToast("Kullanici bulunamadi.");
+                showToast("Kullanıcı bulunamadı.");
                 return;
             }
+            state.pendingUpdateReply = {
+                id: `update:${post.id}`,
+                senderName: post.displayName || user.displayName || user.username,
+                body: post.body || "Fotoğraflı güncelleme",
+                attachmentName: (post.media || []).length ? "Güncelleme fotoğrafı" : ""
+            };
+            state.openNextChat = true;
             socket.emit("chat:create", { target: user.username });
             state.activeSection = "chats";
             renderSections();
-            showToast(`${user.displayName || user.username} ile ozel mesaj aciliyor.`);
+            showToast(`${user.displayName || user.username} ile sohbet açılıyor.`);
         }
 
         function shareUpdatesFeedPhoto(post) {
-            if (!post?.image && !post?.body) {
-                showToast("Paylasilacak icerik yok.");
+            if (post?.username !== state.me?.username) {
                 return;
             }
-            socket.emit("story:create", {
-                body: post.body || "Guncelleme",
-                attachment: post.image ? { type: "image/png", dataUrl: post.image, name: "guncelleme.png" } : null
+            const attachment = Array.isArray(post.media) ? post.media[0] : null;
+            confirmModal("Duruma ekle", "Bu paylaşımı 24 saatlik durumuna ekleyelim mi?", () => {
+                socket.emit("story:create", {
+                    body: post.body || "Güncelleme",
+                    attachment: attachment || null
+                });
+                showToast("Duruma eklendi.");
             });
-            showToast("Duruma eklendi.");
+        }
+
+        function editUpdatesFeedPost(post) {
+            openModal("Paylaşımı düzenle", body => {
+                const input = document.createElement("textarea");
+                input.id = "editUpdatesFeedInput";
+                input.maxLength = 420;
+                input.value = post.body || "";
+                body.appendChild(input);
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Kaydet", primary: true, onClick: () => {
+                    socket.emit("updates:edit", {
+                        postId: post.id,
+                        body: $("editUpdatesFeedInput").value.trim()
+                    });
+                    closeModal();
+                } }
+            ]);
+        }
+
+        function deleteUpdatesFeedPost(post) {
+            confirmModal("Paylaşımı sil", "Bu güncellemeyi kalıcı olarak silmek istiyor musun?", () => {
+                socket.emit("updates:delete", { postId: post.id });
+            });
         }
 
         function showStoryForUser(username) {
@@ -9661,21 +9688,44 @@
         }
 
         function createStory() {
+            let selectedFile = null;
             openModal("Durum ekle", body => {
                 const text = document.createElement("textarea");
                 text.id = "storyTextInput";
                 text.placeholder = "24 saat görünecek durum";
-                const picker = createFilePicker({
-                    label: "Resim veya video sec",
-                    accept: "image/*,video/*"
-                });
-                picker.input.id = "storyMediaInput";
-                body.append(text, picker.wrap);
+                const choices = document.createElement("div");
+                choices.className = "story-source-grid";
+                choices.innerHTML = `
+                    <button type="button" data-story-source="camera">${svgIcon("camera")}<strong>Fotoğraf çek</strong></button>
+                    <button type="button" data-story-source="gallery">${svgIcon("image")}<strong>Fotoğraf arşivi</strong></button>
+                `;
+                const camera = document.createElement("input");
+                camera.type = "file";
+                camera.accept = "image/*";
+                camera.capture = "environment";
+                camera.className = "hidden";
+                const gallery = document.createElement("input");
+                gallery.type = "file";
+                gallery.accept = "image/*,video/*";
+                gallery.className = "hidden";
+                const preview = document.createElement("div");
+                preview.className = "story-source-preview hidden";
+                const selectFile = file => {
+                    if (!file) return;
+                    selectedFile = file;
+                    preview.classList.remove("hidden");
+                    preview.textContent = file.name;
+                };
+                camera.onchange = () => selectFile(camera.files?.[0]);
+                gallery.onchange = () => selectFile(gallery.files?.[0]);
+                choices.querySelector('[data-story-source="camera"]').onclick = () => camera.click();
+                choices.querySelector('[data-story-source="gallery"]').onclick = () => gallery.click();
+                body.append(text, choices, camera, gallery, preview);
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Paylaş", primary: true, onClick: () => {
                     const bodyText = $("storyTextInput").value.trim();
-                    const file = $("storyMediaInput").files[0];
+                    const file = selectedFile;
                     if (!file) {
                         if (bodyText) {
                             socket.emit("story:create", { body: bodyText });
@@ -11754,6 +11804,13 @@
             }
         });
         document.addEventListener("pointerdown", event => {
+            if (event.target === $("modalPanel")) {
+                closeModal();
+                return;
+            }
+            if (!event.target.closest(".x-feed-more, .x-feed-menu")) {
+                document.querySelectorAll(".x-feed-menu:not(.hidden)").forEach(menu => menu.classList.add("hidden"));
+            }
             const panel = $("emojiPanel");
             if (!panel || panel.classList.contains("hidden")) return;
             if (event.target.closest("#emojiPanel, #emojiButton")) return;
@@ -11860,6 +11917,11 @@
             if (shouldOpen) {
                 state.activeProfileUsername = null;
                 state.activeChatId = chat.id;
+                if (state.pendingUpdateReply) {
+                    state.replyTo = state.pendingUpdateReply;
+                    state.pendingUpdateReply = null;
+                    renderReplyPreview();
+                }
             }
             requestRender();
             if (shouldOpen) {
@@ -11888,6 +11950,14 @@
         socket.on("stories:update", stories => {
             state.stories = stories;
             renderStories();
+        });
+
+        socket.on("updates:feed", posts => {
+            state.updatesFeed = Array.isArray(posts) ? posts : [];
+            saveUpdatesFeed();
+            if (state.activeSection === "stories") {
+                renderStories();
+            }
         });
 
         socket.on("story:consumed", data => {
