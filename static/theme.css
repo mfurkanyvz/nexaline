@@ -1409,6 +1409,82 @@ button {
     color: #fff;
 }
 
+.call-filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 5px 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.call-item .last-message {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.call-direction-pill,
+.call-kind-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.call-direction-pill.incoming {
+    color: #39d98a;
+}
+
+.call-direction-pill.outgoing {
+    color: #00d9ff;
+}
+
+.call-direction-pill.missed,
+.call-item.missed .chat-title {
+    color: #ff4d67;
+}
+
+.call-kind-pill {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.call-kind-pill .nexa-svg,
+.call-redial-cue .nexa-svg {
+    width: 15px;
+    height: 15px;
+}
+
+.call-duration {
+    color: rgba(255, 255, 255, 0.48);
+}
+
+.call-log-side {
+    display: grid;
+    justify-items: end;
+    align-content: center;
+    gap: 8px;
+}
+
+.call-redial-cue {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    color: var(--neon-blue);
+    border: 1px solid rgba(0, 242, 255, 0.22);
+    border-radius: 50%;
+    background: rgba(0, 242, 255, 0.07);
+}
+
+.call-item.missed .call-redial-cue {
+    color: #ff4d67;
+    border-color: rgba(255, 77, 103, 0.26);
+    background: rgba(255, 77, 103, 0.08);
+}
+
 .x-actions button:hover,
 .x-actions button:focus-visible,
 .nav-tab.active,

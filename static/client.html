@@ -6224,6 +6224,10 @@
             return "Gelen";
         }
 
+        function callDirectionIcon(log) {
+            return callLogType(log) === "outgoing" ? "↗" : "↙";
+        }
+
         function openCallLogDetail(log) {
             const chat = state.chats.find(item => item.id === log.chatId);
             openModal("Arama detayı", body => {
@@ -6295,7 +6299,7 @@
 
             const logs = state.callLogs
                 .filter(log => state.callFilter === "all" || callLogType(log) === state.callFilter)
-                .filter(log => log.chatTitle.toLowerCase().includes(filter) || log.callerName.toLowerCase().includes(filter));
+                .filter(log => String(log.chatTitle || "").toLowerCase().includes(filter) || String(log.callerName || "").toLowerCase().includes(filter));
             if (!logs.length) {
                 callList.insertAdjacentHTML("beforeend", emptyStateMarkup("⌕", "Arama bulunamadı", "Seçili filtre veya arama metniyle eşleşen kayıt yok."));
                 return;
@@ -6323,12 +6327,19 @@
                     title.textContent = log.chatTitle;
                     const meta = document.createElement("div");
                     meta.className = "last-message";
-                    meta.innerHTML = `<span class="call-direction-pill ${callLogType(log)}">${escapeHtml(callDirectionLabel(log))}</span><span class="call-kind-pill">${log.kind === "video" ? "Görüntülü" : "Sesli"}</span>${escapeHtml(log.status === "active" ? "aktif arama" : formatDuration(log.durationSeconds))}`;
+                    meta.innerHTML = `<span class="call-direction-pill ${callLogType(log)}"><span aria-hidden="true">${callDirectionIcon(log)}</span>${escapeHtml(callDirectionLabel(log))}</span><span class="call-kind-pill">${svgIcon(log.kind === "video" ? "video" : "phone")}${log.kind === "video" ? "Görüntülü" : "Sesli"}</span><span class="call-duration">${escapeHtml(log.status === "active" ? "aktif arama" : formatDuration(log.durationSeconds))}</span>`;
                     body.append(title, meta);
+                    const side = document.createElement("span");
+                    side.className = "call-log-side";
                     const time = document.createElement("span");
                     time.className = "chat-time";
                     time.textContent = relativeTime(log.startedAt);
-                    button.append(avatar, body, time);
+                    const redial = document.createElement("span");
+                    redial.className = "call-redial-cue";
+                    redial.setAttribute("aria-hidden", "true");
+                    redial.innerHTML = svgIcon(log.kind === "video" ? "video" : "phone");
+                    side.append(time, redial);
+                    button.append(avatar, body, side);
                     callList.appendChild(button);
                 });
         }
