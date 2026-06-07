@@ -4478,6 +4478,56 @@ def ai_tts():
         return jsonify({"ok": False, "message": "Ses uretimi icin OPENAI_API_KEY veya ELEVENLABS_API_KEY gerekli; servis su an yanit vermiyor."}), 503
 
 
+def local_text_summary(text_value, limit=5):
+    sentences = [
+        re.sub(r"\s+", " ", item).strip(" -\t")
+        for item in re.split(r"(?<=[.!?])\s+|\n+", text_value or "")
+        if re.sub(r"\s+", " ", item).strip(" -\t")
+    ]
+    selected = []
+    for sentence in sentences:
+        if sentence.casefold() not in {item.casefold() for item in selected}:
+            selected.append(sentence)
+        if len(selected) >= limit:
+            break
+    if not selected:
+        return "Özetlenecek anlamlı bir içerik bulunamadı."
+    return "Kısa özet:\n" + "\n".join(f"- {sentence}" for sentence in selected)
+
+
+def local_chat_analysis(text_value):
+    sentences = [
+        re.sub(r"\s+", " ", item).strip(" -\t")
+        for item in re.split(r"(?<=[.!?])\s+|\n+", text_value or "")
+        if re.sub(r"\s+", " ", item).strip(" -\t")
+    ]
+    lowered = [(sentence, sentence.casefold()) for sentence in sentences]
+    task_terms = ("yapacak", "edecek", "gönderecek", "hazırlayacak", "tamamlayacak", "görüşecek", "gerekiyor", "unutma", "bekliyor")
+    decision_terms = ("karar", "onaylandı", "kabul edildi", "kararlaştırıldı", "anlaşıldı")
+    date_pattern = re.compile(r"\b(?:pazartesi|salı|çarşamba|perşembe|cuma|cumartesi|pazar|bugün|yarın|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?|\d{1,2}:\d{2})\b", re.IGNORECASE)
+    tasks = [sentence for sentence, folded in lowered if any(term in folded for term in task_terms)][:5]
+    decisions = [sentence for sentence, folded in lowered if any(term in folded for term in decision_terms)][:5]
+    dated = [sentence for sentence, _folded in lowered if date_pattern.search(sentence)][:5]
+    stop_words = {
+        "acaba", "ama", "ancak", "ben", "bir", "biz", "bu", "da", "daha", "de", "diye", "en", "gibi",
+        "için", "ile", "mi", "mı", "mu", "mü", "ne", "o", "olarak", "olan", "sen", "şu", "ve", "veya"
+    }
+    counts = {}
+    for word in re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü]{4,}", text_value or ""):
+        folded = word.casefold()
+        if folded in stop_words:
+            continue
+        counts[folded] = counts.get(folded, 0) + 1
+    topics = [word for word, _count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:6]]
+    sections = []
+    sections.append("Ana konular:\n" + ("\n".join(f"- {topic}" for topic in topics) if topics else "- Belirgin ana konu bulunamadı."))
+    sections.append("Alınan kararlar:\n" + ("\n".join(f"- {item}" for item in decisions) if decisions else "- Açık bir karar cümlesi bulunamadı."))
+    sections.append("Bekleyen işler:\n" + ("\n".join(f"- {item}" for item in tasks) if tasks else "- Açık bir görev veya bekleyen iş bulunamadı."))
+    sections.append("Tarih ve zamanlar:\n" + ("\n".join(f"- {item}" for item in dated) if dated else "- Belirgin tarih veya saat bulunamadı."))
+    sections.append(local_text_summary(text_value, limit=3))
+    return "\n\n".join(sections)
+
+
 @app.route("/ai/text-tool", methods=["POST"])
 @ai_error_boundary
 def ai_text_tool():
@@ -4499,6 +4549,12 @@ def ai_text_tool():
         prompt = f"Bu metni imla, noktalama ve anlatım açısından düzelt. Anlamı değiştirme, sadece düzeltilmiş metni yaz:\n{text_value}"
     else:
         prompt = f"Bu metni kısa, işe yarar ve maddeli şekilde özetle:\n{text_value}"
+    if tool == "analyze":
+        prompt = (
+            "Bu sohbet dokumunu analiz et. Turkce olarak ana konulari, alinan kararlari, "
+            "bekleyen isleri, onemli tarih veya kisileri ve en sonda kisa bir ozeti maddeler halinde yaz:\n"
+            f"{text_value}"
+        )
     context = ai_context_for_user(username, data.get("chatId"), prompt)
     context["assistant"] = {"name": data.get("assistantName") or "Nexa AI"}
     research = []
@@ -4512,6 +4568,15 @@ def ai_text_tool():
     except Exception as error:
         app.logger.warning("ProcessAI text module fallback (%s): %s", tool, error)
         reply, provider, research = generate_ai_reply(prompt, context, [])
+    if (provider or {}).get("provider") == "local":
+        if tool == "analyze":
+            reply = local_chat_analysis(text_value)
+            provider = {"provider": "local-analysis", "model": "nexaline-structured-analyzer"}
+            research = []
+        elif tool == "summarize":
+            reply = local_text_summary(text_value)
+            provider = {"provider": "local-summary", "model": "nexaline-extractive-summary"}
+            research = []
     store_ai_memory(username, data.get("chatId"), "user", prompt, provider="text-tool", meta={"tool": tool})
     store_ai_memory(username, data.get("chatId"), "assistant", reply, provider=(provider or {}).get("provider"), meta={"tool": tool})
     db.session.commit()

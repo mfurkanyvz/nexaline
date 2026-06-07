@@ -2709,14 +2709,17 @@
                 { id: "summarize", icon: "▤", color: "blue", title: "Metin özetle", hint: "Uzun metinleri kısalt", run: openAiSummarizerPanel },
                 { id: "translate", icon: "⌁", color: "blue", title: "Çeviri yap", hint: "Diller arası çeviri", run: openAiTranslatePanel },
                 { id: "fix", icon: "✎", color: "orange", title: "Yazıyı düzelt", hint: "Yazım ve dil bilgisi kontrolü", run: openAiWritingFixPanel },
+                { id: "chat-analysis", icon: "◫", color: "blue", title: "Sohbeti analiz et", hint: "Önemli konuları, kararları ve özeti çıkar", run: () => this.openAiChatAnalysisPanel() },
                 { id: "image", icon: "◎", color: "orange", title: "Görsel oluştur", hint: "Prompt ile görsel üret", run: openAiImageGenerator },
+                { id: "file-analysis", icon: "▧", color: "blue", title: "Dosya veya görsel analiz et", hint: "İçeriği incele, açıkla ve özetle", run: () => $("aiFileInput").click() },
+                { id: "location-info", icon: "⌖", color: "green", title: "Konum bilgisi", hint: "Bulunduğun konumu incelet ve çevreyi sor", run: () => this.sendAiCurrentLocation() },
                 { id: "settings", icon: "⚙", color: "gray", title: "AI Ayarları", hint: "Ses, geçmiş ve gizlilik", run: openAiSettingsPanel }
             ];
         }
 
             openAiCommandCenter() {
             openModal("Komut Örnekleri", body => {
-                body.innerHTML = `<div class="nexal-command-list">${aiCommandItems().map(item => `
+                body.innerHTML = `<div class="nexal-command-list">${this.aiCommandItems().map(item => `
                     <button class="nexal-command-card" type="button" data-ai-command="${item.id}">
                         <span class="nexal-card-icon ${item.color}">${item.icon}</span>
                         <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.hint)}</small></span>
@@ -2725,10 +2728,17 @@
                 `).join("")}</div>`;
                 body.querySelectorAll("[data-ai-command]").forEach(button => {
                     button.onclick = () => {
-                        const item = aiCommandItems().find(command => command.id === button.dataset.aiCommand);
+                        const item = this.aiCommandItems().find(command => command.id === button.dataset.aiCommand);
                         if (!item) return;
                         closeModal();
-                        setTimeout(item.run, 120);
+                        setTimeout(() => {
+                            try {
+                                item.run();
+                            } catch (error) {
+                                console.error("Nexa AI araç paneli açılamadı:", error);
+                                showToast("Bu AI aracı açılamadı. Lütfen tekrar dene.");
+                            }
+                        }, 120);
                     };
                 });
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
@@ -2827,12 +2837,20 @@
         }
 
                 async runAiTextTool(tool, text, extra = {}) {
-            const response = await fetch("/ai/text-tool", {
-                method: "POST",
-                headers: authHeaders(),
-                body: JSON.stringify({ username: state.me.username, assistantName: aiDisplayName(), tool, text, ...extra })
-            });
-            return response.json();
+            try {
+                const response = await fetch("/ai/text-tool", {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username: state.me.username, assistantName: aiDisplayName(), tool, text, ...extra })
+                });
+                const data = await response.json();
+                if (!response.ok && !data.message) {
+                    data.message = `AI metin aracı ${response.status} hatası verdi.`;
+                }
+                return data;
+            } catch (_error) {
+                return { ok: false, message: "AI metin birimine bağlanılamadı. İnternet bağlantısını kontrol edip tekrar dene." };
+            }
         }
 
             openAiSummarizerPanel() {
@@ -2855,6 +2873,31 @@
                     $("aiSummaryResult").classList.remove("hidden");
                     $("aiSummaryResult span:last-child").innerHTML = `<strong>Özet</strong><small>${escapeHtml(data.result || data.message || "Özet alınamadı.")}</small>`;
                     if (data.ok) addAiMessage("assistant", data.result || "Özet hazır.");
+                };
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+        }
+
+            openAiChatAnalysisPanel() {
+            openModal("Sohbeti Analiz Et", body => {
+                body.innerHTML = `
+                    <div class="nexal-form-grid">
+                        <select id="aiAnalysisChatSelect"><option value="">Sohbet seç</option>${chatSelectOptions()}</select>
+                        <div class="last-message">Seçtiğin sohbetin son mesajlarından ana konuları, alınan kararları, bekleyen işleri ve kısa özeti çıkarır.</div>
+                        <button id="aiAnalysisRunButton" class="nexal-pill-button primary" type="button">Analiz Et</button>
+                        <div id="aiAnalysisResult" class="nexal-tool-card hidden"><span class="nexal-card-icon blue">◫</span><span></span></div>
+                    </div>
+                `;
+                $("aiAnalysisRunButton").onclick = async () => {
+                    const chatId = $("aiAnalysisChatSelect").value;
+                    if (!chatId) return showToast("Analiz edilecek sohbeti seç.");
+                    const text = textFromSelectedChat(chatId);
+                    if (!text) return showToast("Bu sohbette analiz edilecek mesaj yok.");
+                    $("aiAnalysisRunButton").disabled = true;
+                    const data = await runAiTextTool("analyze", text, { chatId });
+                    $("aiAnalysisRunButton").disabled = false;
+                    $("aiAnalysisResult").classList.remove("hidden");
+                    $("aiAnalysisResult span:last-child").innerHTML = `<strong>Sohbet analizi</strong><small>${escapeHtml(data.result || data.message || "Sohbet analiz edilemedi.")}</small>`;
+                    if (data.ok) addAiMessage("assistant", data.result || "Sohbet analizi hazır.");
                 };
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
@@ -5178,7 +5221,6 @@
             ".message-bubble",
             ".bubble",
             ".ai-card",
-            ".nexal-container",
             "[data-glass]"
         ];
 
