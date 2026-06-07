@@ -1076,6 +1076,10 @@ textarea {
         display: grid;
     }
 
+    .app.profile-open .chat-pane {
+        animation: profilePaneSlideIn 280ms cubic-bezier(.2, .8, .2, 1);
+    }
+
     .topbar,
     .chat-top {
         min-height: calc(66px + var(--safe-top));
@@ -1624,39 +1628,201 @@ button {
     fill: currentColor;
 }
 
-.explore-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.sidebar[data-active-section="contacts"] > .search-box,
+.sidebar[data-active-section="contacts"] > .section-head,
+.sidebar[data-active-section="explore"] > .search-box,
+.sidebar[data-active-section="explore"] > .section-head {
+    display: none;
+}
+
+.section-inline-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 12px;
-    padding: 10px 10px 120px;
+    padding: 4px 5px 12px;
+}
+
+.section-inline-heading > span {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.section-inline-heading strong {
+    color: #fff;
+    font-size: clamp(25px, 7vw, 31px);
+    line-height: 1.1;
+    letter-spacing: 0;
+}
+
+.section-inline-heading small {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.contacts-inline-header {
+    padding-top: 4px;
+}
+
+.contact-search-shell {
+    margin-bottom: 12px;
+}
+
+.contact-results-frame {
+    min-width: 0;
+    padding-bottom: 8px;
+}
+
+.contact-results-frame.mode-forward {
+    animation: chatModeForward 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.contact-results-frame.mode-backward {
+    animation: chatModeBackward 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.contact-list-row {
+    width: 100%;
+    min-height: 72px;
+    margin: 7px 0;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border-radius: 20px;
+    color: var(--text-main);
+    text-align: left;
+}
+
+.contact-list-row.active {
+    border-color: rgba(0, 242, 255, 0.3);
+    background: linear-gradient(135deg, rgba(0, 242, 255, 0.1), rgba(124, 77, 255, 0.08));
+    box-shadow: 0 0 22px rgba(0, 242, 255, 0.1);
+}
+
+.contact-list-row .avatar {
+    width: 48px;
+    height: 48px;
+}
+
+.contact-list-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.contact-list-copy .chat-title,
+.contact-list-copy .last-message,
+.contact-username {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.contact-username {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 10px;
+}
+
+.contact-list-side {
+    min-width: 64px;
+    display: grid;
+    justify-items: end;
+    gap: 5px;
+}
+
+.contact-relation-badge {
+    max-width: 76px;
+    padding: 4px 7px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 9px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.contact-relation-badge.friend {
+    border-color: rgba(0, 242, 255, 0.23);
+    background: rgba(0, 242, 255, 0.1);
+    color: #8ff8ff;
+}
+
+.contact-relation-badge.incoming {
+    border-color: rgba(231, 0, 255, 0.24);
+    background: rgba(231, 0, 255, 0.1);
+    color: #f5a5ff;
+}
+
+.contact-relation-badge.pending {
+    border-color: rgba(255, 184, 0, 0.22);
+    background: rgba(255, 184, 0, 0.09);
+    color: #ffd86e;
+}
+
+.contact-score {
+    color: rgba(255, 255, 255, 0.44);
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.contact-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    padding: 24px 8px;
+}
+
+.explore-inline-heading {
+    padding-top: 4px;
+}
+
+.explore-grid {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0 0 8px;
 }
 
 .explore-card {
     position: relative;
     min-width: 0;
-    min-height: 154px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: 7px;
-    padding: 18px;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 50px minmax(0, 1fr) 24px;
+    align-items: center;
+    gap: 13px;
+    padding: 12px 14px;
     color: #fff;
     text-align: left;
-    border-radius: 24px;
+    border-radius: 22px;
     overflow: hidden;
 }
 
 .explore-card .attachment-option-icon {
-    width: 46px;
-    height: 46px;
+    width: 50px;
+    height: 50px;
     display: grid;
     place-items: center;
-    margin-bottom: auto;
     color: #fff;
-    border-radius: 15px;
+    border-radius: 17px;
     background: linear-gradient(135deg, #00f2ff, #7c4dff 52%, #ff00b8);
     box-shadow: 0 0 24px rgba(0, 242, 255, 0.24);
+}
+
+.explore-card-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
 }
 
 .explore-card strong {
@@ -1664,15 +1830,55 @@ button {
 }
 
 .explore-card small {
+    display: block;
+    overflow: hidden;
     color: rgba(255, 255, 255, 0.62);
+    font-size: 11px;
     line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .explore-card-arrow {
-    position: absolute;
-    top: 18px;
-    right: 16px;
+    display: grid;
+    place-items: center;
     color: rgba(255, 255, 255, 0.54);
+}
+
+.explore-card-arrow .nexa-svg {
+    width: 18px;
+    height: 18px;
+}
+
+.sidebar[data-active-section="contacts"] #contactList {
+    padding: 8px 10px 104px;
+}
+
+.sidebar[data-active-section="explore"] #exploreList:not(.hidden) {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    padding: 8px 10px 104px;
+}
+
+.contact-mode-switch {
+    margin-right: 0;
+    margin-left: 0;
+}
+
+.contact-results-frame .section-mini-title {
+    padding: 8px 4px 3px;
+}
+
+@keyframes profilePaneSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .chat-mode-switch {

@@ -1136,6 +1136,8 @@
             activeSection: "chats",
             chatListMode: "chats",
             contactListMode: "friends",
+            contactSearch: "",
+            contactTransition: "forward",
             chatSearch: "",
             activeChatId: null,
             activeProfileUsername: null,
@@ -1227,7 +1229,7 @@
             stories: '<path d="M4 12a8 8 0 0 1 8-8"/><path d="M20 12a8 8 0 0 1-8 8"/><path d="M12 4a8 8 0 0 1 8 8"/><path d="M12 20a8 8 0 0 1-8-8"/><circle cx="12" cy="12" r="2.5"/>',
             groups: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
             friends: '<path d="M17 18a5 5 0 0 0-10 0"/><circle cx="12" cy="8" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>',
-            contacts: '<path d="M16 2v4"/><path d="M8 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 14h8"/><path d="M8 18h5"/><circle cx="12" cy="10" r="2"/>',
+            contacts: '<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/>',
             settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.2 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 20 7.2l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/>',
             camera: '<path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3z"/><circle cx="12" cy="13" r="3"/>',
             plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
@@ -4038,11 +4040,13 @@
             clearActiveNewMarker();
             renderSections();
             renderActiveChat();
+            $("app").classList.add("profile-open");
             openMobileChat();
         }
 
         function closeProfilePane() {
             state.activeProfileUsername = null;
+            $("app").classList.remove("profile-open");
             renderActiveChat();
         }
 
@@ -4081,7 +4085,7 @@
             clearActiveNewMarker();
             state.activeChatId = null;
             state.activeProfileUsername = null;
-            $("app").classList.remove("chat-open");
+            $("app").classList.remove("chat-open", "profile-open");
             render();
         }
 
@@ -6547,24 +6551,39 @@
             const list = $("exploreList");
             if (!list) return;
             list.innerHTML = "";
+            const heading = document.createElement("div");
+            heading.className = "section-inline-heading explore-inline-heading";
+            heading.innerHTML = `
+                <span>
+                    <strong>Keşfet</strong>
+                    <small>NexaLine araçları tek dokunuş uzağında</small>
+                </span>
+            `;
             const grid = document.createElement("div");
             grid.className = "explore-grid";
             const cards = [
-                ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", openAiPanel],
-                ["voice", "Sesli Odalar", "Canlı odaları keşfet, oluştur ve yönet", openVoiceRoomsHub],
-                ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", openNearbyPanel],
-                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", openVaultPanel]
+                ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", "zap", openAiPanel],
+                ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", "location", openNearbyPanel],
+                ["voice", "Sesli Odalar", "Canlı odaları keşfet, oluştur ve yönet", "mic", openVoiceRoomsHub],
+                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel]
             ];
-            cards.forEach(([key, title, hint, action]) => {
+            cards.forEach(([key, title, hint, icon, action]) => {
                 const card = document.createElement("button");
                 card.type = "button";
                 card.className = "explore-card";
                 card.dataset.exploreModule = key;
-                card.innerHTML = `<span class="attachment-option-icon">${svgIcon(key === "ai" ? "zap" : key === "nearby" ? "location" : key === "vault" ? "lock" : "mic")}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small><span class="explore-card-arrow" aria-hidden="true">›</span>`;
+                card.innerHTML = `
+                    <span class="attachment-option-icon">${svgIcon(icon)}</span>
+                    <span class="explore-card-copy">
+                        <strong>${escapeHtml(title)}</strong>
+                        <small>${escapeHtml(hint)}</small>
+                    </span>
+                    <span class="explore-card-arrow" aria-hidden="true">${svgIcon("chevron")}</span>
+                `;
                 card.onclick = action;
                 grid.appendChild(card);
             });
-            list.appendChild(grid);
+            list.append(heading, grid);
         }
 
         function renderVoiceRoomCard(room) {
@@ -7334,11 +7353,9 @@
         }
 
         function acceptedFriends() {
-            const filter = $("searchInput").value.trim().toLowerCase();
             return state.users
                 .filter(user => user.username !== state.me.username)
                 .filter(user => contactStatus(user.username) === "accepted")
-                .filter(user => !filter || user.displayName.toLowerCase().includes(filter) || user.username.toLowerCase().includes(filter))
                 .sort((a, b) => Number(b.online) - Number(a.online) || a.displayName.localeCompare(b.displayName, "tr"));
         }
 
@@ -7351,6 +7368,7 @@
         function startChatWithUser(user) {
             if (!user) return;
             state.activeProfileUsername = null;
+            $("app").classList.remove("profile-open");
             state.openNextChat = true;
             socket.emit("chat:create", { target: user.username });
         }
@@ -7411,45 +7429,112 @@
             ]);
         }
 
-        function appendFriendRows(friendList) {
+        function contactMatches(user, filter = "") {
+            const query = String(filter || "").trim().toLocaleLowerCase("tr-TR");
+            if (!query) return true;
+            return [user.displayName, user.username, user.about, user.temporaryStatus?.text]
+                .filter(Boolean)
+                .some(value => String(value).toLocaleLowerCase("tr-TR").includes(query));
+        }
+
+        function createContactListRow(user, options = {}) {
+            const status = contactStatus(user.username);
+            const button = document.createElement("button");
+            button.className = "contact-item contact-list-row";
+            button.type = "button";
+            button.onclick = () => openUserProfilePane(user);
+            button.classList.toggle("active", state.activeProfileUsername === user.username);
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar" + (user.online ? " online" : "");
+            setAvatar(avatar, user, user.displayName);
+
+            const body = document.createElement("div");
+            body.className = "contact-list-copy";
+            const title = document.createElement("strong");
+            title.className = "chat-title";
+            title.textContent = user.displayName;
+            const username = document.createElement("span");
+            username.className = "contact-username";
+            username.textContent = `@${user.username}`;
+            const meta = document.createElement("div");
+            meta.className = "last-message";
+            meta.textContent = options.meta || contactLine(user);
+            body.append(title, username, meta);
+
+            const side = document.createElement("span");
+            side.className = "contact-list-side";
+            if (options.request) {
+                const requestBadge = document.createElement("span");
+                requestBadge.className = "contact-relation-badge incoming";
+                requestBadge.textContent = "Yeni istek";
+                side.appendChild(requestBadge);
+            } else if (status === "accepted") {
+                const friendBadge = document.createElement("span");
+                friendBadge.className = "contact-relation-badge friend";
+                friendBadge.textContent = "Arkadaş";
+                side.appendChild(friendBadge);
+            } else if (status === "incoming") {
+                const incomingBadge = document.createElement("span");
+                incomingBadge.className = "contact-relation-badge incoming";
+                incomingBadge.textContent = "İstek";
+                side.appendChild(incomingBadge);
+            } else if (status === "outgoing") {
+                const pendingBadge = document.createElement("span");
+                pendingBadge.className = "contact-relation-badge pending";
+                pendingBadge.textContent = "Bekliyor";
+                side.appendChild(pendingBadge);
+            } else {
+                const relationBadge = document.createElement("span");
+                relationBadge.className = "contact-relation-badge";
+                relationBadge.textContent = "Kullanıcı";
+                side.appendChild(relationBadge);
+            }
+            const score = document.createElement("span");
+            score.className = "contact-score";
+            score.textContent = `${Number(user.points || 0)} puan`;
+            side.appendChild(score);
+
+            button.append(avatar, body, side);
+            return button;
+        }
+
+        function appendFriendRows(friendList, filter = "") {
             const incoming = state.contactRequests
                 .filter(item => item.status === "pending" && item.to?.username === state.me.username)
                 .map(item => item.from)
-                .filter(Boolean);
-            const friends = acceptedFriends();
+                .filter(user => user && contactMatches(user, filter));
+            const friends = acceptedFriends().filter(user => contactMatches(user, filter));
             if (incoming.length) {
                 const header = document.createElement("div");
                 header.className = "section-mini-title";
                 header.textContent = "Yeni istekler";
                 friendList.appendChild(header);
                 incoming.forEach(user => {
-                    const button = document.createElement("button");
-                    button.className = "contact-item" + (state.activeProfileUsername === user.username ? " active" : "");
-                    button.type = "button";
-                    button.onclick = () => openUserProfilePane(user);
-                    const avatar = document.createElement("div");
-                    avatar.className = "avatar" + (user.online ? " online" : "");
-                    setAvatar(avatar, user, user.displayName);
-                    const body = document.createElement("div");
-                    body.innerHTML = `<strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">Profilini incele, kabul et veya reddet.</div>`;
-                    const badge = document.createElement("span");
-                    badge.className = "badge";
-                    badge.textContent = "!";
-                    button.append(avatar, body, badge);
-                    friendList.appendChild(button);
+                    friendList.appendChild(createContactListRow(user, {
+                        request: true,
+                        meta: "Profilini incele, kabul et veya reddet."
+                    }));
                 });
             }
             if (!friends.length && !incoming.length) {
-                const empty = document.createElement("button");
-                empty.className = "contact-item";
-                empty.type = "button";
-                empty.onclick = () => {
-                    state.activeSection = "contacts";
-                    state.contactListMode = "users";
-                    renderSections();
-                    renderContacts();
-                };
-                empty.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Arkadaş ekle</strong><div class="last-message">Kişilerden istek gönder veya gelen isteği kabul et.</div></div><span></span>`;
+                const empty = document.createElement("div");
+                empty.className = "contact-empty-state";
+                if (filter) {
+                    empty.innerHTML = emptyStateMarkup("⌕", "Arkadaş bulunamadı", "Aramana uyan bir arkadaş görünmüyor.");
+                } else {
+                    empty.innerHTML = emptyStateMarkup("＋", "Henüz arkadaşın yok", "Kullanıcılar sekmesinden bir profil seçerek arkadaşlık isteği gönderebilirsin.");
+                    const action = document.createElement("button");
+                    action.className = "mini-btn primary";
+                    action.type = "button";
+                    action.textContent = "Kullanıcıları Gör";
+                    action.onclick = () => {
+                        state.contactTransition = "forward";
+                        state.contactListMode = "users";
+                        renderContacts();
+                    };
+                    empty.appendChild(action);
+                }
                 friendList.appendChild(empty);
                 return;
             }
@@ -7460,37 +7545,14 @@
                 friendList.appendChild(header);
             }
             friends.forEach(user => {
-                const button = document.createElement("button");
-                button.className = "contact-item";
-                button.type = "button";
-                button.onclick = () => openUserProfilePane(user);
-                button.classList.toggle("active", state.activeProfileUsername === user.username);
-
-                const avatar = document.createElement("div");
-                avatar.className = "avatar" + (user.online ? " online" : "");
-                setAvatar(avatar, user, user.displayName);
-
-                const body = document.createElement("div");
-                const title = document.createElement("strong");
-                title.className = "chat-title";
-                title.textContent = user.displayName;
-                const meta = document.createElement("div");
-                meta.className = "last-message";
-                meta.textContent = user.online ? "çevrim içi" : `son görülme ${relativeTime(user.lastSeen)}`;
-                body.append(title, meta);
-
-                const score = document.createElement("span");
-                score.className = "chat-time";
-                score.textContent = `${Number(user.points || 0)} puan`;
-                button.append(avatar, body, score);
-                friendList.appendChild(button);
+                friendList.appendChild(createContactListRow(user));
             });
         }
 
         function renderFriends() {
             const friendList = $("friendList");
             friendList.innerHTML = "";
-            appendFriendRows(friendList);
+            appendFriendRows(friendList, $("searchInput").value.trim());
         }
 
         function openNewChatFromFriends() {
@@ -7547,6 +7609,8 @@
                 button.className = state.contactListMode === mode ? "active" : "";
                 button.textContent = label;
                 button.onclick = () => {
+                    if (state.contactListMode === mode) return;
+                    state.contactTransition = mode === "users" ? "forward" : "backward";
                     state.contactListMode = mode;
                     renderContacts();
                 };
@@ -7556,53 +7620,79 @@
         }
 
         function renderContacts() {
-            const filter = $("searchInput").value.trim().toLowerCase();
             const contactList = $("contactList");
             contactList.innerHTML = "";
+            const header = document.createElement("div");
+            header.className = "contacts-inline-header";
+            header.innerHTML = `
+                <div class="section-inline-heading">
+                    <span>
+                        <strong>Kişiler</strong>
+                        <small>Arkadaşlarını ve NexaLine kullanıcılarını keşfet</small>
+                    </span>
+                </div>
+                <label class="chat-search-shell contact-search-shell">
+                    ${svgIcon("search")}
+                    <input id="contactSearchInput" type="search" autocomplete="off" placeholder="Arkadaşlarda ve kullanıcılarda ara">
+                </label>
+            `;
+            contactList.appendChild(header);
+            const searchInput = header.querySelector("#contactSearchInput");
+            searchInput.value = state.contactSearch;
+            searchInput.oninput = () => {
+                state.contactSearch = searchInput.value;
+                renderContacts();
+                requestAnimationFrame(() => {
+                    const nextInput = $("contactSearchInput");
+                    if (nextInput) {
+                        nextInput.focus({ preventScroll: true });
+                        nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
+                    }
+                });
+            };
+
             appendContactModeSwitcher(contactList);
+            const results = document.createElement("div");
+            results.className = `contact-results-frame mode-${state.contactTransition || "forward"}`;
+            contactList.appendChild(results);
+            const filter = state.contactSearch.trim();
+
+            if (filter) {
+                const matches = state.users
+                    .filter(user => user.username !== state.me.username && contactMatches(user, filter))
+                    .sort((a, b) => {
+                        const friendDelta = Number(contactStatus(b.username) === "accepted") - Number(contactStatus(a.username) === "accepted");
+                        return friendDelta || new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    });
+                const allHeader = document.createElement("div");
+                allHeader.className = "section-mini-title";
+                allHeader.textContent = "Arama sonuçları";
+                results.appendChild(allHeader);
+                if (!matches.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "contact-empty-state";
+                    empty.innerHTML = emptyStateMarkup("⌕", "Kullanıcı bulunamadı", "İsim veya kullanıcı adını değiştirerek tekrar ara.");
+                    results.appendChild(empty);
+                } else {
+                    matches.forEach(user => results.appendChild(createContactListRow(user)));
+                }
+                return;
+            }
+
             if (state.contactListMode === "friends") {
-                appendFriendRows(contactList);
+                appendFriendRows(results);
                 return;
             }
             const allHeader = document.createElement("div");
             allHeader.className = "section-mini-title";
             allHeader.textContent = "Tüm kullanıcılar";
-            contactList.appendChild(allHeader);
+            results.appendChild(allHeader);
 
             state.users
                 .filter(user => user.username !== state.me.username)
-                .filter(user => user.displayName.toLowerCase().includes(filter) || user.username.toLowerCase().includes(filter))
                 .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                 .forEach(user => {
-                    const button = document.createElement("button");
-                    button.className = "contact-item";
-                    button.onclick = () => handleContactAction(user);
-                    button.classList.toggle("active", state.activeProfileUsername === user.username);
-
-                    const avatar = document.createElement("div");
-                    avatar.className = "avatar" + (user.online ? " online" : "");
-                    setAvatar(avatar, user, user.displayName);
-                    avatar.onclick = event => {
-                        event.stopPropagation();
-                        showStoryForUser(user.username);
-                    };
-
-                    const body = document.createElement("div");
-                    const title = document.createElement("strong");
-                    title.className = "chat-title";
-                    title.textContent = user.displayName;
-                    const meta = document.createElement("div");
-                    meta.className = "last-message";
-                    meta.textContent = contactLine(user);
-                    body.append(title, meta);
-
-                    const status = contactStatus(user.username);
-                    const dot = document.createElement("span");
-                    dot.className = status === "incoming" || status === "accepted" ? "badge" : "online-dot" + (user.online ? " online" : "");
-                    dot.textContent = status === "incoming" ? "!" : status === "accepted" ? "Arkadaş" : "";
-
-                    button.append(avatar, body, dot);
-                    contactList.appendChild(button);
+                    results.appendChild(createContactListRow(user));
                 });
         }
 
