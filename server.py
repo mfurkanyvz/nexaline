@@ -248,6 +248,21 @@ class Story(db.Model):
     expires_at = db.Column(db.DateTime, nullable=False)
 
     user = db.relationship("User")
+    views = db.relationship("StoryView", cascade="all, delete-orphan", back_populates="story")
+
+
+class StoryView(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    story_id = db.Column(db.String(40), db.ForeignKey("story.id"), nullable=False, index=True)
+    viewer_username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
+    viewed_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    story = db.relationship("Story", back_populates="views")
+    viewer = db.relationship("User")
+
+    __table_args__ = (
+        db.UniqueConstraint("story_id", "viewer_username", name="uq_story_viewer_once"),
+    )
 
 
 class CallLog(db.Model):
@@ -995,7 +1010,7 @@ def public_users_for(viewer):
 
 
 def story_to_dict(story, viewer=None):
-    return {
+    data = {
         "id": story.id,
         "username": story.username,
         "user": public_user(story.username, viewer),
@@ -1004,13 +1019,34 @@ def story_to_dict(story, viewer=None):
         "createdAt": to_iso(story.created_at),
         "expiresAt": to_iso(story.expires_at),
     }
+    if viewer:
+        data["viewed"] = any(row.viewer_username == viewer for row in story.views)
+        if story.username == viewer:
+            data["viewCount"] = len(story.views)
+    return data
 
 
 def active_stories(viewer=None):
     now = datetime.now(timezone.utc)
+    expired_ids = [
+        row[0]
+        for row in db.session.query(Story.id).filter(Story.expires_at <= now).all()
+    ]
+    if expired_ids:
+        StoryView.query.filter(StoryView.story_id.in_(expired_ids)).delete(synchronize_session=False)
     Story.query.filter(Story.expires_at <= now).delete(synchronize_session=False)
     db.session.commit()
     stories = Story.query.filter(Story.expires_at > now).order_by(Story.created_at.desc()).all()
+    if viewer:
+        viewed_story_ids = {
+            row.story_id
+            for row in StoryView.query.filter_by(viewer_username=viewer).all()
+        }
+        stories = [
+            story
+            for story in stories
+            if story.username == viewer or story.id not in viewed_story_ids
+        ]
     return [story_to_dict(story, viewer) for story in stories]
 
 
@@ -1961,6 +1997,7 @@ def require_admin():
 
 
 def reset_all_user_data():
+    StoryView.query.delete(synchronize_session=False)
     Story.query.delete(synchronize_session=False)
     CallLog.query.delete(synchronize_session=False)
     ScheduledMessage.query.delete(synchronize_session=False)
@@ -5982,6 +6019,13 @@ def delete_account(username):
         direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
         group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
 
+        owned_story_ids = [
+            row[0]
+            for row in db.session.query(Story.id).filter_by(username=username).all()
+        ]
+        StoryView.query.filter_by(viewer_username=username).delete(synchronize_session=False)
+        if owned_story_ids:
+            StoryView.query.filter(StoryView.story_id.in_(owned_story_ids)).delete(synchronize_session=False)
         Story.query.filter_by(username=username).delete(synchronize_session=False)
         CallLog.query.filter_by(caller=username).delete(synchronize_session=False)
         Message.query.filter_by(sender=username).delete(synchronize_session=False)
@@ -6189,6 +6233,13 @@ def admin_delete_user(username):
     if not user:
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
+    owned_story_ids = [
+        row[0]
+        for row in db.session.query(Story.id).filter_by(username=user.username).all()
+    ]
+    StoryView.query.filter_by(viewer_username=user.username).delete(synchronize_session=False)
+    if owned_story_ids:
+        StoryView.query.filter(StoryView.story_id.in_(owned_story_ids)).delete(synchronize_session=False)
     Story.query.filter_by(username=user.username).delete(synchronize_session=False)
     CallLog.query.filter_by(caller=user.username).delete(synchronize_session=False)
     Message.query.filter_by(sender=user.username).delete(synchronize_session=False)
@@ -7201,6 +7252,39 @@ def handle_story_delete(data):
 
     db.session.delete(story)
     db.session.commit()
+    broadcast_stories()
+
+
+@socketio.on("story:view")
+def handle_story_view(data):
+    username = connections.get(request.sid)
+    story = db.session.get(Story, (data or {}).get("storyId"))
+
+    if (
+        not username
+        or not story
+        or story.username == username
+        or is_past(story.expires_at)
+    ):
+        return
+
+    existing = StoryView.query.filter_by(
+        story_id=story.id,
+        viewer_username=username,
+    ).first()
+    if existing:
+        emit("story:consumed", {"storyId": story.id})
+        return
+
+    db.session.add(
+        StoryView(
+            id=uuid4().hex,
+            story_id=story.id,
+            viewer_username=username,
+        )
+    )
+    db.session.commit()
+    emit("story:consumed", {"storyId": story.id})
     broadcast_stories()
 
 

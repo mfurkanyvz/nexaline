@@ -5517,13 +5517,22 @@
             add.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Durum ekle</strong><div class="last-message">Resim, video veya yazı</div></div><span class="chat-time"></span>`;
             bubbles.appendChild(add);
 
-            state.stories.forEach(story => {
+            const storiesByUser = new Map();
+            (state.stories || []).forEach(story => {
+                if (!storiesByUser.has(story.username)) {
+                    storiesByUser.set(story.username, []);
+                }
+                storiesByUser.get(story.username).push(story);
+            });
+
+            storiesByUser.forEach(userStories => {
+                const story = userStories[0];
                 const button = document.createElement("button");
                 button.className = "story-item";
-                button.onclick = () => showStory(story, state.stories.filter(item => item.username === story.username));
+                button.onclick = () => showStory(story, userStories);
 
                 const avatar = document.createElement("div");
-                avatar.className = "avatar" + (story.user.online ? " online" : "");
+                avatar.className = "avatar" + (story.user?.online ? " online" : "");
                 setAvatar(avatar, story.user, story.user.displayName);
 
                 const body = document.createElement("div");
@@ -5545,7 +5554,17 @@
             storyList.appendChild(renderUpdatesFeed());
         }
 
+        function pruneUpdatesFeed() {
+            const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+            state.updatesFeed = (state.updatesFeed || []).filter(post => {
+                const createdAt = new Date(post.createdAt || 0).getTime();
+                return Number.isFinite(createdAt) && createdAt > cutoff;
+            });
+            return state.updatesFeed;
+        }
+
         function saveUpdatesFeed() {
+            pruneUpdatesFeed();
             localStorage.setItem("nexalineUpdatesFeed", JSON.stringify((state.updatesFeed || []).slice(0, 80)));
         }
 
@@ -5605,6 +5624,7 @@
 
             const list = document.createElement("div");
             list.className = "x-feed-list";
+            pruneUpdatesFeed();
             if (!state.updatesFeed?.length) {
                 state.updatesFeed = defaultUpdatesFeed();
                 saveUpdatesFeed();
@@ -5660,6 +5680,8 @@
             avatar.className = "avatar";
             setAvatar(avatar, owner, post.displayName || owner.displayName || "NL");
             const media = post.image ? `<img class="x-feed-image" src="${escapeHtml(post.image)}" alt="Guncelleme gorseli">` : "";
+            const isOwner = post.username === state.me?.username;
+            const likeCount = isOwner ? `<span>${Number(post.likes || 0)}</span>` : "";
             row.innerHTML = `
                 <div class="x-feed-meta">
                     <div class="x-feed-avatar-slot"></div>
@@ -5671,7 +5693,7 @@
                 <p>${escapeHtml(post.body || "")}</p>
                 ${media}
                 <div class="x-actions">
-                    <button type="button" data-feed-action="like">${svgIcon("heart")} <span>${Number(post.likes || 0)}</span></button>
+                    <button type="button" data-feed-action="like" class="${post.userLiked ? "liked" : ""}" aria-label="Beğen">${svgIcon("heart")} ${likeCount}</button>
                     <button type="button" data-feed-action="reply">${svgIcon("chats")} Ozel mesaj</button>
                     <button type="button" data-feed-action="share">${svgIcon("image")} Duruma ekle</button>
                 </div>
@@ -5804,6 +5826,9 @@
                 $("storyReplyInput").onclick = event => event.stopPropagation();
             }
             $("storyPanel").classList.remove("hidden");
+            if (story.username !== state.me.username) {
+                socket.emit("story:view", { storyId: story.id });
+            }
             pushAppHistory("story");
         }
 
@@ -11690,6 +11715,13 @@
 
         socket.on("stories:update", stories => {
             state.stories = stories;
+            renderStories();
+        });
+
+        socket.on("story:consumed", data => {
+            const storyId = data?.storyId;
+            if (!storyId) return;
+            state.stories = (state.stories || []).filter(story => story.id !== storyId);
             renderStories();
         });
 
