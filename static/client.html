@@ -184,21 +184,17 @@
             <nav id="friendList" class="contact-list scroll-area hidden"></nav>
             <nav id="contactList" class="contact-list scroll-area hidden"></nav>
             <nav id="archiveList" class="chat-list hidden"></nav>
-            <button id="newChatFab" class="new-chat-fab" type="button" title="Yeni sohbet">+</button>
         </aside>
 
         <section class="chat-pane">
             <header class="chat-top">
                 <button id="backButton" class="icon-btn hidden" title="Sohbetler">←</button>
                 <div id="activeAvatar" class="avatar">NL</div>
-                <div class="identity">
+                <button id="activeIdentityButton" class="identity chat-identity-button" type="button">
                     <strong id="activeTitle">Genel Grup</strong>
                     <small id="activeStatus">hazır</small>
-                </div>
+                </button>
                 <div class="icon-row">
-                    <button class="icon-btn member-action" id="groupMembersButton" title="Üyeleri yönet">☰</button>
-                    <button class="icon-btn hidden" id="leaveGroupButton" title="Gruptan çık">⇥</button>
-                    <button class="icon-btn hidden" id="chatPrefsButton" title="Sohbet ayarları">⚙</button>
                     <button class="icon-btn" id="callButton" title="Sesli arama">☎</button>
                     <button class="icon-btn" id="videoButton" title="Görüntülü arama">▣</button>
                 </div>
@@ -1140,7 +1136,7 @@
             activeSection: "chats",
             chatListMode: "chats",
             contactListMode: "friends",
-            chatFilter: "all",
+            chatSearch: "",
             activeChatId: null,
             activeProfileUsername: null,
             callFilter: "all",
@@ -1292,9 +1288,6 @@
                 callButton: "calls",
                 videoButton: "video",
                 backButton: "back",
-                groupMembersButton: "groups",
-                leaveGroupButton: "logOut",
-                chatPrefsButton: "settings",
                 attachButton: "plus",
                 voiceButton: "mic",
                 emojiButton: "smile",
@@ -5099,12 +5092,11 @@
             ["2", ".topbar, .chat-top"],
             ["2-1", "#meAvatar, #meName, #accountSwitcherButton, #accountSwitcherMenu"],
             ["2-2", "#searchInput"],
-            ["2-3", "#settingsButton, #topSettingsButton, #chatPrefsButton"],
+            ["2-3", "#settingsButton, #topSettingsButton"],
             ["2-4", "#archiveShortcutButton, #archiveBackButton, #archiveList"],
             ["3", "#chatList"],
             ["3-1", ".filter-chip"],
             ["3-2", "#chatList .chat-item, #groupList .chat-item"],
-            ["3-3", "#newChatFab"],
             ["3-3-1", ".new-chat-sheet"],
             ["4", ".chat-pane, #messages"],
             ["4-1", ".composer"],
@@ -5405,7 +5397,6 @@
             $("archiveShortcutButton").classList.toggle("hidden", state.activeSection !== "chats");
             $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
             $("newCallHeaderButton").classList.toggle("hidden", state.activeSection !== "calls");
-            $("newChatFab").classList.toggle("hidden", state.activeSection !== "chats");
             updateNavBadges();
             updateNavIndicator();
             requestAnimationFrame(updateNavIndicator);
@@ -6039,26 +6030,24 @@
             container.appendChild(strip);
         }
 
-        function appendChatFilters(container) {
-            const filters = [
-                ["all", "Tümü"],
-                ["unread", "Okunmamış"],
-                ["channels", "Kanallar"]
-            ];
-            const row = document.createElement("div");
-            row.className = "chat-filter-row";
-            filters.forEach(([key, label]) => {
-                const button = document.createElement("button");
-                button.type = "button";
-                button.className = "filter-chip" + (state.chatFilter === key ? " active" : "");
-                button.textContent = label;
-                button.onclick = () => {
-                    state.chatFilter = key;
-                    renderChats();
-                };
-                row.appendChild(button);
-            });
-            container.appendChild(row);
+        function appendChatSearch(container) {
+            const shell = document.createElement("label");
+            shell.className = "chat-search-shell";
+            shell.innerHTML = `${svgIcon("search")}<input type="search" autocomplete="off" placeholder="${state.chatListMode === "groups" ? "Gruplarımda ara" : "Sohbetlerimde ara"}">`;
+            const input = shell.querySelector("input");
+            input.value = state.chatSearch;
+            input.oninput = () => {
+                state.chatSearch = input.value;
+                const caret = input.selectionStart;
+                renderChats();
+                requestAnimationFrame(() => {
+                    const nextInput = $("chatList")?.querySelector(".chat-search-shell input");
+                    if (!nextInput) return;
+                    nextInput.focus({ preventScroll: true });
+                    nextInput.setSelectionRange(caret, caret);
+                });
+            };
+            container.appendChild(shell);
         }
 
         function appendChatModeSwitcher(container) {
@@ -6076,26 +6065,31 @@
                 button.className = state.chatListMode === mode ? "active" : "";
                 button.textContent = label;
                 button.onclick = () => {
+                    if (state.chatListMode === mode) return;
+                    const previousMode = state.chatListMode;
                     state.chatListMode = mode;
-                    state.chatFilter = "all";
-                    renderChats();
+                    state.chatSearch = "";
+                    renderChats(previousMode === "chats" ? "forward" : "backward");
                 };
                 switcher.appendChild(button);
             });
             container.appendChild(switcher);
         }
 
-        function renderChats() {
-            const filter = $("searchInput").value.trim().toLowerCase();
+        function renderChats(direction = "") {
+            const filter = state.chatSearch.trim().toLocaleLowerCase("tr-TR");
             const chatList = $("chatList");
             chatList.innerHTML = "";
             appendOnlineStrip(chatList);
             appendChatModeSwitcher(chatList);
+            appendChatSearch(chatList);
+            const content = document.createElement("div");
+            content.className = `chat-mode-content${direction ? ` mode-${direction}` : ""}`;
+            chatList.appendChild(content);
             if (state.chatListMode === "groups") {
-                appendGroupItems(chatList, filter);
+                appendGroupItems(content, filter);
                 return;
             }
-            appendChatFilters(chatList);
 
             const aiName = aiDisplayName();
             const aiSearchText = `${aiName} nexa ai next ai yapay zeka asistan aslanım al ali ${aiLastText()}`.toLocaleLowerCase("tr-TR");
@@ -6125,12 +6119,13 @@
                 side.textContent = "AI";
 
                 button.append(avatar, body, side);
-                chatList.appendChild(button);
+                content.appendChild(button);
             }
 
-            appendLockedChatsUnlock(chatList);
+            appendLockedChatsUnlock(content);
 
-            if (state.generalGroup && !state.generalGroup.joined) {
+            const generalGroupTitle = state.generalGroup?.title || "Genel Grup";
+            if (state.generalGroup && !state.generalGroup.joined && (!filter || generalGroupTitle.toLocaleLowerCase("tr-TR").includes(filter))) {
                 const button = document.createElement("button");
                 button.className = "chat-item";
                 button.onclick = () => joinGeneralGroup(true);
@@ -6142,7 +6137,7 @@
                 const body = document.createElement("div");
                 const title = document.createElement("strong");
                 title.className = "chat-title";
-                title.textContent = state.generalGroup.title || "Genel Grup";
+                title.textContent = generalGroupTitle;
                 const last = document.createElement("div");
                 last.className = "last-message";
                 last.textContent = "Katılmak için tıkla";
@@ -6152,12 +6147,11 @@
                 count.className = "chat-time";
                 count.textContent = `${state.generalGroup.members.length} kişi`;
                 button.append(avatar, body, count);
-                chatList.appendChild(button);
+                content.appendChild(button);
             }
 
             visibleChatItems(state.chats)
-                .filter(chat => state.chatFilter === "groups" ? chat.type === "group" : state.chatFilter === "channels" ? chat.type === "channel" : chat.type !== "group")
-                .filter(chat => state.chatFilter !== "unread" || unreadCount(chat) > 0)
+                .filter(chat => chat.type !== "group")
                 .filter(chat => !otherMember(chat) || !state.blockedUsers.includes(otherMember(chat).username))
                 .filter(chat => {
                     const memberText = (chat.members || []).map(member => `${member.username || ""} ${member.displayName || ""}`).join(" ").toLowerCase();
@@ -6221,7 +6215,7 @@
                     }
 
                     button.append(avatar, body, side);
-                    chatList.appendChild(button);
+                    content.appendChild(button);
                 });
         }
 
@@ -7971,9 +7965,6 @@
             document.querySelector(".composer").classList.add("hidden");
             $("smartReplies").classList.add("hidden");
             $("backButton").classList.remove("hidden");
-            $("groupMembersButton").classList.remove("visible");
-            $("leaveGroupButton").classList.add("hidden");
-            $("chatPrefsButton").classList.add("hidden");
             $("callButton").classList.add("hidden");
             $("videoButton").classList.add("hidden");
             $("activeTitle").textContent = user.username || user.displayName;
@@ -8104,9 +8095,6 @@
                 $("activeAvatar").onclick = null;
                 $("activeTitle").onclick = null;
                 $("backButton").classList.add("hidden");
-                $("groupMembersButton").classList.remove("visible");
-                $("leaveGroupButton").classList.add("hidden");
-                $("chatPrefsButton").classList.add("hidden");
                 $("callButton").classList.add("hidden");
                 $("videoButton").classList.add("hidden");
                 messageBox.innerHTML = "";
@@ -8139,15 +8127,12 @@
             setAvatar($("activeAvatar"), aiMode ? aiContact() : chat.type === "direct" ? otherMember(chat) : chat, chat.title);
             $("activeAvatar").classList.toggle("online", aiMode || isChatOnline(chat));
             $("activeAvatar").onclick = chatSettingsHandler;
-            $("activeTitle").onclick = chatSettingsHandler;
-            $("activeStatus").onclick = chatSettingsHandler;
+            $("activeTitle").onclick = null;
+            $("activeStatus").onclick = null;
             $("activeStatus").textContent = aiMode ? (state.aiBusy ? (state.aiActivity || "düşünüyor") : "çevrimiçi • kişisel asistan") : statusText(chat);
             $("backButton").classList.remove("hidden");
             $("callButton").classList.toggle("hidden", aiMode);
             $("videoButton").classList.toggle("hidden", aiMode);
-            $("leaveGroupButton").classList.add("hidden");
-            $("chatPrefsButton").classList.remove("hidden");
-            $("groupMembersButton").classList.toggle("visible", !aiMode && chat.type === "group");
             updateAiAssistantVisibility();
             messageBox.innerHTML = "";
             messageBox.classList.remove("profile-mode");
@@ -11788,7 +11773,6 @@
         };
         $("pointsRailButton").onclick = openPointsPanel;
         $("mobileQrButton").onclick = openQrScanner;
-        $("newChatFab").onclick = openNewChatFromFriends;
         $("closeSettingsButton").onclick = closeSettings;
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
         $("settingsNotificationsTab").onclick = openNotificationPanel;
@@ -11850,10 +11834,16 @@
         $("storyButton").onclick = createStory;
         $("newGroupButton").onclick = createGroup;
         $("backButton").onclick = closeMobileChat;
-        $("chatPrefsButton").onclick = openChatPreferences;
-        $("leaveGroupButton").onclick = leaveCurrentGroup;
-        $("groupMembersButton").onclick = showActiveMembers;
-        $("activeStatus").onclick = openChatPreferences;
+        $("activeIdentityButton").onclick = () => {
+            const chat = activeChat();
+            if (!chat) return;
+            if (isAiChat(chat)) {
+                openSettings();
+                setSettingsView("ai");
+                return;
+            }
+            openChatPreferences();
+        };
         $("callButton").onclick = () => startCall(true);
         $("videoButton").onclick = () => startCall(false);
         $("acceptCallButton").onclick = acceptCall;

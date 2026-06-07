@@ -502,6 +502,22 @@ textarea {
     white-space: nowrap;
 }
 
+.chat-identity-button {
+    min-width: 0;
+    min-height: 44px;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+.chat-identity-button:active {
+    transform: none;
+    opacity: .76;
+}
+
 .mobile-brand-title {
     display: none;
     font-weight: 800;
@@ -538,6 +554,15 @@ textarea {
 .section-head {
     justify-content: space-between;
     padding: 0 15px 10px;
+}
+
+.archive-shortcut {
+    min-height: 32px;
+    padding: 6px 11px;
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.035);
+    font-size: 12px;
+    font-weight: 720;
 }
 
 .section-label {
@@ -1575,6 +1600,69 @@ button {
 
 .chat-mode-switch button.active {
     color: #fff;
+}
+
+.chat-search-shell {
+    min-height: 42px;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    margin: 0 5px 10px;
+    padding: 0 13px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.045);
+    color: rgba(255, 255, 255, 0.54);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.chat-search-shell .nexa-svg {
+    width: 18px;
+    height: 18px;
+}
+
+.chat-search-shell input {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+}
+
+.chat-search-shell input::placeholder {
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.chat-mode-content {
+    min-width: 0;
+}
+
+.chat-mode-content.mode-forward {
+    animation: chatModeForward 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.chat-mode-content.mode-backward {
+    animation: chatModeBackward 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes chatModeForward {
+    from { opacity: 0; transform: translateX(18px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes chatModeBackward {
+    from { opacity: 0; transform: translateX(-18px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.sidebar[data-active-section="chats"] > .search-box {
+    display: none;
 }
 
 .call-filter-row {
