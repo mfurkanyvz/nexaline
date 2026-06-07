@@ -90,14 +90,21 @@ POINT_RULES = {
     "quest_weekly": 120,
     "quest_special": 200,
 }
+POINT_MILESTONES = [
+    {"id": "first_light", "threshold": 2500, "title": "İlk Işık", "reward": "Başlangıç rozeti"},
+    {"id": "nexa_explorer", "threshold": 5000, "title": "Nexa Kaşifi", "reward": "Kaşif rozeti"},
+    {"id": "chat_master_level", "threshold": 15000, "title": "Sohbet Ustası", "reward": "Usta rozeti"},
+    {"id": "nexa_elite", "threshold": 50000, "title": "Nexa Eliti", "reward": "Elit profil çerçevesi"},
+    {"id": "nexa_legend", "threshold": 150000, "title": "Nexa Efsanesi", "reward": "Efsane profil çerçevesi"},
+]
 scheduled_delivery_lock = threading.Lock()
 qr_login_lock = threading.Lock()
 qr_login_sessions = {}
 voice_room_lock = threading.Lock()
 voice_rooms = {
-    "general": {"id": "general", "title": "Nexa Meydan", "topic": "Herkese acik sohbet odasi", "participants": {}},
-    "study": {"id": "study", "title": "Odak Odasi", "topic": "Sessiz calisma ve kisa molalar", "participants": {}},
-    "music": {"id": "music", "title": "Muzik Kosesi", "topic": "Sarki, sohbet ve kesif", "participants": {}},
+    "general": {"id": "general", "title": "Nexa Meydan", "topic": "Herkese açık sohbet odası", "participants": {}},
+    "study": {"id": "study", "title": "Odak Odası", "topic": "Sessiz çalışma ve kısa molalar", "participants": {}},
+    "music": {"id": "music", "title": "Müzik Köşesi", "topic": "Şarkı, sohbet ve keşif", "participants": {}},
 }
 
 
@@ -698,22 +705,38 @@ def historical_points(username):
 
 def point_level(points):
     points = max(0, int(points or 0))
-    thresholds = [0, 5000, 15000, 50000, 100000, 250000, 500000, 1000000]
-    level = 1
-    for index, threshold in enumerate(thresholds, start=1):
-        if points >= threshold:
-            level = index
-    current_floor = thresholds[level - 1]
-    next_floor = thresholds[level] if level < len(thresholds) else current_floor
+    unlocked = [item for item in POINT_MILESTONES if points >= item["threshold"]]
+    level = len(unlocked) + 1
+    current_floor = unlocked[-1]["threshold"] if unlocked else 0
+    next_milestone = next((item for item in POINT_MILESTONES if points < item["threshold"]), None)
+    next_floor = next_milestone["threshold"] if next_milestone else current_floor
     progress = 100 if next_floor == current_floor else int(((points - current_floor) / (next_floor - current_floor)) * 100)
     return {
         "level": level,
-        "title": "Efsane Üye" if level >= 8 else "Nexa Ustası" if level >= 5 else "Nexa Keşifçisi",
+        "title": unlocked[-1]["title"] if unlocked else "Yeni Üye",
         "current": points,
         "next": next_floor,
         "remaining": max(0, next_floor - points),
         "progress": max(0, min(100, progress)),
     }
+
+
+def point_milestone_badges(points, unlocked_only=False):
+    points = max(0, int(points or 0))
+    badges = []
+    for item in POINT_MILESTONES:
+        unlocked = points >= item["threshold"]
+        if unlocked_only and not unlocked:
+            continue
+        badges.append({
+            **item,
+            "current": points,
+            "target": item["threshold"],
+            "description": f"{item['threshold']:,} puana ulaş.",
+            "progress": min(100, int((points / item["threshold"]) * 100)),
+            "unlocked": unlocked,
+        })
+    return badges
 
 
 def point_ledger_to_dict(row):
@@ -977,6 +1000,7 @@ def public_user(username, viewer=None):
         "createdAt": to_iso(user.created_at) if user else now_iso(),
         "points": points,
         "pointLevel": point_level(points),
+        "pointBadges": point_milestone_badges(points, unlocked_only=True),
         "temporaryStatus": temp_status,
         "email": user.email if user and show_email else None,
         "online": online if show_online else False,
@@ -3294,41 +3318,105 @@ def local_research_answer(prompt, research):
 
 
 def local_memory_answer(prompt, context):
-    lowered = (prompt or "").casefold()
-    ascii_lowered = fold_tr_ascii(lowered)
-    robust_save_memory = any(word in ascii_lowered for word in ["hafizanda tut", "hafizana al", "hafizana kaydet", "bunu hatirla", "kaydet"])
-    robust_save_memory = robust_save_memory or (("tut" in ascii_lowered or "kaydet" in ascii_lowered or "hatirla" in ascii_lowered) and ("haf" in ascii_lowered or "favori" in ascii_lowered))
-    if robust_save_memory:
-        return "Tamam, bunu Nexa AI hafizama aldim. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacagim."
-    robust_memory_requested = any(word in ascii_lowered for word in ["onceki", "gecmis", "hatirla", "ne konustuk", "son sohbet", "eski sohbet", "hafiza", "favori"])
-    robust_memory_requested = robust_memory_requested or ("haf" in ascii_lowered and any(word in ascii_lowered for word in ["neydi", "konus", "gecmis", "onceki"]))
-    if robust_memory_requested:
-        lowered = "onceki"
-    if any(word in ascii_lowered for word in ["hafizanda tut", "hafizana al", "hafizana kaydet", "bunu hatirla", "kaydet"]):
-        return "Tamam, bunu Nexa AI hafizama aldım. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacağım."
-    memory_requested = any(word in ascii_lowered for word in ["onceki", "gecmis", "hatirla", "ne konustuk", "son sohbet", "eski sohbet", "hafiza", "favori"])
-    if memory_requested:
-        lowered = "onceki"
-    if not any(word in lowered for word in ["önceki", "onceki", "geçmiş", "gecmis", "hatırla", "hatirla", "ne konuştuk", "ne konustuk", "son sohbet"]):
+    ascii_prompt = fold_tr_ascii((prompt or "").casefold())
+    save_requested = any(
+        phrase in ascii_prompt
+        for phrase in [
+            "hafizanda tut",
+            "hafizana al",
+            "hafizana kaydet",
+            "hafizamda kalsin",
+            "bunu hatirla",
+            "bunu unutma",
+        ]
+    )
+    save_requested = save_requested or (
+        any(word in ascii_prompt for word in ["tut", "kaydet", "hatirla"])
+        and any(word in ascii_prompt for word in ["hafiza", "favori"])
+    )
+    if save_requested:
+        return "Tamam, bunu Nexa AI hafızama aldım. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacağım."
+
+    memory_requested = any(
+        phrase in ascii_prompt
+        for phrase in [
+            "onceki",
+            "gecmis",
+            "hatirla",
+            "ne konustuk",
+            "son sohbet",
+            "eski sohbet",
+            "hafiza",
+            "favori",
+            "az once",
+            "en son",
+        ]
+    )
+    if not memory_requested:
         return ""
-    lines = []
-    memory = ((context.get("memory") or {}).get("serverMemory") or []) + ((context.get("memory") or {}).get("clientHistory") or [])
-    for item in memory[-10:]:
-        role = "Sen" if item.get("role") == "user" else "Nexa AI"
-        content = item.get("content") or item.get("text") or ""
-        if content:
-            lines.append(f"{role}: {content[:180]}")
+
+    current_prompt = re.sub(r"\s+", " ", prompt or "").strip().casefold()
+    raw_memory = (
+        ((context.get("memory") or {}).get("serverMemory") or [])
+        + ((context.get("memory") or {}).get("clientHistory") or [])
+    )
+    memory = []
+    seen = set()
+    for item in raw_memory:
+        content = re.sub(r"\s+", " ", str(item.get("content") or item.get("text") or "")).strip()
+        role = item.get("role")
+        key = (role, content.casefold())
+        if role not in {"user", "assistant"} or not content or key in seen:
+            continue
+        if role == "user" and content.casefold() == current_prompt:
+            continue
+        seen.add(key)
+        memory.append({
+            "role": role,
+            "content": content,
+            "createdAt": str(item.get("createdAt") or ""),
+        })
+    memory.sort(key=lambda item: item["createdAt"])
+
+    recent_requested = any(
+        phrase in ascii_prompt
+        for phrase in ["az once", "en son", "son olarak", "bir onceki", "ne sordum", "ne yazdim"]
+    )
+    if recent_requested:
+        latest_user_index = next(
+            (index for index in range(len(memory) - 1, -1, -1) if memory[index]["role"] == "user"),
+            None,
+        )
+        if latest_user_index is not None:
+            latest_user = memory[latest_user_index]["content"][:420]
+            latest_assistant = next(
+                (
+                    item["content"][:420]
+                    for item in memory[latest_user_index + 1:]
+                    if item["role"] == "assistant"
+                ),
+                "",
+            )
+            answer = f"Az önce bana şunu yazdın: “{latest_user}”"
+            if latest_assistant:
+                answer += f"\nBen de kısaca şöyle yanıtladım: “{latest_assistant}”"
+            return answer
+
+    lines = [
+        f"{'Sen' if item['role'] == 'user' else 'Nexa AI'}: {item['content'][:220]}"
+        for item in memory[-8:]
+    ]
     for chat in (context.get("relevantChats") or [])[:3]:
         messages = chat.get("lastMessages") or []
         if messages:
             lines.append(f"{chat.get('title')} sohbetinden son notlar:")
-            for message in messages[-5:]:
+            for message in messages[-3:]:
                 body = message.get("body") or message.get("attachment") or ""
                 if body:
-                    lines.append(f"- {message.get('sender')}: {str(body)[:160]}")
+                    lines.append(f"- {message.get('sender')}: {str(body)[:180]}")
     if not lines:
         return "Hafızamda bu konuda yeterli kayıt bulamadım. Bundan sonraki Nexa AI konuşmalarını server hafızasına yazacağım."
-    return "Hafızamdan bulduklarım:\n" + "\n".join(lines[-18:])
+    return "Hafızamdan bulduğum yakın geçmiş:\n" + "\n".join(lines[-12:])
 
 
 def local_should_research(prompt):
@@ -4427,6 +4515,33 @@ class ProcessAI:
         return result, {"provider": "openai", "model": model}
 
     def correct_text(self, text_value):
+        if not os.environ.get("OPENAI_API_KEY") and not any(
+            os.environ.get(name)
+            for name in ("GEMINI_API_KEY", "VITE_GEMINI_API_KEY", "GROQ_API_KEY", "DEEPINFRA_API_KEY", "OPENROUTER_API_KEY", "OLLAMA_BASE_URL")
+        ):
+            cleaned = re.sub(r"[ \t]+", " ", text_value or "").strip()
+            replacements = {
+                r"\bherkez\b": "herkes",
+                r"\byanlız\b": "yalnız",
+                r"\bbişey\b": "bir şey",
+                r"\bbirşey\b": "bir şey",
+                r"\bdeyil\b": "değil",
+                r"\bgelicem\b": "geleceğim",
+                r"\byapıcam\b": "yapacağım",
+                r"\byazıcam\b": "yazacağım",
+            }
+            for pattern, replacement in replacements.items():
+                cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r"\s+([,.!?;:])", r"\1", cleaned)
+            cleaned = re.sub(r"([,.!?;:])([^\s])", r"\1 \2", cleaned)
+            cleaned = re.sub(
+                r"(^|[.!?]\s+)([a-zçğıöşü])",
+                lambda match: match.group(1) + match.group(2).upper(),
+                cleaned,
+            )
+            if cleaned and cleaned[-1] not in ".!?":
+                cleaned += "."
+            return cleaned, {"provider": "local-correction", "model": "nexaline-turkish-rules"}
         return self._openai_text(
             "Turkce yazim editorusun. Metnin anlamini degistirmeden imla, noktalama ve anlatim bozukluklarini duzelt. Yalnizca duzeltilmis metni dondur.",
             text_value,
@@ -4438,25 +4553,40 @@ class ProcessAI:
             or os.environ.get("GOOGLE_CLOUD_TRANSLATE_API_KEY")
             or ""
         ).strip()
-        if not key:
-            raise RuntimeError("GOOGLE_TRANSLATE_API_KEY missing")
         source = self.LANGUAGE_CODES.get(str(source_lang).strip().casefold(), str(source_lang).strip().lower())
         target = self.LANGUAGE_CODES.get(str(target_lang).strip().casefold(), str(target_lang).strip().lower()) or "tr"
-        payload = {"q": text_value[:6000], "target": target, "format": "text"}
-        if source:
-            payload["source"] = source
-        response = requests.post(
-            "https://translation.googleapis.com/language/translate/v2",
-            params={"key": key},
-            json=payload,
-            timeout=max(AI_TIMEOUT_SECONDS, 20),
-        )
-        response.raise_for_status()
-        translated = response.json().get("data", {}).get("translations", [{}])[0].get("translatedText", "")
+        if key:
+            payload = {"q": text_value[:6000], "target": target, "format": "text"}
+            if source:
+                payload["source"] = source
+            response = requests.post(
+                "https://translation.googleapis.com/language/translate/v2",
+                params={"key": key},
+                json=payload,
+                timeout=max(AI_TIMEOUT_SECONDS, 20),
+            )
+            response.raise_for_status()
+            translated = response.json().get("data", {}).get("translations", [{}])[0].get("translatedText", "")
+            provider = {"provider": "google-translate", "model": "translation-v2"}
+        else:
+            response = requests.get(
+                "https://translate.googleapis.com/translate_a/single",
+                params={
+                    "client": "gtx",
+                    "sl": source or "auto",
+                    "tl": target,
+                    "dt": "t",
+                    "q": text_value[:4500],
+                },
+                timeout=max(AI_TIMEOUT_SECONDS, 20),
+            )
+            response.raise_for_status()
+            translated = "".join(part[0] for part in (response.json()[0] or []) if part and part[0])
+            provider = {"provider": "google-translate-free", "model": "gtx"}
         translated = html.unescape(translated).strip()
         if not translated:
             raise RuntimeError("Google Translate returned empty text")
-        return translated, {"provider": "google-translate", "model": "translation-v2"}
+        return translated, provider
 
     def generate_image(self, prompt):
         model = os.environ.get("OPENAI_IMAGE_MODEL", "dall-e-3")
@@ -4673,8 +4803,13 @@ def ai_image():
             data_url, note = call_gemini_image(prompt)
             provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
         except Exception as error:
-            app.logger.info("AI image local fallback: %s", error)
-            data_url = local_generated_image_data_url(prompt, variant)
+            app.logger.info("AI image Gemini fallback: %s", error)
+            try:
+                data_url, note = call_huggingface_image(prompt)
+                provider = {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": True}
+            except Exception as error:
+                app.logger.info("AI image local fallback: %s", error)
+                data_url = local_generated_image_data_url(prompt, variant)
     mime_match = re.match(r"data:([^;]+);", data_url)
     mime_type = mime_match.group(1) if mime_match else "image/svg+xml"
     extension = "png" if mime_type == "image/png" else "jpg" if mime_type == "image/jpeg" else "svg"
@@ -5787,7 +5922,17 @@ BADGE_DEFINITIONS = [
     {"id": "voice_master", "title": "Sesli Oda Ustası", "description": "3 sesli odaya katıl.", "reward": "Sesli oda rozeti", "target": 3, "reason": "voice_room_join"},
     {"id": "community_leader", "title": "Topluluk Lideri", "description": "Bir topluluk oluştur veya 3 topluluğa katıl.", "reward": "Lider rozeti", "target": 3, "reason": "community_join"},
     {"id": "ai_friend", "title": "AI Dostu", "description": "Nexa AI ile 5 gün konuş.", "reward": "+100", "target": 5, "reason": "ai_chat"},
-    {"id": "legend", "title": "Efsane Üye", "description": "100.000 puana ulaş.", "reward": "Efsane profil çerçevesi", "target": 100000, "reason": "points"},
+    *[
+        {
+            "id": item["id"],
+            "title": item["title"],
+            "description": f"{item['threshold']:,} puana ulaş.",
+            "reward": item["reward"],
+            "target": item["threshold"],
+            "reason": "points",
+        }
+        for item in POINT_MILESTONES
+    ],
 ]
 
 
@@ -7987,18 +8132,22 @@ def handle_voice_join(data):
     username = connections.get(request.sid)
     room_id = ((data or {}).get("roomId") or "general").strip()
     if not username or room_id not in voice_rooms:
-        return
+        return {"ok": False, "message": "Sesli oda bulunamadı."}
+    previous_rooms = []
     with voice_room_lock:
         room = normalize_voice_room(voice_rooms[room_id])
         if username in (room.get("bans") or []):
             emit("notice", {"message": "Bu odadan engellendin."})
-            return
+            return {"ok": False, "message": "Bu odadan engellendin."}
         if len(room["participants"]) >= int(room.get("limit") or 50) and username not in room["participants"]:
             emit("notice", {"message": "Oda katılımcı limiti dolu."})
-            return
-        for room in voice_rooms.values():
-            room["participants"].pop(username, None)
+            return {"ok": False, "message": "Oda katılımcı limiti dolu."}
+        for existing_room_id, existing_room in voice_rooms.items():
+            if existing_room_id != room_id and username in existing_room["participants"]:
+                existing_room["participants"].pop(username, None)
+                previous_rooms.append(existing_room_id)
         room = normalize_voice_room(voice_rooms[room_id])
+        peers = [name for name in room["participants"] if name != username]
         role = "founder" if room.get("owner") == username else ("speaker" if room.get("talkMode") == "everyone" else "listener")
         room["participants"][username] = {
             "muted": False,
@@ -8007,17 +8156,32 @@ def handle_voice_join(data):
             "handRaised": False,
             "joinedAt": now_iso(),
         }
+    for previous_room_id in previous_rooms:
+        leave_room(f"voice:{previous_room_id}")
+        socketio.emit(
+            "voice:peer-left",
+            {"roomId": previous_room_id, "username": username},
+            room=f"voice:{previous_room_id}",
+        )
     join_room(f"voice:{room_id}")
     add_points_once(username, POINT_RULES["voice_room_join"], "voice_room_join", f"{datetime.now(timezone.utc).date()}:{room_id}", {"roomId": room_id})
     db.session.commit()
+    socketio.emit(
+        "voice:peer-joined",
+        {"roomId": room_id, "username": username},
+        room=f"voice:{room_id}",
+        skip_sid=request.sid,
+    )
     emit_voice_rooms()
+    return {"ok": True, "roomId": room_id, "peers": peers}
 
 
 @socketio.on("voice:leave")
 def handle_voice_leave(data=None):
     username = connections.get(request.sid)
     if not username:
-        return
+        return {"ok": False, "message": "Oturum bulunamadı."}
+    left_rooms = []
     with voice_room_lock:
         for room_id, room in voice_rooms.items():
             if username in room["participants"]:
@@ -8031,8 +8195,16 @@ def handle_voice_leave(data=None):
                     except ValueError:
                         pass
                 leave_room(f"voice:{room_id}")
+                left_rooms.append(room_id)
     db.session.commit()
+    for room_id in left_rooms:
+        socketio.emit(
+            "voice:peer-left",
+            {"roomId": room_id, "username": username},
+            room=f"voice:{room_id}",
+        )
     emit_voice_rooms()
+    return {"ok": True, "rooms": left_rooms}
 
 
 @socketio.on("voice:mute")
@@ -8040,12 +8212,14 @@ def handle_voice_mute(data):
     username = connections.get(request.sid)
     room_id = ((data or {}).get("roomId") or "").strip()
     if not username or room_id not in voice_rooms:
-        return
+        return {"ok": False, "message": "Sesli oda bulunamadı."}
+    muted = bool((data or {}).get("muted"))
     with voice_room_lock:
         participant = voice_rooms[room_id]["participants"].get(username)
         if participant is not None:
-            participant["muted"] = bool((data or {}).get("muted"))
+            participant["muted"] = muted
     emit_voice_rooms()
+    return {"ok": True, "muted": muted}
 
 
 @socketio.on("voice:speaking")
@@ -8066,11 +8240,11 @@ def handle_voice_create(data):
     username = connections.get(request.sid)
     data = data or {}
     if not username:
-        return
+        return {"ok": False, "message": "Oturum bulunamadı."}
     title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:120]
     if len(title) < 2:
         emit("notice", {"message": "Oda adı gerekli."})
-        return
+        return {"ok": False, "message": "Oda adı gerekli."}
     room_id = uuid4().hex[:12]
     with voice_room_lock:
         voice_rooms[room_id] = normalize_voice_room({
@@ -8088,7 +8262,30 @@ def handle_voice_create(data):
             "owner": username,
             "participants": {},
         })
-    handle_voice_join({"roomId": room_id})
+    result = handle_voice_join({"roomId": room_id}) or {"ok": True, "roomId": room_id, "peers": []}
+    return {**result, "created": True}
+
+
+@socketio.on("voice:signal")
+def handle_voice_signal(data):
+    username = connections.get(request.sid)
+    payload = data or {}
+    room_id = (payload.get("roomId") or "").strip()
+    target = (payload.get("to") or "").strip().lower()
+    signal = payload.get("signal")
+    if not username or room_id not in voice_rooms or not target or not isinstance(signal, dict):
+        return {"ok": False, "message": "Ses bağlantısı bilgisi eksik."}
+    with voice_room_lock:
+        room = normalize_voice_room(voice_rooms[room_id])
+        if username not in room["participants"] or target not in room["participants"]:
+            return {"ok": False, "message": "Kullanıcı sesli odada değil."}
+    for sid in connected_sids_for(target):
+        socketio.emit(
+            "voice:signal",
+            {"roomId": room_id, "from": username, "signal": signal},
+            room=sid,
+        )
+    return {"ok": True}
 
 
 @socketio.on("voice:request_speak")
@@ -8202,9 +8399,17 @@ def handle_disconnect():
     username = connections.pop(request.sid, None)
 
     if username:
+        departed_voice_rooms = []
         with voice_room_lock:
-            for room in voice_rooms.values():
-                room["participants"].pop(username, None)
+            for room_id, room in voice_rooms.items():
+                if room["participants"].pop(username, None) is not None:
+                    departed_voice_rooms.append(room_id)
+        for room_id in departed_voice_rooms:
+            socketio.emit(
+                "voice:peer-left",
+                {"roomId": room_id, "username": username},
+                room=f"voice:{room_id}",
+            )
         user = db.session.get(User, username)
         if user:
             user.last_seen = datetime.now(timezone.utc)

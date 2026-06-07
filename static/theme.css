@@ -2553,6 +2553,266 @@ button {
     animation: voice-room-spring 0.68s cubic-bezier(0.16, 1.35, 0.32, 1) both;
 }
 
+.voice-room-remote-audio {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.voice-rooms-body,
+.voice-stage {
+    display: grid;
+    gap: 10px;
+}
+
+.ai-home-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.ai-home-card,
+.voice-live-card {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid rgba(0, 242, 255, 0.12);
+    border-radius: 17px;
+    background:
+        linear-gradient(145deg, rgba(0, 242, 255, 0.06), rgba(112, 76, 255, 0.05)),
+        rgba(9, 15, 24, 0.78);
+    color: var(--text-main);
+    text-align: left;
+}
+
+.ai-home-card:hover,
+.ai-home-card:focus-visible,
+.voice-live-card:hover,
+.voice-live-card:focus-visible {
+    border-color: rgba(0, 242, 255, 0.3);
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.09);
+}
+
+.ai-home-card strong,
+.voice-live-card strong {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ai-home-card small,
+.voice-live-card small {
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+.voice-rooms-body > input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 14px;
+    background: rgba(7, 13, 22, 0.78);
+    color: var(--text-main);
+}
+
+.voice-participant-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.voice-participant {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 3px 8px;
+    padding: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.voice-participant .avatar {
+    width: 34px;
+    height: 34px;
+    grid-row: 1 / 3;
+    font-size: 10px;
+}
+
+.voice-participant > span:not(.avatar),
+.voice-participant > small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.voice-participant > small {
+    color: var(--text-muted);
+    font-size: 9px;
+}
+
+.points-panel-body {
+    display: grid;
+    gap: 14px;
+    padding-bottom: 8px;
+}
+
+.points-panel-body > h3 {
+    margin: 4px 0 0;
+    font-size: 15px;
+}
+
+.points-panel-body .profile-hero {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    gap: 13px;
+    padding: 14px;
+    border: 1px solid rgba(255, 193, 7, 0.16);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 12% 20%, rgba(255, 193, 7, 0.12), transparent 42%),
+        rgba(9, 15, 24, 0.74);
+}
+
+.points-panel-body .profile-hero .avatar {
+    width: 58px;
+    height: 58px;
+}
+
+.points-panel-body .profile-title {
+    min-width: 0;
+}
+
+.points-panel-body .profile-title h2,
+.points-panel-body .profile-title p {
+    margin: 0;
+}
+
+.points-panel-body .profile-title h2 {
+    font-size: 20px;
+}
+
+.points-panel-body .profile-title p {
+    margin-top: 5px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.points-help {
+    width: 20px;
+    height: 20px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(255, 193, 7, 0.28);
+    border-radius: 50%;
+    color: #ffe59a;
+    font-size: 11px;
+    vertical-align: 2px;
+}
+
+.points-progress {
+    width: 100%;
+    height: 6px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.points-progress > span {
+    width: var(--points-progress, 0%);
+    height: 100%;
+    display: block;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #00d8ff, #704cff 52%, #ff00b8);
+    box-shadow: 0 0 12px rgba(112, 76, 255, 0.32);
+}
+
+.points-panel-body .profile-grid,
+.points-panel-body .quest-grid,
+.points-panel-body .badge-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.points-panel-body .profile-stat,
+.points-panel-body .quest-card,
+.points-panel-body .badge-card,
+.points-panel-body .point-ledger-row {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 17px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.points-panel-body .profile-stat span,
+.points-panel-body .profile-stat small,
+.points-panel-body .quest-card small,
+.points-panel-body .badge-card small,
+.points-panel-body .point-ledger-row small {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.points-panel-body .profile-stat strong {
+    color: #ffe59a;
+    font-size: 17px;
+}
+
+.points-panel-body .quest-card,
+.points-panel-body .badge-card {
+    align-content: start;
+}
+
+.points-panel-body .badge-card.unlocked {
+    border-color: rgba(255, 193, 7, 0.28);
+    background: linear-gradient(145deg, rgba(255, 193, 7, 0.1), rgba(112, 76, 255, 0.08));
+}
+
+.points-panel-body .quest-card .mini-btn {
+    justify-self: start;
+    margin-top: 2px;
+}
+
+.points-panel-body .point-ledger-list {
+    display: grid;
+    gap: 8px;
+}
+
+.points-panel-body .point-ledger-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.points-panel-body .point-ledger-row small {
+    text-align: right;
+}
+
+@media (max-width: 430px) {
+    .points-panel-body .profile-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .points-panel-body .quest-grid,
+    .points-panel-body .badge-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @keyframes call-panel-fade {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -2665,7 +2925,6 @@ button {
     }
 
     .topbar .mobile-brand-title,
-    .topbar #pointsRailButton,
     .topbar #mobileQrButton,
     .topbar #installButton,
     .topbar #storyButton,
@@ -2674,8 +2933,35 @@ button {
         display: none;
     }
 
-    .topbar .icon-row {
+    .topbar #pointsRailButton {
+        width: auto;
+        min-width: 48px;
+        max-width: 72px;
+        height: 38px;
+        min-height: 38px;
         margin-left: auto;
+        padding: 0 9px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 193, 7, 0.25);
+        border-radius: 14px;
+        background: rgba(255, 193, 7, 0.08);
+        color: #ffe59a;
+        box-shadow: 0 0 16px rgba(255, 193, 7, 0.08);
+        white-space: nowrap;
+    }
+
+    .topbar #pointsTopLabel {
+        overflow: hidden;
+        font-size: 11px;
+        text-overflow: ellipsis;
+    }
+
+    .topbar .icon-row {
+        margin-left: 0;
         flex: 0 0 auto;
         display: flex;
     }
@@ -3180,6 +3466,13 @@ button {
     color: rgba(255, 255, 255, 0.86);
     font-size: 12px;
     line-height: 1.2;
+}
+
+.messages.profile-mode .point-badge-chip {
+    border-color: rgba(255, 193, 7, 0.34);
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.16), rgba(255, 0, 184, 0.1));
+    color: #ffe6a1;
+    box-shadow: 0 0 16px rgba(255, 193, 7, 0.08);
 }
 
 .messages.profile-mode .profile-grid {

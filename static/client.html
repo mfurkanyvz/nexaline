@@ -1151,6 +1151,12 @@
             vaultPin: "",
             vaultPinDraft: "",
             activeVoiceRoomId: "",
+            voiceAudio: {
+                stream: null,
+                peers: {},
+                pendingIce: {},
+                roomId: ""
+            },
             settingsView: "menu",
             qrLogin: { timer: null, sessionId: "", secret: "", expiresAt: null },
             qrScan: { stream: null, timer: null, busy: false },
@@ -2360,6 +2366,7 @@
             const body = $("modalBody");
             const actionBar = $("modalActions");
             body.innerHTML = "";
+            body.className = "modal-body";
             actionBar.innerHTML = "";
             buildBody(body);
             actions.forEach(action => {
@@ -4086,6 +4093,7 @@
         }
 
         function resetToAuth(message = "") {
+            resetVoiceRoomAudio();
             localStorage.removeItem("nexalineUser");
             state.me = null;
             state.users = [];
@@ -4861,7 +4869,9 @@
             $("meStatus").classList.add("hidden");
             $("pointsRailButton").title = `${Number(state.me.points || 0)} Nexa puan`;
             if ($("pointsTopLabel")) {
-                $("pointsTopLabel").textContent = `${Number(state.me.points || 0)} Puan`;
+                const points = Number(state.me.points || 0);
+                $("pointsTopLabel").textContent = window.matchMedia("(max-width: 860px)").matches ? String(points) : `${points} Puan`;
+                $("pointsRailButton").setAttribute("aria-label", `${points} Nexa puan`);
             }
             updateAiAssistantVisibility();
             updateNotificationButton();
@@ -4991,7 +5001,7 @@
                 data = null;
             }
             const points = Number(data?.points ?? state.me?.points ?? 0);
-            const level = data?.level || state.me?.pointLevel || { level: 1, title: "Nexa Keşifçisi", progress: 0, next: 5000, remaining: 5000 };
+            const level = data?.level || state.me?.pointLevel || { level: 1, title: "Yeni Üye", progress: 0, next: 2500, remaining: 2500 };
             const rules = data?.rules || {};
             const ledger = data?.ledger || state.pointLedger || [];
             const badges = data?.badges || [];
@@ -4999,12 +5009,13 @@
             const leaderboard = data?.leaderboard?.global || [];
             state.pointLedger = ledger;
             openModal("NexaPuan Merkezi", body => {
+                body.classList.add("points-panel-body");
                 body.innerHTML = `
                     <div class="profile-hero">
                         <div class="avatar">${escapeHtml(initials(state.me?.displayName || "NL"))}</div>
                         <div class="profile-title">
                             <h2>${points} puan <span class="points-help" title="Mesaj, durum, arkadaş ve giriş aktiviteleri puan kazandırır.">?</span></h2>
-                            <p>Seviye ${escapeHtml(level.level)} - ${escapeHtml(level.title || "Nexa")}. Sonraki eşik: ${escapeHtml(level.next || 5000)} puan, kalan ${escapeHtml(level.remaining || 0)}.</p>
+                            <p>Seviye ${escapeHtml(level.level)} - ${escapeHtml(level.title || "Nexa")}. Sonraki eşik: ${escapeHtml(level.next || 2500)} puan, kalan ${escapeHtml(level.remaining || 0)}.</p>
                             <div class="points-progress" style="--points-progress:${Number(level.progress || 0)}%"><span></span></div>
                         </div>
                     </div>
@@ -6614,14 +6625,11 @@
             `;
             card.querySelector('[data-voice-action="join"], [data-voice-action="leave"]').onclick = () => {
                 if (joined) {
-                    socket.emit("voice:leave", { roomId: room.id });
-                    state.activeVoiceRoomId = "";
+                    leaveVoiceRoom(room.id);
                 } else {
                     state.voiceJoinAnimationRoomId = room.id;
                     card.classList.add("voice-room-joining");
-                    socket.emit("voice:join", { roomId: room.id });
-                    state.activeVoiceRoomId = room.id;
-                    showToast(`${room.title} odasına katıldın.`);
+                    joinVoiceRoom(room.id);
                     setTimeout(() => {
                         if (state.voiceJoinAnimationRoomId === room.id) {
                             state.voiceJoinAnimationRoomId = "";
@@ -6636,7 +6644,7 @@
                     return;
                 }
                 const mine = (room.participants || []).find(user => user.username === state.me?.username);
-                socket.emit("voice:mute", { roomId: room.id, muted: !mine?.muted });
+                setVoiceRoomMuted(room.id, !mine?.muted).catch(() => showToast("Mikrofon güncellenemedi."));
             };
             card.querySelector('[data-voice-action="detail"]').onclick = () => openVoiceRoomDetail(room.id);
             return card;
@@ -6646,8 +6654,165 @@
             return state.voiceRooms.find(room => room.id === roomId) || null;
         }
 
+        async function ensureVoiceRoomStream() {
+            if (state.voiceAudio.stream?.active) {
+                return state.voiceAudio.stream;
+            }
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error("Bu tarayıcı canlı ses aktarımını desteklemiyor.");
+            }
+            state.voiceAudio.stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
+            return state.voiceAudio.stream;
+        }
+
+        function removeVoicePeer(peerUsername) {
+            const pc = state.voiceAudio.peers[peerUsername];
+            if (pc) {
+                pc.ontrack = null;
+                pc.onicecandidate = null;
+                pc.close();
+                delete state.voiceAudio.peers[peerUsername];
+            }
+            delete state.voiceAudio.pendingIce[peerUsername];
+            document.querySelector(`[data-voice-audio-peer="${CSS.escape(peerUsername)}"]`)?.remove();
+        }
+
+        function resetVoiceRoomAudio(stopStream = true) {
+            Object.keys(state.voiceAudio.peers).forEach(removeVoicePeer);
+            if (stopStream && state.voiceAudio.stream) {
+                state.voiceAudio.stream.getTracks().forEach(track => track.stop());
+                state.voiceAudio.stream = null;
+            }
+            state.voiceAudio.pendingIce = {};
+            state.voiceAudio.roomId = "";
+        }
+
+        async function flushVoiceRoomIce(peerUsername) {
+            const pc = state.voiceAudio.peers[peerUsername];
+            if (!pc?.remoteDescription) return;
+            const pending = state.voiceAudio.pendingIce[peerUsername] || [];
+            for (const candidate of pending) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (error) {
+                    console.warn("Sesli oda ICE adayı eklenemedi", error);
+                }
+            }
+            state.voiceAudio.pendingIce[peerUsername] = [];
+        }
+
+        async function createVoiceRoomPeer(peerUsername, initiator = false) {
+            if (!peerUsername || peerUsername === state.me?.username) return null;
+            let pc = state.voiceAudio.peers[peerUsername];
+            if (!pc) {
+                pc = new RTCPeerConnection(rtcConfig);
+                const stream = await ensureVoiceRoomStream();
+                stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
+                pc.onicecandidate = event => {
+                    if (event.candidate && state.voiceAudio.roomId) {
+                        socket.emit("voice:signal", {
+                            roomId: state.voiceAudio.roomId,
+                            to: peerUsername,
+                            signal: { type: "ice", candidate: event.candidate.toJSON() }
+                        });
+                    }
+                };
+                pc.ontrack = event => {
+                    let audio = document.querySelector(`[data-voice-audio-peer="${CSS.escape(peerUsername)}"]`);
+                    if (!audio) {
+                        audio = document.createElement("audio");
+                        audio.autoplay = true;
+                        audio.playsInline = true;
+                        audio.dataset.voiceAudioPeer = peerUsername;
+                        audio.className = "voice-room-remote-audio";
+                        document.body.appendChild(audio);
+                    }
+                    audio.srcObject = event.streams[0] || new MediaStream([event.track]);
+                    audio.play().catch(() => {});
+                };
+                pc.onconnectionstatechange = () => {
+                    if (["failed", "closed"].includes(pc.connectionState)) {
+                        removeVoicePeer(peerUsername);
+                    }
+                };
+                state.voiceAudio.peers[peerUsername] = pc;
+            }
+            if (initiator && pc.signalingState === "stable") {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit("voice:signal", {
+                    roomId: state.voiceAudio.roomId,
+                    to: peerUsername,
+                    signal: { type: "offer", description: pc.localDescription }
+                });
+            }
+            return pc;
+        }
+
+        async function activateVoiceRoom(roomId, peers = []) {
+            state.activeVoiceRoomId = roomId;
+            state.voiceAudio.roomId = roomId;
+            for (const peerUsername of peers) {
+                await createVoiceRoomPeer(peerUsername, true);
+            }
+        }
+
+        async function joinVoiceRoom(roomId) {
+            try {
+                await ensureVoiceRoomStream();
+            } catch (error) {
+                showToast(error.message || "Mikrofon izni alınamadı.");
+                return;
+            }
+            socket.emit("voice:join", { roomId }, async result => {
+                if (!result?.ok) {
+                    resetVoiceRoomAudio();
+                    showToast(result?.message || "Sesli odaya katılınamadı.");
+                    return;
+                }
+                try {
+                    await activateVoiceRoom(result.roomId || roomId, result.peers || []);
+                    showToast("Sesli odaya katıldın.");
+                } catch (error) {
+                    resetVoiceRoomAudio();
+                    socket.emit("voice:leave", { roomId });
+                    showToast("Canlı ses bağlantısı kurulamadı.");
+                }
+            });
+        }
+
+        function leaveVoiceRoom(roomId = state.activeVoiceRoomId) {
+            socket.emit("voice:leave", { roomId }, result => {
+                if (result && !result.ok) {
+                    showToast(result.message || "Odadan çıkılamadı.");
+                }
+            });
+            resetVoiceRoomAudio();
+            state.activeVoiceRoomId = "";
+        }
+
+        async function setVoiceRoomMuted(roomId, muted) {
+            const stream = await ensureVoiceRoomStream();
+            stream.getAudioTracks().forEach(track => {
+                track.enabled = !muted;
+            });
+            socket.emit("voice:mute", { roomId, muted }, result => {
+                if (result && !result.ok) {
+                    showToast(result.message || "Mikrofon durumu güncellenemedi.");
+                }
+            });
+        }
+
         function openVoiceRoomsHub() {
             openModal("Sesli Odalar", body => {
+                body.classList.add("voice-rooms-body");
                 const rooms = state.voiceRooms || [];
                 body.innerHTML = `
                     <div class="ai-home-grid">
@@ -6690,7 +6855,13 @@
                 `;
             }, [
                 { label: "Vazgeç", onClick: closeModal },
-                { label: "Oda Oluştur", primary: true, onClick: () => {
+                { label: "Oda Oluştur", primary: true, onClick: async () => {
+                    try {
+                        await ensureVoiceRoomStream();
+                    } catch (error) {
+                        showToast(error.message || "Mikrofon izni alınamadı.");
+                        return;
+                    }
                     socket.emit("voice:create", {
                         title: $("voiceTitleInput").value,
                         category: $("voiceCategoryInput").value || "Genel",
@@ -6701,9 +6872,16 @@
                         commentsEnabled: $("voiceCommentsInput").checked,
                         aiModeration: $("voiceAiModerationInput").checked,
                         recording: $("voiceRecordingInput").checked
+                    }, async result => {
+                        if (!result?.ok) {
+                            resetVoiceRoomAudio();
+                            showToast(result?.message || "Sesli oda oluşturulamadı.");
+                            return;
+                        }
+                        await activateVoiceRoom(result.roomId, result.peers || []);
+                        closeModal();
+                        showToast("Sesli oda oluşturuldu.");
                     });
-                    closeModal();
-                    showToast("Sesli oda oluşturuluyor.");
                 } }
             ], "sheet");
         }
@@ -6742,11 +6920,15 @@
                     </div>
                 `;
                 $("voiceJoinLeaveButton").onclick = () => {
-                    socket.emit(joined ? "voice:leave" : "voice:join", { roomId: room.id });
-                    if (!joined) state.activeVoiceRoomId = room.id;
+                    if (joined) {
+                        leaveVoiceRoom(room.id);
+                    } else {
+                        joinVoiceRoom(room.id);
+                    }
                     closeModal();
                 };
-                $("voiceMuteButton").onclick = () => socket.emit("voice:mute", { roomId: room.id, muted: !mine?.muted });
+                $("voiceMuteButton").onclick = () => setVoiceRoomMuted(room.id, !mine?.muted)
+                    .catch(() => showToast("Mikrofon güncellenemedi."));
                 $("voiceRaiseHandButton").onclick = () => socket.emit("voice:request_speak", { roomId: room.id });
                 $("voiceCommentButton").onclick = () => {
                     socket.emit("voice:comment", { roomId: room.id, body: $("voiceCommentInput").value });
@@ -8081,6 +8263,7 @@
                 blocked: "Engellendi",
                 none: "Henüz arkadaş değil"
             }[status] || "Henüz arkadaş değil";
+            const pointBadges = Array.isArray(user.pointBadges) ? user.pointBadges : [];
 
             const page = document.createElement("section");
             page.className = "profile-page";
@@ -8098,6 +8281,7 @@
                 <div class="profile-chip-row">
                     <span class="profile-chip">${escapeHtml(relationText)}</span>
                     <span class="profile-chip">${Number(user.points || 0)} puan</span>
+                    ${pointBadges.map(badge => `<span class="profile-chip point-badge-chip">★ ${escapeHtml(badge.title)}</span>`).join("")}
                     ${user.temporaryStatus?.text ? `<span class="profile-chip">${escapeHtml(user.temporaryStatus.text)}</span>` : ""}
                     <span class="profile-chip">${user.online ? "Aktif" : "Uygun değil"}</span>
                 </div>
@@ -11029,6 +11213,7 @@
 
         function logout() {
             confirmModal("Çıkış yap", "Hesaptan çıkmak istiyor musun?", () => {
+                resetVoiceRoomAudio();
                 localStorage.removeItem("nexalineUser");
                 location.reload();
             });
@@ -12355,9 +12540,50 @@
         socket.on("voice:rooms", rooms => {
             state.voiceRooms = rooms || [];
             const mineRoom = state.voiceRooms.find(room => room.participants?.some(user => user.username === state.me?.username));
+            if (state.activeVoiceRoomId && !mineRoom) {
+                resetVoiceRoomAudio();
+            }
             state.activeVoiceRoomId = mineRoom?.id || "";
             renderExplore();
             renderContacts();
+        });
+
+        socket.on("voice:peer-left", data => {
+            if (data?.roomId === state.activeVoiceRoomId && data?.username) {
+                removeVoicePeer(data.username);
+            }
+        });
+
+        socket.on("voice:signal", async data => {
+            if (!data?.from || !data?.signal || data.roomId !== state.activeVoiceRoomId) return;
+            try {
+                const pc = await createVoiceRoomPeer(data.from, false);
+                if (!pc) return;
+                if (data.signal.type === "offer") {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.signal.description));
+                    await flushVoiceRoomIce(data.from);
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    socket.emit("voice:signal", {
+                        roomId: data.roomId,
+                        to: data.from,
+                        signal: { type: "answer", description: pc.localDescription }
+                    });
+                } else if (data.signal.type === "answer") {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.signal.description));
+                    await flushVoiceRoomIce(data.from);
+                } else if (data.signal.type === "ice" && data.signal.candidate) {
+                    if (pc.remoteDescription) {
+                        await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
+                    } else {
+                        state.voiceAudio.pendingIce[data.from] ||= [];
+                        state.voiceAudio.pendingIce[data.from].push(data.signal.candidate);
+                    }
+                }
+            } catch (error) {
+                console.warn("Sesli oda bağlantısı kurulamadı", error);
+                removeVoicePeer(data.from);
+            }
         });
 
         socket.on("account:deleted", () => {
