@@ -446,7 +446,7 @@ class AppSetting(db.Model):
 
 DEFAULT_DESIGN_SETTINGS = {
     "brandName": "NexaLine",
-    "logoUrl": "/static/nexaline-mark.png",
+    "logoUrl": "/static/nexaline-mark-3d.png",
     "colors": {
         "background": "#070a0f",
         "panel": "#0f141f",
@@ -1775,8 +1775,8 @@ def push_payload_for_chat(chat_id, title, message, notification_type="message", 
         "callKind": call_kind,
         "url": target_url,
         "tag": f"{notification_type or 'message'}-{chat_id}",
-        "icon": "/static/icons/icon-192.png",
-        "badge": "/static/icons/icon-192.png",
+        "icon": "/static/icons/icon-192-3d.png",
+        "badge": "/static/icons/icon-192-3d.png",
     }
 
 

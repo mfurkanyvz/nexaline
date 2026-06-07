@@ -21,16 +21,17 @@
     <meta property="og:title" content="NexaLine - Modern Mesajlaşma ve Sosyal Sohbet Platformu">
     <meta property="og:description" content="NexaLine ile mesajlaş, sohbet et, grup kur, sesli ve görüntülü ara, durum paylaş ve Nexa AI asistanıyla iletişimini daha akıllı hale getir.">
     <meta property="og:url" content="https://nexalineapp.xyz/">
-    <meta property="og:image" content="https://nexalineapp.xyz/static/icons/icon-512.png">
+    <meta property="og:image" content="https://nexalineapp.xyz/static/icons/icon-512-3d.png">
     <meta property="og:locale" content="tr_TR">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="NexaLine - Mesajlaşma, Chat ve Sosyal İletişim">
     <meta name="twitter:description" content="Sohbet, mesajlaşma, arama, topluluk ve Nexa AI asistan özellikleriyle modern iletişim platformu.">
-    <meta name="twitter:image" content="https://nexalineapp.xyz/static/icons/icon-512.png">
+    <meta name="twitter:image" content="https://nexalineapp.xyz/static/icons/icon-512-3d.png">
     <title>NexaLine - Mesajlaşma, Chat ve Sosyal İletişim Platformu</title>
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="icon" href="/static/icons/icon-192.png">
-    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/static/icons/favicon-48-3d.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192-3d.png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon-3d.png">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -40,7 +41,7 @@
       "operatingSystem": "Web, Android, PWA",
       "url": "https://nexalineapp.xyz/",
       "description": "NexaLine; mesajlaşma, chat, sesli ve görüntülü arama, grup sohbeti, topluluk, durum paylaşımı ve Nexa AI asistan özellikleri sunan modern sosyal iletişim platformudur.",
-      "image": "https://nexalineapp.xyz/static/icons/icon-512.png",
+      "image": "https://nexalineapp.xyz/static/icons/icon-512-3d.png",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -65,7 +66,7 @@
     <div id="screenTransition" class="screen-transition hidden" aria-hidden="true">
         <div class="transition-card">
             <div class="transition-mark">
-                <img src="/static/nexaline-mark.png" alt="">
+                <img src="/static/nexaline-mark-3d.png" alt="">
             </div>
             <div class="transition-lines"><span>N</span><span>L</span></div>
             <div id="transitionText" class="transition-text">NexaLine hazırlanıyor</div>
@@ -75,7 +76,7 @@
     <main id="authScreen" class="auth-screen">
         <section class="auth-card">
             <div class="brand">
-                <div class="brand-mark"><img src="/static/nexaline-mark.png" alt="NexaLine"></div>
+                <div class="brand-mark"><img src="/static/nexaline-mark-3d.png" alt="NexaLine"></div>
                 <div>
                     <h1>NexaLine</h1>
                     <div class="brand-subtitle">Mesajlaş • Bağlan • Kazan</div>
@@ -206,13 +207,13 @@
 
             <div id="emptyChat" class="empty-chat hidden" aria-hidden="true">
                 <div class="empty-chat-inner">
-                    <img src="/static/nexaline-mark.png" alt="">
+                    <img src="/static/nexaline-mark-3d.png" alt="">
                 </div>
             </div>
 
             <div id="paneTransition" class="pane-transition hidden" aria-hidden="true">
                 <div class="pane-loader">
-                    <img src="/static/nexaline-mark.png" alt="">
+                    <img src="/static/nexaline-mark-3d.png" alt="">
                 </div>
             </div>
 
@@ -702,7 +703,7 @@
         const DEVICE_ID_KEY = "nexalineDeviceId";
         const AI_CHAT_ID = "__next_ai_chat__";
         const AI_SENDER = "__next_ai__";
-        const DEFAULT_BRAND_LOGO = "/static/nexaline-mark.png";
+        const DEFAULT_BRAND_LOGO = "/static/nexaline-mark-3d.png";
         const DEFAULT_AI_NAME = "Nexa AI";
         const DEFAULT_AI_AVATAR = DEFAULT_BRAND_LOGO;
         const MESSAGE_TONES = {
@@ -1392,7 +1393,7 @@
             if (!logoUrl) return;
             document.querySelectorAll("img").forEach(image => {
                 const current = image.getAttribute("src") || "";
-                if (current === DEFAULT_BRAND_LOGO || current.includes("nexaline-mark.png") || image.closest(".brand-mark, .empty-chat-inner, .screen-transition")) {
+                if (current === DEFAULT_BRAND_LOGO || current.includes("nexaline-mark") || image.closest(".brand-mark, .empty-chat-inner, .screen-transition")) {
                     image.src = logoUrl;
                 }
             });
@@ -1972,8 +1973,8 @@
             const options = {
                 body,
                 tag: tag || "nexaline",
-                icon: "/static/icons/icon-192.png",
-                badge: "/static/icons/icon-192.png",
+                icon: "/static/icons/icon-192-3d.png",
+                badge: "/static/icons/icon-192-3d.png",
                 data
             };
             const registration = await navigator.serviceWorker?.ready.catch(() => null);

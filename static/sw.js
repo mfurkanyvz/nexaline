@@ -1,12 +1,12 @@
-const CACHE_NAME = "nexaline-pwa-v52-original-upgrade";
+const CACHE_NAME = "nexaline-pwa-v53-3d-brand";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
-  "/static/nexaline-mark.png",
-  "/static/icons/icon-192.png",
-  "/static/icons/icon-512.png",
-  "/static/icons/maskable-512.png",
-  "/static/icons/apple-touch-icon.png"
+  "/static/nexaline-mark-3d.png",
+  "/static/icons/icon-192-3d.png",
+  "/static/icons/icon-512-3d.png",
+  "/static/icons/maskable-512-3d.png",
+  "/static/icons/apple-touch-icon-3d.png"
 ];
 const NETWORK_FIRST_PATHS = new Set([
   "/",
@@ -36,8 +36,8 @@ self.addEventListener("push", event => {
   const targetUrl = data.url || (data.chatId ? `/chat/${encodeURIComponent(data.chatId)}` : "/");
   const options = {
     body: data.message || data.body || "Yeni bildirim",
-    icon: data.icon || "/static/icons/icon-192.png",
-    badge: data.badge || "/static/icons/icon-192.png",
+    icon: data.icon || "/static/icons/icon-192-3d.png",
+    badge: data.badge || "/static/icons/icon-192-3d.png",
     tag: data.tag || `${type}-${data.chatId || Date.now()}`,
     renotify: type === "call.audio" || type === "call.video",
     requireInteraction: type === "call.audio" || type === "call.video",
