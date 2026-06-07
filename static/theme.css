@@ -2768,6 +2768,333 @@ button {
     }
 }
 
+.settings-panel.settings-closing {
+    pointer-events: none;
+    animation: settings-panel-shrink-up 0.28s cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    transform-origin: top right;
+}
+
+.settings-section {
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+}
+
+.settings-section.hidden {
+    display: none;
+}
+
+.settings-menu.hidden {
+    display: none;
+}
+
+.settings-box.settings-view-forward .settings-section:not(.hidden) {
+    animation: settings-view-forward 280ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.settings-box.settings-view-backward .settings-menu:not(.hidden) {
+    animation: settings-view-backward 280ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.settings-back {
+    justify-self: start;
+    min-height: 38px;
+    padding: 7px 12px;
+    border-color: rgba(0, 242, 255, 0.14);
+    background: rgba(0, 242, 255, 0.06);
+    color: #a9f9ff;
+}
+
+.profile-hero-card {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 15% 15%, rgba(0, 242, 255, 0.13), transparent 35%),
+        radial-gradient(circle at 85% 85%, rgba(231, 0, 255, 0.12), transparent 38%),
+        rgba(9, 15, 24, 0.72);
+}
+
+.profile-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.profile-avatar-xl {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.profile-avatar-xl .avatar {
+    width: 70px;
+    height: 70px;
+    font-size: 22px;
+    box-shadow: 0 0 0 4px rgba(0, 242, 255, 0.08), 0 0 22px rgba(231, 0, 255, 0.16);
+}
+
+.profile-camera-button {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+}
+
+.profile-hero-title {
+    min-width: 0;
+}
+
+.profile-hero-title h3 {
+    margin: 0;
+    overflow: hidden;
+    font-size: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-hero-title p {
+    margin: 5px 0 0;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.profile-metrics-grid {
+    display: grid;
+    grid-template-columns: minmax(92px, .45fr) minmax(0, 1fr);
+    gap: 9px;
+}
+
+.profile-metric,
+.profile-note-card {
+    min-width: 0;
+    min-height: 62px;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 17px;
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--text-main);
+    text-align: left;
+}
+
+.profile-metric small,
+.profile-note-card small {
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-section .settings-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 54px;
+}
+
+.settings-section .settings-row > button {
+    min-width: 0;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 242, 255, 0.14);
+    border-radius: 13px;
+    background: rgba(0, 242, 255, 0.06);
+    color: #dffcff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-section .settings-row > button:hover,
+.settings-section .settings-row > button:focus-visible {
+    border-color: rgba(0, 242, 255, 0.34);
+    background: rgba(0, 242, 255, 0.12);
+}
+
+.avatar-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.avatar-preset-card {
+    min-width: 0;
+    min-height: 66px;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 17px;
+    background: rgba(9, 15, 24, 0.68);
+    color: var(--text-main);
+    text-align: left;
+}
+
+.avatar-preset-card.active {
+    border-color: rgba(0, 242, 255, 0.3);
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.1);
+}
+
+.avatar-mini-preview {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 13px;
+    background: var(--avatar-gradient);
+    color: #fff;
+    font-weight: 800;
+}
+
+.avatar-preset-card > span:last-child {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.avatar-preset-card strong,
+.avatar-preset-card small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.avatar-preset-card small {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.settings-section > input,
+.settings-section > textarea,
+.settings-section > select,
+.settings-section .privacy-scope-card select {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 15px;
+    background: rgba(8, 14, 24, 0.76);
+    color: var(--text-main);
+}
+
+.privacy-grid,
+.privacy-scope-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.privacy-scope-card {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background: rgba(9, 15, 24, 0.68);
+}
+
+.privacy-scope-card small {
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.toggle-row {
+    min-width: 0;
+    min-height: 52px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 17px;
+    background: rgba(9, 15, 24, 0.66);
+}
+
+.toggle-row > span {
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.toggle-row input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 42px;
+    height: 24px;
+    min-height: 24px;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid rgba(255, 88, 103, 0.46);
+    border-radius: 999px;
+    outline: 0;
+    background: rgba(255, 68, 92, 0.24);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+}
+
+.toggle-row input[type="checkbox"]::after {
+    content: "";
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.34);
+    transition: transform 180ms ease;
+}
+
+.toggle-row input[type="checkbox"]:checked {
+    border-color: rgba(57, 255, 20, 0.52);
+    background: rgba(57, 255, 20, 0.34);
+    box-shadow: 0 0 15px rgba(57, 255, 20, 0.13);
+}
+
+.toggle-row input[type="checkbox"]:checked::after {
+    transform: translateX(18px);
+}
+
+.password-rule-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.password-rule-list span {
+    padding: 5px 8px;
+    border: 1px solid rgba(0, 242, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(0, 242, 255, 0.06);
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 10px;
+}
+
+@media (max-width: 640px) {
+    .settings-section {
+        padding:
+            12px
+            calc(12px + var(--safe-right))
+            calc(24px + var(--safe-bottom))
+            calc(12px + var(--safe-left));
+    }
+
+    .privacy-grid,
+    .privacy-scope-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .messages.profile-mode {
     overflow-y: auto;
     padding: 14px 14px calc(96px + var(--safe-bottom));
@@ -3243,5 +3570,38 @@ button {
     to {
         opacity: 1;
         transform: translate(0, 0) scale(1);
+    }
+}
+
+@keyframes settings-panel-shrink-up {
+    from {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(12px, -18px) scale(0.82);
+    }
+}
+
+@keyframes settings-view-forward {
+    from {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes settings-view-backward {
+    from {
+        opacity: 0;
+        transform: translateX(-22px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
     }
 }

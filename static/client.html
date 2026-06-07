@@ -316,11 +316,6 @@
                     <span><strong>Nexa AI</strong><small class="last-message">Asistan adı, fotoğrafı, sansür ve yetki</small></span>
                     <span>›</span>
                 </button>
-                <button id="settingsPointsTab" class="settings-option" type="button">
-                    <span class="option-icon">★</span>
-                    <span><strong>NexaPuan</strong><small class="last-message">Seviye, ödüller ve puan hareketleri</small></span>
-                    <span>›</span>
-                </button>
                 <button id="settingsVaultTab" class="settings-option" type="button">
                     <span class="option-icon">▣</span>
                     <span><strong>Gizli Kasa</strong><small class="last-message">4 haneli PIN ile korunan notlar</small></span>
@@ -382,6 +377,7 @@
                     <button id="removeProfileImageButton" type="button">Fotoğrafı Sil</button>
                 </div>
                 <input id="displayNameInput" placeholder="İsim soyisim">
+                <input id="profileUsernameInput" maxlength="30" autocomplete="username" placeholder="Kullanıcı adı">
                 <input id="avatarTextInput" maxlength="5" placeholder="Avatar harfi veya kısa logo yazısı">
                 <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
                 <div id="avatarPresetGrid" class="avatar-preset-grid"></div>
@@ -10395,9 +10391,10 @@
         function renderProfileSettingsHero() {
             if (!$("settingsProfileName")) return;
             const displayName = $("displayNameInput")?.value.trim() || state.me?.displayName || "NexaLine";
+            const username = $("profileUsernameInput")?.value.trim().toLocaleLowerCase("tr-TR") || state.me?.username || "nexaline";
             const avatarValue = $("avatarTextInput")?.value.trim() || state.me?.avatar || initials(displayName);
             $("settingsProfileName").textContent = displayName;
-            $("settingsProfileMeta").textContent = `@${state.me?.username || "nexaline"} • ${state.me?.emailVerified ? "Gmail doğrulandı" : "Gmail bekliyor"}`;
+            $("settingsProfileMeta").textContent = `@${username} • ${state.me?.emailVerified ? "Gmail doğrulandı" : "Gmail bekliyor"}`;
             $("settingsProfilePoints").textContent = `${state.me?.points || 0} puan`;
             $("settingsProfileAboutText").textContent = $("aboutInput")?.value.trim() || state.me?.about || "NexaLine kullanıyorum.";
             setAvatar($("settingsAvatar"), {
@@ -10430,8 +10427,10 @@
 
         function openSettings() {
             ensureSettingsExtras();
+            $("settingsPanel").classList.remove("settings-closing");
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
+            $("profileUsernameInput").value = state.me.username || "";
             $("avatarTextInput").value = state.me.avatar || initials(state.me.displayName || state.me.username || "NexaLine").slice(0, 5);
             $("aboutInput").value = state.me.about || "";
             $("temporaryStatusInput").value = state.me.temporaryStatus?.text || "";
@@ -10469,7 +10468,13 @@
         }
 
         function closeSettings() {
-            $("settingsPanel").classList.add("hidden");
+            const panel = $("settingsPanel");
+            if (panel.classList.contains("hidden") || panel.classList.contains("settings-closing")) return;
+            panel.classList.add("settings-closing");
+            setTimeout(() => {
+                panel.classList.add("hidden");
+                panel.classList.remove("settings-closing");
+            }, 280);
         }
 
         async function openBlockedSettings() {
@@ -10506,7 +10511,10 @@
         }
 
         function setSettingsView(view) {
+            const previousView = state.settingsView;
             state.settingsView = view;
+            const settingsBox = $("settingsPanel").querySelector(".settings-box");
+            settingsBox.classList.remove("settings-view-forward", "settings-view-backward");
             $("settingsMenu").classList.toggle("hidden", view !== "menu");
             $("settingsProfileSection").classList.toggle("hidden", view !== "profile");
             $("settingsPrivacySection").classList.toggle("hidden", view !== "privacy");
@@ -10527,7 +10535,11 @@
                                 : view === "device"
                                     ? "QR cihaz bağlantısı"
                                     : "Hesap işlemleri";
-            $("settingsPanel").querySelector(".settings-box").scrollTop = 0;
+            settingsBox.scrollTop = 0;
+            if (previousView !== view) {
+                void settingsBox.offsetWidth;
+                settingsBox.classList.add(view === "menu" ? "settings-view-backward" : "settings-view-forward");
+            }
             if (view === "device") {
                 loadDevices();
             }
@@ -10712,26 +10724,50 @@
         }
 
         async function saveProfile() {
-            const response = await fetch(`/account/${state.me.username}/profile`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    displayName: $("displayNameInput").value.trim(),
-                    about: $("aboutInput").value.trim(),
-                    avatar: $("avatarTextInput").value.trim(),
-                    profileImage: state.profileImageDraft
-                })
-            });
-            const data = await response.json();
-            if (!data.ok) {
-                showToast(data.message);
-                return;
+            const requestedUsername = $("profileUsernameInput").value.trim().toLocaleLowerCase("tr-TR");
+            try {
+                if (requestedUsername && requestedUsername !== state.me.username) {
+                    const renameResponse = await fetch(`/account/${encodeURIComponent(state.me.username)}/username`, {
+                        method: "POST",
+                        headers: authHeaders(),
+                        body: JSON.stringify({ newUsername: requestedUsername })
+                    });
+                    const renameData = await renameResponse.json();
+                    if (!renameData.ok) {
+                        showToast(renameData.message || "Kullanıcı adı değiştirilemedi.");
+                        return;
+                    }
+                    state.me = renameData.user;
+                    localStorage.setItem("nexalineUser", state.me.username);
+                    rememberAccount(state.me);
+                    joinRealtime();
+                }
+
+                const response = await fetch(`/account/${encodeURIComponent(state.me.username)}/profile`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        displayName: $("displayNameInput").value.trim(),
+                        about: $("aboutInput").value.trim(),
+                        avatar: $("avatarTextInput").value.trim(),
+                        profileImage: state.profileImageDraft
+                    })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    showToast(data.message || "Profil güncellenemedi.");
+                    return;
+                }
+                state.me = data.user;
+                localStorage.setItem("nexalineUser", data.user.username);
+                renderProfile();
+                renderProfileSettingsHero();
+                await loadBootstrap();
+                setSettingsView("profile");
+                showToast("Profil güncellendi.");
+            } catch (_error) {
+                showToast("Profil sunucusuna ulaşılamadı.");
             }
-            state.me = data.user;
-            localStorage.setItem("nexalineUser", data.user.username);
-            renderProfile();
-            openSettings();
-            showToast("Profil güncellendi.");
         }
 
         async function saveTemporaryStatus() {
@@ -10918,10 +10954,23 @@
 
         async function changeAccountPassword() {
             openModal("Şifre değiştir", body => {
-                body.innerHTML = `<input id="currentPasswordInput" type="password" placeholder="Mevcut şifre"><input id="newPasswordInput" type="password" placeholder="Yeni güçlü şifre">`;
+                body.innerHTML = `
+                    <input id="currentPasswordInput" type="password" autocomplete="current-password" placeholder="Mevcut şifre">
+                    <input id="newPasswordInput" type="password" autocomplete="new-password" placeholder="Yeni güçlü şifre">
+                    <input id="confirmNewPasswordInput" type="password" autocomplete="new-password" placeholder="Yeni şifre tekrar">
+                    <div class="password-rule-list">
+                        <span>En az 5 karakter</span>
+                        <span>Büyük ve küçük harf</span>
+                        <span>En az bir simge</span>
+                    </div>
+                `;
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Değiştir", primary: true, onClick: async () => {
+                    if ($("newPasswordInput").value !== $("confirmNewPasswordInput").value) {
+                        showToast("Yeni şifreler birbiriyle aynı değil.");
+                        return;
+                    }
                     const response = await fetch(`/account/${state.me.username}/password`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -11964,13 +12013,17 @@
         $("pointsRailButton").onclick = openPointsPanel;
         $("mobileQrButton").onclick = openQrScanner;
         $("closeSettingsButton").onclick = closeSettings;
+        $("settingsPanel").onclick = event => {
+            if (event.target === $("settingsPanel")) {
+                closeSettings();
+            }
+        };
         $("settingsProfileTab").onclick = () => setSettingsView("profile");
         $("settingsNotificationsTab").onclick = openNotificationPanel;
         $("settingsPrivacyTab").onclick = () => setSettingsView("privacy");
         $("settingsBlockedTab").onclick = openBlockedSettings;
         $("settingsAppearanceTab").onclick = () => setSettingsView("appearance");
         $("settingsAiTab").onclick = () => setSettingsView("ai");
-        $("settingsPointsTab").onclick = openPointsPanel;
         $("settingsVaultTab").onclick = openVaultPanel;
         $("settingsNearbyTab").onclick = openNearbyPanel;
         $("settingsDeviceTab").onclick = () => setSettingsView("device");
@@ -11984,6 +12037,7 @@
         $("profileImageButton").onclick = chooseProfileImage;
         $("profileHeroPhotoButton").onclick = chooseProfileImage;
         $("displayNameInput").oninput = renderProfileSettingsHero;
+        $("profileUsernameInput").oninput = renderProfileSettingsHero;
         $("avatarTextInput").oninput = renderProfileSettingsHero;
         $("aboutInput").oninput = renderProfileSettingsHero;
         $("profileAboutShortcut").onclick = () => $("aboutInput").focus();

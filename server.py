@@ -5586,6 +5586,124 @@ def update_profile(username):
     return jsonify({"ok": True, "message": "Profil güncellendi.", "user": private_user(username)})
 
 
+def replace_username_in_json(value, old_username, new_username):
+    if isinstance(value, str):
+        return new_username if value == old_username else value
+    if isinstance(value, list):
+        return [replace_username_in_json(item, old_username, new_username) for item in value]
+    if isinstance(value, dict):
+        return {
+            (new_username if key == old_username else key): replace_username_in_json(item, old_username, new_username)
+            for key, item in value.items()
+        }
+    return value
+
+
+@app.route("/account/<username>/username", methods=["POST"])
+def change_username(username):
+    data = request.get_json() or {}
+    old_username = username.strip().lower()
+    new_username = (data.get("newUsername") or "").strip().lower()
+    user = db.session.get(User, old_username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    problem = username_error(new_username)
+    if problem:
+        return jsonify({"ok": False, "message": problem}), 400
+    if new_username == old_username:
+        return jsonify({"ok": True, "message": "Kullanıcı adı zaten güncel.", "user": private_user(old_username)})
+    if db.session.get(User, new_username):
+        return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kullanılıyor."}), 409
+
+    try:
+        user_values = {
+            column.name: getattr(user, column.name)
+            for column in User.__table__.columns
+            if column.name != "username"
+        }
+        db.session.add(User(username=new_username, **user_values))
+        db.session.flush()
+
+        username_columns = [
+            (DeviceSession, DeviceSession.username),
+            (PushSubscription, PushSubscription.username),
+            (ChatMember, ChatMember.username),
+            (Message, Message.sender),
+            (Message, Message.deleted_by),
+            (ScheduledMessage, ScheduledMessage.sender),
+            (Story, Story.username),
+            (StoryView, StoryView.viewer_username),
+            (UpdatePost, UpdatePost.username),
+            (CallLog, CallLog.caller),
+            (EmailVerification, EmailVerification.username),
+            (SupportRequest, SupportRequest.username),
+            (BlockedUser, BlockedUser.blocker),
+            (BlockedUser, BlockedUser.blocked),
+            (ContactRequest, ContactRequest.from_username),
+            (ContactRequest, ContactRequest.to_username),
+            (GroupInvite, GroupInvite.inviter),
+            (GroupInvite, GroupInvite.invitee),
+            (HiddenChat, HiddenChat.username),
+            (ChatArchive, ChatArchive.username),
+            (PointLedger, PointLedger.username),
+            (AiTask, AiTask.username),
+            (AiMemory, AiMemory.username),
+            (Community, Community.owner),
+            (CommunityMember, CommunityMember.username),
+            (CommunityAnnouncement, CommunityAnnouncement.author),
+            (VaultItem, VaultItem.username),
+        ]
+        for model, column in username_columns:
+            model.query.filter(column == old_username).update({column: new_username}, synchronize_session=False)
+
+        json_columns = [
+            (Message, ("attachment", "reply_to", "read_by", "reactions", "versions", "deleted_for")),
+            (ScheduledMessage, ("attachment", "reply_to")),
+            (Story, ("attachment",)),
+            (UpdatePost, ("media", "liked_by")),
+            (ChatArchive, ("messages",)),
+            (PointLedger, ("meta",)),
+            (AiMemory, ("meta",)),
+            (VaultItem, ("payload",)),
+        ]
+        for model, fields in json_columns:
+            for row in model.query.all():
+                changed = False
+                for field in fields:
+                    current = getattr(row, field)
+                    updated = replace_username_in_json(current, old_username, new_username)
+                    if updated != current:
+                        setattr(row, field, updated)
+                        changed = True
+                if changed:
+                    db.session.add(row)
+
+        Chat.query.filter(Chat.title == old_username).update({Chat.title: new_username}, synchronize_session=False)
+        db.session.delete(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Kullanıcı adı değiştirilemedi")
+        return jsonify({"ok": False, "message": "Kullanıcı adı güncellenirken bağlı kayıtlar taşınamadı."}), 500
+
+    for sid, connected_username in list(connections.items()):
+        if connected_username == old_username:
+            connections[sid] = new_username
+    for users in typing_users.values():
+        if old_username in users:
+            users.discard(old_username)
+            users.add(new_username)
+
+    db.session.expire_all()
+    broadcast_presence()
+    return jsonify({
+        "ok": True,
+        "message": "Kullanıcı adı güncellendi.",
+        "user": private_user(new_username),
+    })
+
+
 @app.route("/account/<username>/privacy", methods=["POST"])
 def update_privacy(username):
     data = request.get_json() or {}
