@@ -2192,6 +2192,15 @@ button {
     color: #ff8b9a;
 }
 
+.settings-option.danger-option {
+    border-color: rgba(255, 68, 92, 0.16);
+}
+
+.settings-option.danger-option .option-icon,
+.settings-option.danger-option strong {
+    color: #ff8b9a;
+}
+
 @keyframes settings-panel-grow-down {
     from {
         opacity: 0;
