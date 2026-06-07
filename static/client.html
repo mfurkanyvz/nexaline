@@ -10560,7 +10560,10 @@
         }
 
         function initials(text) {
-            return text
+            const value = text && typeof text === "object"
+                ? text.displayName || text.title || text.username || "NL"
+                : text;
+            return String(value || "NL")
                 .split(/\s+/)
                 .filter(Boolean)
                 .slice(0, 2)
