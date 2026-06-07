@@ -1109,6 +1109,7 @@
             paneTransitionTimer: null,
             paneTransitionHideTimer: null,
             activeSection: "chats",
+            chatListMode: "chats",
             chatFilter: "all",
             activeChatId: null,
             activeProfileUsername: null,
@@ -5908,7 +5909,6 @@
             const filters = [
                 ["all", "Tümü"],
                 ["unread", "Okunmamış"],
-                ["groups", "Gruplar"],
                 ["channels", "Kanallar"]
             ];
             const row = document.createElement("div");
@@ -5927,11 +5927,40 @@
             container.appendChild(row);
         }
 
+        function appendChatModeSwitcher(container) {
+            const switcher = document.createElement("div");
+            switcher.className = `chat-mode-switch ${state.chatListMode === "groups" ? "groups-active" : ""}`;
+            switcher.setAttribute("role", "tablist");
+            [
+                ["chats", "Sohbetlerim"],
+                ["groups", "Gruplarım"]
+            ].forEach(([mode, label]) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.setAttribute("role", "tab");
+                button.setAttribute("aria-selected", String(state.chatListMode === mode));
+                button.className = state.chatListMode === mode ? "active" : "";
+                button.textContent = label;
+                button.onclick = () => {
+                    state.chatListMode = mode;
+                    state.chatFilter = "all";
+                    renderChats();
+                };
+                switcher.appendChild(button);
+            });
+            container.appendChild(switcher);
+        }
+
         function renderChats() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const chatList = $("chatList");
             chatList.innerHTML = "";
             appendOnlineStrip(chatList);
+            appendChatModeSwitcher(chatList);
+            if (state.chatListMode === "groups") {
+                appendGroupItems(chatList, filter);
+                return;
+            }
             appendChatFilters(chatList);
 
             const aiName = aiDisplayName();
@@ -6072,10 +6101,7 @@
             `;
         }
 
-        function renderGroups() {
-            const filter = $("searchInput").value.trim().toLowerCase();
-            const groupList = $("groupList");
-            groupList.innerHTML = "";
+        function appendGroupItems(groupList, filter) {
             appendLockedChatsUnlock(groupList);
 
             const create = document.createElement("button");
@@ -6177,6 +6203,13 @@
                     button.append(avatar, body, side);
                     groupList.appendChild(button);
                 });
+        }
+
+        function renderGroups() {
+            const filter = $("searchInput").value.trim().toLowerCase();
+            const groupList = $("groupList");
+            groupList.innerHTML = "";
+            appendGroupItems(groupList, filter);
         }
 
         function callLogType(log) {
