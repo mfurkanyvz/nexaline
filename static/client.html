@@ -1110,6 +1110,7 @@
             paneTransitionHideTimer: null,
             activeSection: "chats",
             chatListMode: "chats",
+            contactListMode: "friends",
             chatFilter: "all",
             activeChatId: null,
             activeProfileUsername: null,
@@ -7212,9 +7213,7 @@
             ]);
         }
 
-        function renderFriends() {
-            const friendList = $("friendList");
-            friendList.innerHTML = "";
+        function appendFriendRows(friendList) {
             const incoming = state.contactRequests
                 .filter(item => item.status === "pending" && item.to?.username === state.me.username)
                 .map(item => item.from)
@@ -7248,6 +7247,7 @@
                 empty.type = "button";
                 empty.onclick = () => {
                     state.activeSection = "contacts";
+                    state.contactListMode = "users";
                     renderSections();
                     renderContacts();
                 };
@@ -7289,6 +7289,12 @@
             });
         }
 
+        function renderFriends() {
+            const friendList = $("friendList");
+            friendList.innerHTML = "";
+            appendFriendRows(friendList);
+        }
+
         function openNewChatFromFriends() {
             const friends = acceptedFriends();
             openModal("Yeni sohbet", body => {
@@ -7328,10 +7334,38 @@
             ]);
         }
 
+        function appendContactModeSwitcher(container) {
+            const switcher = document.createElement("div");
+            switcher.className = `chat-mode-switch contact-mode-switch ${state.contactListMode === "users" ? "groups-active" : ""}`;
+            switcher.setAttribute("role", "tablist");
+            [
+                ["friends", "Arkadaşlarım"],
+                ["users", "Kullanıcılar"]
+            ].forEach(([mode, label]) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.setAttribute("role", "tab");
+                button.setAttribute("aria-selected", String(state.contactListMode === mode));
+                button.className = state.contactListMode === mode ? "active" : "";
+                button.textContent = label;
+                button.onclick = () => {
+                    state.contactListMode = mode;
+                    renderContacts();
+                };
+                switcher.appendChild(button);
+            });
+            container.appendChild(switcher);
+        }
+
         function renderContacts() {
             const filter = $("searchInput").value.trim().toLowerCase();
             const contactList = $("contactList");
             contactList.innerHTML = "";
+            appendContactModeSwitcher(contactList);
+            if (state.contactListMode === "friends") {
+                appendFriendRows(contactList);
+                return;
+            }
             const allHeader = document.createElement("div");
             allHeader.className = "section-mini-title";
             allHeader.textContent = "Tüm kullanıcılar";
@@ -7372,17 +7406,6 @@
                     button.append(avatar, body, dot);
                     contactList.appendChild(button);
                 });
-
-            const activeRooms = (state.voiceRooms || [])
-                .filter(room => Number(room.count || 0) > 0 || room.participants?.length)
-                .slice(0, 6);
-            if (activeRooms.length) {
-                const roomHeader = document.createElement("div");
-                roomHeader.className = "section-mini-title voice-room-section-title";
-                roomHeader.textContent = "Aktif Odalar";
-                contactList.appendChild(roomHeader);
-                activeRooms.forEach(room => contactList.appendChild(renderVoiceRoomCard(room)));
-            }
         }
 
         function contactLine(user) {
@@ -7889,7 +7912,7 @@
             $("videoButton").classList.toggle("hidden", aiMode);
             $("leaveGroupButton").classList.add("hidden");
             $("chatPrefsButton").classList.remove("hidden");
-            $("groupMembersButton").classList.remove("visible");
+            $("groupMembersButton").classList.toggle("visible", !aiMode && chat.type === "group");
             updateAiAssistantVisibility();
             messageBox.innerHTML = "";
             messageBox.classList.remove("profile-mode");
