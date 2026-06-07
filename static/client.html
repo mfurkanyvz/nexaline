@@ -588,6 +588,9 @@
                 <video id="remoteVideo" autoplay playsinline></video>
                 <video id="localVideo" autoplay playsinline muted></video>
                 <div id="callCover" class="call-cover">
+                    <div id="callWaveform" class="call-waveform" aria-hidden="true">
+                        <span></span><span></span><span></span>
+                    </div>
                     <div id="callAvatar" class="avatar">N</div>
                     <strong id="callPeerName">NexaLine</strong>
                     <span id="callPeerMeta">bağlanıyor</span>
@@ -612,7 +615,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-06-original-upgrade-v3";
+        const NEXALINE_CLIENT_BUILD = "2026-06-07-ai-call-voice-v4";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1078,11 +1081,14 @@
             devices: [],
             pointLedger: [],
             voiceRooms: [],
+            voiceJoinAnimationRoomId: "",
             communities: [],
             aiTasks: [],
             nearbyUsers: [],
             deferredInstallPrompt: null,
             notificationReady: false,
+            offlineMode: !navigator.onLine,
+            lastBackgroundSyncAt: null,
             notifications: readStoredJson(NOTIFICATION_LOG_KEY, []),
             notificationMuteUntil: localStorage.getItem(NOTIFICATION_MUTE_KEY) || "",
             theme: localStorage.getItem(THEME_KEY) || "dark",
@@ -1155,6 +1161,9 @@
                 startedAt: null,
                 ringtoneTimer: null,
                 timer: null,
+                audioContext: null,
+                analyser: null,
+                waveformFrame: 0,
                 peerName: "",
                 peerImage: "",
                 cameraFacing: "user"
@@ -1255,6 +1264,11 @@
                 sendButton: "send",
                 gifInlineButton: "gif",
                 cancelVoiceButton: "x",
+                acceptCallButton: "calls",
+                muteButton: "mic",
+                cameraButton: "video",
+                switchCameraButton: "camera",
+                endCallButton: "x",
                 modalCloseButton: "x",
                 closeSettingsButton: "x",
                 aiCloseButton: "x",
@@ -1820,6 +1834,71 @@
                 text.textContent = message;
                 body.appendChild(text);
             }, [{ label: "Tamam", primary: true, onClick: closeModal }]);
+        }
+
+        function offlineBootstrapKey(username = state.me?.username) {
+            return username ? `nexalineOfflineBootstrap:${username}` : "";
+        }
+
+        function cacheBootstrapState(data) {
+            const key = offlineBootstrapKey(data?.user?.username);
+            if (!key || !data?.ok) return;
+            try {
+                const compact = {
+                    ...data,
+                    cachedAt: new Date().toISOString(),
+                    chats: (data.chats || []).map(chat => ({
+                        ...chat,
+                        messages: (chat.messages || []).slice(-35)
+                    }))
+                };
+                localStorage.setItem(key, JSON.stringify(compact));
+            } catch (error) {
+                console.warn("Offline veri onbellegi yazilamadi", error);
+            }
+        }
+
+        function restoreOfflineBootstrap() {
+            const key = offlineBootstrapKey();
+            const cached = key ? readStoredJson(key, null) : null;
+            if (!cached?.user) return false;
+            const currentChatId = state.activeChatId;
+            state.me = cached.user;
+            state.users = cached.users || [];
+            state.chats = cached.chats || [];
+            state.generalGroup = cached.generalGroup || null;
+            state.stories = cached.stories || [];
+            state.callLogs = cached.callLogs || [];
+            state.scheduledMessages = cached.scheduledMessages || [];
+            hydrateRealtimeState(cached);
+            applyPushDeepLink(currentChatId);
+            state.bootReady = true;
+            state.offlineMode = true;
+            render();
+            hideScreenTransition();
+            showToast("Cevrimdisi mod: son kaydedilen veriler gosteriliyor.");
+            return true;
+        }
+
+        async function checkPermission({ requestIfNeeded = false } = {}) {
+            if (window.NexaLineNative?.canNotify?.()) {
+                state.notificationReady = true;
+                return true;
+            }
+            if (!("Notification" in window)) {
+                state.notificationReady = false;
+                return false;
+            }
+            if (Notification.permission === "granted") {
+                state.notificationReady = true;
+                return true;
+            }
+            state.notificationReady = false;
+            if (Notification.permission === "denied") {
+                showPushPermissionNotice();
+                return false;
+            }
+            return requestIfNeeded ? requestNotificationPermission() : false;
         }
 
         async function requestNotificationPermission() {
@@ -4568,6 +4647,7 @@
             applyUserPreferences();
             loadAiSettings();
             startAiPlanReminderEngine();
+            checkPermission().catch(() => {});
             showScreenTransition("NexaLine açılıyor", 0);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
@@ -4602,6 +4682,10 @@
                 });
                 data = await response.json();
             } catch (error) {
+                if (!state.bootReady && restoreOfflineBootstrap()) {
+                    state.bootstrapLoading = false;
+                    return;
+                }
                 if (!state.bootReady) {
                     hideScreenTransition();
                     $("authStatus").textContent = "Sunucuya bağlanılamadı. Birazdan tekrar dene.";
@@ -4611,6 +4695,8 @@
             }
 
             if (data.ok) {
+                cacheBootstrapState(data);
+                state.offlineMode = false;
                 const currentChatId = state.activeChatId;
                 state.me = data.user;
                 loadAiSettings();
@@ -6250,12 +6336,27 @@
         function renderVoiceRoomCard(room) {
             const card = document.createElement("div");
             card.className = "voice-room-card";
+            card.dataset.voiceRoomId = room.id;
+            card.classList.toggle("voice-room-joining", state.voiceJoinAnimationRoomId === room.id);
             const joined = state.activeVoiceRoomId === room.id || room.participants?.some(user => user.username === state.me?.username);
-            const participants = (room.participants || []).slice(0, 6).map(user => `<span class="voice-pill ${user.speaking ? "speaking" : ""}">${escapeHtml(user.displayName)}${user.muted ? " (sessiz)" : ""}</span>`).join("");
+            const participants = (room.participants || []).slice(0, 7).map(user => {
+                const displayName = user.displayName || user.username || "NexaLine";
+                const avatar = user.profileImage
+                    ? `<img src="${escapeHtml(user.profileImage)}" alt="">`
+                    : `<span>${escapeHtml(initials(displayName))}</span>`;
+                return `
+                    <span class="voice-room-avatar ${user.speaking ? "speaking" : ""} ${user.muted ? "muted" : ""}" title="${escapeHtml(displayName)}${user.muted ? " - sessiz" : ""}">
+                        ${avatar}
+                        <i>${user.muted ? "×" : ""}</i>
+                    </span>
+                `;
+            }).join("");
             card.innerHTML = `
-                <strong>${escapeHtml(room.title)}</strong>
-                <small>${escapeHtml(room.category || "Genel")} • ${escapeHtml(room.privacy || "public")} • ${escapeHtml(room.topic || "")}</small>
-                <div class="explore-chip-row">${participants || '<span class="voice-pill">Henüz kimse yok</span>'}</div>
+                <div class="voice-room-copy">
+                    <strong>${escapeHtml(room.title)}</strong>
+                    <small>${escapeHtml(room.category || "Genel")} • ${escapeHtml(room.privacy || "public")} • ${escapeHtml(room.topic || "")}</small>
+                </div>
+                <div class="voice-room-avatars">${participants || '<span class="voice-room-empty">Henüz kimse yok</span>'}</div>
                 <div class="voice-room-actions">
                     <button class="mini-btn ${joined ? "danger" : ""}" type="button" data-voice-action="${joined ? "leave" : "join"}">${joined ? "Ayrıl" : "Katıl"}</button>
                     <button class="mini-btn" type="button" data-voice-action="mute">${joined ? "Sessiz/Sesli" : "Bilgi"}</button>
@@ -6267,9 +6368,17 @@
                     socket.emit("voice:leave", { roomId: room.id });
                     state.activeVoiceRoomId = "";
                 } else {
+                    state.voiceJoinAnimationRoomId = room.id;
+                    card.classList.add("voice-room-joining");
                     socket.emit("voice:join", { roomId: room.id });
                     state.activeVoiceRoomId = room.id;
                     showToast(`${room.title} odasına katıldın.`);
+                    setTimeout(() => {
+                        if (state.voiceJoinAnimationRoomId === room.id) {
+                            state.voiceJoinAnimationRoomId = "";
+                        }
+                        card.classList.remove("voice-room-joining");
+                    }, 720);
                 }
             };
             card.querySelector('[data-voice-action="mute"]').onclick = () => {
@@ -7228,6 +7337,17 @@
                     button.append(avatar, body, dot);
                     contactList.appendChild(button);
                 });
+
+            const activeRooms = (state.voiceRooms || [])
+                .filter(room => Number(room.count || 0) > 0 || room.participants?.length)
+                .slice(0, 6);
+            if (activeRooms.length) {
+                const roomHeader = document.createElement("div");
+                roomHeader.className = "section-mini-title voice-room-section-title";
+                roomHeader.textContent = "Aktif Odalar";
+                contactList.appendChild(roomHeader);
+                activeRooms.forEach(room => contactList.appendChild(renderVoiceRoomCard(room)));
+            }
         }
 
         function contactLine(user) {
@@ -10928,11 +11048,56 @@
             });
         }
 
+        function stopCallWaveform() {
+            if (state.call.waveformFrame) {
+                cancelAnimationFrame(state.call.waveformFrame);
+            }
+            state.call.waveformFrame = 0;
+            if (state.call.audioContext) {
+                state.call.audioContext.close().catch(() => {});
+            }
+            state.call.audioContext = null;
+            state.call.analyser = null;
+            $("callPanel")?.style.removeProperty("--call-wave-level");
+            $("callCover")?.classList.remove("speaking");
+        }
+
+        function startCallWaveform(stream) {
+            stopCallWaveform();
+            const audioTrack = stream?.getAudioTracks?.()[0];
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!audioTrack || !AudioContextClass) return;
+            try {
+                const context = new AudioContextClass();
+                const analyser = context.createAnalyser();
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.82;
+                context.createMediaStreamSource(new MediaStream([audioTrack])).connect(analyser);
+                state.call.audioContext = context;
+                state.call.analyser = analyser;
+                const samples = new Uint8Array(analyser.frequencyBinCount);
+                const animate = () => {
+                    if (!state.call.analyser || $("callPanel").classList.contains("hidden")) return;
+                    analyser.getByteFrequencyData(samples);
+                    const average = samples.reduce((total, value) => total + value, 0) / Math.max(1, samples.length);
+                    const level = Math.min(1, average / 72);
+                    $("callPanel").style.setProperty("--call-wave-level", level.toFixed(3));
+                    $("callCover").classList.toggle("speaking", level > 0.08);
+                    state.call.waveformFrame = requestAnimationFrame(animate);
+                };
+                context.resume().catch(() => {});
+                animate();
+            } catch (error) {
+                console.warn("Arama ses dalgasi baslatilamadi", error);
+            }
+        }
+
         async function ensureLocalCallStream(audioOnly) {
             if (!state.call.localStream) {
                 state.call.localStream = await getCallStream(audioOnly);
                 $("localVideo").srcObject = state.call.localStream;
                 $("localVideo").classList.toggle("hidden", audioOnly);
+                startCallWaveform(state.call.localStream);
             }
             if (!state.call.remoteStream) {
                 state.call.remoteStream = new MediaStream();
@@ -11036,7 +11201,11 @@
             $("acceptCallButton").classList.toggle("hidden", !incoming);
             $("cameraButton").classList.toggle("hidden", audioOnly);
             $("switchCameraButton").classList.toggle("hidden", audioOnly);
+            $("callPanel").classList.toggle("audio-only", Boolean(audioOnly));
+            $("callPanel").classList.toggle("video-call", !audioOnly);
+            $("callPanel").classList.add("call-entering");
             $("callPanel").classList.remove("hidden");
+            setTimeout(() => $("callPanel").classList.remove("call-entering"), 420);
             pushAppHistory("call");
         }
 
@@ -11097,6 +11266,7 @@
 
         function endCall(notify = true) {
             stopCallRingtone();
+            stopCallWaveform();
             if (state.call.timer) {
                 clearInterval(state.call.timer);
             }
@@ -11121,7 +11291,7 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, timer: null, peerName: "", peerImage: "", cameraFacing: "user" };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user" };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callTimer").textContent = "00:00";
@@ -11137,7 +11307,8 @@
 
             state.call.localStream.getAudioTracks().forEach(track => {
                 track.enabled = !track.enabled;
-                $("muteButton").textContent = track.enabled ? "♫" : "×";
+                $("muteButton").innerHTML = svgIcon(track.enabled ? "mic" : "x");
+                $("muteButton").classList.toggle("control-off", !track.enabled);
             });
         }
 
@@ -11148,7 +11319,8 @@
 
             state.call.localStream.getVideoTracks().forEach(track => {
                 track.enabled = !track.enabled;
-                $("cameraButton").textContent = track.enabled ? "▣" : "□";
+                $("cameraButton").innerHTML = svgIcon(track.enabled ? "video" : "x");
+                $("cameraButton").classList.toggle("control-off", !track.enabled);
             });
         }
 
@@ -11407,6 +11579,7 @@
         socket.on("connect", () => {
             if (state.me?.username) {
                 joinRealtime();
+                socket.emit("background-sync", { mode: "register" });
                 flushOutbox();
                 if (!state.bootReady && !state.bootstrapLoading) {
                     loadBootstrap().catch(() => {});
@@ -11415,7 +11588,16 @@
         });
 
         socket.on("disconnect", () => {
+            state.offlineMode = true;
             showToast("Bağlantı koptu, yeniden bağlanıyor...");
+        });
+
+        socket.on("background-sync:ready", data => {
+            state.lastBackgroundSyncAt = data?.serverTime || new Date().toISOString();
+        });
+
+        socket.on("background-sync:error", data => {
+            console.warn("Background sync hatasi", data?.message || data);
         });
 
         socket.on("auth:error", data => {
@@ -11445,6 +11627,8 @@
         });
 
         socket.on("app:state", data => {
+            cacheBootstrapState({ ok: true, ...data });
+            state.offlineMode = false;
             const currentChatId = state.activeChatId;
             state.me = data.user;
             loadAiSettings();
@@ -11549,6 +11733,7 @@
             const mineRoom = state.voiceRooms.find(room => room.participants?.some(user => user.username === state.me?.username));
             state.activeVoiceRoomId = mineRoom?.id || "";
             renderExplore();
+            renderContacts();
         });
 
         socket.on("account:deleted", () => {
@@ -11743,6 +11928,8 @@
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible" && state.me?.username) {
                 loadBootstrap().catch(() => {});
+            } else if (document.visibilityState === "hidden" && state.me?.username && socket.connected) {
+                socket.emit("background-sync", { mode: "register" });
             }
         });
 
@@ -11753,10 +11940,17 @@
             }
         });
 
+        window.addEventListener("offline", () => {
+            state.offlineMode = true;
+            showToast("Cevrimdisi moda gecildi. Son kaydedilen veriler acik kalacak.");
+        });
+
         window.addEventListener("online", () => {
+            state.offlineMode = false;
             showToast("Bağlantı geri geldi.");
             flushOutbox();
             if (state.me?.username) {
+                socket.emit("background-sync", { mode: "register" });
                 loadBootstrap().catch(() => {});
             }
         });

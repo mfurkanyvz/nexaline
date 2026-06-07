@@ -16,6 +16,7 @@ import unicodedata
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
+from functools import wraps
 from uuid import uuid4
 
 import requests
@@ -2709,6 +2710,22 @@ ADULT_TERMS = {"+18", "porno", "porn", "cinsel", "nude", "nudes", "seks", "sex",
 ABUSE_TERMS = {"salak", "aptal", "gerizekali", "gerizekalı", "mal", "orospu", "siktir", "amk", "aq"}
 
 
+AI_NATURAL_ERROR = "Anlayamadım, tekrar denemek ister misin?"
+
+
+def ai_error_boundary(handler):
+    @wraps(handler)
+    def wrapped(*args, **kwargs):
+        try:
+            return handler(*args, **kwargs)
+        except Exception as error:
+            db.session.rollback()
+            app.logger.exception("AI request failed in %s: %s", handler.__name__, error)
+            return jsonify({"ok": False, "message": AI_NATURAL_ERROR, "errorType": type(error).__name__}), 503
+
+    return wrapped
+
+
 def ai_provider_status():
     provider = (os.environ.get("AI_PROVIDER") or "auto").strip().lower()
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
@@ -3917,12 +3934,14 @@ def push_subscribe():
 
 
 @app.route("/ai/status")
+@ai_error_boundary
 def ai_status():
     status = ai_provider_status()
     return jsonify({"ok": True, "ai": status, "moderation": True, "actions": True, "memory": True, "webResearch": True})
 
 
 @app.route("/ai/chat", methods=["POST"])
+@ai_error_boundary
 def ai_chat():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4164,16 +4183,18 @@ def elevenlabs_voice_id(voice_key):
 def openai_tts_voice(voice_key):
     voice = (voice_key or "warm").strip().casefold()
     mapping = {
-        "warm": os.environ.get("OPENAI_TTS_VOICE_WARM", "nova"),
-        "female": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
-        "kadin": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
+        "warm": os.environ.get("OPENAI_TTS_VOICE_WARM", "alloy"),
+        "alloy": "alloy",
+        "fable": "fable",
+        "female": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "alloy"),
+        "kadin": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "alloy"),
         "kadın": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
-        "male": os.environ.get("OPENAI_TTS_VOICE_MALE", "onyx"),
-        "erkek": os.environ.get("OPENAI_TTS_VOICE_MALE", "onyx"),
+        "male": os.environ.get("OPENAI_TTS_VOICE_MALE", "fable"),
+        "erkek": os.environ.get("OPENAI_TTS_VOICE_MALE", "fable"),
         "calm": os.environ.get("OPENAI_TTS_VOICE_CALM", "alloy"),
-        "energetic": os.environ.get("OPENAI_TTS_VOICE_ENERGETIC", "shimmer"),
+        "energetic": os.environ.get("OPENAI_TTS_VOICE_ENERGETIC", "fable"),
     }
-    return mapping.get(voice, os.environ.get("OPENAI_TTS_VOICE", "nova"))
+    return mapping.get(voice, os.environ.get("OPENAI_TTS_VOICE", "alloy"))
 
 
 def call_openai_tts(text_value, voice_key="warm"):
@@ -4252,7 +4273,125 @@ def call_human_tts(text_value, voice_key="warm"):
     raise RuntimeError("; ".join(errors) or "TTS provider missing")
 
 
+class ProcessAI:
+    LANGUAGE_CODES = {
+        "otomatik": "",
+        "auto": "",
+        "turkce": "tr",
+        "türkçe": "tr",
+        "ingilizce": "en",
+        "almanca": "de",
+        "fransizca": "fr",
+        "fransızca": "fr",
+        "ispanyolca": "es",
+        "italyanca": "it",
+        "arapca": "ar",
+        "arapça": "ar",
+        "rusca": "ru",
+    }
+
+    def __init__(self):
+        self.openai_base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+
+    def _openai_key(self):
+        key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if not key:
+            raise RuntimeError("OPENAI_API_KEY missing")
+        return key
+
+    def _openai_headers(self):
+        return {"Authorization": f"Bearer {self._openai_key()}", "Content-Type": "application/json"}
+
+    def _openai_text(self, system_prompt, text_value):
+        model = os.environ.get("OPENAI_PROCESS_MODEL", os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
+        response = requests.post(
+            f"{self.openai_base_url}/chat/completions",
+            headers=self._openai_headers(),
+            json={
+                "model": model,
+                "temperature": 0.2,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text_value[:6000]},
+                ],
+            },
+            timeout=max(AI_TIMEOUT_SECONDS, 25),
+        )
+        response.raise_for_status()
+        result = response.json()["choices"][0]["message"]["content"].strip()
+        if not result:
+            raise RuntimeError("OpenAI returned empty text")
+        return result, {"provider": "openai", "model": model}
+
+    def correct_text(self, text_value):
+        return self._openai_text(
+            "Turkce yazim editorusun. Metnin anlamini degistirmeden imla, noktalama ve anlatim bozukluklarini duzelt. Yalnizca duzeltilmis metni dondur.",
+            text_value,
+        )
+
+    def translate_text(self, text_value, source_lang="otomatik", target_lang="tr"):
+        key = (
+            os.environ.get("GOOGLE_TRANSLATE_API_KEY")
+            or os.environ.get("GOOGLE_CLOUD_TRANSLATE_API_KEY")
+            or ""
+        ).strip()
+        if not key:
+            raise RuntimeError("GOOGLE_TRANSLATE_API_KEY missing")
+        source = self.LANGUAGE_CODES.get(str(source_lang).strip().casefold(), str(source_lang).strip().lower())
+        target = self.LANGUAGE_CODES.get(str(target_lang).strip().casefold(), str(target_lang).strip().lower()) or "tr"
+        payload = {"q": text_value[:6000], "target": target, "format": "text"}
+        if source:
+            payload["source"] = source
+        response = requests.post(
+            "https://translation.googleapis.com/language/translate/v2",
+            params={"key": key},
+            json=payload,
+            timeout=max(AI_TIMEOUT_SECONDS, 20),
+        )
+        response.raise_for_status()
+        translated = response.json().get("data", {}).get("translations", [{}])[0].get("translatedText", "")
+        translated = html.unescape(translated).strip()
+        if not translated:
+            raise RuntimeError("Google Translate returned empty text")
+        return translated, {"provider": "google-translate", "model": "translation-v2"}
+
+    def generate_image(self, prompt):
+        model = os.environ.get("OPENAI_IMAGE_MODEL", "dall-e-3")
+        payload = {"model": model, "prompt": prompt[:1000], "n": 1, "size": "1024x1024"}
+        if model.startswith("dall-e"):
+            payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "standard"), "response_format": "b64_json"})
+        else:
+            payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "medium"), "output_format": "png"})
+        response = requests.post(
+            f"{self.openai_base_url}/images/generations",
+            headers=self._openai_headers(),
+            json=payload,
+            timeout=max(AI_TIMEOUT_SECONDS, 60),
+        )
+        response.raise_for_status()
+        image = (response.json().get("data") or [{}])[0]
+        encoded = image.get("b64_json")
+        if encoded:
+            return f"data:image/png;base64,{encoded}", "OpenAI ile görsel oluşturuldu.", {"provider": "openai-image", "model": model}
+        image_url = image.get("url")
+        if image_url:
+            image_response = requests.get(image_url, timeout=max(AI_TIMEOUT_SECONDS, 30))
+            image_response.raise_for_status()
+            mime_type = image_response.headers.get("Content-Type", "image/png").split(";")[0]
+            return bytes_to_data_url(image_response.content, mime_type), "OpenAI ile görsel oluşturuldu.", {"provider": "openai-image", "model": model}
+        raise RuntimeError("OpenAI image response has no image")
+
+
+process_ai = ProcessAI()
+
+
+def call_openai_image(prompt):
+    data_url, note, _provider = process_ai.generate_image(prompt)
+    return data_url, note
+
+
 @app.route("/ai/stt", methods=["POST"])
+@ai_error_boundary
 def ai_stt():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4285,6 +4424,7 @@ def ai_stt():
 
 
 @app.route("/ai/tts", methods=["POST"])
+@ai_error_boundary
 def ai_tts():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4302,6 +4442,7 @@ def ai_tts():
 
 
 @app.route("/ai/text-tool", methods=["POST"])
+@ai_error_boundary
 def ai_text_tool():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4323,7 +4464,17 @@ def ai_text_tool():
         prompt = f"Bu metni kısa, işe yarar ve maddeli şekilde özetle:\n{text_value}"
     context = ai_context_for_user(username, data.get("chatId"), prompt)
     context["assistant"] = {"name": data.get("assistantName") or "Nexa AI"}
-    reply, provider, research = generate_ai_reply(prompt, context, [])
+    research = []
+    try:
+        if tool == "translate":
+            reply, provider = process_ai.translate_text(text_value, source_lang, target_lang)
+        elif tool == "fix":
+            reply, provider = process_ai.correct_text(text_value)
+        else:
+            reply, provider, research = generate_ai_reply(prompt, context, [])
+    except Exception as error:
+        app.logger.warning("ProcessAI text module fallback (%s): %s", tool, error)
+        reply, provider, research = generate_ai_reply(prompt, context, [])
     store_ai_memory(username, data.get("chatId"), "user", prompt, provider="text-tool", meta={"tool": tool})
     store_ai_memory(username, data.get("chatId"), "assistant", reply, provider=(provider or {}).get("provider"), meta={"tool": tool})
     db.session.commit()
@@ -4331,6 +4482,7 @@ def ai_text_tool():
 
 
 @app.route("/ai/image", methods=["POST"])
+@ai_error_boundary
 def ai_image():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4345,10 +4497,10 @@ def ai_image():
     provider = {"provider": "local", "model": "nexaline-free-image", "ready": True, "free": True}
     note = "Ücretsiz yerel görsel üretildi."
     try:
-        data_url, note = call_huggingface_image(prompt)
-        provider = {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": True}
+        data_url, note = call_openai_image(prompt)
+        provider = {"provider": "openai-image", "model": os.environ.get("OPENAI_IMAGE_MODEL", "dall-e-3"), "ready": True}
     except Exception as error:
-        app.logger.info("AI image HF fallback: %s", error)
+        app.logger.info("AI image OpenAI fallback: %s", error)
         try:
             data_url, note = call_gemini_image(prompt)
             provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
@@ -4365,6 +4517,7 @@ def ai_image():
 
 
 @app.route("/ai/moderate", methods=["POST"])
+@ai_error_boundary
 def ai_moderate():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4376,6 +4529,7 @@ def ai_moderate():
 
 
 @app.route("/ai/chat-summary", methods=["POST"])
+@ai_error_boundary
 def ai_chat_summary_route():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4392,6 +4546,7 @@ def ai_chat_summary_route():
 
 
 @app.route("/ai/search", methods=["POST"])
+@ai_error_boundary
 def ai_search_route():
     data = request.get_json() or {}
     username = (data.get("username") or "").strip().lower()
@@ -4456,11 +4611,13 @@ AI_COMMANDS = [
 
 
 @app.route("/ai/commands")
+@ai_error_boundary
 def ai_commands():
     return jsonify({"ok": True, "commands": AI_COMMANDS})
 
 
 @app.route("/ai/sync-all", methods=["GET"])
+@ai_error_boundary
 def ai_sync_all():
     try:
         username = (request.args.get("username") or "").strip().lower()
@@ -4475,6 +4632,7 @@ def ai_sync_all():
 
 
 @app.route("/ai/settings/<username>", methods=["POST"])
+@ai_error_boundary
 def ai_settings_update(username):
     try:
         username = username.strip().lower()
@@ -4649,6 +4807,7 @@ def execute_ai_server_action(user, action):
 
 
 @app.route("/ai/action-execute", methods=["POST"])
+@ai_error_boundary
 def ai_action_execute():
     try:
         data = request.get_json() or {}
@@ -4681,6 +4840,7 @@ def ai_action_execute():
 
 
 @app.route("/ai/tasks/<username>", methods=["GET", "POST"])
+@ai_error_boundary
 def ai_tasks(username):
     username = username.strip().lower()
     user = db.session.get(User, username)
@@ -4715,6 +4875,7 @@ def ai_tasks(username):
 
 
 @app.route("/ai/tasks/<username>/<task_id>", methods=["PATCH", "DELETE"])
+@ai_error_boundary
 def ai_task_update(username, task_id):
     username = username.strip().lower()
     row = db.session.get(AiTask, task_id)
@@ -7215,6 +7376,42 @@ def deliver_due_scheduled_messages():
                 emit_scheduled_update(row.sender)
     finally:
         scheduled_delivery_lock.release()
+
+
+@socketio.on("background-sync")
+def handle_background_sync(data=None):
+    username = connections.get(request.sid)
+    data = data or {}
+    if not username:
+        emit("background-sync:error", {"ok": False, "message": "Oturum bulunamadi."})
+        return
+    try:
+        mode = str(data.get("mode") or "register").strip().lower()
+        if mode == "register":
+            emit("background-sync:ready", {"ok": True, "username": username, "serverTime": now_iso()})
+            return
+        chat_id = str(data.get("chatId") or "").strip()
+        chat = db.session.get(Chat, chat_id)
+        if not chat or not user_can_see_chat(chat, username):
+            emit("background-sync:error", {"ok": False, "message": "Sohbet bulunamadi."})
+            return
+        title = re.sub(r"\s+", " ", str(data.get("title") or chat.title or "NexaLine"))[:120]
+        message = re.sub(r"\s+", " ", str(data.get("message") or "Yeni bildirim"))[:500]
+        notification_type = str(data.get("type") or "message")[:40]
+        result = send_push_notification(
+            chat.id,
+            title,
+            message,
+            notification_type=notification_type,
+            sender=username,
+            url=data.get("url") or f"/chat/{chat.id}",
+            call_kind=data.get("callKind"),
+            emit_socket=True,
+        )
+        emit("background-sync:complete", result)
+    except Exception as error:
+        app.logger.exception("Background sync failed: %s", error)
+        emit("background-sync:error", {"ok": False, "message": AI_NATURAL_ERROR})
 
 
 @socketio.on("call:log")
