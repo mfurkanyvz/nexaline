@@ -1578,11 +1578,116 @@ button {
 }
 
 .call-filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 4px 5px 12px;
+}
+
+.call-filter-row .filter-chip {
+    min-width: 0;
+    min-height: 54px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 4px;
+    padding: 6px 3px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.045);
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.call-filter-row .filter-chip.active {
+    border-color: rgba(0, 242, 255, 0.28);
+    background: linear-gradient(135deg, rgba(0, 242, 255, 0.2), rgba(255, 0, 184, 0.16));
+    color: #fff;
+    box-shadow: 0 0 18px rgba(0, 242, 255, 0.12);
+}
+
+.call-filter-row .filter-chip .nexa-svg {
+    width: 17px;
+    height: 17px;
+}
+
+.call-filter-row .filter-chip span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+}
+
+.sidebar[data-active-section="calls"] > .search-box {
+    display: none;
+}
+
+.section-action-button {
+    margin-left: auto;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid rgba(0, 242, 255, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.055);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.call-search-shell {
+    min-height: 44px;
     display: flex;
-    gap: 8px;
-    padding: 4px 5px 10px;
-    overflow-x: auto;
-    scrollbar-width: none;
+    align-items: center;
+    gap: 9px;
+    margin: 4px 5px 10px;
+    padding: 0 13px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 17px;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.call-search-shell .nexa-svg {
+    width: 18px;
+    height: 18px;
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.call-search-shell input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #fff;
+}
+
+.call-results-title {
+    padding: 8px 8px 2px;
+    color: rgba(255, 255, 255, 0.54);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.call-item {
+    position: relative;
+    width: calc(100% - 10px);
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+    margin: 7px 5px;
+    padding: 11px 12px;
+    color: var(--text-main);
+    text-align: left;
+    border-radius: 20px;
+}
+
+.call-item .avatar {
+    width: 48px;
+    height: 48px;
 }
 
 .call-item .last-message {
@@ -1632,8 +1737,16 @@ button {
 .call-log-side {
     display: grid;
     justify-items: end;
-    align-content: center;
-    gap: 8px;
+    align-self: stretch;
+    align-content: space-between;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.call-log-side .chat-time {
+    align-self: end;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.58);
 }
 
 .call-redial-cue {
@@ -1651,6 +1764,52 @@ button {
     color: #ff4d67;
     border-color: rgba(255, 77, 103, 0.26);
     background: rgba(255, 77, 103, 0.08);
+}
+
+.call-detail-card {
+    display: grid;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.new-call-list {
+    display: grid;
+    gap: 8px;
+}
+
+.new-call-row {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.new-call-actions {
+    display: flex;
+    gap: 7px;
+}
+
+.new-call-actions button {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    border-radius: 50%;
+    background: rgba(0, 242, 255, 0.07);
+    color: #00f2ff;
+}
+
+.new-call-actions .nexa-svg {
+    width: 18px;
+    height: 18px;
 }
 
 .x-actions button:hover,
