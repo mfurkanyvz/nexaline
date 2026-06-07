@@ -1104,6 +1104,21 @@ def attachment_error(attachment):
     if data_url and len(str(data_url)) > MAX_ATTACHMENT_DATA_URL_CHARS:
         return "Dosya çok büyük. Daha küçük dosya seç veya resmi sıkıştır."
 
+    if attachment.get("type") == "bundle":
+        items = attachment.get("items") or []
+        if not isinstance(items, list) or not 1 <= len(items) <= 4:
+            return "Bir ile dört arasında dosya seçebilirsin."
+        total_size = 0
+        for item in items:
+            if not isinstance(item, dict):
+                return "Dosya paketi okunamadı."
+            nested_error = attachment_error(item)
+            if nested_error:
+                return nested_error
+            total_size += len(str(item.get("dataUrl") or ""))
+        if total_size > MAX_ATTACHMENT_DATA_URL_CHARS:
+            return "Seçtiğin dosyaların toplam boyutu çok büyük."
+
     return None
 
 
@@ -7283,6 +7298,42 @@ def handle_view_once_opened(data):
 
     db.session.commit()
     emit("message:deleted", message_to_dict(message), room=chat.id)
+
+
+@socketio.on("message:poll_vote")
+def handle_message_poll_vote(data):
+    username = connections.get(request.sid)
+    data = data or {}
+    message = db.session.get(Message, data.get("messageId"))
+    try:
+        option_index = int(data.get("optionIndex"))
+    except (TypeError, ValueError):
+        option_index = -1
+
+    if not username or not message or message.deleted_at:
+        return
+
+    chat = db.session.get(Chat, message.chat_id)
+    if not chat or not user_can_see_chat(chat, username):
+        return
+
+    attachment = dict(message.attachment or {})
+    poll = dict(attachment.get("poll") or {})
+    options = list(poll.get("options") or [])
+    votes = dict(poll.get("votes") or {})
+    if attachment.get("type") != "poll" or option_index < 0 or option_index >= len(options):
+        emit("notice", {"message": "Anket seçeneği okunamadı."})
+        return
+    if username in votes:
+        emit("notice", {"message": "Bu anketteki seçimin kilitlendi; değiştirilemez."})
+        return
+
+    votes[username] = option_index
+    poll["votes"] = votes
+    attachment["poll"] = poll
+    message.attachment = attachment
+    db.session.commit()
+    emit("message:edited", message_to_dict(message), room=chat.id)
 
 
 @socketio.on("message:delete")

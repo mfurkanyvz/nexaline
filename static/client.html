@@ -223,10 +223,10 @@
                 <button id="voiceButton" class="icon-btn" data-tool="voice" title="Sesli mesaj">🎙</button>
                 <button id="emojiButton" class="icon-btn" data-tool="emoji" title="Emoji">☺</button>
                 <button id="locationButton" class="icon-btn" data-tool="location" title="Konum">⌖</button>
-                <button id="sendToolsButton" class="icon-btn" data-tool="timed" title="Zamanla ve kaybolan mesaj">⏱</button>
+                <button id="viewOnceButton" class="icon-btn" data-tool="view-once" title="Tek görüntüleme">1</button>
                 <button id="cancelVoiceButton" class="icon-btn danger hidden" title="Kaydı iptal et">×</button>
-                <input id="fileInput" class="hidden" type="file" accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
-                <input id="mediaInput" class="hidden" type="file" accept="image/*,video/*">
+                <input id="fileInput" class="hidden" type="file" accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.zip" multiple>
+                <input id="mediaInput" class="hidden" type="file" accept="image/*,video/*" multiple>
                 <input id="audioInput" class="hidden" type="file" accept="audio/*">
                 <input id="musicInput" class="hidden" type="file" accept="audio/*">
                 <input id="cameraInput" class="hidden" type="file" accept="image/*,video/*" capture="environment">
@@ -1292,7 +1292,7 @@
                 voiceButton: "mic",
                 emojiButton: "smile",
                 locationButton: "location",
-                sendToolsButton: "clock",
+                viewOnceButton: "eye",
                 sendButton: "send",
                 gifInlineButton: "gif",
                 cancelVoiceButton: "x",
@@ -1429,7 +1429,7 @@
                 emojiButton: text.emoji || "Emoji",
                 voiceButton: text.voice || "Sesli mesaj",
                 locationButton: text.location || "Konum",
-                sendToolsButton: text.timed || "Zamanla",
+                viewOnceButton: "Tek görüntüleme",
                 sendButton: text.send || "Gönder"
             };
             Object.entries(titleMap).forEach(([id, value]) => {
@@ -1452,11 +1452,11 @@
                 voice: "voiceButton",
                 send: "sendButton",
                 location: "locationButton",
-                timed: "sendToolsButton"
+                timed: "viewOnceButton"
             };
             const visibleComposer = new Set(composerOrder || []);
             Object.entries(map).forEach(([key, id]) => {
-                if ($(id) && key !== "input" && key !== "send" && key !== "voice") {
+                if ($(id) && key !== "input" && key !== "send" && key !== "voice" && key !== "timed") {
                     $(id).classList.toggle("hidden", !visibleComposer.has(key));
                 }
             });
@@ -8115,11 +8115,11 @@
             $("attachButton").classList.remove("hidden");
             $("locationButton").classList.remove("hidden");
             $("voiceButton").classList.remove("hidden");
-            $("sendToolsButton").classList.remove("hidden");
+            $("viewOnceButton").classList.remove("hidden");
             $("attachButton").title = aiMode ? "Nexa AI komutları" : "Dosya";
             $("locationButton").title = aiMode ? "Konumu Nexa AI'ya gönder" : "Konum";
             $("voiceButton").title = aiMode ? "Sesi yazıya çevir" : "Sesli mesaj";
-            $("sendToolsButton").title = aiMode ? "Sesli asistan" : "Zamanla ve kaybolan mesaj";
+            $("viewOnceButton").title = aiMode ? "Sesli asistan" : "Tek görüntüleme";
             $("cancelVoiceButton").classList.add("hidden");
             $("messageInput").placeholder = aiMode ? `${aiDisplayName()} ile konuş` : "Mesaj";
             $("activeTitle").textContent = aiMode ? chat.title : (chat.type === "direct" ? (otherMember(chat)?.username || chat.title) : chat.title);
@@ -8261,7 +8261,7 @@
             }
             state.lastRenderedChatId = chat.id;
             renderSmartReplies(chat);
-            $("sendToolsButton").classList.toggle("active-tool", Boolean(state.disappearingSeconds));
+            $("viewOnceButton").classList.toggle("active-tool", Boolean(state.pendingViewOnce));
             const readableSection = state.activeSection === "chats" || state.activeSection === "groups";
             if (!isAiChat(chat) && document.visibilityState === "visible" && readableSection && chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
                 const unreadIds = visibleMessages
@@ -8760,8 +8760,20 @@
                 return renderViewOnceTextAttachment(attachment, message);
             }
 
-            if (attachment.viewOnce && (attachment.type?.startsWith("image/") || attachment.type?.startsWith("video/"))) {
+            if (attachment.viewOnce) {
                 return renderViewOnceAttachment(attachment, message);
+            }
+
+            if (attachment.type === "bundle") {
+                const grid = document.createElement("div");
+                grid.className = `media-bundle-grid media-count-${Math.min(4, (attachment.items || []).length)}`;
+                (attachment.items || []).slice(0, 4).forEach(item => {
+                    const cell = document.createElement("div");
+                    cell.className = "media-bundle-cell";
+                    cell.appendChild(renderAttachment(item, message));
+                    grid.appendChild(cell);
+                });
+                return grid;
             }
 
             if (attachment.type && attachment.type.startsWith("audio/")) {
@@ -8849,9 +8861,9 @@
                 const wrap = document.createElement("div");
                 wrap.className = "poll-card";
                 setUiIndexMetadata(wrap, "4-2-6");
-                const key = `nexalinePoll:${attachment.pollId || poll.question}`;
-                const selected = localStorage.getItem(key);
-                const locked = selected !== null;
+                const votes = poll.votes || {};
+                const selected = votes[state.me?.username];
+                const locked = selected !== undefined;
                 const title = document.createElement("strong");
                 title.textContent = poll.question || "Anket";
                 wrap.appendChild(title);
@@ -8859,15 +8871,18 @@
                     const row = document.createElement("button");
                     row.type = "button";
                     row.disabled = locked;
-                    row.className = "poll-option" + (selected === String(index) ? " selected" : "") + (locked ? " locked" : "");
+                    row.className = "poll-option" + (Number(selected) === index ? " selected" : "") + (locked ? " locked" : "");
                     row.textContent = option;
                     row.onclick = () => {
-                        if (localStorage.getItem(key) !== null) {
+                        if (locked) {
                             showToast("Anket seçimi kilitlendi; tekrar değiştirilemez.");
                             return;
                         }
-                        localStorage.setItem(key, String(index));
-                        renderActiveChat();
+                        if (!message?.id) {
+                            showToast("Anket sunucuyla eşitlenemedi.");
+                            return;
+                        }
+                        socket.emit("message:poll_vote", { messageId: message.id, optionIndex: index });
                     };
                     wrap.appendChild(row);
                 });
@@ -8919,12 +8934,34 @@
             const button = document.createElement("button");
             button.type = "button";
             button.className = "profile-action primary";
-            button.textContent = "Tek Açımlık Medyayı Aç";
+            button.textContent = "Tek Görüntülemelik İçeriği Aç";
             button.onclick = () => {
                 localStorage.setItem(key, "opened");
                 markViewOnceOpened(message, attachment);
-                openMediaViewer(attachment);
-                renderActiveChat();
+                openModal("Tek görüntülemelik içerik", body => {
+                    const guarded = document.createElement("div");
+                    guarded.className = "view-once-guard";
+                    const content = renderAttachment({ ...attachment, viewOnce: false, viewOnceId: undefined }, null);
+                    const downloadable = [
+                        ...(content.querySelectorAll?.("[download]") || []),
+                        ...(content.matches?.("[download]") ? [content] : [])
+                    ];
+                    downloadable.forEach(link => {
+                        link.removeAttribute("download");
+                        link.removeAttribute("href");
+                        link.setAttribute("aria-disabled", "true");
+                    });
+                    content.oncontextmenu = event => event.preventDefault();
+                    guarded.appendChild(content);
+                    body.appendChild(guarded);
+                }, [{
+                    label: "Kapat",
+                    primary: true,
+                    onClick: () => {
+                        closeModal();
+                        renderActiveChat();
+                    }
+                }], "sheet view-once-sheet");
             };
             wrap.appendChild(button);
             return wrap;
@@ -9040,6 +9077,19 @@
             if (!attachment) return "";
             const name = escapeHtml(attachment.name || "Ek");
             const type = String(attachment.type || "");
+            if (type === "bundle") {
+                const items = (attachment.items || []).slice(0, 4);
+                return `<span class="attachment-preview-grid">${items.map(item => {
+                    const itemType = String(item.type || "");
+                    if (itemType.startsWith("image/") && item.dataUrl) {
+                        return `<img src="${escapeHtml(item.dataUrl)}" alt="${escapeHtml(item.name || "Görsel")}">`;
+                    }
+                    if (itemType.startsWith("video/") && item.dataUrl) {
+                        return `<video src="${escapeHtml(item.dataUrl)}" muted playsinline></video>`;
+                    }
+                    return `<span class="attachment-preview-file">${svgIcon("file")}</span>`;
+                }).join("")}</span>`;
+            }
             if (type.startsWith("image/") && attachment.dataUrl) {
                 return `<img src="${escapeHtml(attachment.dataUrl)}" alt="${name}">`;
             }
@@ -9059,7 +9109,7 @@
                 return;
             }
             const type = String(attachment.type || "");
-            const canViewOnce = type.startsWith("image/") || type.startsWith("video/");
+            const canViewOnce = type !== "call";
             preview.classList.remove("hidden");
             preview.innerHTML = `
                 ${attachmentPreviewMarkup(attachment)}
@@ -9075,8 +9125,30 @@
             preview.querySelector(".view-once-toggle")?.addEventListener("click", () => {
                 attachment.viewOnce = !attachment.viewOnce;
                 attachment.viewOnceId = attachment.viewOnce ? (attachment.viewOnceId || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`) : undefined;
+                state.pendingViewOnce = Boolean(attachment.viewOnce);
                 updateComposerState();
             });
+        }
+
+        function toggleViewOnceMode() {
+            state.pendingViewOnce = !state.pendingViewOnce;
+            if (state.attachment) {
+                state.attachment.viewOnce = state.pendingViewOnce;
+                state.attachment.viewOnceId = state.pendingViewOnce
+                    ? (state.attachment.viewOnceId || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`)
+                    : undefined;
+            }
+            updateComposerState();
+            showToast(state.pendingViewOnce
+                ? "Tek görüntüleme açık. Gönderdiğin içerik bir kez açılabilir."
+                : "Tek görüntüleme kapatıldı.");
+        }
+
+        function applyPendingViewOnce(attachment) {
+            if (!attachment || !state.pendingViewOnce) return attachment;
+            attachment.viewOnce = true;
+            attachment.viewOnceId = attachment.viewOnceId || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+            return attachment;
         }
 
         function sendMessage() {
@@ -9093,13 +9165,31 @@
                 input.value = "";
                 input.placeholder = "Mesaj";
                 state.attachment = null;
+                state.pendingViewOnce = false;
                 clearReply();
                 updateComposerState();
                 sendAiPrompt(body || "Bu eki incele.", aiAttachment);
                 return;
             }
 
-            const payload = { chatId: chat.id, body, attachment: state.attachment, replyTo: state.replyTo, expiresInSeconds: state.disappearingSeconds || 0 };
+            let outgoingBody = body;
+            let outgoingAttachment = state.attachment ? { ...state.attachment } : null;
+            if (state.pendingViewOnce) {
+                if (outgoingAttachment) {
+                    outgoingAttachment.viewOnce = true;
+                    outgoingAttachment.viewOnceId = outgoingAttachment.viewOnceId || crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+                } else if (outgoingBody) {
+                    outgoingAttachment = {
+                        type: "view_once_text",
+                        name: "Tek görüntülemelik mesaj",
+                        text: outgoingBody,
+                        viewOnce: true,
+                        viewOnceId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`
+                    };
+                    outgoingBody = "";
+                }
+            }
+            const payload = { chatId: chat.id, body: outgoingBody, attachment: outgoingAttachment, replyTo: state.replyTo, expiresInSeconds: state.disappearingSeconds || 0 };
             if (socket.connected) {
                 socket.emit("message:send", payload);
             } else {
@@ -9111,6 +9201,7 @@
             input.value = "";
             input.placeholder = "Mesaj";
             state.attachment = null;
+            state.pendingViewOnce = false;
             clearReply();
             updateComposerState();
         }
@@ -9119,6 +9210,7 @@
             const input = $("messageInput");
             const hasContent = Boolean(input?.value.trim() || state.attachment);
             document.querySelector(".composer")?.classList.toggle("has-content", hasContent);
+            $("viewOnceButton")?.classList.toggle("active-tool", Boolean(state.pendingViewOnce));
             syncAttachmentPreview();
         }
 
@@ -9162,14 +9254,12 @@
                 const menu = document.createElement("div");
                 menu.className = "attachment-menu compact-share-menu";
                 const items = [
-                    ["4-2-1", "file", "Belge", () => $("fileInput").click()],
-                    ["4-2-2", "image", "Fotoğraf", () => $("mediaInput").click()],
-                    ["4-2-3", "camera", "Kamera", openCameraCapture],
+                    ["4-2-3", "camera", "Fotoğraf çek", openCameraCapture],
+                    ["4-2-2", "image", "Fotoğraf ve video", () => $("mediaInput").click()],
                     ["4-2-9", "location", "Konum", sendCurrentLocation],
-                    ["4-2-5", "contacts", "Kişi", openContactSharePicker],
-                    ["4-2-6", "poll", "Anket", openPollCreator],
-                    ["4-2-10", "eye", "Tek Mesaj", openViewOnceTextComposer],
-                    ["4-2-11", "zap", "AI Düzenle", improveComposerWithAi]
+                    ["4-2-1", "file", "Belge", () => $("fileInput").click()],
+                    ["4-2-11", "zap", "AI ile düzenle", improveComposerWithAi],
+                    ["4-2-6", "poll", "Anket", openPollCreator]
                 ];
                 items.forEach(([index, icon, title, action]) => {
                     const button = document.createElement("button");
@@ -9410,14 +9500,14 @@
                     const dataUrl = animatedGifDataUrl(label, symbol, [first, second]);
                     button.innerHTML = `<img src="${dataUrl}" alt="${escapeHtml(label)}"><span>${escapeHtml(label)}</span>`;
                     button.onclick = () => {
-                        state.attachment = {
+                        state.attachment = applyPendingViewOnce({
                             type: "gif",
                             name: `${label} GIF`,
                             dataUrl,
                             symbol,
                             label,
                             colors: [first, second]
-                        };
+                        });
                         $("messageInput").placeholder = `${label} GIF hazır`;
                         updateComposerState();
                         closeModal();
@@ -9425,7 +9515,7 @@
                     panel.appendChild(button);
                 });
                 body.appendChild(panel);
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet keyboard-sheet");
         }
 
         async function improveComposerWithAi() {
@@ -9559,12 +9649,12 @@
                             showToast("Anket için soru ve en az iki seçenek gerekli.");
                             return;
                         }
-                        state.attachment = {
+                        state.attachment = applyPendingViewOnce({
                             type: "poll",
                             name: question,
                             pollId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-                            poll: { question, options }
-                        };
+                            poll: { question, options, votes: {} }
+                        });
                         $("messageInput").placeholder = `Anket: ${question}`;
                         closeModal();
                         updateComposerState();
@@ -9611,7 +9701,7 @@
         function setDisappearingSeconds(seconds) {
             state.disappearingSeconds = Number(seconds) || 0;
             localStorage.setItem("nexalineDisappearSeconds", String(state.disappearingSeconds));
-            $("sendToolsButton").classList.toggle("active-tool", Boolean(state.disappearingSeconds));
+            $("viewOnceButton").classList.toggle("active-tool", Boolean(state.pendingViewOnce));
             showToast(`Kaybolan mesaj: ${expiryLabel()}`);
         }
 
@@ -9705,13 +9795,13 @@
             navigator.geolocation.getCurrentPosition(position => {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
-                state.attachment = {
+                state.attachment = applyPendingViewOnce({
                     type: "location",
                     name: "Mevcut konum",
                     lat,
                     lng,
                     url: `https://www.google.com/maps?q=${lat},${lng}`
-                };
+                });
                 $("messageInput").placeholder = "Konum hazır, mesaj ekleyebilirsin";
                 updateComposerState();
                 showToast("Konum hazır. Gönder tuşuna basınca paylaşılacak.");
@@ -10029,12 +10119,12 @@
                 const reader = new FileReader();
                 reader.onload = () => {
                     const mime = blob.type || "audio/webm";
-                    state.attachment = {
+                    state.attachment = applyPendingViewOnce({
                         name: `sesli-mesaj-${Date.now()}.webm`,
                         type: mime,
                         dataUrl: reader.result,
                         transcript: state.voiceTranscript
-                    };
+                    });
                     $("messageInput").placeholder = state.voiceTranscript ? "Sesli mesaj ve metin hazır" : "Sesli mesaj hazır";
                     state.recordedChunks = [];
                     updateComposerState();
@@ -11247,26 +11337,36 @@
         }
 
         async function handleFile(event) {
-            const file = event.target.files[0];
-            if (!file) {
+            const files = [...(event.target.files || [])].slice(0, 4);
+            if (!files.length) {
                 return;
             }
 
-            if (file.size > MAX_CLIENT_ATTACHMENT_BYTES) {
+            if (files.some(file => file.size > MAX_CLIENT_ATTACHMENT_BYTES)) {
                 showToast("Dosya boyutu 4 MB altında olmalı.");
                 event.target.value = "";
                 return;
             }
 
             try {
-                state.attachment = await prepareAttachmentFile(file);
+                const prepared = [];
+                for (const file of files) {
+                    prepared.push(await prepareAttachmentFile(file));
+                }
+                const totalChars = prepared.reduce((total, item) => total + String(item?.dataUrl || "").length, 0);
+                if (totalChars > MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS) {
+                    throw new Error("attachment-too-large");
+                }
+                state.attachment = prepared.length === 1
+                    ? prepared[0]
+                    : {
+                        type: "bundle",
+                        name: `${prepared.length} dosya`,
+                        items: prepared
+                    };
                 if (state.pendingViewOnce) {
-                    if (state.attachment?.type?.startsWith("image/") || state.attachment?.type?.startsWith("video/")) {
-                        state.attachment.viewOnce = true;
-                        state.attachment.viewOnceId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
-                    } else {
-                        showToast("Tek açımlık medya sadece fotoğraf veya video için kullanılabilir.");
-                    }
+                    state.attachment.viewOnce = true;
+                    state.attachment.viewOnceId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
                 }
                 if (state.attachment?.dataUrl?.length > MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS) {
                     state.attachment = null;
@@ -11745,7 +11845,7 @@
         $("installButton").onclick = openInstallPanel;
         $("settingsInstallButton").onclick = openInstallPanel;
         $("notificationButton").onclick = openNotificationPanel;
-        $("sendToolsButton").onclick = () => isAiChat(activeChat()) ? openAiVoiceAssistant() : openSendTools();
+        $("viewOnceButton").onclick = () => isAiChat(activeChat()) ? openAiVoiceAssistant() : toggleViewOnceMode();
         $("closeStoryButton").onclick = closeStoryPanel;
         $("storyPanel").onclick = event => {
             if (event.target.closest("button, input, textarea, a, video")) {

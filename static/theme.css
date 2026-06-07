@@ -657,8 +657,8 @@ textarea {
     z-index: 40;
     min-height: var(--composer-height);
     display: grid;
-    grid-template-columns: 42px 42px minmax(0, 1fr) 42px 42px;
-    grid-template-areas: "attach emoji input send voice";
+    grid-template-columns: 42px minmax(0, 1fr) 42px 42px;
+    grid-template-areas: "attach input once action";
     align-items: center;
     gap: 8px;
     padding: 8px 12px max(8px, env(safe-area-inset-bottom));
@@ -675,7 +675,7 @@ textarea {
 }
 
 #emojiButton {
-    grid-area: emoji;
+    display: none;
 }
 
 #messageInputShell {
@@ -684,11 +684,27 @@ textarea {
 }
 
 #sendButton {
-    grid-area: send;
+    grid-area: action;
 }
 
 #voiceButton {
-    grid-area: voice;
+    grid-area: action;
+}
+
+#viewOnceButton {
+    grid-area: once;
+}
+
+#locationButton {
+    display: none;
+}
+
+.composer:not(.has-content) #sendButton {
+    display: none;
+}
+
+.composer.has-content #voiceButton {
+    display: none;
 }
 
 #messageInputShell {
@@ -708,7 +724,7 @@ textarea {
     overflow: hidden;
 }
 
-#gifButton {
+#gifInlineButton {
     position: absolute;
     right: 7px;
     top: 50%;
@@ -720,6 +736,108 @@ textarea {
     display: grid;
     place-items: center;
     border-radius: 50%;
+}
+
+.attachment-preview-grid,
+.media-bundle-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    overflow: hidden;
+    border-radius: 14px;
+}
+
+.attachment-preview-grid {
+    width: 62px;
+    height: 48px;
+}
+
+.attachment-preview-grid > *,
+.media-bundle-cell > img,
+.media-bundle-cell > video {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: cover;
+}
+
+.attachment-preview-file {
+    min-height: 22px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.media-bundle-grid {
+    width: min(300px, 70vw);
+    aspect-ratio: 1.2;
+}
+
+.media-bundle-grid.media-count-1 {
+    grid-template-columns: 1fr;
+}
+
+.media-bundle-grid.media-count-3 .media-bundle-cell:first-child {
+    grid-row: span 2;
+}
+
+.media-bundle-cell {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.view-once-guard {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.compact-share-menu {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.compact-share-menu .attachment-option {
+    min-width: 0;
+    min-height: 92px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    padding: 10px 6px;
+    border-radius: 18px;
+    text-align: center;
+}
+
+.compact-share-menu .attachment-option-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #00f2ff, #704cff 55%, #ff00b8);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+}
+
+.compact-share-menu .attachment-option strong {
+    display: block;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.share-menu-sheet .modal-box,
+.keyboard-sheet .modal-box {
+    width: min(560px, 100%);
+    max-height: none;
+    overflow: visible;
+}
+
+.share-menu-sheet .modal-actions,
+.keyboard-sheet .modal-actions {
+    margin-top: 10px;
 }
 
 .smart-replies,
@@ -1080,7 +1198,8 @@ textarea {
         left: 0;
         right: 0;
         bottom: max(var(--keyboard-inset), env(safe-area-inset-bottom));
-        grid-template-columns: 35px 35px minmax(0, 1fr) 35px 35px;
+        grid-template-columns: 35px minmax(0, 1fr) 35px 35px;
+        grid-template-areas: "attach input once action";
         gap: 5px;
         min-height: 52px;
         padding: 6px 8px max(6px, env(safe-area-inset-bottom));
@@ -1091,7 +1210,7 @@ textarea {
     #sendButton,
     #voiceButton,
     #attachButton,
-    #emojiButton {
+    #viewOnceButton {
         width: 35px;
         height: 35px;
     }
@@ -2901,6 +3020,7 @@ button {
         display: flex;
         flex-direction: column;
         width: auto;
+        height: auto;
         max-height: min(78vh, calc(var(--app-height) - var(--safe-top) - 18px));
         padding: 14px;
         overflow: auto;
