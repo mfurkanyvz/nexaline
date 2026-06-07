@@ -1312,6 +1312,57 @@ button {
     fill: currentColor;
 }
 
+.explore-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 10px 10px 120px;
+}
+
+.explore-card {
+    position: relative;
+    min-width: 0;
+    min-height: 154px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 7px;
+    padding: 18px;
+    color: #fff;
+    text-align: left;
+    border-radius: 24px;
+    overflow: hidden;
+}
+
+.explore-card .attachment-option-icon {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    margin-bottom: auto;
+    color: #fff;
+    border-radius: 15px;
+    background: linear-gradient(135deg, #00f2ff, #7c4dff 52%, #ff00b8);
+    box-shadow: 0 0 24px rgba(0, 242, 255, 0.24);
+}
+
+.explore-card strong {
+    font-size: 15px;
+}
+
+.explore-card small {
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.35;
+}
+
+.explore-card-arrow {
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    color: rgba(255, 255, 255, 0.54);
+}
+
 .x-actions button:hover,
 .x-actions button:focus-visible,
 .nav-tab.active,

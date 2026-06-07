@@ -6307,55 +6307,21 @@
             const grid = document.createElement("div");
             grid.className = "explore-grid";
             const cards = [
-                ["ai", "Nexa AI", "Sohbet özeti, doğal arama ve uygulama komutları", openAiPanel],
-                ["voice", "Sesli Odalar", "Canlı oda keşfet, oluştur ve yönet", openVoiceRoomsHub],
-                ["communities", "Topluluklar", "Topluluk oluştur, katıl ve duyuru yayınla", openCommunitiesHub],
-                ["stories", "Güncellemeler", "Durumlar, kanallar ve hikaye akışı", () => switchSection("stories")],
-                ["groups", "Gruplar", "Topluluklar ve grup davetleri", () => switchSection("groups")],
-                ["nearby", "Yakınımdakiler", "Konum izniyle yakındaki kullanıcıları keşfet", openNearbyPanel],
-                ["vault", "Gizli Kasa", "PIN korumalı not ve medya alanı", openVaultPanel]
+                ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", openAiPanel],
+                ["voice", "Sesli Odalar", "Canlı odaları keşfet, oluştur ve yönet", openVoiceRoomsHub],
+                ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", openNearbyPanel],
+                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", openVaultPanel]
             ];
             cards.forEach(([key, title, hint, action]) => {
                 const card = document.createElement("button");
                 card.type = "button";
                 card.className = "explore-card";
-                card.innerHTML = `<span class="attachment-option-icon">${svgIcon(key === "ai" ? "zap" : key === "nearby" ? "location" : key === "vault" ? "lock" : key === "voice" ? "mic" : key === "communities" ? "groups" : key)}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
+                card.dataset.exploreModule = key;
+                card.innerHTML = `<span class="attachment-option-icon">${svgIcon(key === "ai" ? "zap" : key === "nearby" ? "location" : key === "vault" ? "lock" : "mic")}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small><span class="explore-card-arrow" aria-hidden="true">›</span>`;
                 card.onclick = action;
                 grid.appendChild(card);
             });
             list.appendChild(grid);
-
-            const voiceTitle = document.createElement("div");
-            voiceTitle.className = "section-label";
-            voiceTitle.textContent = "Sesli Odalar";
-            list.appendChild(voiceTitle);
-            const rooms = document.createElement("div");
-            rooms.className = "explore-grid";
-            (state.voiceRooms || []).forEach(room => rooms.appendChild(renderVoiceRoomCard(room)));
-            if (!state.voiceRooms?.length) {
-                rooms.innerHTML = `<div class="voice-room-card"><strong>Oda bilgisi bekleniyor</strong><small>Sunucu bağlantısı kurulunca sesli odalar görünür.</small></div>`;
-            }
-            list.appendChild(rooms);
-
-            if (state.nearbyUsers?.length) {
-                const nearbyTitle = document.createElement("div");
-                nearbyTitle.className = "section-label";
-                nearbyTitle.textContent = "Yakındaki kullanıcılar";
-                list.appendChild(nearbyTitle);
-                state.nearbyUsers.slice(0, 12).forEach(user => {
-                    const row = document.createElement("button");
-                    row.type = "button";
-                    row.className = "contact-item";
-                    const avatar = document.createElement("div");
-                    avatar.className = "avatar" + (user.online ? " online" : "");
-                    setAvatar(avatar, user, user.displayName);
-                    const text = document.createElement("div");
-                    text.innerHTML = `<strong class="chat-title">${escapeHtml(user.displayName)}</strong><div class="last-message">${escapeHtml(user.distanceKm || "?")} km uzakta</div>`;
-                    row.append(avatar, text, document.createElement("span"));
-                    row.onclick = () => openUserProfilePane(user);
-                    list.appendChild(row);
-                });
-            }
         }
 
         function renderVoiceRoomCard(room) {
