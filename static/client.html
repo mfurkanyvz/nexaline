@@ -1177,6 +1177,11 @@
             activeStoryIndex: 0,
             waveTimer: null,
             pendingStoryBody: "",
+            updatesRecorder: null,
+            updatesRecordingStream: null,
+            updatesRecordedChunks: [],
+            updatesAudioDraft: null,
+            updatesAudioStartedAt: 0,
             generalGroup: null,
             generalPromptShown: false,
             recorder: null,
@@ -5761,12 +5766,14 @@
             compose.innerHTML = `
                 <div class="x-compose-head">
                     <strong>Güncellemeler</strong>
-                    <small>Yazı paylaş veya galeriden en fazla dört fotoğraf seç</small>
+                    <small>Yazı, fotoğraf veya ses kaydı paylaş</small>
                 </div>
                 <textarea id="updatesFeedBody" maxlength="420" placeholder="Bugün ne paylaşmak istersin?">${escapeHtml(state.updatesDraft || "")}</textarea>
                 <div id="updatesFeedPreview" class="x-photo-preview x-photo-grid hidden"></div>
+                <div id="updatesFeedAudioPreview" class="x-audio-draft hidden"></div>
                 <div class="x-actions">
                     <button id="updatesFeedPhotoButton" type="button">${svgIcon("image")} Fotoğraf</button>
+                    <button id="updatesFeedVoiceButton" type="button" aria-label="Ses kaydet">${svgIcon("mic")} <span>Ses</span></button>
                     <button id="updatesFeedPublishButton" type="button" class="primary">${svgIcon("send")} Paylaş</button>
                 </div>
             `;
@@ -5796,8 +5803,10 @@
                 const preview = $("updatesFeedPreview");
                 const publish = $("updatesFeedPublishButton");
                 const photoButton = $("updatesFeedPhotoButton");
+                const voiceButton = $("updatesFeedVoiceButton");
                 const input = $("updatesFeedPhotoInput");
-                if (!bodyInput || !publish || !photoButton || !input) return;
+                const audioPreview = $("updatesFeedAudioPreview");
+                if (!bodyInput || !publish || !photoButton || !voiceButton || !input) return;
                 bodyInput.oninput = () => {
                     state.updatesDraft = bodyInput.value;
                 };
@@ -5808,6 +5817,8 @@
                     ).join("");
                 }
                 photoButton.onclick = () => input.click();
+                voiceButton.onclick = () => toggleUpdatesVoiceRecording();
+                renderUpdatesAudioDraft(audioPreview, voiceButton);
                 input.onchange = async event => {
                     const files = [...(event.target.files || [])].slice(0, 4);
                     if (!files.length) return;
@@ -5830,24 +5841,142 @@
                 };
                 publish.onclick = () => {
                     const body = bodyInput.value.trim();
-                    if (!body && !selectedMedia.length) {
-                        showToast("Paylaşmak için yazı veya fotoğraf ekle.");
+                    const audioDraft = state.updatesAudioDraft;
+                    if (!body && !selectedMedia.length && !audioDraft) {
+                        showToast("Paylaşmak için yazı, fotoğraf veya ses ekle.");
                         return;
                     }
-                    createUpdatesFeedPost(body, selectedMedia);
+                    createUpdatesFeedPost(body, [...selectedMedia, ...(audioDraft ? [audioDraft] : [])]);
                     bodyInput.value = "";
                     state.updatesDraft = "";
                     input.value = "";
                     selectedMedia = [];
                     state.updatesMedia = [];
+                    state.updatesAudioDraft = null;
                     if (preview) {
                         preview.classList.add("hidden");
                         preview.innerHTML = "";
                     }
+                    renderUpdatesAudioDraft(audioPreview, voiceButton);
                 };
             }, 0);
 
             return wrapper;
+        }
+
+        function formatAudioDuration(seconds) {
+            const total = Math.max(0, Math.round(Number(seconds) || 0));
+            return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+        }
+
+        function renderUpdatesAudioDraft(container = $("updatesFeedAudioPreview"), button = $("updatesFeedVoiceButton")) {
+            if (!container || !button) return;
+            const recording = state.updatesRecorder?.state === "recording";
+            button.classList.toggle("recording", recording);
+            button.innerHTML = recording
+                ? `${svgIcon("x")} <span>Bitir</span>`
+                : `${svgIcon("mic")} <span>Ses</span>`;
+            const draft = state.updatesAudioDraft;
+            container.classList.toggle("hidden", !draft && !recording);
+            if (recording) {
+                container.innerHTML = `
+                    <span class="x-recording-dot"></span>
+                    <div><strong>Ses kaydediliyor</strong><small>Bitirmek için mikrofon düğmesine dokun</small></div>
+                    <div class="x-recording-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                `;
+                return;
+            }
+            if (!draft) {
+                container.innerHTML = "";
+                return;
+            }
+            container.innerHTML = `
+                <button type="button" class="x-audio-play" aria-label="Ses kaydını oynat">${svgIcon("volume")}</button>
+                <div><strong>Sesli güncelleme</strong><small>${formatAudioDuration(draft.duration)}${draft.transcript ? " · Metne çevrildi" : ""}</small></div>
+                <button type="button" class="x-audio-remove" aria-label="Ses kaydını kaldır">${svgIcon("x")}</button>
+                ${draft.transcript ? `<p>${escapeHtml(draft.transcript)}</p>` : ""}
+            `;
+            container.querySelector(".x-audio-play").onclick = () => {
+                const audio = new Audio(draft.dataUrl);
+                audio.play().catch(() => showToast("Ses kaydı oynatılamadı."));
+            };
+            container.querySelector(".x-audio-remove").onclick = () => {
+                state.updatesAudioDraft = null;
+                renderUpdatesAudioDraft(container, button);
+            };
+        }
+
+        async function toggleUpdatesVoiceRecording() {
+            if (state.updatesRecorder?.state === "recording") {
+                state.updatesRecorder.stop();
+                return;
+            }
+            if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+                showToast("Bu cihaz ses kaydını desteklemiyor.");
+                return;
+            }
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+            } catch (error) {
+                showToast("Ses paylaşmak için mikrofon izni gerekiyor.");
+                return;
+            }
+            const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+                ? "audio/webm;codecs=opus"
+                : MediaRecorder.isTypeSupported("audio/mp4")
+                    ? "audio/mp4"
+                    : "";
+            const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+            state.updatesRecorder = recorder;
+            state.updatesRecordingStream = stream;
+            state.updatesRecordedChunks = [];
+            state.updatesAudioStartedAt = Date.now();
+            recorder.ondataavailable = event => {
+                if (event.data?.size) state.updatesRecordedChunks.push(event.data);
+            };
+            recorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+                state.updatesRecordingStream = null;
+                const chunks = state.updatesRecordedChunks.splice(0);
+                const duration = Math.max(1, Math.round((Date.now() - state.updatesAudioStartedAt) / 1000));
+                state.updatesAudioStartedAt = 0;
+                state.updatesRecorder = null;
+                if (!chunks.length) {
+                    renderUpdatesAudioDraft();
+                    showToast("Ses kaydı alınamadı. Tekrar dene.");
+                    return;
+                }
+                const blob = new Blob(chunks, { type: mimeType || recorder.mimeType || "audio/webm" });
+                if (blob.size > MAX_CLIENT_ATTACHMENT_BYTES) {
+                    renderUpdatesAudioDraft();
+                    showToast("Ses kaydı çok uzun. Daha kısa bir kayıt al.");
+                    return;
+                }
+                const dataUrl = await readFileAsDataUrl(blob);
+                const draft = {
+                    name: `sesli-guncelleme-${Date.now()}.${blob.type.includes("mp4") ? "m4a" : "webm"}`,
+                    type: blob.type || "audio/webm",
+                    dataUrl,
+                    duration,
+                    transcript: ""
+                };
+                state.updatesAudioDraft = draft;
+                renderUpdatesAudioDraft();
+                try {
+                    const result = await nexaAiEngine.runAiStt(dataUrl);
+                    if (result?.ok && result.text) {
+                        draft.transcript = String(result.text).trim().slice(0, 1200);
+                        renderUpdatesAudioDraft();
+                    }
+                } catch (error) {
+                    console.warn("Sesli güncelleme metne çevrilemedi", error);
+                }
+            };
+            recorder.start(250);
+            renderUpdatesAudioDraft();
         }
 
         function renderUpdatesFeedPost(post) {
@@ -5860,11 +5989,25 @@
             const mediaItems = Array.isArray(post.media) && post.media.length
                 ? post.media
                 : (post.image ? [{ dataUrl: post.image, type: "image/png" }] : []);
-            const media = mediaItems.length
-                ? `<div class="x-feed-media-grid media-count-${Math.min(4, mediaItems.length)}">${mediaItems.slice(0, 4).map((item, index) =>
+            const imageItems = mediaItems.filter(item => String(item?.type || "").startsWith("image/"));
+            const audioItems = mediaItems.filter(item => String(item?.type || "").startsWith("audio/"));
+            const media = imageItems.length
+                ? `<div class="x-feed-media-grid media-count-${Math.min(4, imageItems.length)}">${imageItems.slice(0, 4).map((item, index) =>
                     `<img class="x-feed-image" src="${escapeHtml(item.dataUrl || "")}" alt="Güncelleme görseli ${index + 1}">`
                 ).join("")}</div>`
                 : "";
+            const audioMedia = audioItems.map(item => `
+                <div class="x-feed-audio">
+                    <span class="x-feed-audio-icon">${svgIcon("mic")}</span>
+                    <div class="x-feed-audio-body">
+                        <strong>Sesli güncelleme</strong>
+                        <div class="x-audio-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                        <audio controls preload="metadata" src="${escapeHtml(item.dataUrl || "")}"></audio>
+                        ${item.transcript ? `<details><summary>Metni göster</summary><p>${escapeHtml(item.transcript)}</p></details>` : ""}
+                    </div>
+                    <small>${formatAudioDuration(item.duration)}</small>
+                </div>
+            `).join("");
             const isOwner = post.username === state.me?.username;
             const likeCount = Number(post.likes || 0);
             row.innerHTML = `
@@ -5878,6 +6021,7 @@
                 </div>
                 <p>${escapeHtml(post.body || "")}</p>
                 ${media}
+                ${audioMedia}
                 <div class="x-actions">
                     <button type="button" data-feed-action="like" class="${post.userLiked ? "liked" : ""}" aria-label="Beğen">${svgIcon("heart")} <span>${likeCount}</span></button>
                     ${isOwner ? `<button type="button" data-feed-action="share">${svgIcon("image")} Duruma ekle</button>` : `<button type="button" data-feed-action="reply">${svgIcon("chats")} Özel mesaj</button>`}
@@ -5918,8 +6062,10 @@
             state.pendingUpdateReply = {
                 id: `update:${post.id}`,
                 senderName: post.displayName || user.displayName || user.username,
-                body: post.body || "Fotoğraflı güncelleme",
-                attachmentName: (post.media || []).length ? "Güncelleme fotoğrafı" : ""
+                body: post.body || ((post.media || []).some(item => String(item?.type || "").startsWith("audio/")) ? "Sesli güncelleme" : "Fotoğraflı güncelleme"),
+                attachmentName: (post.media || []).some(item => String(item?.type || "").startsWith("audio/"))
+                    ? "Ses kaydı"
+                    : (post.media || []).length ? "Güncelleme fotoğrafı" : ""
             };
             state.openNextChat = true;
             socket.emit("chat:create", { target: user.username });

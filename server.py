@@ -7909,16 +7909,23 @@ def handle_update_post_create(data):
     media = data.get("media") if isinstance(data.get("media"), list) else []
     media = [item for item in media[:4] if isinstance(item, dict)]
     if not username or (not body and not media):
-        emit("notice", {"message": "Paylaşmak için yazı veya fotoğraf ekle."})
+        emit("notice", {"message": "Paylaşmak için yazı, fotoğraf veya ses ekle."})
         return
+    audio_count = 0
     for attachment in media:
         error = attachment_error(attachment)
         if error:
             emit("notice", {"message": error})
             return
-        if not str(attachment.get("type") or "").startswith("image/"):
-            emit("notice", {"message": "Güncelleme akışına yalnızca fotoğraf eklenebilir."})
+        attachment_type = str(attachment.get("type") or "")
+        if attachment_type.startswith("audio/"):
+            audio_count += 1
+        elif not attachment_type.startswith("image/"):
+            emit("notice", {"message": "Güncelleme akışına yalnızca fotoğraf veya ses kaydı eklenebilir."})
             return
+    if audio_count > 1:
+        emit("notice", {"message": "Bir güncellemeye yalnızca bir ses kaydı ekleyebilirsin."})
+        return
     post = UpdatePost(
         id=uuid4().hex,
         username=username,
