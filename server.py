@@ -4786,6 +4786,7 @@ class ProcessAI:
         ):
             cleaned = re.sub(r"[ \t]+", " ", text_value or "").strip()
             replacements = {
+                r"\bmeraba\b": "merhaba",
                 r"\bherkez\b": "herkes",
                 r"\byanlız\b": "yalnız",
                 r"\bbişey\b": "bir şey",
@@ -4794,6 +4795,7 @@ class ProcessAI:
                 r"\bgelicem\b": "geleceğim",
                 r"\byapıcam\b": "yapacağım",
                 r"\byazıcam\b": "yazacağım",
+                r"\bsorucam\b": "soracağım",
             }
             for pattern, replacement in replacements.items():
                 cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)

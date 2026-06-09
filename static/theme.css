@@ -4380,6 +4380,450 @@ button {
     }
 }
 
+/* Stage 1: chat surface polish */
+.messages {
+    display: flex;
+    flex-direction: column;
+}
+
+.bubble,
+.message-bubble {
+    position: relative;
+    line-height: 1.42;
+}
+
+.bubble.theirs,
+.message-bubble.theirs {
+    align-self: flex-start;
+    border-radius: 18px 18px 18px 7px;
+    background: rgba(20, 29, 46, 0.84);
+}
+
+.bubble.mine,
+.message-bubble.mine {
+    align-self: flex-end;
+    border-radius: 18px 18px 7px 18px;
+}
+
+.bubble.theirs::after,
+.bubble.mine::after,
+.message-bubble.theirs::after,
+.message-bubble.mine::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    width: 10px;
+    height: 10px;
+    background: inherit;
+}
+
+.bubble.theirs::after,
+.message-bubble.theirs::after {
+    left: -3px;
+    border-bottom-right-radius: 10px;
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.bubble.mine::after,
+.message-bubble.mine::after {
+    right: -3px;
+    border-bottom-left-radius: 10px;
+    clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.composer .icon-btn,
+.composer #sendButton,
+.composer #voiceButton,
+.composer #attachButton,
+.composer #viewOnceButton,
+.composer #emojiButton,
+.composer #locationButton {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.045);
+    box-shadow: none;
+}
+
+.composer .icon-btn:hover,
+.composer .icon-btn:focus-visible,
+.composer #voiceButton:not(.recording):hover,
+.composer #voiceButton:not(.recording):focus-visible {
+    border-color: rgba(0, 242, 255, 0.18);
+    background: rgba(0, 242, 255, 0.07);
+    box-shadow: none;
+}
+
+.composer #voiceButton {
+    font-size: 0;
+}
+
+.composer #voiceButton svg {
+    width: 19px;
+    height: 19px;
+}
+
+.composer #voiceButton.recording {
+    color: #fff;
+    border-color: rgba(255, 0, 184, 0.38);
+    background: radial-gradient(circle at 35% 28%, rgba(0, 242, 255, 0.6), rgba(112, 76, 255, 0.72) 48%, rgba(255, 0, 184, 0.78));
+    box-shadow: 0 0 22px rgba(255, 0, 184, 0.28), 0 0 18px rgba(0, 242, 255, 0.18);
+}
+
+#gifInlineButton {
+    border: 0;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
+    box-shadow: none;
+    font-size: 9px;
+    letter-spacing: 0.02em;
+}
+
+#gifInlineButton:hover,
+#gifInlineButton:focus-visible {
+    color: #8ff8ff;
+    background: rgba(0, 242, 255, 0.08);
+    box-shadow: none;
+}
+
+.smart-replies {
+    padding: 0 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.smart-replies::-webkit-scrollbar {
+    display: none;
+}
+
+.smart-replies button,
+.emoji-panel button {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(18, 27, 41, 0.78);
+    color: var(--text-main);
+    box-shadow: none;
+}
+
+.emoji-panel {
+    justify-self: start;
+    max-width: min(360px, calc(100vw - 20px));
+    padding: 8px;
+}
+
+.compact-share-menu .attachment-option,
+.attachment-preview,
+.view-once-compose-shell {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(18, 27, 41, 0.82);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+}
+
+.attachment-preview .view-once-toggle,
+.attachment-preview button,
+.view-once-inline-send {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    box-shadow: none;
+}
+
+.attachment-preview .view-once-toggle.active,
+.view-once-inline-send:not(:disabled) {
+    border-color: rgba(0, 242, 255, 0.24);
+    background: linear-gradient(135deg, rgba(0, 242, 255, 0.3), rgba(112, 76, 255, 0.38), rgba(255, 0, 184, 0.34));
+}
+
+.view-once-compose-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+}
+
+.view-once-compose-shell textarea {
+    min-height: 44px;
+    max-height: 110px;
+    resize: vertical;
+    border: 0;
+    background: transparent;
+    color: var(--text-main);
+}
+
+.view-once-inline-send {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+}
+
+.view-once-inline-send svg {
+    width: 18px;
+    height: 18px;
+}
+
+.voice-wave {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 28px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(0, 242, 255, 0.06);
+}
+
+.voice-wave.active {
+    display: flex;
+}
+
+.voice-wave span {
+    width: 3px;
+    min-height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--neon-blue), var(--neon-pink));
+    transition: height 80ms ease;
+}
+
+.voice-card,
+.file-pill,
+.location-card,
+.poll-card,
+.gif-card,
+.single-open-media-card {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 24, 38, 0.74);
+    box-shadow: none;
+}
+
+.voice-card audio {
+    width: min(260px, 68vw);
+    height: 32px;
+}
+
+/* Stage 4: compact chat interaction system */
+.composer {
+    grid-template-columns: 36px 36px minmax(0, 1fr) 36px;
+    grid-template-areas:
+        "suggestions suggestions suggestions suggestions"
+        "reply reply reply reply"
+        "wave wave wave wave"
+        "emoji-panel emoji-panel emoji-panel emoji-panel"
+        "preview preview preview preview"
+        "attach emoji input action";
+    gap: 5px;
+    min-height: 54px;
+    padding: 5px 9px max(6px, env(safe-area-inset-bottom));
+}
+
+#attachButton { grid-area: attach; }
+#emojiButton {
+    grid-area: emoji;
+    display: grid;
+}
+#messageInputShell { grid-area: input; }
+#sendButton,
+#voiceButton { grid-area: action; }
+#viewOnceButton,
+#locationButton { display: none; }
+
+.smart-replies { grid-area: suggestions; }
+.reply-preview { grid-area: reply; }
+.voice-wave { grid-area: wave; }
+.emoji-panel { grid-area: emoji-panel; }
+.attachment-preview { grid-area: preview; }
+
+.composer .icon-btn,
+.composer #sendButton,
+.composer #voiceButton,
+.composer #attachButton,
+.composer #emojiButton {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: rgba(240, 245, 255, 0.88);
+    background: transparent;
+}
+
+.composer #sendButton {
+    color: #fff;
+    background: linear-gradient(135deg, #00cfff, #704cff 52%, #ff00b8);
+    box-shadow: 0 5px 18px rgba(112, 76, 255, 0.32);
+}
+
+#messageInputShell,
+#messageInput {
+    min-height: 38px;
+    height: 38px;
+    max-height: 38px;
+}
+
+#messageInputShell {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(13, 22, 35, 0.82);
+}
+
+#messageInput {
+    padding: 7px 39px 7px 13px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+#gifInlineButton {
+    right: 7px;
+    width: 25px;
+    height: 25px;
+    min-height: 25px;
+    border-radius: 8px;
+}
+
+.smart-replies {
+    width: 100%;
+    gap: 7px;
+    padding: 2px 1px 4px;
+}
+
+.smart-replies button {
+    flex: 0 0 auto;
+    min-height: 31px;
+    padding: 5px 11px;
+    border: 1px solid rgba(112, 76, 255, 0.2);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(27, 39, 61, 0.9), rgba(40, 24, 70, 0.82));
+    font-size: 12px;
+}
+
+.emoji-panel {
+    width: max-content;
+    grid-template-columns: repeat(8, 34px);
+    gap: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 18px;
+    background: rgba(11, 18, 30, 0.96);
+}
+
+.emoji-panel:not(.hidden) {
+    display: grid;
+}
+
+.emoji-panel button {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+}
+
+.attachment-preview {
+    grid-template-columns: auto minmax(0, 1fr) 34px 34px;
+    gap: 8px;
+    min-height: 48px;
+    padding: 6px 8px;
+    border-radius: 16px;
+}
+
+.attachment-preview .view-once-toggle,
+.attachment-preview .attachment-clear {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+}
+
+.compact-share-menu {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.compact-share-menu .attachment-option {
+    min-height: 92px;
+    padding: 11px 7px;
+    border-radius: 17px;
+}
+
+.compact-share-menu .attachment-option-icon {
+    width: 38px;
+    height: 38px;
+}
+
+.gif-card {
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+}
+
+.gif-card img {
+    display: block;
+    border: 0;
+    border-radius: 14px;
+}
+
+.gif-card .last-message {
+    padding: 4px 2px 0;
+}
+
+.voice-card,
+.file-pill,
+.location-card,
+.poll-card,
+.single-open-media-card,
+.call-card {
+    width: fit-content;
+    max-width: min(290px, 70vw);
+    padding: 8px 10px;
+    border-radius: 14px;
+}
+
+.voice-card audio {
+    width: min(220px, 58vw);
+}
+
+.bubble .message-meta,
+.bubble .chat-time {
+    margin-top: 3px;
+}
+
+@media (max-width: 520px) {
+    .composer {
+        grid-template-columns: 34px 34px minmax(0, 1fr) 34px;
+        min-height: 50px;
+        padding: 4px 7px max(5px, env(safe-area-inset-bottom));
+    }
+
+    .composer .icon-btn,
+    .composer #sendButton,
+    .composer #voiceButton,
+    .composer #attachButton,
+    .composer #emojiButton {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        min-height: 34px;
+    }
+
+    #messageInputShell,
+    #messageInput {
+        min-height: 36px;
+        height: 36px;
+        max-height: 36px;
+    }
+
+    .emoji-panel {
+        width: 100%;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+    }
+}
+
 /* Nexa Play */
 .nexa-play-panel .modal-box {
     width: min(920px, calc(100vw - 24px));

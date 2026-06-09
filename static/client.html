@@ -9078,20 +9078,32 @@
 
         function smartReplyOptions(chat) {
             if (!chat?.messages?.length) {
-                return ["Merhaba", "Müsait misin?", "Tamamdır"];
+                return ["Merhaba 👋", "Nasılsın?", "Müsait misin?", "Sonra konuşalım mı?"];
             }
             const last = [...chat.messages].reverse().find(message => message.sender !== state.me.username && !message.deletedAt);
             const text = (last?.body || "").toLocaleLowerCase("tr-TR");
             if (text.includes("?")) {
-                return ["Evet, uygun.", "Birazdan döneceğim.", "Detay verir misin?"];
+                return ["Evet, uygun.", "Hayır, şu an uygun değilim.", "Birazdan döneceğim.", "Detay verir misin?"];
             }
             if (text.includes("teşekkür") || text.includes("sağ ol")) {
-                return ["Rica ederim.", "Ne demek.", "Her zaman."];
+                return ["Rica ederim 😊", "Ne demek.", "Her zaman.", "Yardımcı olabildiysem ne mutlu."];
             }
             if (text.includes("ara") || text.includes("arama")) {
-                return ["Şimdi arayabilirim.", "Birazdan arayayım.", "Mesajdan devam edelim."];
+                return ["Şimdi arayabilirim.", "Birazdan arayayım.", "Sesli mi görüntülü mü?", "Mesajdan devam edelim."];
             }
-            return ["Tamamdır.", "Birazdan döneceğim.", "Harika."];
+            if (text.includes("merhaba") || text.includes("selam")) {
+                return ["Selam 👋", "Merhaba, nasılsın?", "Buradayım.", "Seni dinliyorum."];
+            }
+            if (text.includes("tamam") || text.includes("olur")) {
+                return ["Anlaştık.", "Tamamdır 👍", "Harika.", "Görüşürüz."];
+            }
+            if (text.includes("üzgün") || text.includes("kötü") || text.includes("sorun")) {
+                return ["Yanındayım.", "İstersen anlat.", "Yardım edebilir miyim?", "Umarım kısa sürede düzelir."];
+            }
+            if (text.includes("foto") || text.includes("video") || text.includes("dosya")) {
+                return ["Gördüm.", "Çok iyi görünüyor.", "Tekrar gönderebilir misin?", "Bunu kaydettim."];
+            }
+            return ["Tamamdır.", "Birazdan döneceğim.", "Harika.", "Devamını anlat.", "Anladım 👍"];
         }
 
         function firstUrl(text = "") {
@@ -9128,6 +9140,7 @@
                 button.onclick = () => {
                     $("messageInput").value = text;
                     $("messageInput").focus();
+                    updateComposerState();
                 };
                 wrap.appendChild(button);
             });
@@ -9339,7 +9352,7 @@
                 }
                 const mine = message.sender === state.me.username;
                 const bubble = document.createElement("article");
-                bubble.className = "bubble" + (mine ? " mine" : "");
+                bubble.className = "bubble" + (mine ? " mine" : " theirs");
 
                 const sender = document.createElement("div");
                 sender.className = "sender";
@@ -10436,6 +10449,7 @@
                     ["4-2-2", "image", "Fotoğraf ve video", () => openMediaArchiveDirectly()],
                     ["4-2-9", "location", "Konum", sendCurrentLocation],
                     ["4-2-1", "file", "Belge", () => $("fileInput").click()],
+                    ["4-2-10", "eye", "Tek mesaj", openViewOnceTextComposer],
                     ["4-2-11", "zap", "AI ile düzenle", improveComposerWithAi],
                     ["4-2-6", "poll", "Anket", openPollCreator]
                 ];
@@ -10454,6 +10468,13 @@
                 });
                 body.appendChild(menu);
             }, [{ label: "Kapat", onClick: closeModal }], "sheet share-menu-sheet");
+        }
+
+        function openMediaArchiveDirectly() {
+            const input = $("mediaInput");
+            if (!input) return;
+            input.value = "";
+            input.click();
         }
 
         function openViewOnceTextComposer() {
@@ -10497,30 +10518,7 @@
                 shell.append(input, send);
                 body.appendChild(shell);
                 setTimeout(() => input.focus(), 80);
-            }, [
-                { label: "Vazgeç", onClick: closeModal },
-                {
-                    label: "Mesaja Ekle",
-                    primary: true,
-                    onClick: () => {
-                        const text = $("viewOnceTextInput")?.value.trim();
-                        if (!text) {
-                            showToast("Tek görülmelik mesaj boş olamaz.");
-                            return;
-                        }
-                        state.attachment = {
-                            type: "view_once_text",
-                            name: "Tek görülmelik mesaj",
-                            text,
-                            viewOnce: true,
-                            viewOnceId: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`
-                        };
-                        $("messageInput").placeholder = "Tek görülmelik mesaj hazır";
-                        closeModal();
-                        updateComposerState();
-                    }
-                }
-            ], "sheet");
+            }, [{ label: "Vazgeç", onClick: closeModal }], "sheet");
         }
 
         async function openCameraCapture() {
@@ -10706,14 +10704,15 @@
             }
             try {
                 showToast("Nexa AI mesajı düzenliyor...");
-                const response = await fetch("/ai/chat", {
+                const response = await fetch("/ai/text-tool", {
                     method: "POST",
                     headers: authHeaders(),
                     body: JSON.stringify({
                         username: state.me.username,
                         chatId: state.activeChatId,
-                        prompt: `Bu mesajı doğal, kısa ve daha temiz hale getir. Sadece düzenlenmiş mesajı yaz:\n${text}`,
-                        assistantName: aiDisplayName()
+                        tool: "fix",
+                        text,
+                        assistantName: aiDisplayName(),
                     })
                 });
                 const data = await response.json();
@@ -10721,7 +10720,7 @@
                     showToast(data.message || "AI düzenleyemedi.");
                     return;
                 }
-                input.value = cleanAiEditedText(data.reply || text);
+                input.value = cleanAiEditedText(data.result || text);
                 input.focus();
                 updateComposerState();
             } catch (_error) {
@@ -11312,7 +11311,7 @@
             };
             state.recorder.start(250);
             $("voiceButton").classList.add("recording");
-            $("voiceButton").textContent = "?";
+            $("voiceButton").innerHTML = svgIcon("x");
             $("cancelVoiceButton").classList.remove("hidden");
         }
 
