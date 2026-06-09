@@ -8235,9 +8235,12 @@ def forward_call_event(event_name, data):
     if target:
         if not user_can_see_chat(chat, target):
             return
-        for sid in connected_sids_for(target):
+        target_sids = connected_sids_for(target)
+        for sid in target_sids:
             emit(event_name, payload, room=sid)
-        if event_name == "call:offer":
+        if event_name == "call:offer" and target_sids:
+            emit("call:ringing", {"chatId": chat.id, "to": target})
+        if event_name == "call:offer" and not data.get("retry"):
             call_kind = "audio" if data.get("audioOnly", True) else "video"
             send_push_notification(
                 chat.id,
@@ -8253,7 +8256,7 @@ def forward_call_event(event_name, data):
         return
 
     emit(event_name, payload, room=chat.id, include_self=False)
-    if event_name == "call:offer":
+    if event_name == "call:offer" and not data.get("retry"):
         call_kind = "audio" if data.get("audioOnly", True) else "video"
         send_push_notification(
             chat.id,

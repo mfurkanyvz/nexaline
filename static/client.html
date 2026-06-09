@@ -619,17 +619,18 @@
                 <span id="callTimer">00:00</span>
             </div>
             <div class="call-actions">
-                <button id="acceptCallButton" class="icon-btn accept hidden" title="Kabul et">✓</button>
-                <button id="muteButton" class="icon-btn" title="Mikrofon">♫</button>
-                <button id="cameraButton" class="icon-btn" title="Kamera">▣</button>
-                <button id="switchCameraButton" class="icon-btn" title="Kamerayı çevir">⇄</button>
-                <button id="endCallButton" class="icon-btn danger" title="Bitir">×</button>
+                <button id="acceptCallButton" class="icon-btn accept hidden" type="button" title="Kabul et" data-label="Kabul Et">✓</button>
+                <button id="muteButton" class="icon-btn" type="button" title="Sesi kapat" data-label="Sesi Kapat">♫</button>
+                <button id="switchCameraButton" class="icon-btn" type="button" title="Kamerayı döndür" data-label="Kamerayı Döndür">⇄</button>
+                <button id="cameraButton" class="icon-btn" type="button" title="Görüntüyü kapat" data-label="Görüntüyü Kapat">▣</button>
+                <button id="speakerButton" class="icon-btn" type="button" title="Hoparlör" data-label="Hoparlör">◖</button>
+                <button id="endCallButton" class="icon-btn danger" type="button" title="Aramayı sonlandır" data-label="Reddet">×</button>
             </div>
         </div>
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-07-mobile-safe-area-v5";
+        const NEXALINE_CLIENT_BUILD = "2026-06-09-stage6-calls-v6";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1197,13 +1198,17 @@
                 incomingOffer: null,
                 startedAt: null,
                 ringtoneTimer: null,
+                retryTimer: null,
                 timer: null,
                 audioContext: null,
                 analyser: null,
                 waveformFrame: 0,
                 peerName: "",
                 peerImage: "",
-                cameraFacing: "user"
+                cameraFacing: "user",
+                incoming: false,
+                connected: false,
+                speakerOn: false
             }
         };
 
@@ -1307,6 +1312,7 @@
                 muteButton: "mic",
                 cameraButton: "video",
                 switchCameraButton: "camera",
+                speakerButton: "volume",
                 endCallButton: "x",
                 modalCloseButton: "x",
                 closeSettingsButton: "x",
@@ -12733,6 +12739,37 @@
             $("callPeerMeta").textContent = text;
         }
 
+        function updateCallControls(connected = state.call.connected) {
+            state.call.connected = Boolean(connected);
+            const incoming = Boolean(state.call.incoming);
+            const audioOnly = Boolean(state.call.audioOnly);
+            $("callPanel").classList.toggle("incoming-call", incoming && !connected);
+            $("callPanel").classList.toggle("outgoing-call", !incoming && !connected);
+            $("callPanel").classList.toggle("connected-call", Boolean(connected));
+            $("acceptCallButton").classList.toggle("hidden", !incoming || connected);
+            $("muteButton").classList.toggle("hidden", !connected);
+            $("speakerButton").classList.toggle("hidden", !connected || !audioOnly);
+            $("cameraButton").classList.toggle("hidden", !connected || audioOnly);
+            $("switchCameraButton").classList.toggle("hidden", !connected || audioOnly);
+            $("endCallButton").dataset.label = connected
+                ? "Aramayı Sonlandır"
+                : incoming ? "Reddet" : "İptal";
+        }
+
+        function markCallConnected() {
+            if (state.call.retryTimer) {
+                clearInterval(state.call.retryTimer);
+                state.call.retryTimer = null;
+            }
+            if (!state.call.startedAt) {
+                state.call.startedAt = Date.now();
+                startCallTimer();
+            }
+            stopCallRingtone();
+            setCallStatus("bağlandı");
+            updateCallControls(true);
+        }
+
         function startCallTimer() {
             if (state.call.timer) {
                 clearInterval(state.call.timer);
@@ -12741,7 +12778,11 @@
                 const seconds = state.call.startedAt ? Math.max(0, Math.floor((Date.now() - state.call.startedAt) / 1000)) : 0;
                 const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
                 const rest = String(seconds % 60).padStart(2, "0");
-                $("callTimer").textContent = `${minutes}:${rest}`;
+                const duration = `${minutes}:${rest}`;
+                $("callTimer").textContent = duration;
+                if (state.call.connected) {
+                    $("callPeerMeta").textContent = duration;
+                }
             };
             tick();
             state.call.timer = setInterval(tick, 1000);
@@ -12845,7 +12886,7 @@
             };
             pc.onconnectionstatechange = () => {
                 if (pc.connectionState === "connected") {
-                    setCallStatus("bağlandı");
+                    markCallConnected();
                 }
             };
 
@@ -12877,13 +12918,15 @@
                 return;
             }
             const peers = callPeersForChat(chat);
-            const reachablePeers = chat.type === "direct" ? peers.filter(member => member.online) : peers;
-            if (!reachablePeers.length) {
-                showToast("Kişi çevrim dışı, arama başlatılamadı.");
+            if (!peers.length) {
+                showToast("Aranacak kişi bulunamadı.");
                 return;
             }
+            const peerOffline = chat.type === "direct" && peers.every(member => !member.online);
+            const callStatus = peerOffline ? "çevrim dışı" : "aranıyor...";
 
-            openCallPanel(audioOnly ? "Sesli arama" : "Görüntülü arama", "çalıyor", false, audioOnly, chat, callDisplayPeer(chat, reachablePeers));
+            openCallPanel(audioOnly ? "Sesli Arama" : "Görüntülü Arama", callStatus, false, audioOnly, chat, callDisplayPeer(chat, peers));
+            $("callPanel").classList.toggle("offline-call", peerOffline);
             startCallRingtone();
             try {
                 await ensureLocalCallStream(audioOnly);
@@ -12892,26 +12935,52 @@
                 endCall(false);
                 return;
             }
-            state.call.startedAt = Date.now();
-            startCallTimer();
-            socket.emit("call:log", { chatId: chat.id, kind: audioOnly ? "audio" : "video", status: "active" });
-            for (const member of reachablePeers) {
+            for (const member of peers) {
                 const pc = await createPeer(member.username, chat.id, audioOnly);
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 socket.emit("call:offer", { chatId: chat.id, to: member.username, offer, audioOnly });
             }
+            if (peerOffline) {
+                state.call.retryTimer = setInterval(() => {
+                    if (state.call.connected || $("callPanel").classList.contains("hidden")) {
+                        clearInterval(state.call.retryTimer);
+                        state.call.retryTimer = null;
+                        return;
+                    }
+                    peers.forEach(member => {
+                        const pc = state.call.peers[member.username];
+                        if (!pc?.localDescription) return;
+                        socket.emit("call:offer", {
+                            chatId: chat.id,
+                            to: member.username,
+                            offer: pc.localDescription,
+                            audioOnly,
+                            retry: true
+                        });
+                    });
+                }, 5000);
+            }
         }
 
         function openCallPanel(title, status, incoming, audioOnly, chat = activeChat(), peer = null) {
             $("callTitle").textContent = title;
+            state.call.incoming = Boolean(incoming);
+            state.call.audioOnly = Boolean(audioOnly);
+            state.call.speakerOn = false;
+            $("acceptCallButton").innerHTML = svgIcon(audioOnly ? "calls" : "video");
+            $("muteButton").innerHTML = svgIcon("mic");
+            $("cameraButton").innerHTML = svgIcon("video");
+            $("speakerButton").innerHTML = svgIcon("volume");
+            $("muteButton").classList.remove("control-off");
+            $("cameraButton").classList.remove("control-off");
+            $("speakerButton").classList.remove("control-active");
             setCallStatus(status);
             updateCallCover(chat, peer, status, audioOnly);
-            $("acceptCallButton").classList.toggle("hidden", !incoming);
-            $("cameraButton").classList.toggle("hidden", audioOnly);
-            $("switchCameraButton").classList.toggle("hidden", audioOnly);
             $("callPanel").classList.toggle("audio-only", Boolean(audioOnly));
             $("callPanel").classList.toggle("video-call", !audioOnly);
+            $("callPanel").classList.remove("offline-call");
+            updateCallControls(false);
             $("callPanel").classList.add("call-entering");
             $("callPanel").classList.remove("hidden");
             setTimeout(() => $("callPanel").classList.remove("call-entering"), 420);
@@ -12941,18 +13010,21 @@
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             socket.emit("call:answer", { chatId: incoming.chatId, to: incoming.from, answer });
-            state.call.startedAt = Date.now();
-            startCallTimer();
             state.call.incomingOffer = null;
+            markCallConnected();
         }
 
         async function handleRemoteAnswer(data) {
             const pc = state.call.peers[data.from];
             if (pc && data.answer) {
-                stopCallRingtone();
                 await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
                 await flushPendingIce(data.from);
-                setCallStatus("bağlandı");
+                markCallConnected();
+                socket.emit("call:log", {
+                    chatId: state.call.chatId,
+                    kind: state.call.audioOnly ? "audio" : "video",
+                    status: "active"
+                });
             }
         }
 
@@ -12979,6 +13051,9 @@
             if (state.call.timer) {
                 clearInterval(state.call.timer);
             }
+            if (state.call.retryTimer) {
+                clearInterval(state.call.retryTimer);
+            }
             const durationSeconds = state.call.startedAt ? Math.max(1, Math.round((Date.now() - state.call.startedAt) / 1000)) : 0;
             const incoming = state.call.incomingOffer;
             if (notify && incoming && !state.call.startedAt) {
@@ -13000,11 +13075,12 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user" };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, retryTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user", incoming: false, connected: false, speakerOn: false };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callTimer").textContent = "00:00";
             document.querySelector(".video-stage").classList.remove("remote-live");
+            $("callPanel").classList.remove("incoming-call", "outgoing-call", "connected-call", "offline-call", "speaker-active");
             $("callPanel").classList.add("hidden");
             NexaAudio.playEvent("callEnd");
         }
@@ -13031,6 +13107,35 @@
                 $("cameraButton").innerHTML = svgIcon(track.enabled ? "video" : "x");
                 $("cameraButton").classList.toggle("control-off", !track.enabled);
             });
+        }
+
+        async function toggleSpeakerRoute() {
+            state.call.speakerOn = !state.call.speakerOn;
+            $("speakerButton").classList.toggle("control-active", state.call.speakerOn);
+            $("callPanel").classList.toggle("speaker-active", state.call.speakerOn);
+            try {
+                if (window.webkit?.messageHandlers?.audioRoute) {
+                    window.webkit.messageHandlers.audioRoute.postMessage({ speaker: state.call.speakerOn });
+                    return;
+                }
+                if (typeof $("remoteVideo").setSinkId === "function" && navigator.mediaDevices?.enumerateDevices) {
+                    const outputs = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audiooutput");
+                    const pattern = state.call.speakerOn
+                        ? /speaker|hoparlör|loud/i
+                        : /earpiece|receiver|ahize/i;
+                    const preferred = outputs.find(device => pattern.test(device.label));
+                    await $("remoteVideo").setSinkId(preferred?.deviceId || "default");
+                    return;
+                }
+                showToast(state.call.speakerOn
+                    ? "Hoparlör isteği cihazın ses yönlendirmesine iletildi."
+                    : "Ses çıkışı ahize moduna döndürüldü.");
+            } catch (_error) {
+                state.call.speakerOn = !state.call.speakerOn;
+                $("speakerButton").classList.toggle("control-active", state.call.speakerOn);
+                $("callPanel").classList.toggle("speaker-active", state.call.speakerOn);
+                showToast("Bu cihaz ses çıkışını tarayıcıdan değiştirmeyi desteklemiyor.");
+            }
         }
 
         async function switchCamera() {
@@ -13226,6 +13331,7 @@
         $("muteButton").onclick = toggleMute;
         $("cameraButton").onclick = toggleCamera;
         $("switchCameraButton").onclick = switchCamera;
+        $("speakerButton").onclick = toggleSpeakerRoute;
         $("modalCloseButton").onclick = closeModal;
         $("profileAiAnalysisButton").onclick = openProfileAiAnalysis;
         if ($("aiAssistantButton")) $("aiAssistantButton").onclick = toggleAiPanel;
@@ -13666,6 +13772,13 @@
         });
         socket.on("call:offer", data => {
             if (Object.keys(state.call.peers).length || state.call.incomingOffer) {
+                if (
+                    data.retry
+                    && state.call.incomingOffer?.chatId === data.chatId
+                    && state.call.incomingOffer?.from === data.from
+                ) {
+                    return;
+                }
                 socket.emit("call:end", { chatId: data.chatId, to: data.from });
                 return;
             }
@@ -13677,7 +13790,23 @@
             maybeNotifyCall(data);
             const chat = state.chats.find(item => item.id === data.chatId);
             const peer = chat?.members?.find(member => member.username === data.from) || { displayName: data.fromName || data.from };
-            openCallPanel(`${data.fromName || data.from} arıyor`, data.audioOnly ? "sesli arama" : "görüntülü arama", true, data.audioOnly, chat, peer);
+            openCallPanel(
+                data.audioOnly ? "Sesli Arama" : "Görüntülü Arama",
+                data.audioOnly ? "sizi arıyor..." : "sizi görüntülü arıyor...",
+                true,
+                data.audioOnly,
+                chat,
+                peer
+            );
+        });
+        socket.on("call:ringing", data => {
+            if (!state.call.chatId || data?.chatId !== state.call.chatId || state.call.connected) return;
+            if (state.call.retryTimer) {
+                clearInterval(state.call.retryTimer);
+                state.call.retryTimer = null;
+            }
+            $("callPanel").classList.remove("offline-call");
+            setCallStatus("çalıyor...");
         });
         socket.on("call:answer", handleRemoteAnswer);
         socket.on("call:ice", handleRemoteIce);
