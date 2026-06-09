@@ -341,16 +341,6 @@
                     <span><strong>Hakkında</strong><small class="last-message">Sürüm, sistem ve gizlilik bilgileri</small></span>
                     <span>›</span>
                 </button>
-                <button id="settingsDeleteShortcut" class="settings-option danger-option" type="button">
-                    <span class="option-icon">×</span>
-                    <span><strong>Hesabı Sil</strong><small class="last-message">Şifre onayıyla hesabı kalıcı olarak sil</small></span>
-                    <span>›</span>
-                </button>
-                <button id="settingsLogoutShortcut" class="settings-option danger-option" type="button">
-                    <span class="option-icon">↗</span>
-                    <span><strong>Çıkış Yap</strong><small class="last-message">Bu cihazdaki oturumu güvenli biçimde kapat</small></span>
-                    <span>›</span>
-                </button>
             </div>
 
             <div id="settingsProfileSection" class="settings-section hidden">
@@ -1157,6 +1147,7 @@
             vaultItems: [],
             vaultPin: "",
             vaultPinDraft: "",
+            archivePinDraft: "",
             activeVoiceRoomId: "",
             voiceAudio: {
                 stream: null,
@@ -1338,9 +1329,7 @@
                 settingsNearbyTab: "location",
                 settingsDeviceTab: "smartphone",
                 settingsAccountTab: "lock",
-                settingsAboutTab: "info",
-                settingsDeleteShortcut: "trash",
-                settingsLogoutShortcut: "logOut"
+                settingsAboutTab: "info"
             };
             Object.entries(optionMap).forEach(([id, icon]) => {
                 const target = $(`${id}`)?.querySelector(".option-icon");
@@ -8010,11 +7999,15 @@
             openModal("Yakındaki Kullanıcılar", body => {
                 body.innerHTML = `
                     <p>Yakındaki kişiler özelliği varsayılan olarak kapalı. Açarsan yalnızca yaklaşık mesafe kullanılır.</p>
+                    <div class="nearby-status ${state.me?.nearbyEnabled ? "active" : ""}">
+                        <span class="nearby-status-dot"></span>
+                        <span>${state.me?.nearbyEnabled ? "Konum paylaşımı açık" : "Konum paylaşımı kapalı"}</span>
+                    </div>
                     <div id="nearbyRows" class="list"></div>
                 `;
                 renderNearbyRows();
             }, [
-                { label: state.me?.nearbyEnabled ? "Kapat" : "Konumla Aç", primary: true, onClick: toggleNearbyUsers },
+                { label: state.me?.nearbyEnabled ? "Konumu Kapat" : "Konumla Aç", primary: true, onClick: toggleNearbyUsers },
                 { label: "Kapat", onClick: closeModal }
             ]);
         }
@@ -8040,35 +8033,51 @@
         }
 
         async function toggleNearbyUsers() {
-            if (!navigator.geolocation) {
-                showToast("Bu cihaz konum desteği vermiyor.");
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(async position => {
+            const persistNearbyState = async payload => {
                 try {
                     const response = await fetch(`/nearby/${encodeURIComponent(state.me.username)}`, {
                         method: "POST",
                         headers: authHeaders(),
-                        body: JSON.stringify({
-                            enabled: !state.me.nearbyEnabled,
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        })
+                        body: JSON.stringify(payload)
                     });
                     const data = await response.json();
-                    if (data.ok) {
-                        state.me.nearbyEnabled = data.enabled;
-                        state.nearbyUsers = data.users || [];
-                        renderNearbyRows();
-                        renderExplore();
-                        showToast(data.enabled ? "Yakındaki kullanıcılar açıldı." : "Yakındaki kullanıcılar kapatıldı.");
-                    } else {
-                        showToast(data.message || "Konum kaydedilemedi.");
+                    if (!data.ok) {
+                        showToast(data.message || "Konum ayarı kaydedilemedi.");
+                        return;
                     }
+                    state.me.nearbyEnabled = data.enabled;
+                    state.nearbyUsers = data.users || [];
+                    renderExplore();
+                    closeModal();
+                    openNearbyPanel();
+                    showToast(data.enabled ? "Yakındaki kullanıcılar açıldı." : "Konum paylaşımı durduruldu.");
                 } catch (_error) {
-                    showToast("Yakındaki kullanıcılar yüklenemedi.");
+                    showToast("Yakındaki kullanıcılar ayarı güncellenemedi.");
                 }
-            }, () => showToast("Konum izni verilmedi."));
+            };
+
+            if (state.me?.nearbyEnabled) {
+                await persistNearbyState({ enabled: false });
+                return;
+            }
+            if (!navigator.geolocation) {
+                showToast("Bu cihaz konum desteği vermiyor.");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                position => persistNearbyState({
+                    enabled: true,
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                }),
+                error => {
+                    const message = error?.code === 1
+                        ? "Konum izni verilmedi. Tarayıcı ayarlarından izin verebilirsin."
+                        : "Konum şu an okunamadı. Biraz sonra tekrar dene.";
+                    showToast(message);
+                },
+                { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
+            );
         }
 
         function openVaultPanel() {
@@ -8260,22 +8269,23 @@
 
             if (!state.archiveUnlocked) {
                 const hasPin = Boolean(localStorage.getItem(archivePinKey()));
+                state.archivePinDraft = "";
                 const lock = document.createElement("div");
                 lock.className = "archive-lock";
                 lock.innerHTML = `
                     <strong>${hasPin ? "Arşivi açmak için PIN gir" : "Arşiv için 4 haneli PIN oluştur"}</strong>
                     <div class="last-message">Hesap şifresi yerine bu cihazda saklanan 4 haneli arşiv PIN'i kullanılır.</div>
-                    <input id="archiveUnlockPin" type="password" inputmode="numeric" maxlength="4" placeholder="4 haneli PIN">
-                    <button id="archiveUnlockButton" class="primary" type="button">${hasPin ? "Arşivi Aç" : "PIN Oluştur ve Aç"}</button>
+                    <input id="archiveUnlockPin" class="hidden" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code">
+                    <div id="archivePinDots" class="pin-dots" aria-label="Arşiv PIN uzunluğu"></div>
+                    <div class="pin-keypad archive-pin-keypad" aria-label="Arşiv PIN tuş takımı">
+                        ${["1","2","3","4","5","6","7","8","9"].map(value => `<button type="button" data-archive-key="${value}">${value}</button>`).join("")}
+                        <button type="button" data-archive-clear aria-label="Son rakamı sil">⌫</button>
+                        <button type="button" data-archive-key="0">0</button>
+                        <button id="archiveUnlockButton" type="button" data-archive-submit aria-label="${hasPin ? "Arşivi aç" : "PIN oluştur ve aç"}">✓</button>
+                    </div>
                 `;
                 archiveList.appendChild(lock);
-                $("archiveUnlockButton").onclick = unlockArchives;
-                $("archiveUnlockPin").addEventListener("keydown", event => {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        unlockArchives();
-                    }
-                });
+                bindArchiveKeypad();
                 return;
             }
 
@@ -8325,7 +8335,7 @@
         }
 
         async function unlockArchives() {
-            const pin = ($("archiveUnlockPin")?.value || "").trim();
+            const pin = (state.archivePinDraft || $("archiveUnlockPin")?.value || "").trim();
             if (!/^\d{4}$/.test(pin)) {
                 showToast("Arşiv PIN'i 4 rakam olmalı.");
                 return;
@@ -8333,6 +8343,8 @@
             const savedPin = localStorage.getItem(archivePinKey());
             if (savedPin && pin !== savedPin) {
                 showToast("PIN hatalı.");
+                state.archivePinDraft = "";
+                renderArchivePinDots();
                 return;
             }
             if (!savedPin) {
@@ -8349,8 +8361,36 @@
                 return;
             }
             state.archiveUnlocked = true;
+            state.archivePinDraft = "";
             state.archiveItems = data.archives || [];
             renderArchives();
+        }
+
+        function renderArchivePinDots() {
+            const dots = $("archivePinDots");
+            if (!dots) return;
+            dots.innerHTML = [0, 1, 2, 3]
+                .map(index => `<span class="${index < state.archivePinDraft.length ? "filled" : ""}"></span>`)
+                .join("");
+            const input = $("archiveUnlockPin");
+            if (input) input.value = state.archivePinDraft;
+        }
+
+        function bindArchiveKeypad() {
+            renderArchivePinDots();
+            document.querySelectorAll("[data-archive-key]").forEach(button => {
+                button.onclick = () => {
+                    if (state.archivePinDraft.length >= 4) return;
+                    state.archivePinDraft += button.dataset.archiveKey;
+                    renderArchivePinDots();
+                    if (state.archivePinDraft.length === 4) unlockArchives();
+                };
+            });
+            document.querySelector("[data-archive-clear]")?.addEventListener("click", () => {
+                state.archivePinDraft = state.archivePinDraft.slice(0, -1);
+                renderArchivePinDots();
+            });
+            document.querySelector("[data-archive-submit]")?.addEventListener("click", unlockArchives);
         }
 
         async function loadArchive(item) {
@@ -13122,8 +13162,6 @@
         $("settingsDeviceTab").onclick = () => setSettingsView("device");
         $("settingsAccountTab").onclick = () => setSettingsView("account");
         $("settingsAboutTab").onclick = openAboutPanel;
-        $("settingsDeleteShortcut").onclick = deleteAccount;
-        $("settingsLogoutShortcut").onclick = logout;
         document.querySelectorAll("[data-settings-back]").forEach(button => {
             button.onclick = () => setSettingsView("menu");
         });

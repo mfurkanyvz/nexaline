@@ -6412,6 +6412,9 @@ def nearby_state(username):
                 user.last_lng = float(data.get("lng"))
             except (TypeError, ValueError):
                 return jsonify({"ok": False, "message": "Konum okunamadı."}), 400
+        else:
+            user.last_lat = None
+            user.last_lng = None
         db.session.commit()
     return jsonify({"ok": True, "enabled": bool(user.nearby_enabled), "users": nearby_users_for(username)})
 
