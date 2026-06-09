@@ -630,7 +630,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-09-stage6-calls-v6";
+        const NEXALINE_CLIENT_BUILD = "2026-06-09-stage7-ai-v7";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1117,6 +1117,7 @@
             aiCensorEnabled: true,
             aiSettings: defaultAiSettings(),
             aiAvatarDraft: "",
+            aiLastAttachment: null,
             aiRevealedMessages: {},
             aiStatus: null,
             aiVoiceListening: false,
@@ -2375,14 +2376,17 @@
         function humanLinkLabel(label, href) {
             const decodedLabel = decodeHumanText(label || "");
             if (decodedLabel.trim()) {
-                return decodedLabel.trim();
+                const cleanLabel = decodedLabel.trim();
+                return cleanLabel.length > 96 ? `${cleanLabel.slice(0, 93).trimEnd()}...` : cleanLabel;
             }
             try {
                 const parsed = new URL(href);
                 const path = decodeHumanText(parsed.pathname.replace(/^\/wiki\//, "").replaceAll("_", " ")).replace(/^\/+/, "");
-                return path ? `${parsed.hostname.replace(/^www\./, "")} • ${path}` : parsed.hostname.replace(/^www\./, "");
+                const generatedLabel = path ? `${parsed.hostname.replace(/^www\./, "")} • ${path}` : parsed.hostname.replace(/^www\./, "");
+                return generatedLabel.length > 96 ? `${generatedLabel.slice(0, 93).trimEnd()}...` : generatedLabel;
             } catch (_error) {
-                return decodeHumanText(href);
+                const fallback = decodeHumanText(href);
+                return fallback.length > 96 ? `${fallback.slice(0, 93).trimEnd()}...` : fallback;
             }
         }
 
@@ -3361,6 +3365,15 @@
             const input = $("aiInput");
             const prompt = (promptOverride ?? input?.value ?? "").trim();
             if ((!prompt && !attachment) || state.aiBusy || !state.me) return null;
+            if (attachment) {
+                state.aiLastAttachment = attachment;
+            }
+            const refersToLastAttachment = Boolean(
+                !attachment
+                && state.aiLastAttachment
+                && /\b(bu|şu|görsel|fotoğraf|resim|logo|dosya|ek|attığım|gönderdiğim)\b/i.test(prompt)
+            );
+            const modelAttachment = attachment || (refersToLastAttachment ? state.aiLastAttachment : null);
             if (input && promptOverride === null) {
                 input.value = "";
             }
@@ -3382,7 +3395,7 @@
                     body: JSON.stringify({
                         username: state.me.username,
                         prompt: promptForModel,
-                        attachment,
+                        attachment: modelAttachment,
                         chatId: isAiChatId(state.activeChatId) ? null : state.activeChatId,
                         assistantName: aiDisplayName(),
                         responseLength: state.aiSettings.responseLength,

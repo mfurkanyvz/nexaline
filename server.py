@@ -10,10 +10,12 @@ import re
 import socket
 import secrets
 import smtplib
+import struct
 import threading
 import time
 import unicodedata
 import urllib.parse
+import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
@@ -2547,6 +2549,8 @@ AI_SYSTEM_PROMPT += """
 Uygulama bağlamındaki memory, clientHistory ve relevantChats alanlarını Nexa AI'nin ortak hafızası gibi kullan.
 Sağlayıcı değişse bile üslubunu, kullanıcının sana verdiği ismi ve önceki konuşma bilgisini bu hafızadan koru.
 Kullanıcı internetten araştırma isterse web araştırma notlarını kullan, kaynakları kısa ve okunur şekilde belirt; sonuç yoksa bunu açık söyle.
+Kullanıcı önceki konuşmasına gönderme yapıyorsa yalnızca geçmişi listeleme; geçmişteki ilgili bilgiyi mevcut soruyla birleştirip doğrudan cevap ver.
+Bir görsel veya dosya verildiyse gerçekten görebildiğin içeriği açıkla. Görsel verisi sağlayıcıya ulaşmadıysa gördüğünü iddia etme.
 """
 
 def ai_get_system_tools():
@@ -2926,7 +2930,7 @@ def ai_provider_attempts(preferred=None, needs_vision=False):
     preferred = {"google": "gemini", "openai-compatible": "openai"}.get(preferred, preferred)
     order = ["gemini", "groq", "deepinfra", "openrouter", "openai", "ollama"]
     if needs_vision:
-        order = ["gemini", "openai", "groq", "deepinfra", "openrouter", "ollama"]
+        order = ["gemini", "openai", "openrouter", "huggingface_vision"]
     if preferred != "auto" and preferred in order:
         order = [preferred] + [item for item in order if item != preferred]
     return order
@@ -3531,7 +3535,9 @@ def strip_html_text(value):
     value = re.sub(r"<script[\s\S]*?</script>", " ", value or "", flags=re.IGNORECASE)
     value = re.sub(r"<style[\s\S]*?</style>", " ", value, flags=re.IGNORECASE)
     value = re.sub(r"<[^>]+>", " ", value)
-    return re.sub(r"\s+", " ", html.unescape(value)).strip()
+    value = html.unescape(value)
+    value = re.sub(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]", "", value)
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def normalize_search_url(value):
@@ -3579,6 +3585,75 @@ def duckduckgo_html_research(query):
     return results[:5]
 
 
+def rss_search_research(url, query, source, extra_params=None):
+    params = {"q": query[:180], **(extra_params or {})}
+    try:
+        response = requests.get(
+            url,
+            params=params,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; NexaLineBot/1.0; +https://nexalineapp.xyz)",
+                "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.6",
+            },
+            timeout=8,
+        )
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+    except Exception as error:
+        app.logger.info("%s search unavailable: %s", source, error)
+        return []
+
+    results = []
+    for item in root.findall(".//item")[:8]:
+        title = strip_html_text(item.findtext("title") or "")
+        description = strip_html_text(item.findtext("description") or "")
+        link = normalize_search_url(item.findtext("link") or "")
+        if title and link:
+            results.append(
+                {
+                    "title": title[:180],
+                    "snippet": description[:700] or title[:300],
+                    "url": link,
+                    "source": source,
+                }
+            )
+    return results
+
+
+def bing_rss_research(query):
+    return rss_search_research(
+        "https://www.bing.com/search",
+        query,
+        "bing",
+        {"format": "rss", "setlang": "tr"},
+    )
+
+
+def google_news_research(query):
+    return rss_search_research(
+        "https://news.google.com/rss/search",
+        query,
+        "google-news",
+        {"hl": "tr", "gl": "TR", "ceid": "TR:tr"},
+    )
+
+
+def dedupe_research_results(items, limit=5):
+    results = []
+    seen = set()
+    for item in items:
+        url = normalize_search_url(item.get("url") or "")
+        title = re.sub(r"\s+", " ", item.get("title") or "").strip()
+        key = url.casefold() or title.casefold()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        results.append({**item, "title": title, "url": url})
+        if len(results) >= limit:
+            break
+    return results
+
+
 def live_info_for_prompt(prompt, timezone_offset_minutes=0):
     lowered = (prompt or "").casefold()
     local_tz = timezone(timedelta(minutes=-int(timezone_offset_minutes or 0)))
@@ -3592,9 +3667,24 @@ def live_info_for_prompt(prompt, timezone_offset_minutes=0):
         return info
 
     location = "İstanbul"
-    location_match = re.search(r"(?:hava|weather|sıcaklık|sicaklik)\s+(?:durumu|nasıl|nasil)?\s*(?:için|icin|de|da)?\s*([\wçğıöşüÇĞİÖŞÜ\s]{3,40})", prompt or "", re.IGNORECASE)
+    location_match = re.search(
+        r"\b([\wçğıöşüÇĞİÖŞÜ-]{2,40})\s+(?:hava\s+durumu|havası|havasi|weather)\b",
+        prompt or "",
+        re.IGNORECASE,
+    )
+    if not location_match:
+        location_match = re.search(
+            r"(?:hava|weather|sıcaklık|sicaklik)\s+(?:durumu|nasıl|nasil)?\s*(?:için|icin|de|da)?\s*([\wçğıöşüÇĞİÖŞÜ-]{2,40})",
+            prompt or "",
+            re.IGNORECASE,
+        )
     if location_match:
-        candidate = re.sub(r"\b(nasıl|nasil|kaç|kac|derece|bugün|bugun)\b", " ", location_match.group(1), flags=re.IGNORECASE).strip()
+        candidate = re.sub(
+            r"\b(nasıl|nasil|kaç|kac|derece|bugün|bugun|nedir|ne)\b",
+            " ",
+            location_match.group(1),
+            flags=re.IGNORECASE,
+        ).strip(" ?.,")
         if candidate:
             location = candidate
     try:
@@ -3635,9 +3725,6 @@ def local_ai_reply(prompt, context, actions, research=None):
     assistant_name = (context.get("assistant") or {}).get("name") or "Nexa AI"
     lowered = (prompt or "").casefold()
     tokens = set(re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", lowered))
-    research_answer = local_research_answer(prompt, research)
-    if research_answer:
-        return research_answer
     memory_answer = local_memory_answer(prompt, context)
     if memory_answer:
         return memory_answer
@@ -3659,6 +3746,9 @@ def local_ai_reply(prompt, context, actions, research=None):
         if weather:
             return f"{weather.get('location')} için hava: {weather.get('temperatureC')}°C, nem %{weather.get('humidityPercent')}, rüzgar {weather.get('windKmh')} km/sa."
         return "Hava durumu bilgisini şu an alamadım; bağlantı veya konum servisi yanıt vermemiş olabilir."
+    research_answer = local_research_answer(prompt, research)
+    if research_answer:
+        return research_answer
     if "sana verdiği isim" in lowered or "sana verdigi isim" in lowered:
         return f"Buradayım, ben {assistant_name}. Ne yapalım?"
     if (tokens.intersection({"merhaba", "selam", "hello", "slm"}) and len(tokens) <= 3) or lowered.strip() in {"sa", "s.a", "s.a."}:
@@ -3689,63 +3779,69 @@ def local_ai_reply(prompt, context, actions, research=None):
 
 
 def web_research_if_requested(prompt, force=False):
-    if force or local_should_research(prompt):
-        query = re.sub(
-            r"\b(arastir|araştır|internetten|internette|internet|webde|web|google|haber|guncel|güncel|son durum|son bilgi|kaynak|bul|bak)\b",
-            " ",
-            prompt or "",
-            flags=re.IGNORECASE,
-        ).strip()
-        if len(query) >= 3:
-            results = []
-            try:
-                response = requests.get(
-                    "https://api.duckduckgo.com/",
-                    params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"},
-                    timeout=6,
-                )
-                response.raise_for_status()
-                data = response.json()
-            except Exception:
-                data = {}
-            if data.get("AbstractText"):
-                results.append({"title": data.get("Heading") or query, "snippet": data.get("AbstractText"), "url": data.get("AbstractURL"), "source": "duckduckgo-instant"})
-            for item in (data.get("RelatedTopics") or [])[:6]:
-                if isinstance(item, dict) and item.get("Text"):
-                    results.append({"title": item.get("FirstURL") or "Kaynak", "snippet": item.get("Text"), "url": item.get("FirstURL"), "source": "duckduckgo-instant"})
-            if not results:
-                results.extend(duckduckgo_html_research(query))
-            if not results:
-                results.extend(wikipedia_research(query))
-            if results:
-                return results[:5]
-            return [{"title": "Web arama", "snippet": "Canli web aramasinda guvenilir kisa sonuc bulunamadi.", "url": "", "source": "nexaline-search"}]
-    if not force and not re.search(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", prompt or "", re.IGNORECASE):
+    if not force and not local_should_research(prompt):
         return []
-    query = re.sub(r"\b(araştır|arastir|internette|webde|google|haber|güncel|guncel)\b", " ", prompt or "", flags=re.IGNORECASE).strip()
+
+    query = re.sub(
+        r"\b(arastir|araştır|internetten|internette|internet|webde|web|google|haber|guncel|güncel|son durum|son bilgi|kaynak|bul|bak)\b",
+        " ",
+        prompt or "",
+        flags=re.IGNORECASE,
+    )
+    query = re.sub(r"\s+", " ", query).strip(" .,:;-")
     if len(query) < 3:
         return []
+
+    results = []
     try:
-        response = requests.get("https://api.duckduckgo.com/", params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"}, timeout=6)
+        response = requests.get(
+            "https://api.duckduckgo.com/",
+            params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"},
+            headers={"User-Agent": "NexaLine/1.0 (https://nexalineapp.xyz)"},
+            timeout=6,
+        )
         response.raise_for_status()
         data = response.json()
     except Exception:
-        return []
-    results = []
+        data = {}
+
     if data.get("AbstractText"):
-        results.append({"title": data.get("Heading") or query, "snippet": data.get("AbstractText"), "url": data.get("AbstractURL")})
-    for item in data.get("RelatedTopics", [])[:6]:
+        results.append(
+            {
+                "title": data.get("Heading") or query,
+                "snippet": data.get("AbstractText"),
+                "url": data.get("AbstractURL"),
+                "source": "duckduckgo-instant",
+            }
+        )
+    for item in (data.get("RelatedTopics") or [])[:6]:
         if isinstance(item, dict) and item.get("Text"):
-            results.append({"title": item.get("FirstURL") or "Kaynak", "snippet": item.get("Text"), "url": item.get("FirstURL")})
-    if not results:
+            results.append(
+                {
+                    "title": item.get("Text", "").split(" - ", 1)[0] or "Kaynak",
+                    "snippet": item.get("Text"),
+                    "url": item.get("FirstURL"),
+                    "source": "duckduckgo-instant",
+                }
+            )
+
+    current_query = any(word in fold_tr_ascii(prompt) for word in ["haber", "guncel", "bugun", "son durum", "son dakika"])
+    if current_query:
+        results.extend(google_news_research(query))
+    results.extend(bing_rss_research(query))
+    if len(results) < 3:
+        results.extend(duckduckgo_html_research(query))
+    if len(results) < 2:
         results.extend(wikipedia_research(query))
-    return results[:5]
+    return dedupe_research_results(results, limit=5)
 
 
 def attachment_context_for_ai(attachment):
     if not isinstance(attachment, dict):
         return None
     data_url = str(attachment.get("dataUrl") or "")
+    text_content = text_content_from_attachment(attachment)
+    image_metadata = image_metadata_from_attachment(attachment)
     return {
         "name": str(attachment.get("name") or "")[:160],
         "type": str(attachment.get("type") or "")[:100],
@@ -3757,6 +3853,8 @@ def attachment_context_for_ai(attachment):
         } if attachment.get("type") == "location" else None,
         "hasInlineData": bool(data_url),
         "dataUrlPreview": data_url[:120] if data_url else "",
+        "textContent": text_content,
+        "imageMetadata": image_metadata,
     }
 
 
@@ -3776,6 +3874,88 @@ def gemini_inline_part_from_attachment(attachment):
     return {"inline_data": {"mime_type": mime_type, "data": payload}}
 
 
+def attachment_data_bytes(attachment):
+    if not isinstance(attachment, dict):
+        return b"", ""
+    data_url = str(attachment.get("dataUrl") or "")
+    if "," not in data_url:
+        return b"", ""
+    header, payload = data_url.split(",", 1)
+    if "base64" not in header or len(payload) > MAX_ATTACHMENT_DATA_URL_CHARS:
+        return b"", ""
+    try:
+        return base64.b64decode(payload, validate=True), str(attachment.get("type") or "")
+    except (ValueError, TypeError):
+        return b"", ""
+
+
+def text_content_from_attachment(attachment):
+    raw, mime_type = attachment_data_bytes(attachment)
+    allowed = (
+        mime_type.startswith("text/")
+        or mime_type in {"application/json", "application/xml", "text/csv", "application/csv"}
+    )
+    if not raw or not allowed:
+        return ""
+    for encoding in ("utf-8", "utf-8-sig", "cp1254", "latin-1"):
+        try:
+            return raw.decode(encoding)[:12000]
+        except UnicodeDecodeError:
+            continue
+    return ""
+
+
+def image_metadata_from_attachment(attachment):
+    raw, mime_type = attachment_data_bytes(attachment)
+    if not raw or not mime_type.startswith("image/"):
+        return {}
+    width = height = None
+    if raw.startswith(b"\x89PNG\r\n\x1a\n") and len(raw) >= 24:
+        width, height = struct.unpack(">II", raw[16:24])
+    elif raw.startswith(b"\xff\xd8"):
+        index = 2
+        while index + 9 < len(raw):
+            if raw[index] != 0xFF:
+                index += 1
+                continue
+            marker = raw[index + 1]
+            index += 2
+            if marker in {0xD8, 0xD9}:
+                continue
+            if index + 2 > len(raw):
+                break
+            segment_length = struct.unpack(">H", raw[index:index + 2])[0]
+            if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF} and index + 7 < len(raw):
+                height, width = struct.unpack(">HH", raw[index + 3:index + 7])
+                break
+            index += max(2, segment_length)
+    return {
+        "mimeType": mime_type,
+        "sizeBytes": len(raw),
+        "width": width,
+        "height": height,
+    }
+
+
+def openai_user_content(prompt, context_text, research, attachment=None):
+    text_value = (
+        f"Uygulama bağlamı:\n{context_text}\n\n"
+        f"Web araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\n"
+        f"Kullanıcı:\n{prompt}"
+    )
+    data_url = str((attachment or {}).get("dataUrl") or "")
+    mime_type = str((attachment or {}).get("type") or "")
+    if mime_type.startswith("image/") and data_url.startswith("data:image/"):
+        return [
+            {"type": "text", "text": text_value},
+            {"type": "image_url", "image_url": {"url": data_url, "detail": "auto"}},
+        ]
+    attachment_text = text_content_from_attachment(attachment)
+    if attachment_text:
+        text_value += f"\n\nEk dosyanın metin içeriği:\n{attachment_text}"
+    return text_value
+
+
 def call_gemini_ai(prompt, context_text, research, attachment=None):
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
     if not key:
@@ -3785,6 +3965,9 @@ def call_gemini_ai(prompt, context_text, research, attachment=None):
     inline_part = gemini_inline_part_from_attachment(attachment)
     if inline_part:
         parts.append(inline_part)
+    attachment_text = text_content_from_attachment(attachment)
+    if attachment_text:
+        parts.append({"text": f"Ek dosyanın metin içeriği:\n{attachment_text}"})
     response = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         params={"key": key},
@@ -3800,7 +3983,7 @@ def call_gemini_ai(prompt, context_text, research, attachment=None):
     return "\n".join(part.get("text", "") for part in parts).strip()
 
 
-def call_openai_ai(prompt, context_text, research):
+def call_openai_ai(prompt, context_text, research, attachment=None):
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY missing")
@@ -3815,7 +3998,7 @@ def call_openai_ai(prompt, context_text, research):
             "max_tokens": 900,
             "messages": [
                 {"role": "system", "content": AI_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"},
+                {"role": "user", "content": openai_user_content(prompt, context_text, research, attachment)},
             ],
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -3847,11 +4030,16 @@ def call_groq_ai(prompt, context_text, research):
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
-def call_openrouter_ai(prompt, context_text, research):
+def call_openrouter_ai(prompt, context_text, research, attachment=None):
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise RuntimeError("OPENROUTER_API_KEY missing")
-    model = os.environ.get("OPENROUTER_MODEL", "openrouter/free")
+    has_image = bool(gemini_inline_part_from_attachment(attachment))
+    model = (
+        os.environ.get("OPENROUTER_VISION_MODEL", "openrouter/free")
+        if has_image
+        else os.environ.get("OPENROUTER_MODEL", "openrouter/free")
+    )
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -3866,7 +4054,7 @@ def call_openrouter_ai(prompt, context_text, research):
             "max_tokens": 900,
             "messages": [
                 {"role": "system", "content": AI_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Uygulama bağlamı:\n{context_text}\n\nWeb araştırma notları:\n{json.dumps(research, ensure_ascii=False)}\n\nKullanıcı:\n{prompt}"},
+                {"role": "user", "content": openai_user_content(prompt, context_text, research, attachment)},
             ],
         },
         timeout=AI_TIMEOUT_SECONDS,
@@ -3917,15 +4105,84 @@ def call_ollama_ai(prompt, context_text, research):
     return response.json().get("message", {}).get("content", "").strip()
 
 
+def call_huggingface_vision(prompt, attachment):
+    key = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")
+    raw, _mime_type = attachment_data_bytes(attachment)
+    if not key or not raw:
+        raise RuntimeError("Hugging Face vision key or image missing")
+    model = os.environ.get("HF_VISION_MODEL", "Salesforce/blip-image-captioning-large")
+    response = requests.post(
+        f"https://router.huggingface.co/hf-inference/models/{model}",
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/octet-stream"},
+        data=raw,
+        timeout=max(AI_TIMEOUT_SECONDS, 25),
+    )
+    response.raise_for_status()
+    payload = response.json()
+    generated = ""
+    if isinstance(payload, list) and payload:
+        generated = str(payload[0].get("generated_text") or payload[0].get("caption") or "").strip()
+    elif isinstance(payload, dict):
+        generated = str(payload.get("generated_text") or payload.get("caption") or "").strip()
+    if not generated:
+        raise RuntimeError("Hugging Face vision returned no caption")
+    return (
+        f"Görsel analizi: {generated}\n\n"
+        f"Kullanıcının isteği: {prompt}\n"
+        "Bu açıklama otomatik görsel tanıma sonucudur; küçük yazılar veya ince ayrıntılar için daha güçlü bir görsel model gerekebilir."
+    )
+
+
+def local_attachment_reply(prompt, attachment):
+    text_content = text_content_from_attachment(attachment)
+    if text_content:
+        excerpt = re.sub(r"\s+", " ", text_content).strip()[:1600]
+        return (
+            f"{attachment.get('name') or 'Dosya'} içeriğini okuyabildim. İlk bölüm:\n"
+            f"{excerpt}\n\nİstersen bunu özetleyebilir, düzeltebilir veya belirli bilgileri ayıklayabilirim."
+        )
+    metadata = image_metadata_from_attachment(attachment)
+    if metadata:
+        dimensions = (
+            f"{metadata['width']}×{metadata['height']} piksel"
+            if metadata.get("width") and metadata.get("height")
+            else "ölçüsü çözümlenemedi"
+        )
+        return (
+            f"{attachment.get('name') or 'Görsel'} dosyasını aldım: {dimensions}, "
+            f"{round(metadata.get('sizeBytes', 0) / 1024, 1)} KB. "
+            "Bu sunucuda semantik görsel sağlayıcısı şu an yanıt vermediği için logonun veya nesnelerin içeriğini görmüş gibi davranmayacağım. "
+            "Gemini, OpenAI, OpenRouter ya da Hugging Face görsel sağlayıcısı hazır olduğunda aynı dosyayı doğrudan analiz ederim."
+        )
+    return ""
+
+
+def append_research_sources(reply, research):
+    usable = [item for item in (research or []) if item.get("url")]
+    if not usable:
+        return reply
+    source_lines = []
+    for item in usable[:4]:
+        title = re.sub(r"\s+", " ", item.get("title") or item.get("source") or "Kaynak").strip()
+        source_lines.append(f"- [{title}]({item['url']})")
+    if not source_lines or "Kaynaklar:" in (reply or ""):
+        return reply
+    return f"{(reply or '').strip()}\n\nKaynaklar:\n" + "\n".join(source_lines)
+
+
 def generate_ai_reply(prompt, context, actions, attachment=None):
     provider = ai_provider_status()
     context_text = json.dumps(context, ensure_ascii=False, indent=2)
     research = web_research_if_requested(prompt)
-    if provider["provider"] == "local" and not research and local_should_research(prompt):
+    prompt_ascii = fold_tr_ascii(prompt)
+    has_live_weather = bool(
+        (context.get("liveInfo") or {}).get("weather")
+        and any(word in prompt_ascii for word in ["hava", "sicaklik", "weather"])
+    )
+    if has_live_weather:
+        research = []
+    if provider["provider"] == "local" and not research and not has_live_weather and local_should_research(prompt):
         research = web_research_if_requested(prompt, force=True)
-    memory_reply = local_memory_answer(prompt, context)
-    if memory_reply:
-        return memory_reply, {"provider": "nexa-memory", "model": "persistent-memory", "ready": True}, research
     needs_vision = bool(gemini_inline_part_from_attachment(attachment))
     reply = ""
     for provider_name in ai_provider_attempts(needs_vision=needs_vision):
@@ -3940,11 +4197,25 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
                 reply = call_deepinfra_ai(prompt, context_text, research)
                 provider = {"provider": "deepinfra", "model": os.environ.get("DEEPINFRA_MODEL", "meta-llama/Llama-3.3-70B-Instruct-Turbo"), "ready": True}
             elif provider_name == "openrouter" and os.environ.get("OPENROUTER_API_KEY") and not needs_vision:
-                reply = call_openrouter_ai(prompt, context_text, research)
+                reply = call_openrouter_ai(prompt, context_text, research, attachment)
                 provider = {"provider": "openrouter", "model": os.environ.get("OPENROUTER_MODEL", "openrouter/free"), "ready": True}
             elif provider_name == "openai" and os.environ.get("OPENAI_API_KEY"):
-                reply = call_openai_ai(prompt, context_text, research)
+                reply = call_openai_ai(prompt, context_text, research, attachment)
                 provider = {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": True}
+            elif provider_name == "openrouter" and os.environ.get("OPENROUTER_API_KEY"):
+                reply = call_openrouter_ai(prompt, context_text, research, attachment)
+                provider = {
+                    "provider": "openrouter",
+                    "model": os.environ.get("OPENROUTER_VISION_MODEL", "openrouter/free"),
+                    "ready": True,
+                }
+            elif provider_name == "huggingface_vision" and (os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")):
+                reply = call_huggingface_vision(prompt, attachment)
+                provider = {
+                    "provider": "huggingface",
+                    "model": os.environ.get("HF_VISION_MODEL", "Salesforce/blip-image-captioning-large"),
+                    "ready": True,
+                }
             elif provider_name == "ollama" and os.environ.get("OLLAMA_BASE_URL"):
                 reply = call_ollama_ai(prompt, context_text, research)
                 provider = {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": True}
@@ -3954,8 +4225,12 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
             app.logger.warning("AI provider %s failed: %s", provider_name, error)
     if not reply:
         provider = {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
-        reply = local_ai_reply(prompt, context, actions, research)
-    return reply, provider, research
+        reply = local_memory_answer(prompt, context)
+        if not reply and attachment:
+            reply = local_attachment_reply(prompt, attachment)
+        if not reply:
+            reply = local_ai_reply(prompt, context, actions, research)
+    return append_research_sources(reply, research), provider, research
 
 
 AI_ANALYSIS_STOP_WORDS = {
@@ -4418,6 +4693,10 @@ def ai_chat():
 
     context = ai_context_for_user(username, chat_id, prompt, client_history)
     context["assistant"] = {"name": assistant_name}
+    context["preferences"] = {
+        "responseLength": str(data.get("responseLength") or "medium")[:20],
+        "persona": str(data.get("persona") or "")[:240],
+    }
     context["liveInfo"] = live_info_for_prompt(prompt, data.get("timezoneOffsetMinutes", 0))
     if attachment:
         context["inputAttachment"] = attachment_context_for_ai(attachment)
@@ -4429,7 +4708,17 @@ def ai_chat():
         actions = intent.get("actions") or []
         provider = {**(provider or {}), "intent": bool(actions)}
     add_points_once(username, POINT_RULES["ai_chat"], "ai_chat", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"prompt": prompt[:120]})
-    store_ai_memory(username, chat_id, "user", prompt or "Bu eki incele.", meta={"hasAttachment": bool(attachment)})
+    attachment_meta = attachment_context_for_ai(attachment) if attachment else None
+    if attachment_meta:
+        attachment_meta.pop("textContent", None)
+        attachment_meta.pop("dataUrlPreview", None)
+    store_ai_memory(
+        username,
+        chat_id,
+        "user",
+        prompt or "Bu eki incele.",
+        meta={"hasAttachment": bool(attachment), "attachment": attachment_meta},
+    )
     store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "actions": actions})
     db.session.commit()
     return jsonify(
@@ -4566,6 +4855,59 @@ def call_groq_stt(audio_bytes, mime_type):
         },
         files={"file": (filename, audio_bytes, mime_type or "audio/webm")},
         timeout=max(AI_TIMEOUT_SECONDS, 20),
+    )
+    response.raise_for_status()
+    return (response.json().get("text") or "").strip()
+
+
+def call_gemini_stt(audio_bytes, mime_type):
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY missing")
+    model = os.environ.get("GEMINI_STT_MODEL", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+    response = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        params={"key": key},
+        json={
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": "Bu Türkçe ses kaydını eksiksiz biçimde yazıya çevir. Yalnızca konuşma metnini döndür."},
+                        {
+                            "inline_data": {
+                                "mime_type": mime_type or "audio/webm",
+                                "data": base64.b64encode(audio_bytes).decode("ascii"),
+                            }
+                        },
+                    ],
+                }
+            ],
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 700},
+        },
+        timeout=max(AI_TIMEOUT_SECONDS, 25),
+    )
+    response.raise_for_status()
+    parts = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
+    return "\n".join(part.get("text", "") for part in parts).strip()
+
+
+def call_openai_stt(audio_bytes, mime_type):
+    key = os.environ.get("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY missing")
+    extension = mimetypes.guess_extension(mime_type or "") or ".webm"
+    base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    response = requests.post(
+        f"{base_url}/audio/transcriptions",
+        headers={"Authorization": f"Bearer {key}"},
+        data={
+            "model": os.environ.get("OPENAI_STT_MODEL", "gpt-4o-mini-transcribe"),
+            "language": os.environ.get("OPENAI_STT_LANGUAGE", "tr"),
+            "response_format": "json",
+        },
+        files={"file": (f"nexa-voice{extension}", audio_bytes, mime_type or "audio/webm")},
+        timeout=max(AI_TIMEOUT_SECONDS, 25),
     )
     response.raise_for_status()
     return (response.json().get("text") or "").strip()
@@ -4909,6 +5251,18 @@ def ai_stt():
                 provider = {"provider": "groq", "model": os.environ.get("GROQ_STT_MODEL", "whisper-large-v3-turbo")}
             except Exception as error:
                 app.logger.warning("Groq STT failed: %s", error)
+        if not transcript and (os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")):
+            try:
+                transcript = call_gemini_stt(audio_bytes, mime_type)
+                provider = {"provider": "gemini", "model": os.environ.get("GEMINI_STT_MODEL", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))}
+            except Exception as error:
+                app.logger.warning("Gemini STT failed: %s", error)
+        if not transcript and os.environ.get("OPENAI_API_KEY"):
+            try:
+                transcript = call_openai_stt(audio_bytes, mime_type)
+                provider = {"provider": "openai", "model": os.environ.get("OPENAI_STT_MODEL", "gpt-4o-mini-transcribe")}
+            except Exception as error:
+                app.logger.warning("OpenAI STT failed: %s", error)
         if not transcript and os.environ.get("ASSEMBLYAI_API_KEY"):
             try:
                 transcript = call_assemblyai_stt(audio_bytes, mime_type)
@@ -4920,7 +5274,7 @@ def ai_stt():
         return jsonify({"ok": True, "text": transcript, "provider": provider})
     except Exception as error:
         app.logger.warning("AI STT failed: %s", error)
-        return jsonify({"ok": False, "message": "Ses tanıma için GROQ_API_KEY veya ASSEMBLYAI_API_KEY gerekli; servisler şu an yanıt vermiyor."}), 503
+        return jsonify({"ok": False, "message": "Ses tanıma servisleri şu an yanıt vermiyor. Groq, Gemini, OpenAI veya AssemblyAI anahtarını kontrol et."}), 503
 
 
 @app.route("/ai/tts", methods=["POST"])

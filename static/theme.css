@@ -4051,6 +4051,29 @@ button {
     overflow-wrap: anywhere;
 }
 
+.ai-bubble .ai-link {
+    display: inline;
+    color: #73e9ff;
+    font-weight: 650;
+    line-height: inherit;
+    text-decoration: underline;
+    text-decoration-color: rgba(115, 233, 255, 0.5);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    word-break: break-word;
+}
+
+.ai-bubble .ai-link:hover,
+.ai-bubble .ai-link:focus-visible {
+    color: #b9f7ff;
+    text-decoration-color: currentColor;
+}
+
+.ai-bubble br + .ai-link {
+    display: inline-block;
+    margin-top: 3px;
+}
+
 .ai-composer {
     flex: 0 0 auto;
     display: grid;
