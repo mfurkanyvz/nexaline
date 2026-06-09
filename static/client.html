@@ -370,6 +370,11 @@
                         <div class="profile-metric"><strong id="settingsProfilePoints">0</strong><small>NexaPuan</small></div>
                         <button id="profileAboutShortcut" class="profile-note-card" type="button"><strong>Hakkımda</strong><small id="settingsProfileAboutText">NexaLine kullanıyorum.</small></button>
                     </div>
+                    <button id="profileAiAnalysisButton" class="profile-ai-analysis-button" type="button">
+                        <span class="profile-ai-analysis-orb">N</span>
+                        <span><strong>AI Analizim</strong><small>Mesaj ve etkinliklerinden ölçülebilir iletişim analizini gör</small></span>
+                        <span>›</span>
+                    </button>
                 </div>
                 <input id="profileImageInput" class="hidden" type="file" accept="image/*">
                 <div class="settings-row">
@@ -4949,6 +4954,89 @@
         function openProfileSettings() {
             openSettings();
             setSettingsView("profile");
+        }
+
+        function profileAnalysisEvidenceCards(evidence = {}) {
+            const rows = [
+                ["Gönderilen mesaj", evidence.sentMessages || 0],
+                ["Sohbet kişisi", evidence.chatContacts || 0],
+                ["Aktif gün", evidence.activeDays || 0],
+                ["Güncelleme", evidence.updates || 0],
+                ["AI komutu", evidence.aiPrompts || 0],
+                ["Paylaşılan medya", Object.values(evidence.media || {}).reduce((sum, value) => sum + Number(value || 0), 0)],
+            ];
+            return rows.map(([label, value]) => `
+                <div class="profile-analysis-evidence">
+                    <strong>${escapeHtml(String(value))}</strong>
+                    <small>${escapeHtml(label)}</small>
+                </div>
+            `).join("");
+        }
+
+        async function openProfileAiAnalysis() {
+            openModal("AI Analizim", body => {
+                body.innerHTML = `
+                    <div class="profile-analysis-loading">
+                        <span class="profile-ai-analysis-orb active">N</span>
+                        <strong>Etkinliklerin ölçülüyor</strong>
+                        <small>Mesaj sayıları, kelime kullanımı ve paylaşım türleri hesaplanıyor.</small>
+                    </div>
+                `;
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet profile-analysis-modal");
+
+            try {
+                const response = await fetch("/ai/profile-analysis", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: state.me?.username }),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.ok) throw new Error(data.message || "Analiz alınamadı.");
+                const analysis = data.analysis || {};
+                $("modalBody").innerHTML = `
+                    <section class="profile-analysis-hero">
+                        <span class="profile-ai-analysis-orb">N</span>
+                        <div>
+                            <strong>İletişim görünümün</strong>
+                            <small>Güven düzeyi: %${Number(analysis.confidence || 0)}</small>
+                        </div>
+                    </section>
+                    <p class="profile-analysis-summary">${escapeHtml(analysis.summary || "")}</p>
+                    <div class="profile-analysis-metrics">
+                        ${(analysis.metrics || []).map(metric => `
+                            <article class="profile-analysis-metric tone-${escapeHtml(metric.tone || "violet")}">
+                                <div><strong>${escapeHtml(metric.label || "")}</strong><span>%${Number(metric.value || 0)}</span></div>
+                                <div class="profile-analysis-track"><i style="width:${Math.max(0, Math.min(100, Number(metric.value || 0)))}%"></i></div>
+                            </article>
+                        `).join("")}
+                    </div>
+                    <div class="profile-analysis-section">
+                        <strong>Ölçüm dayanakları</strong>
+                        <div class="profile-analysis-evidence-grid">${profileAnalysisEvidenceCards(analysis.evidence)}</div>
+                    </div>
+                    <div class="profile-analysis-section">
+                        <strong>Öne çıkan konular</strong>
+                        <div class="profile-analysis-chips">
+                            ${(analysis.interests || []).length
+                                ? analysis.interests.map(item => `<span>${escapeHtml(item)}</span>`).join("")
+                                : "<small>Yeterli tekrar eden konu bulunamadı.</small>"}
+                        </div>
+                    </div>
+                    <div class="profile-analysis-section profile-analysis-profession">
+                        <span><strong>İlgi alanı sinyali</strong><small>Meslek yalnızca açık kelime kanıtı varsa gösterilir.</small></span>
+                        <b>${escapeHtml(analysis.profession || "Yeterli açık veri yok")}</b>
+                    </div>
+                    <p class="profile-analysis-privacy">Bu analiz yalnızca kendi NexaLine verilerinden hesaplanır. Şifreler, gizli kasa ve cihaz PIN bilgileri analize dahil edilmez.</p>
+                `;
+            } catch (error) {
+                $("modalBody").innerHTML = `
+                    <div class="profile-analysis-loading error">
+                        <span class="profile-ai-analysis-orb">!</span>
+                        <strong>Analiz tamamlanamadı</strong>
+                        <small>${escapeHtml(error.message || "Analiz birimine erişilemiyor.")}</small>
+                    </div>
+                `;
+            }
         }
 
         function renderAccountSwitcherMenu() {
@@ -13102,6 +13190,7 @@
         $("cameraButton").onclick = toggleCamera;
         $("switchCameraButton").onclick = switchCamera;
         $("modalCloseButton").onclick = closeModal;
+        $("profileAiAnalysisButton").onclick = openProfileAiAnalysis;
         if ($("aiAssistantButton")) $("aiAssistantButton").onclick = toggleAiPanel;
         $("aiCloseButton").onclick = closeAiPanel;
         $("aiSendButton").onclick = () => sendAiPrompt();

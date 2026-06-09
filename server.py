@@ -14,6 +14,7 @@ import threading
 import time
 import unicodedata
 import urllib.parse
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from functools import wraps
@@ -3955,6 +3956,228 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
         provider = {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
         reply = local_ai_reply(prompt, context, actions, research)
     return reply, provider, research
+
+
+AI_ANALYSIS_STOP_WORDS = {
+    "acaba", "ama", "artık", "bana", "bazı", "ben", "beni", "benim", "bile",
+    "bir", "biri", "biz", "bize", "bunu", "bu", "çok", "daha", "de", "da",
+    "değil", "diye", "en", "gibi", "hem", "her", "için", "ile", "ise", "ki",
+    "kim", "mı", "mi", "mu", "mü", "nasıl", "ne", "neden", "olan", "olarak",
+    "oldu", "olsun", "onu", "orada", "öyle", "şey", "şimdi", "şu", "ve",
+    "veya", "ya", "yani", "yok", "zaten",
+}
+
+AI_ANALYSIS_LEXICONS = {
+    "positive": {
+        "güzel", "harika", "iyi", "mükemmel", "sevindim", "teşekkür", "mutlu",
+        "süper", "başarılı", "tamam", "olur", "sevdim", "beğendim", "neşeli",
+    },
+    "negative": {
+        "üzgün", "kötü", "mutsuz", "olmadı", "olmuyor", "sorun", "hata",
+        "yoruldum", "kırıldım", "üzüldüm", "yalnız", "endişeli", "korkuyorum",
+    },
+    "anger": {
+        "sinir", "sinirli", "kızgın", "öfke", "öfkeli", "yeter", "saçma",
+        "berbat", "nefret", "bıktım", "lanet", "aptal",
+    },
+    "fun": {
+        "haha", "hahaha", "komik", "eğlence", "eğlenceli", "şaka", "güldüm",
+        "kahkaha", "oyun", "lol", "mizah",
+    },
+    "flirt": {
+        "aşk", "aşkım", "canım", "tatlım", "sevgilim", "özledim", "öpücük",
+        "yakışıklı", "güzelim", "bebeğim", "kalbim",
+    },
+}
+
+
+def ai_analysis_tokens(text_value):
+    normalized = unicodedata.normalize("NFKC", str(text_value or "")).lower()
+    return re.findall(r"[a-zçğıöşü0-9]{2,}", normalized)
+
+
+def ai_analysis_attachment_kind(attachment):
+    if not isinstance(attachment, dict):
+        return None
+    type_value = str(attachment.get("type") or attachment.get("kind") or "").lower()
+    if type_value == "bundle":
+        return "bundle"
+    if type_value.startswith("image/") or type_value in {"image", "photo"}:
+        return "image"
+    if type_value.startswith("video/") or type_value == "video":
+        return "video"
+    if type_value.startswith("audio/") or type_value in {"audio", "voice"}:
+        return "audio"
+    if type_value == "location":
+        return "location"
+    if type_value == "poll":
+        return "poll"
+    return "file" if type_value else None
+
+
+def ai_profile_analysis_for(username):
+    user = db.session.get(User, username)
+    if not user:
+        return None
+
+    memberships = ChatMember.query.filter_by(username=username).all()
+    chat_ids = [row.chat_id for row in memberships]
+    messages = (
+        Message.query.filter(Message.chat_id.in_(chat_ids), Message.deleted_at.is_(None))
+        .order_by(Message.created_at.desc())
+        .limit(1600)
+        .all()
+        if chat_ids else []
+    )
+    sent_messages = [row for row in messages if row.sender == username]
+    received_messages = [row for row in messages if row.sender != username]
+    updates = UpdatePost.query.filter_by(username=username).order_by(UpdatePost.created_at.desc()).limit(240).all()
+    stories = Story.query.filter_by(username=username).order_by(Story.created_at.desc()).limit(240).all()
+    memories = AiMemory.query.filter_by(username=username).order_by(AiMemory.created_at.desc()).limit(500).all()
+
+    text_parts = [row.body for row in sent_messages if row.body]
+    text_parts.extend(row.body for row in updates if row.body)
+    text_parts.extend(row.body for row in stories if row.body)
+    text_parts.extend(row.content for row in memories if row.role == "user" and row.content)
+    combined_text = "\n".join(text_parts)
+    tokens = ai_analysis_tokens(combined_text)
+    token_counts = Counter(tokens)
+    total_tokens = max(1, len(tokens))
+    lexicon_counts = {
+        name: sum(token_counts[word] for word in words)
+        for name, words in AI_ANALYSIS_LEXICONS.items()
+    }
+    emoji_count = len(re.findall(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", combined_text))
+    question_count = combined_text.count("?")
+    exclamation_count = combined_text.count("!")
+
+    attachment_counts = Counter()
+    for row in sent_messages:
+        kind = ai_analysis_attachment_kind(row.attachment)
+        if kind:
+            attachment_counts[kind] += 1
+    for row in updates:
+        for media_item in row.media or []:
+            kind = ai_analysis_attachment_kind(media_item)
+            if kind:
+                attachment_counts[kind] += 1
+    for row in stories:
+        kind = ai_analysis_attachment_kind(row.attachment)
+        if kind:
+            attachment_counts[kind] += 1
+
+    active_chat_ids = {row.chat_id for row in sent_messages}
+    contact_names = {
+        row.username
+        for row in ChatMember.query.filter(ChatMember.chat_id.in_(list(active_chat_ids))).all()
+        if row.username != username
+    } if active_chat_ids else set()
+    activity_days = {
+        row.created_at.date().isoformat()
+        for row in sent_messages + updates + stories
+        if row.created_at
+    }
+    sent_count = len(sent_messages)
+    interaction_total = sent_count + len(received_messages)
+    positive = lexicon_counts["positive"]
+    negative = lexicon_counts["negative"]
+    anger = lexicon_counts["anger"]
+    fun = lexicon_counts["fun"]
+    flirt = lexicon_counts["flirt"]
+
+    def percent(value):
+        return int(max(0, min(100, round(value))))
+
+    mood_denominator = max(3, positive + negative + anger + fun)
+    happy_score = percent(35 + (positive + fun * 0.7 - negative * 0.45 - anger * 0.7) * 65 / mood_denominator)
+    unhappy_score = percent(18 + (negative + anger * 0.35) * 72 / mood_denominator)
+    angry_score = percent((anger * 120 + exclamation_count * 2) / max(8, total_tokens / 9))
+    fun_score = percent(18 + (fun * 105 + emoji_count * 2.5) / max(8, total_tokens / 10))
+    flirt_score = percent((flirt * 125) / max(6, total_tokens / 12))
+    social_score = percent(
+        12
+        + min(35, len(contact_names) * 5)
+        + min(24, len(activity_days) * 1.5)
+        + min(18, interaction_total / 18)
+        + min(11, (len(updates) + len(stories)) * 1.7)
+    )
+    introverted_score = percent(100 - social_score)
+
+    ignored_words = AI_ANALYSIS_STOP_WORDS | set().union(*AI_ANALYSIS_LEXICONS.values())
+    interests = [
+        word for word, count in token_counts.most_common(80)
+        if word not in ignored_words and not word.isdigit() and count >= 2
+    ][:8]
+    profession_markers = {
+        "Yazılım / Teknoloji": {"kod", "yazılım", "api", "frontend", "backend", "site", "uygulama", "github"},
+        "Eğitim": {"öğretmen", "öğrenci", "ders", "okul", "sınav", "eğitim"},
+        "Tasarım": {"tasarım", "grafik", "logo", "arayüz", "ui", "ux"},
+        "Sağlık": {"doktor", "hemşire", "hastane", "sağlık", "klinik"},
+        "Ticaret": {"satış", "müşteri", "mağaza", "ürün", "ticaret"},
+    }
+    profession_scores = {
+        label: sum(token_counts[word] for word in markers)
+        for label, markers in profession_markers.items()
+    }
+    profession, profession_evidence = max(profession_scores.items(), key=lambda item: item[1])
+    if profession_evidence < 3:
+        profession = "Yeterli açık veri yok"
+
+    ai_prompt_count = len([row for row in memories if row.role == "user"])
+    sample_size = sent_count + len(updates) + len(stories) + ai_prompt_count
+    confidence = percent(min(92, 20 + sample_size * 1.5 + len(activity_days) * 2))
+    average_length = round(sum(len(row.body or "") for row in sent_messages) / max(1, sent_count), 1)
+    metrics = [
+        {"id": "fun", "label": "Eğlenceli ifade", "value": fun_score, "tone": "violet"},
+        {"id": "angry", "label": "Öfkeli ifade", "value": angry_score, "tone": "red"},
+        {"id": "happy", "label": "Olumlu ifade", "value": happy_score, "tone": "green"},
+        {"id": "unhappy", "label": "Olumsuz ifade", "value": unhappy_score, "tone": "blue"},
+        {"id": "flirt", "label": "Flörtöz ifade", "value": flirt_score, "tone": "pink"},
+        {"id": "social", "label": "Sosyal etkileşim", "value": social_score, "tone": "cyan"},
+        {"id": "introverted", "label": "İçe dönük kullanım", "value": introverted_score, "tone": "amber"},
+    ]
+    dominant = sorted(metrics[:6], key=lambda item: item["value"], reverse=True)[:2]
+    dominant_text = " ve ".join(item["label"].lower() for item in dominant)
+    summary = (
+        f"NexaLine içindeki {sample_size} kişisel etkinlik kaydı incelendi. "
+        f"Ölçümlerde en belirgin iki alan {dominant_text}. "
+        "Bu sonuçlar yalnızca uygulamadaki kelime, emoji, medya ve etkileşim "
+        "sıklıklarından hesaplanır; kişilik testi veya psikolojik değerlendirme değildir."
+    )
+    return {
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "metrics": metrics,
+        "interests": interests,
+        "profession": profession,
+        "confidence": confidence,
+        "evidence": {
+            "sentMessages": sent_count,
+            "receivedMessages": len(received_messages),
+            "chatContacts": len(contact_names),
+            "activeDays": len(activity_days),
+            "updates": len(updates),
+            "stories": len(stories),
+            "aiPrompts": ai_prompt_count,
+            "questions": question_count,
+            "emojis": emoji_count,
+            "averageMessageLength": average_length,
+            "media": dict(attachment_counts),
+        },
+    }
+
+
+@app.route("/ai/profile-analysis", methods=["POST"])
+@ai_error_boundary
+def ai_profile_analysis():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    if not username:
+        return jsonify({"ok": False, "message": "Analiz için giriş yapmalısın."}), 401
+    analysis = ai_profile_analysis_for(username)
+    if not analysis:
+        return jsonify({"ok": False, "message": "Profil analiz edilemedi; kullanıcı bulunamadı."}), 404
+    return jsonify({"ok": True, "analysis": analysis})
 
 
 @app.route("/")
