@@ -464,6 +464,47 @@ class AppSetting(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
+NEXA_PLAY_GAMES = {"chess", "solitaire", "2048", "block-blast"}
+
+
+def nexa_play_setting_key(username):
+    return f"games:{(username or '').strip().lower()}"[:80]
+
+
+def nexa_play_state(username):
+    row = db.session.get(AppSetting, nexa_play_setting_key(username))
+    saved = dict(row.value or {}) if row else {}
+    return {
+        "scores": dict(saved.get("scores") or {}),
+        "sessions": dict(saved.get("sessions") or {}),
+        "updatedAt": saved.get("updatedAt"),
+    }
+
+
+def save_nexa_play_state(username, payload):
+    key = nexa_play_setting_key(username)
+    row = db.session.get(AppSetting, key)
+    current = nexa_play_state(username)
+    game_id = str(payload.get("game") or "").strip().lower()
+    if game_id not in NEXA_PLAY_GAMES:
+        raise ValueError("Desteklenmeyen oyun.")
+
+    score = max(0, min(10_000_000, int(payload.get("score") or 0)))
+    session = payload.get("session")
+    if not isinstance(session, dict):
+        session = {}
+    current["scores"][game_id] = max(score, int(current["scores"].get(game_id) or 0))
+    current["sessions"][game_id] = session
+    current["updatedAt"] = datetime.now(timezone.utc).isoformat()
+    if row:
+        row.value = current
+        row.updated_at = datetime.now(timezone.utc)
+    else:
+        db.session.add(AppSetting(key=key, value=current))
+    db.session.commit()
+    return current
+
+
 DEFAULT_DESIGN_SETTINGS = {
     "brandName": "NexaLine",
     "logoUrl": "/static/nexaline-mark-3d.png",
@@ -1748,6 +1789,7 @@ def app_state_for_user(username):
         "communities": communities_for(username),
         "aiTasks": ai_tasks_for(username),
         "nearbyUsers": nearby_users_for(username),
+        "nexaPlay": nexa_play_state(username),
     }
 
 
@@ -6034,6 +6076,62 @@ def leaderboard_for(username):
         friend_names.add(request_row.to_username)
     friend_rows = [item for item in global_rows if item["user"]["username"] in friend_names]
     return {"global": global_rows, "country": global_rows, "friends": friend_rows}
+
+
+@app.route("/games/<username>/state", methods=["GET", "POST"])
+def nexa_play_state_route(username):
+    username = username.strip().lower()
+    if not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    if request.method == "GET":
+        return jsonify({"ok": True, "state": nexa_play_state(username)})
+    try:
+        state_data = save_nexa_play_state(username, request.get_json() or {})
+    except (TypeError, ValueError) as error:
+        db.session.rollback()
+        return jsonify({"ok": False, "message": str(error)}), 400
+    return jsonify({"ok": True, "state": state_data})
+
+
+@app.route("/games/<username>/hint", methods=["POST"])
+def nexa_play_hint_route(username):
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    data = request.get_json() or {}
+    game_id = str(data.get("game") or "").strip().lower()
+    if game_id not in NEXA_PLAY_GAMES:
+        return jsonify({"ok": False, "message": "Oyun bulunamadı."}), 404
+    fallbacks = {
+        "chess": "Taşlarını geliştir, şahını güvende tut ve rakibin savunmasız taşlarını kontrol et.",
+        "solitaire": "Önce kapalı kart açan hamleleri, sonra boş sütun oluşturan hamleleri tercih et.",
+        "2048": "En büyük taşı bir köşede tut; mümkün olduğunca iki ana yönü kullan.",
+        "block-blast": "Büyük parçalar için alan bırak ve aynı anda satır ile sütun temizleyen yerleşimleri ara.",
+    }
+    hint_keywords = {
+        "chess": {"taş", "şah", "piyon", "satranç", "hamle", "rakip"},
+        "solitaire": {"kart", "sütun", "temel", "kapalı", "solitaire"},
+        "2048": {"sayı", "köşe", "birleştir", "yön", "2048"},
+        "block-blast": {"block", "parça", "satır", "sütun", "alan", "tahta"},
+    }
+    state_summary = json.dumps(data.get("state") or {}, ensure_ascii=False)[:2400]
+    prompt = (
+        f"Nexa Play içindeki {game_id} oyunu için tek cümlelik, uygulanabilir Türkçe bir hamle ipucu ver. "
+        f"Oyun durumu: {state_summary}"
+    )
+    context = ai_context_for_user(username, chat_id=f"game:{game_id}", prompt=prompt)
+    try:
+        reply, provider, _research = generate_ai_reply(prompt, context, [])
+        hint = re.sub(r"\s+", " ", (reply or "").strip())[:360]
+        normalized_hint = hint.casefold()
+        if not hint or not any(keyword in normalized_hint for keyword in hint_keywords[game_id]):
+            raise ValueError("Boş AI yanıtı")
+    except Exception:
+        app.logger.exception("Nexa Play hint provider failed")
+        hint = fallbacks[game_id]
+        provider = "local"
+    return jsonify({"ok": True, "hint": hint, "provider": provider})
 
 
 @app.route("/points/<username>")

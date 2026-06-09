@@ -1106,6 +1106,8 @@
             communities: [],
             aiTasks: [],
             nearbyUsers: [],
+            nexaPlay: { scores: {}, sessions: {}, updatedAt: null },
+            nexaPlayRuntime: null,
             deferredInstallPrompt: null,
             notificationReady: false,
             offlineMode: !navigator.onLine,
@@ -4119,6 +4121,7 @@
             state.communities = data.communities || state.communities || [];
             state.aiTasks = data.aiTasks || state.aiTasks || [];
             state.nearbyUsers = data.nearbyUsers || state.nearbyUsers || [];
+            state.nexaPlay = data.nexaPlay || state.nexaPlay || { scores: {}, sessions: {}, updatedAt: null };
             if (Array.isArray(data.updatesFeed)) {
                 state.updatesFeed = data.updatesFeed;
                 saveUpdatesFeed();
@@ -6633,7 +6636,8 @@
                 ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", "zap", openAiPanel],
                 ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", "location", openNearbyPanel],
                 ["voice", "Sesli Odalar", "Canlı odaları keşfet, oluştur ve yönet", "mic", openVoiceRoomsHub],
-                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel]
+                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel],
+                ["play", "Nexa Play", "Satranç, Solitaire, 2048 ve Block Blast", "star", openNexaPlay]
             ];
             cards.forEach(([key, title, hint, icon, action]) => {
                 const card = document.createElement("button");
@@ -6652,6 +6656,615 @@
                 grid.appendChild(card);
             });
             list.append(heading, grid);
+        }
+
+        const NEXA_PLAY_CATALOG = {
+            chess: { title: "Satranç", subtitle: "Strateji ve taş geliştirme", icon: "♞" },
+            solitaire: { title: "Solitaire", subtitle: "Klasik tek kişilik kart oyunu", icon: "♠" },
+            "2048": { title: "2048", subtitle: "Aynı sayıları birleştir", icon: "2048" },
+            "block-blast": { title: "Block Blast", subtitle: "Satır ve sütunları temizle", icon: "▦" }
+        };
+        const NEXA_PLAY_ORDER = ["chess", "solitaire", "2048", "block-blast"];
+
+        function cloneGameData(value) {
+            return JSON.parse(JSON.stringify(value));
+        }
+
+        function gameScore(gameId) {
+            return Number(state.nexaPlay?.scores?.[gameId] || 0);
+        }
+
+        async function saveNexaPlayProgress(gameId, score, session) {
+            if (!state.me?.username) return;
+            try {
+                const response = await fetch(`/games/${encodeURIComponent(state.me.username)}/state`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ game: gameId, score, session })
+                });
+                const data = await response.json();
+                if (data.ok) state.nexaPlay = data.state;
+            } catch (error) {
+                console.warn("Nexa Play ilerlemesi kaydedilemedi", error);
+            }
+        }
+
+        async function requestNexaPlayHint(gameId) {
+            const output = $("nexaPlayHint");
+            if (output) output.textContent = "Nexa AI hamleyi inceliyor...";
+            try {
+                const response = await fetch(`/games/${encodeURIComponent(state.me.username)}/hint`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ game: gameId, state: state.nexaPlayRuntime })
+                });
+                const data = await response.json();
+                if (!data.ok) throw new Error(data.message);
+                if (output) output.textContent = data.hint;
+            } catch (error) {
+                if (output) output.textContent = "İpucu şu anda alınamadı. Tahtadaki en güvenli alanı korumaya çalış.";
+            }
+        }
+
+        function openNexaPlay() {
+            openModal("Nexa Play", body => {
+                body.classList.add("nexa-play-body");
+                const hero = document.createElement("div");
+                hero.className = "nexa-play-hero";
+                hero.innerHTML = `
+                    <span class="nexa-play-orbit">${svgIcon("star")}</span>
+                    <div><strong>Nexa Play</strong><small>Dört klasik oyun, tek modern oyun merkezi</small></div>
+                `;
+                const grid = document.createElement("div");
+                grid.className = "nexa-play-grid";
+                NEXA_PLAY_ORDER.forEach(gameId => {
+                    const game = NEXA_PLAY_CATALOG[gameId];
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = `nexa-game-card game-${gameId}`;
+                    button.innerHTML = `
+                        <span class="nexa-game-icon">${game.icon}</span>
+                        <span><strong>${game.title}</strong><small>${game.subtitle}</small></span>
+                        <b>${gameScore(gameId).toLocaleString("tr-TR")}</b>
+                    `;
+                    button.onclick = () => openNexaGame(gameId);
+                    grid.appendChild(button);
+                });
+                body.append(hero, grid);
+            }, [{ label: "Kapat", onClick: closeModal }], "nexa-play-panel");
+        }
+
+        function openNexaGame(gameId, reset = false) {
+            const game = NEXA_PLAY_CATALOG[gameId];
+            if (!game) return;
+            $("modalTitle").textContent = game.title;
+            const body = $("modalBody");
+            body.innerHTML = "";
+            body.className = "modal-body nexa-game-body";
+            const toolbar = document.createElement("div");
+            toolbar.className = "nexa-game-toolbar";
+            toolbar.innerHTML = `
+                <button id="nexaGameBack" type="button" aria-label="Oyunlar" title="Oyunlara dön">${svgIcon("back")}<span>Oyunlar</span></button>
+                <div><small>En iyi</small><strong id="nexaGameScore">${gameScore(gameId).toLocaleString("tr-TR")}</strong></div>
+                <button id="nexaGameHintButton" type="button" aria-label="AI İpucu" title="Nexa AI ipucu">${svgIcon("zap")}<span>AI İpucu</span></button>
+            `;
+            const stage = document.createElement("div");
+            stage.id = "nexaGameStage";
+            stage.className = `nexa-game-stage game-stage-${gameId}`;
+            const hint = document.createElement("div");
+            hint.id = "nexaPlayHint";
+            hint.className = "nexa-play-hint";
+            hint.textContent = "İpucu istediğinde Nexa AI mevcut oyunu inceler.";
+            body.append(toolbar, stage, hint);
+            $("nexaGameBack").onclick = openNexaPlay;
+            $("nexaGameHintButton").onclick = () => requestNexaPlayHint(gameId);
+            if (gameId === "chess") initNexaChess(stage, reset);
+            if (gameId === "solitaire") initNexaSolitaire(stage, reset);
+            if (gameId === "2048") initNexa2048(stage, reset);
+            if (gameId === "block-blast") initNexaBlockBlast(stage, reset);
+        }
+
+        function updateNexaGameScore(gameId, score) {
+            const scoreNode = $("nexaGameScore");
+            if (scoreNode) scoreNode.textContent = Math.max(score, gameScore(gameId)).toLocaleString("tr-TR");
+        }
+
+        function gameResetButton(gameId) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "nexa-game-reset";
+            button.innerHTML = `${svgIcon("arrowDown")}<span>Yeni Oyun</span>`;
+            button.onclick = () => openNexaGame(gameId, true);
+            return button;
+        }
+
+        const CHESS_PIECES = {
+            wp: "♙", wr: "♖", wn: "♘", wb: "♗", wq: "♕", wk: "♔",
+            bp: "♟", br: "♜", bn: "♞", bb: "♝", bq: "♛", bk: "♚"
+        };
+
+        function freshChessState() {
+            return {
+                board: [
+                    ["br","bn","bb","bq","bk","bb","bn","br"],
+                    ["bp","bp","bp","bp","bp","bp","bp","bp"],
+                    [null,null,null,null,null,null,null,null],
+                    [null,null,null,null,null,null,null,null],
+                    [null,null,null,null,null,null,null,null],
+                    [null,null,null,null,null,null,null,null],
+                    ["wp","wp","wp","wp","wp","wp","wp","wp"],
+                    ["wr","wn","wb","wq","wk","wb","wn","wr"]
+                ],
+                turn: "w",
+                selected: null,
+                moves: [],
+                score: 0,
+                status: "Beyaz başlar"
+            };
+        }
+
+        function chessMoves(runtime, row, col) {
+            const piece = runtime.board[row]?.[col];
+            if (!piece) return [];
+            const color = piece[0];
+            const type = piece[1];
+            const moves = [];
+            const add = (nextRow, nextCol, repeat = false) => {
+                if (nextRow < 0 || nextRow > 7 || nextCol < 0 || nextCol > 7) return false;
+                const target = runtime.board[nextRow][nextCol];
+                if (!target) {
+                    moves.push([nextRow, nextCol]);
+                    return repeat;
+                }
+                if (target[0] !== color) moves.push([nextRow, nextCol]);
+                return false;
+            };
+            if (type === "p") {
+                const direction = color === "w" ? -1 : 1;
+                const startRow = color === "w" ? 6 : 1;
+                if (!runtime.board[row + direction]?.[col]) {
+                    moves.push([row + direction, col]);
+                    if (row === startRow && !runtime.board[row + direction * 2]?.[col]) moves.push([row + direction * 2, col]);
+                }
+                [-1, 1].forEach(delta => {
+                    const target = runtime.board[row + direction]?.[col + delta];
+                    if (target && target[0] !== color) moves.push([row + direction, col + delta]);
+                });
+            }
+            if (type === "n") {
+                [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr, dc]) => add(row + dr, col + dc));
+            }
+            if (type === "k") {
+                for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) if (dr || dc) add(row + dr, col + dc);
+            }
+            const rays = [];
+            if (["r","q"].includes(type)) rays.push([-1,0],[1,0],[0,-1],[0,1]);
+            if (["b","q"].includes(type)) rays.push([-1,-1],[-1,1],[1,-1],[1,1]);
+            rays.forEach(([dr, dc]) => {
+                let step = 1;
+                while (add(row + dr * step, col + dc * step, true)) step += 1;
+            });
+            return moves.filter(([moveRow, moveCol]) => moveRow >= 0 && moveRow < 8 && moveCol >= 0 && moveCol < 8);
+        }
+
+        function initNexaChess(stage, reset) {
+            const saved = state.nexaPlay?.sessions?.chess;
+            const runtime = !reset && saved?.board ? cloneGameData(saved) : freshChessState();
+            state.nexaPlayRuntime = runtime;
+            const renderBoard = () => {
+                stage.innerHTML = "";
+                const status = document.createElement("div");
+                status.className = "nexa-game-status";
+                status.innerHTML = `<strong>${runtime.status}</strong><small>${runtime.turn === "w" ? "Beyaz" : "Siyah"} oynuyor</small>`;
+                const board = document.createElement("div");
+                board.className = "nexa-chess-board";
+                runtime.board.forEach((rank, row) => rank.forEach((piece, col) => {
+                    const cell = document.createElement("button");
+                    cell.type = "button";
+                    cell.className = `chess-cell ${(row + col) % 2 ? "dark" : "light"}`;
+                    if (runtime.selected?.[0] === row && runtime.selected?.[1] === col) cell.classList.add("selected");
+                    if (runtime.moves.some(move => move[0] === row && move[1] === col)) cell.classList.add("legal");
+                    cell.textContent = CHESS_PIECES[piece] || "";
+                    cell.onclick = () => {
+                        const legal = runtime.moves.some(move => move[0] === row && move[1] === col);
+                        if (runtime.selected && legal) {
+                            const [fromRow, fromCol] = runtime.selected;
+                            const moving = runtime.board[fromRow][fromCol];
+                            const captured = runtime.board[row][col];
+                            runtime.board[row][col] = moving;
+                            runtime.board[fromRow][fromCol] = null;
+                            if (moving[1] === "p" && [0, 7].includes(row)) runtime.board[row][col] = `${moving[0]}q`;
+                            runtime.score += captured ? ({p:10,n:30,b:30,r:50,q:90,k:500}[captured[1]] || 0) : 1;
+                            runtime.status = captured?.[1] === "k" ? `${moving[0] === "w" ? "Beyaz" : "Siyah"} kazandı` : `${CHESS_PIECES[moving]} oynandı`;
+                            runtime.turn = runtime.turn === "w" ? "b" : "w";
+                            runtime.selected = null;
+                            runtime.moves = [];
+                            updateNexaGameScore("chess", runtime.score);
+                            saveNexaPlayProgress("chess", runtime.score, runtime);
+                            renderBoard();
+                            return;
+                        }
+                        if (piece?.[0] === runtime.turn) {
+                            runtime.selected = [row, col];
+                            runtime.moves = chessMoves(runtime, row, col);
+                        } else {
+                            runtime.selected = null;
+                            runtime.moves = [];
+                        }
+                        renderBoard();
+                    };
+                    board.appendChild(cell);
+                }));
+                stage.append(status, board, gameResetButton("chess"));
+            };
+            renderBoard();
+        }
+
+        const CARD_SUITS = ["♠", "♥", "♦", "♣"];
+
+        function freshSolitaireState() {
+            const deck = [];
+            CARD_SUITS.forEach(suit => {
+                for (let rank = 1; rank <= 13; rank += 1) deck.push({ suit, rank, face: false });
+            });
+            for (let index = deck.length - 1; index > 0; index -= 1) {
+                const random = Math.floor(Math.random() * (index + 1));
+                [deck[index], deck[random]] = [deck[random], deck[index]];
+            }
+            const tableau = Array.from({ length: 7 }, () => []);
+            for (let col = 0; col < 7; col += 1) {
+                for (let row = 0; row <= col; row += 1) {
+                    const card = deck.pop();
+                    card.face = row === col;
+                    tableau[col].push(card);
+                }
+            }
+            return { stock: deck, waste: [], foundations: [[],[],[],[]], tableau, selected: null, score: 0 };
+        }
+
+        function cardColor(card) {
+            return ["♥", "♦"].includes(card?.suit) ? "red" : "black";
+        }
+
+        function cardRankLabel(rank) {
+            return ({1:"A",11:"J",12:"Q",13:"K"})[rank] || String(rank);
+        }
+
+        function canStackSolitaire(card, target) {
+            return !target ? card.rank === 13 : cardColor(card) !== cardColor(target) && card.rank === target.rank - 1;
+        }
+
+        function initNexaSolitaire(stage, reset) {
+            const saved = state.nexaPlay?.sessions?.solitaire;
+            const runtime = !reset && saved?.tableau ? cloneGameData(saved) : freshSolitaireState();
+            runtime.selected = null;
+            state.nexaPlayRuntime = runtime;
+            const selectedCards = () => {
+                if (!runtime.selected) return [];
+                if (runtime.selected.zone === "waste") return runtime.waste.slice(-1);
+                if (runtime.selected.zone === "tableau") return runtime.tableau[runtime.selected.col].slice(runtime.selected.index);
+                return [];
+            };
+            const commit = () => {
+                updateNexaGameScore("solitaire", runtime.score);
+                saveNexaPlayProgress("solitaire", runtime.score, runtime);
+                renderGame();
+            };
+            const moveToTableau = col => {
+                const cards = selectedCards();
+                if (!cards.length || !canStackSolitaire(cards[0], runtime.tableau[col].at(-1))) return;
+                if (runtime.selected.zone === "waste") runtime.waste.pop();
+                else runtime.tableau[runtime.selected.col].splice(runtime.selected.index);
+                runtime.tableau[col].push(...cards);
+                const source = runtime.selected.zone === "tableau" ? runtime.tableau[runtime.selected.col] : null;
+                if (source?.length && !source.at(-1).face) {
+                    source.at(-1).face = true;
+                    runtime.score += 5;
+                }
+                runtime.score += 2;
+                runtime.selected = null;
+                commit();
+            };
+            const moveToFoundation = foundationIndex => {
+                const cards = selectedCards();
+                if (cards.length !== 1) return;
+                const card = cards[0];
+                const pile = runtime.foundations[foundationIndex];
+                if ((pile.length === 0 && card.rank !== 1) || (pile.length && (pile.at(-1).suit !== card.suit || card.rank !== pile.at(-1).rank + 1))) return;
+                if (runtime.selected.zone === "waste") runtime.waste.pop();
+                else runtime.tableau[runtime.selected.col].splice(runtime.selected.index, 1);
+                pile.push(card);
+                runtime.score += 10;
+                runtime.selected = null;
+                commit();
+            };
+            const cardHtml = card => card ? `<span class="${cardColor(card)}">${cardRankLabel(card.rank)}<i>${card.suit}</i></span>` : "";
+            const renderGame = () => {
+                stage.innerHTML = "";
+                const top = document.createElement("div");
+                top.className = "solitaire-top";
+                const stock = document.createElement("button");
+                stock.type = "button";
+                stock.className = "playing-card card-back";
+                stock.textContent = runtime.stock.length ? "N" : "↻";
+                stock.onclick = () => {
+                    if (runtime.stock.length) {
+                        const card = runtime.stock.pop();
+                        card.face = true;
+                        runtime.waste.push(card);
+                    } else {
+                        runtime.stock = runtime.waste.reverse().map(card => ({ ...card, face: false }));
+                        runtime.waste = [];
+                    }
+                    runtime.selected = null;
+                    commit();
+                };
+                const waste = document.createElement("button");
+                waste.type = "button";
+                waste.className = `playing-card ${runtime.selected?.zone === "waste" ? "selected" : ""}`;
+                waste.innerHTML = cardHtml(runtime.waste.at(-1));
+                waste.onclick = () => {
+                    if (!runtime.waste.length) return;
+                    runtime.selected = { zone: "waste" };
+                    renderGame();
+                };
+                top.append(stock, waste);
+                runtime.foundations.forEach((pile, index) => {
+                    const cell = document.createElement("button");
+                    cell.type = "button";
+                    cell.className = "playing-card foundation";
+                    cell.innerHTML = cardHtml(pile.at(-1)) || `<span>${CARD_SUITS[index]}</span>`;
+                    cell.onclick = () => moveToFoundation(index);
+                    top.appendChild(cell);
+                });
+                const tableau = document.createElement("div");
+                tableau.className = "solitaire-tableau";
+                runtime.tableau.forEach((pile, col) => {
+                    const column = document.createElement("div");
+                    column.className = "solitaire-column";
+                    column.onclick = event => {
+                        if (event.target === column) moveToTableau(col);
+                    };
+                    pile.forEach((card, index) => {
+                        const cell = document.createElement("button");
+                        cell.type = "button";
+                        cell.className = `playing-card ${card.face ? "" : "card-back"} ${runtime.selected?.zone === "tableau" && runtime.selected.col === col && index >= runtime.selected.index ? "selected" : ""}`;
+                        cell.style.setProperty("--card-index", index);
+                        cell.innerHTML = card.face ? cardHtml(card) : "N";
+                        cell.onclick = event => {
+                            event.stopPropagation();
+                            if (!card.face && index === pile.length - 1) {
+                                card.face = true;
+                                runtime.score += 5;
+                                commit();
+                                return;
+                            }
+                            if (runtime.selected) moveToTableau(col);
+                            else if (card.face) {
+                                runtime.selected = { zone: "tableau", col, index };
+                                renderGame();
+                            }
+                        };
+                        column.appendChild(cell);
+                    });
+                    tableau.appendChild(column);
+                });
+                const note = document.createElement("div");
+                note.className = "nexa-game-status";
+                note.innerHTML = `<strong>${runtime.foundations.reduce((total, pile) => total + pile.length, 0)}/52 kart toplandı</strong><small>Kartı seç, ardından hedef sütuna veya temele dokun</small>`;
+                stage.append(top, tableau, note, gameResetButton("solitaire"));
+            };
+            renderGame();
+        }
+
+        function fresh2048State() {
+            const runtime = { board: Array(16).fill(0), score: 0, won: false };
+            add2048Tile(runtime);
+            add2048Tile(runtime);
+            return runtime;
+        }
+
+        function add2048Tile(runtime) {
+            const empty = runtime.board.map((value, index) => value ? -1 : index).filter(index => index >= 0);
+            if (!empty.length) return;
+            runtime.board[empty[Math.floor(Math.random() * empty.length)]] = Math.random() < 0.9 ? 2 : 4;
+        }
+
+        function slide2048Line(line) {
+            const values = line.filter(Boolean);
+            let gained = 0;
+            for (let index = 0; index < values.length - 1; index += 1) {
+                if (values[index] === values[index + 1]) {
+                    values[index] *= 2;
+                    gained += values[index];
+                    values.splice(index + 1, 1);
+                }
+            }
+            while (values.length < 4) values.push(0);
+            return { values, gained };
+        }
+
+        function move2048(runtime, direction) {
+            const before = runtime.board.join(",");
+            let gained = 0;
+            const next = Array(16).fill(0);
+            for (let index = 0; index < 4; index += 1) {
+                let line = [];
+                for (let step = 0; step < 4; step += 1) {
+                    const row = ["left","right"].includes(direction) ? index : step;
+                    const col = ["left","right"].includes(direction) ? step : index;
+                    line.push(runtime.board[row * 4 + col]);
+                }
+                if (["right","down"].includes(direction)) line.reverse();
+                const result = slide2048Line(line);
+                gained += result.gained;
+                if (["right","down"].includes(direction)) result.values.reverse();
+                result.values.forEach((value, step) => {
+                    const row = ["left","right"].includes(direction) ? index : step;
+                    const col = ["left","right"].includes(direction) ? step : index;
+                    next[row * 4 + col] = value;
+                });
+            }
+            runtime.board = next;
+            if (before === next.join(",")) return false;
+            runtime.score += gained;
+            runtime.won = runtime.won || next.some(value => value >= 2048);
+            add2048Tile(runtime);
+            return true;
+        }
+
+        function initNexa2048(stage, reset) {
+            const saved = state.nexaPlay?.sessions?.["2048"];
+            const runtime = !reset && Array.isArray(saved?.board) && saved.board.some(Boolean) ? cloneGameData(saved) : fresh2048State();
+            state.nexaPlayRuntime = runtime;
+            let touchStart = null;
+            const play = direction => {
+                if (!move2048(runtime, direction)) return;
+                updateNexaGameScore("2048", runtime.score);
+                saveNexaPlayProgress("2048", runtime.score, runtime);
+                renderGame();
+            };
+            const renderGame = () => {
+                stage.innerHTML = "";
+                const status = document.createElement("div");
+                status.className = "nexa-game-status";
+                status.innerHTML = `<strong>${runtime.won ? "2048'e ulaştın!" : `${runtime.score.toLocaleString("tr-TR")} puan`}</strong><small>Kaydır veya yön düğmelerini kullan</small>`;
+                const board = document.createElement("div");
+                board.className = "nexa-2048-board";
+                runtime.board.forEach(value => {
+                    const tile = document.createElement("div");
+                    tile.className = `tile tile-${Math.min(value, 2048)}`;
+                    tile.textContent = value || "";
+                    board.appendChild(tile);
+                });
+                board.ontouchstart = event => {
+                    const touch = event.touches[0];
+                    touchStart = [touch.clientX, touch.clientY];
+                };
+                board.ontouchend = event => {
+                    if (!touchStart) return;
+                    const touch = event.changedTouches[0];
+                    const dx = touch.clientX - touchStart[0];
+                    const dy = touch.clientY - touchStart[1];
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) play(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+                    touchStart = null;
+                };
+                const controls = document.createElement("div");
+                controls.className = "nexa-2048-controls";
+                [["↑","up"],["←","left"],["↓","down"],["→","right"]].forEach(([label, direction]) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = label;
+                    button.onclick = () => play(direction);
+                    controls.appendChild(button);
+                });
+                stage.append(status, board, controls, gameResetButton("2048"));
+            };
+            renderGame();
+        }
+
+        const BLOCK_SHAPES = [
+            [[0,0]], [[0,0],[0,1]], [[0,0],[1,0]], [[0,0],[0,1],[0,2]],
+            [[0,0],[1,0],[2,0]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,1]],
+            [[0,0],[1,0],[1,1]], [[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0],[1,1]]
+        ];
+
+        function freshBlockBlastState() {
+            return { board: Array(64).fill(0), score: 0, shapes: [], selected: 0, colorSeed: 1 };
+        }
+
+        function nextBlockShapes(runtime) {
+            runtime.shapes = Array.from({ length: 3 }, (_, index) => ({
+                cells: cloneGameData(BLOCK_SHAPES[Math.floor(Math.random() * BLOCK_SHAPES.length)]),
+                used: false,
+                color: (runtime.colorSeed + index) % 5
+            }));
+            runtime.colorSeed = (runtime.colorSeed + 3) % 5;
+            runtime.selected = 0;
+        }
+
+        function canPlaceBlock(runtime, shape, row, col) {
+            return shape.cells.every(([dr, dc]) => row + dr < 8 && col + dc < 8 && !runtime.board[(row + dr) * 8 + col + dc]);
+        }
+
+        function blockBlastHasMove(runtime) {
+            return runtime.shapes.filter(shape => !shape.used).some(shape => {
+                for (let row = 0; row < 8; row += 1) for (let col = 0; col < 8; col += 1) if (canPlaceBlock(runtime, shape, row, col)) return true;
+                return false;
+            });
+        }
+
+        function initNexaBlockBlast(stage, reset) {
+            const saved = state.nexaPlay?.sessions?.["block-blast"];
+            const runtime = !reset && Array.isArray(saved?.board) ? cloneGameData(saved) : freshBlockBlastState();
+            if (!runtime.shapes?.length || runtime.shapes.every(shape => shape.used)) nextBlockShapes(runtime);
+            state.nexaPlayRuntime = runtime;
+            const place = (row, col) => {
+                const shape = runtime.shapes[runtime.selected];
+                if (!shape || shape.used || !canPlaceBlock(runtime, shape, row, col)) return;
+                shape.cells.forEach(([dr, dc]) => {
+                    runtime.board[(row + dr) * 8 + col + dc] = shape.color + 1;
+                    runtime.score += 1;
+                });
+                const fullRows = [];
+                const fullCols = [];
+                for (let index = 0; index < 8; index += 1) {
+                    if (runtime.board.slice(index * 8, index * 8 + 8).every(Boolean)) fullRows.push(index);
+                    if (Array.from({ length: 8 }, (_, rowIndex) => runtime.board[rowIndex * 8 + index]).every(Boolean)) fullCols.push(index);
+                }
+                fullRows.forEach(rowIndex => runtime.board.fill(0, rowIndex * 8, rowIndex * 8 + 8));
+                fullCols.forEach(colIndex => {
+                    for (let rowIndex = 0; rowIndex < 8; rowIndex += 1) runtime.board[rowIndex * 8 + colIndex] = 0;
+                });
+                runtime.score += (fullRows.length + fullCols.length) * 80;
+                shape.used = true;
+                const nextAvailable = runtime.shapes.findIndex(item => !item.used);
+                if (nextAvailable >= 0) runtime.selected = nextAvailable;
+                else nextBlockShapes(runtime);
+                updateNexaGameScore("block-blast", runtime.score);
+                saveNexaPlayProgress("block-blast", runtime.score, runtime);
+                renderGame();
+            };
+            const renderGame = () => {
+                stage.innerHTML = "";
+                const status = document.createElement("div");
+                status.className = "nexa-game-status";
+                status.innerHTML = `<strong>${runtime.score.toLocaleString("tr-TR")} puan</strong><small>${blockBlastHasMove(runtime) ? "Bir parçayı seçip tahtaya yerleştir" : "Hamle kalmadı, yeni oyun başlat"}</small>`;
+                const board = document.createElement("div");
+                board.className = "block-blast-board";
+                runtime.board.forEach((value, index) => {
+                    const cell = document.createElement("button");
+                    cell.type = "button";
+                    cell.className = `block-cell color-${value}`;
+                    cell.onclick = () => place(Math.floor(index / 8), index % 8);
+                    board.appendChild(cell);
+                });
+                const tray = document.createElement("div");
+                tray.className = "block-shape-tray";
+                runtime.shapes.forEach((shape, index) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.disabled = shape.used;
+                    button.className = `block-shape ${runtime.selected === index ? "selected" : ""}`;
+                    const height = Math.max(...shape.cells.map(cell => cell[0])) + 1;
+                    const width = Math.max(...shape.cells.map(cell => cell[1])) + 1;
+                    button.style.setProperty("--shape-cols", width);
+                    button.style.setProperty("--shape-rows", height);
+                    const used = new Set(shape.cells.map(cell => cell.join("-")));
+                    for (let row = 0; row < height; row += 1) for (let col = 0; col < width; col += 1) {
+                        const dot = document.createElement("i");
+                        if (used.has(`${row}-${col}`)) dot.className = `filled color-${shape.color + 1}`;
+                        button.appendChild(dot);
+                    }
+                    button.onclick = () => {
+                        runtime.selected = index;
+                        renderGame();
+                    };
+                    tray.appendChild(button);
+                });
+                stage.append(status, board, tray, gameResetButton("block-blast"));
+            };
+            renderGame();
         }
 
         function renderVoiceRoomCard(room) {
@@ -9586,7 +10199,7 @@
                 menu.className = "attachment-menu compact-share-menu";
                 const items = [
                     ["4-2-3", "camera", "Fotoğraf çek", openCameraCapture],
-                    ["4-2-2", "image", "Fotoğraf ve video", () => $("mediaInput").click()],
+                    ["4-2-2", "image", "Fotoğraf ve video", () => openMediaArchiveDirectly()],
                     ["4-2-9", "location", "Konum", sendCurrentLocation],
                     ["4-2-1", "file", "Belge", () => $("fileInput").click()],
                     ["4-2-11", "zap", "AI ile düzenle", improveComposerWithAi],
@@ -9608,6 +10221,7 @@
                 body.appendChild(menu);
             }, [{ label: "Kapat", onClick: closeModal }], "sheet share-menu-sheet");
         }
+
         function openViewOnceTextComposer() {
             openModal("Tek görülmelik mesaj", body => {
                 const shell = document.createElement("div");
@@ -10464,7 +11078,7 @@
             };
             state.recorder.start(250);
             $("voiceButton").classList.add("recording");
-            $("voiceButton").textContent = "■";
+            $("voiceButton").textContent = "?";
             $("cancelVoiceButton").classList.remove("hidden");
         }
 
