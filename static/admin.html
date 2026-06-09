@@ -587,6 +587,10 @@
                 <button class="tab active" data-view="users" type="button">Kullanıcılar</button>
                 <button class="tab" data-view="chats" type="button">Sohbetler</button>
                 <button class="tab" data-view="messages" type="button">Mesajlar</button>
+                <button class="tab" data-view="activity" type="button">Etkinlik</button>
+                <button class="tab" data-view="updates" type="button">Güncellemeler</button>
+                <button class="tab" data-view="aiPoints" type="button">AI & Puan</button>
+                <button class="tab" data-view="roomsGames" type="button">Oda & Oyun</button>
                 <button class="tab" data-view="stories" type="button">Durumlar</button>
                 <button class="tab" data-view="calls" type="button">Aramalar</button>
                 <button class="tab" data-view="scheduled" type="button">Zamanlı</button>
@@ -692,6 +696,10 @@
             if (state.view === "users") renderUsers();
             if (state.view === "chats") renderChats();
             if (state.view === "messages") renderMessages();
+            if (state.view === "activity") renderActivity();
+            if (state.view === "updates") renderUpdates();
+            if (state.view === "aiPoints") renderAiPoints();
+            if (state.view === "roomsGames") renderRoomsGames();
             if (state.view === "stories") renderStories();
             if (state.view === "calls") renderCalls();
             if (state.view === "scheduled") renderScheduled();
@@ -711,6 +719,10 @@
                 <div class="metric"><strong>${messageCount}</strong><small>Mesaj</small></div>
                 <div class="metric"><strong>${state.data.stories.length}</strong><small>Durum</small></div>
                 <div class="metric"><strong>${state.data.calls.length}</strong><small>Arama</small></div>
+                <div class="metric"><strong>${state.data.updates?.length || 0}</strong><small>Güncelleme</small></div>
+                <div class="metric"><strong>${state.data.aiMemories?.length || 0}</strong><small>AI Hafıza</small></div>
+                <div class="metric"><strong>${state.data.voiceRooms?.length || 0}</strong><small>Sesli Oda</small></div>
+                <div class="metric"><strong>${state.data.nexaPlay?.length || 0}</strong><small>Oyuncu</small></div>
                 <div class="metric"><strong>${state.data.scheduledMessages?.length || 0}</strong><small>Zamanlı</small></div>
                 <div class="metric"><strong>${state.data.archives?.length || 0}</strong><small>Arşiv</small></div>
                 <div class="metric"><strong>${state.data.blocks?.length || 0}</strong><small>Engel</small></div>
@@ -748,10 +760,13 @@
                         <span class="chip">${user.privacy?.onlineHidden ? "Çevrim içi gizli" : "Çevrim içi açık"}</span>
                         <span class="chip">${user.privacy?.readReceiptsOff ? "Okundu kapalı" : "Okundu açık"}</span>
                         <span class="chip">${user.privacy?.emailHidden ? "Gmail gizli" : "Gmail görünür"}</span>
+                        <span class="chip">${Number(user.points || 0).toLocaleString("tr-TR")} Nexa Puan</span>
                     </div>
                     <div class="card-row">
                         <button data-user-chats="${user.username}" type="button">Sohbetleri</button>
                         <button data-privacy="${user.username}" type="button">Gizlilik</button>
+                        <button data-points="${user.username}" type="button">Puan Ayarla</button>
+                        <button data-ai-clear="${user.username}" type="button">AI Hafızasını Sil</button>
                         <button class="ok" data-reset="${user.username}" type="button">Şifre Sıfırla</button>
                         <button class="danger" data-delete="${user.username}" type="button">Sil</button>
                     </div>
@@ -766,6 +781,8 @@
             grid.querySelectorAll("[data-privacy]").forEach(button => button.onclick = () => editUserPrivacy(button.dataset.privacy));
             grid.querySelectorAll("[data-delete]").forEach(button => button.onclick = () => deleteUser(button.dataset.delete));
             grid.querySelectorAll("[data-reset]").forEach(button => button.onclick = () => resetPassword(button.dataset.reset));
+            grid.querySelectorAll("[data-points]").forEach(button => button.onclick = () => adjustPoints(button.dataset.points));
+            grid.querySelectorAll("[data-ai-clear]").forEach(button => button.onclick = () => clearAiMemory(button.dataset.aiClear));
         }
 
         function renderChats() {
@@ -907,6 +924,126 @@
                 list.appendChild(item);
             });
             list.querySelectorAll("[data-message]").forEach(button => button.onclick = () => deleteMessage(button.dataset.message));
+        }
+
+        function renderActivity() {
+            const activities = (state.data.activities || []).filter(item => matchesSearch(item.username, item.title, item.detail, item.kind));
+            $("view").innerHTML = `<h2>Etkinlik Akışı (${activities.length}/${state.data.activities?.length || 0})</h2><div class="list"></div>`;
+            const list = $("view").querySelector(".list");
+            if (!activities.length) {
+                list.innerHTML = empty((state.data.activities || []).length ? "Aramana uygun etkinlik yok." : "Henüz etkinlik kaydı yok.");
+                return;
+            }
+            list.innerHTML = activities.map(item => `
+                <article class="message">
+                    <strong>${escapeHtml(item.username || "Sistem")} • ${escapeHtml(item.title || item.kind)}</strong>
+                    <p>${escapeHtml(item.detail || "Ayrıntı yok")}</p>
+                    <small class="meta">${new Date(item.createdAt).toLocaleString("tr-TR")} • ${escapeHtml(item.kind || "etkinlik")}</small>
+                </article>
+            `).join("");
+        }
+
+        function renderUpdates() {
+            const updates = (state.data.updates || []).filter(item => matchesSearch(item.username, item.user?.displayName, item.body, item.media?.map(media => media.name).join(" ")));
+            $("view").innerHTML = `<h2>Güncellemeler (${updates.length}/${state.data.updates?.length || 0})</h2><div class="grid"></div>`;
+            const grid = $("view").querySelector(".grid");
+            if (!updates.length) {
+                grid.innerHTML = empty((state.data.updates || []).length ? "Aramana uygun güncelleme yok." : "Henüz güncelleme paylaşılmadı.");
+                return;
+            }
+            updates.forEach(post => {
+                const card = document.createElement("article");
+                card.className = "card";
+                card.innerHTML = `
+                    <h3>${escapeHtml(post.user?.displayName || post.username || "Kullanıcı")}</h3>
+                    <p>${escapeHtml(post.body || "Medya güncellemesi")}</p>
+                    ${(post.media || []).map(renderAttachment).join("")}
+                    <div class="card-row">
+                        <small>${new Date(post.createdAt).toLocaleString("tr-TR")} • ${(post.likedBy || []).length} beğeni</small>
+                        <button class="danger" data-delete-update="${escapeAttr(post.id)}" type="button">Güncellemeyi Sil</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            grid.querySelectorAll("[data-delete-update]").forEach(button => button.onclick = () => deleteUpdate(button.dataset.deleteUpdate));
+        }
+
+        function renderAiPoints() {
+            const memories = (state.data.aiMemories || []).filter(item => matchesSearch(item.username, item.content, item.provider, item.role));
+            const tasks = (state.data.aiTasks || []).filter(item => matchesSearch(item.username, item.title, item.description, item.repeat));
+            const ledger = (state.data.pointLedger || []).filter(item => matchesSearch(item.username, item.reason, JSON.stringify(item.meta || {})));
+            $("view").innerHTML = `
+                <h2>Nexa AI ve Puan Yönetimi</h2>
+                <div class="grid">
+                    <article class="card"><h3>AI Hafızası (${memories.length})</h3><div id="adminAiMemories" class="list"></div></article>
+                    <article class="card"><h3>AI Görevleri (${tasks.length})</h3><div id="adminAiTasks" class="list"></div></article>
+                    <article class="card"><h3>Puan Hareketleri (${ledger.length})</h3><div id="adminPointLedger" class="list"></div></article>
+                </div>
+            `;
+            $("adminAiMemories").innerHTML = memories.slice(0, 100).map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.username)} • ${escapeHtml(item.role)} • ${escapeHtml(item.provider || "yerel")}</strong>
+                    <p>${escapeHtml(item.content)}</p>
+                    <small>${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
+                </div>
+            `).join("") || empty("AI hafızası yok.");
+            $("adminAiTasks").innerHTML = tasks.slice(0, 100).map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.username)} • ${escapeHtml(item.title)}</strong>
+                    <p>${escapeHtml(item.description || item.repeat || "Görev")}</p>
+                    <small>${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
+                </div>
+            `).join("") || empty("AI görevi yok.");
+            $("adminPointLedger").innerHTML = ledger.slice(0, 140).map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.username)} • ${Number(item.amount || 0) >= 0 ? "+" : ""}${Number(item.amount || 0)}</strong>
+                    <p>${escapeHtml(item.reason || "puan")}</p>
+                    <small>${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
+                </div>
+            `).join("") || empty("Puan hareketi yok.");
+        }
+
+        function renderRoomsGames() {
+            const rooms = (state.data.voiceRooms || []).filter(item => matchesSearch(item.title, item.topic, item.category, item.owner?.displayName));
+            const games = (state.data.nexaPlay || []).filter(item => matchesSearch(item.username, Object.keys(item.scores || {}).join(" ")));
+            const communities = (state.data.communities || []).filter(item => matchesSearch(item.title, item.description, item.category, item.owner?.displayName));
+            $("view").innerHTML = `
+                <h2>Sesli Odalar, Topluluklar ve Nexa Play</h2>
+                <div class="grid">
+                    <article class="card"><h3>Sesli Odalar (${rooms.length})</h3><div id="adminVoiceRooms" class="list"></div></article>
+                    <article class="card"><h3>Topluluklar (${communities.length})</h3><div id="adminCommunities" class="list"></div></article>
+                    <article class="card"><h3>Nexa Play (${games.length})</h3><div id="adminGames" class="list"></div></article>
+                </div>
+            `;
+            $("adminVoiceRooms").innerHTML = rooms.map(room => `
+                <div class="message">
+                    <strong>${escapeHtml(room.title)} • ${room.count || 0}/${room.limit || 50}</strong>
+                    <p>${escapeHtml(room.topic || room.category || "Sesli oda")}</p>
+                    <div class="card-row">
+                        <small>${escapeHtml(room.owner?.displayName || "Sistem odası")}</small>
+                        <button class="danger" data-close-room="${escapeAttr(room.id)}" type="button">${room.id === "lounge" ? "Odayı Boşalt" : "Odayı Kapat"}</button>
+                    </div>
+                </div>
+            `).join("") || empty("Sesli oda yok.");
+            $("adminCommunities").innerHTML = communities.map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.title)}</strong>
+                    <p>${escapeHtml(item.description || item.category || "Topluluk")}</p>
+                    <small>${item.memberCount || item.members?.length || 0} üye</small>
+                </div>
+            `).join("") || empty("Topluluk yok.");
+            $("adminGames").innerHTML = games.map(item => `
+                <div class="message">
+                    <strong>${escapeHtml(item.username)}</strong>
+                    <p>${Object.entries(item.scores || {}).map(([game, score]) => `${escapeHtml(game)}: ${Number(score || 0).toLocaleString("tr-TR")}`).join(" • ") || "Henüz skor yok"}</p>
+                    <div class="card-row">
+                        <small>${item.updatedAt ? new Date(item.updatedAt).toLocaleString("tr-TR") : "Tarih yok"}</small>
+                        <button class="danger" data-reset-games="${escapeAttr(item.username)}" type="button">İlerlemeyi Sıfırla</button>
+                    </div>
+                </div>
+            `).join("") || empty("Oyun ilerlemesi yok.");
+            $("adminVoiceRooms").querySelectorAll("[data-close-room]").forEach(button => button.onclick = () => closeVoiceRoom(button.dataset.closeRoom));
+            $("adminGames").querySelectorAll("[data-reset-games]").forEach(button => button.onclick = () => resetGames(button.dataset.resetGames));
         }
 
         function renderStories() {
@@ -1373,6 +1510,46 @@
                 emailHidden: confirm(`${user.displayName}: Gmail adresi gizlensin mi?`)
             };
             await api(`/admin/user/${encodeURIComponent(username)}/privacy`, { method: "POST", body: JSON.stringify(payload) });
+            await load();
+        }
+
+        async function adjustPoints(username) {
+            const rawAmount = prompt(`${username} için eklenecek veya çıkarılacak puan. Çıkarmak için eksi değer yaz.`);
+            if (rawAmount === null) return;
+            const amount = Number(rawAmount);
+            if (!Number.isInteger(amount) || amount === 0) {
+                alert("Sıfırdan farklı tam sayı yazmalısın.");
+                return;
+            }
+            const note = prompt("Puan değişikliği açıklaması", "Admin paneli") || "Admin paneli";
+            await api(`/admin/user/${encodeURIComponent(username)}/points`, {
+                method: "POST",
+                body: JSON.stringify({ amount, note })
+            });
+            await load();
+        }
+
+        async function clearAiMemory(username) {
+            if (!confirm(`${username} kullanıcısının Nexa AI hafızası ve AI görevleri silinsin mi?`)) return;
+            await api(`/admin/user/${encodeURIComponent(username)}/ai-memory`, { method: "DELETE" });
+            await load();
+        }
+
+        async function resetGames(username) {
+            if (!confirm(`${username} kullanıcısının tüm Nexa Play skorları ve kayıtları sıfırlansın mı?`)) return;
+            await api(`/admin/user/${encodeURIComponent(username)}/games`, { method: "DELETE" });
+            await load();
+        }
+
+        async function closeVoiceRoom(roomId) {
+            if (!confirm("Bu sesli oda kapatılsın veya sistem odasıysa içi boşaltılsın mı?")) return;
+            await api(`/admin/voice-room/${encodeURIComponent(roomId)}`, { method: "DELETE" });
+            await load();
+        }
+
+        async function deleteUpdate(postId) {
+            if (!confirm("Bu güncelleme kalıcı olarak silinsin mi?")) return;
+            await api(`/admin/update/${encodeURIComponent(postId)}`, { method: "DELETE" });
             await load();
         }
 

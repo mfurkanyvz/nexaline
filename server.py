@@ -1295,6 +1295,78 @@ def admin_scheduled_message_to_dict(row):
     return data
 
 
+def admin_ai_memory_to_dict(row):
+    return {
+        "id": row.id,
+        "username": row.username,
+        "chatId": row.chat_id,
+        "role": row.role,
+        "content": row.content,
+        "provider": row.provider,
+        "meta": row.meta or {},
+        "createdAt": to_iso(row.created_at),
+    }
+
+
+def admin_nexa_play_states():
+    rows = AppSetting.query.filter(AppSetting.key.like("games:%")).order_by(AppSetting.updated_at.desc()).all()
+    return [
+        {
+            "username": row.key.split(":", 1)[1],
+            "scores": dict((row.value or {}).get("scores") or {}),
+            "sessions": dict((row.value or {}).get("sessions") or {}),
+            "updatedAt": (row.value or {}).get("updatedAt") or to_iso(row.updated_at),
+        }
+        for row in rows
+    ]
+
+
+def admin_activity_feed(limit=240):
+    events = []
+
+    def add(kind, username, title, detail, created_at, entity_id=None):
+        if not created_at:
+            return
+        events.append(
+            {
+                "kind": kind,
+                "username": username,
+                "title": title,
+                "detail": detail,
+                "entityId": entity_id,
+                "createdAt": to_iso(created_at),
+                "_sort": created_at,
+            }
+        )
+
+    for row in User.query.order_by(User.created_at.desc()).limit(80).all():
+        add("user", row.username, "Yeni kullanıcı", row.display_name, row.created_at, row.username)
+    for row in Message.query.order_by(Message.created_at.desc()).limit(120).all():
+        detail = row.body or (row.attachment or {}).get("name") or (row.attachment or {}).get("type") or "Dosya"
+        add("message", row.sender, "Mesaj gönderdi", detail[:240], row.created_at, row.id)
+    for row in UpdatePost.query.order_by(UpdatePost.created_at.desc()).limit(80).all():
+        first_media = (row.media or [None])[0] if isinstance(row.media, list) else None
+        media_name = first_media.get("name") if isinstance(first_media, dict) else ""
+        detail = row.body or media_name or "Güncelleme"
+        add("update", row.username, "Güncelleme paylaştı", detail[:240], row.created_at, row.id)
+    for row in Story.query.order_by(Story.created_at.desc()).limit(80).all():
+        detail = row.body or (row.attachment or {}).get("name") or "Tek görüntülemelik paylaşım"
+        add("story", row.username, "Durum paylaştı", detail[:240], row.created_at, row.id)
+    for row in CallLog.query.order_by(CallLog.started_at.desc()).limit(80).all():
+        add("call", row.caller, f"{'Görüntülü' if row.kind == 'video' else 'Sesli'} arama", row.status, row.started_at, row.id)
+    for row in AiMemory.query.filter_by(role="user").order_by(AiMemory.created_at.desc()).limit(100).all():
+        add("ai", row.username, "Nexa AI kullandı", row.content[:240], row.created_at, row.id)
+    for row in PointLedger.query.order_by(PointLedger.created_at.desc()).limit(100).all():
+        add("points", row.username, f"{row.amount:+d} Nexa Puan", row.reason, row.created_at, row.id)
+    for row in AiTask.query.order_by(AiTask.created_at.desc()).limit(80).all():
+        add("task", row.username, "AI görevi oluşturdu", row.title, row.created_at, row.id)
+
+    events.sort(key=lambda item: item["_sort"], reverse=True)
+    for item in events:
+        item.pop("_sort", None)
+    return events[: max(1, min(500, int(limit or 240)))]
+
+
 def scheduled_message_to_dict(row):
     return {
         "id": row.id,
@@ -7268,6 +7340,15 @@ def admin_state():
             "contactRequests": contact_requests,
             "groupInvites": group_invites,
             "scheduledMessages": [admin_scheduled_message_to_dict(row) for row in ScheduledMessage.query.order_by(ScheduledMessage.send_at.asc()).all()],
+            "updates": [update_post_to_dict(row) for row in UpdatePost.query.order_by(UpdatePost.created_at.desc()).limit(240).all()],
+            "activities": admin_activity_feed(),
+            "pointLedger": [point_ledger_to_dict(row) for row in PointLedger.query.order_by(PointLedger.created_at.desc()).limit(300).all()],
+            "aiMemories": [admin_ai_memory_to_dict(row) for row in AiMemory.query.order_by(AiMemory.created_at.desc()).limit(300).all()],
+            "aiTasks": [ai_task_to_dict(row) for row in AiTask.query.order_by(AiTask.created_at.desc()).limit(240).all()],
+            "voiceRooms": voice_rooms_state(),
+            "communities": [community_to_dict(row) for row in Community.query.order_by(Community.created_at.desc()).limit(160).all()],
+            "nexaPlay": admin_nexa_play_states(),
+            "devices": [device_session_to_dict(row) for row in DeviceSession.query.order_by(DeviceSession.last_seen.desc()).limit(240).all()],
             "ai": ai_provider_status(),
             "design": design_settings(),
             "serverIp": request.host,
@@ -7275,6 +7356,93 @@ def admin_state():
             "localAdmin": is_local_admin_request(),
         }
     )
+
+
+@app.route("/admin/user/<username>/points", methods=["POST"])
+def admin_adjust_points(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    data = request.get_json() or {}
+    try:
+        amount = int(data.get("amount") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "message": "Puan miktarı sayı olmalı."}), 400
+    if amount == 0 or abs(amount) > 100_000:
+        return jsonify({"ok": False, "message": "Puan değişimi -100000 ile 100000 arasında ve sıfırdan farklı olmalı."}), 400
+    user.points = max(0, int(user.points or 0) + amount)
+    db.session.add(
+        PointLedger(
+            id=uuid4().hex,
+            username=username,
+            amount=amount,
+            reason="admin_adjustment",
+            meta={"note": str(data.get("note") or "Admin paneli")[:180]},
+        )
+    )
+    db.session.commit()
+    return jsonify({"ok": True, "points": user.points})
+
+
+@app.route("/admin/user/<username>/ai-memory", methods=["DELETE"])
+def admin_clear_ai_memory(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+    if not db.session.get(User, username):
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    deleted = AiMemory.query.filter_by(username=username).delete(synchronize_session=False)
+    AiTask.query.filter_by(username=username).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({"ok": True, "deleted": deleted})
+
+
+@app.route("/admin/user/<username>/games", methods=["DELETE"])
+def admin_reset_games(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+    row = db.session.get(AppSetting, nexa_play_setting_key(username))
+    if row:
+        db.session.delete(row)
+        db.session.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/voice-room/<room_id>", methods=["DELETE"])
+def admin_close_voice_room(room_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+    with voice_room_lock:
+        room = voice_rooms.get(room_id)
+        if not room:
+            return jsonify({"ok": False, "message": "Sesli oda bulunamadı."}), 404
+        if room_id == "lounge":
+            room["participants"] = {}
+            room["comments"] = []
+            room["requests"] = {}
+        else:
+            voice_rooms.pop(room_id, None)
+    emit_voice_rooms()
+    return jsonify({"ok": True})
+
+
+@app.route("/admin/update/<post_id>", methods=["DELETE"])
+def admin_delete_update(post_id):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+    row = db.session.get(UpdatePost, post_id)
+    if not row:
+        return jsonify({"ok": False, "message": "Güncelleme bulunamadı."}), 404
+    db.session.delete(row)
+    db.session.commit()
+    socketio.emit("updates:changed", {"postId": post_id, "deleted": True})
+    return jsonify({"ok": True})
 
 
 @app.route("/admin/user", methods=["POST"])
