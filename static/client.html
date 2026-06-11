@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-    <meta name="theme-color" content="#050911">
+    <meta name="theme-color" content="#080A0F">
     <meta name="application-name" content="NexaLine">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -160,14 +160,11 @@
             </div>
 
             <nav class="nav-tabs">
-                <button class="nav-tab" data-section="stories" type="button" title="Güncellemeler"><span class="nav-icon">◌</span><span class="nav-label">Güncellemeler</span></button>
                 <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
                 <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
                 <button class="nav-tab" data-section="explore" type="button" title="Keşfet"><span class="nav-icon">✦</span><span class="nav-label">Keşfet</span></button>
-                <button class="nav-tab" data-section="groups" type="button" title="Gruplar"><span class="nav-icon">☷</span><span class="nav-label">Gruplar</span></button>
-                <button class="nav-tab" data-section="friends" type="button" title="Arkadaşlarım"><span class="nav-icon">☻</span><span class="nav-label">Arkadaşlarım</span></button>
-                <button class="nav-tab settings-rail-button" id="settingsButton" type="button" title="Ayarlar"><span class="nav-icon">⚙</span><span class="nav-label">Ayarlar</span></button>
+                <button class="nav-tab settings-rail-button" id="settingsButton" type="button" title="Profil"><span class="nav-icon">◎</span><span class="nav-label">Profil</span></button>
             </nav>
 
             <div class="section-head">
@@ -1229,7 +1226,7 @@
             ["Gülümse", "😊", "#00D96F", "#704CFF"],
             ["Nexa", "✦", "#00D8FF", "#FF00B8"]
         ];
-        const STAGE_MOBILE_NAV_ORDER = ["stories", "calls", "chats", "contacts", "explore"];
+        const STAGE_MOBILE_NAV_ORDER = ["chats", "calls", "explore", "contacts"];
         loadAdminDesign();
 
         const NEXA_SVGS = {
@@ -1291,7 +1288,7 @@
                 if (target) target.innerHTML = svgIcon(icon);
             });
             const settingsNavIcon = document.querySelector("#settingsButton .nav-icon");
-            if (settingsNavIcon) settingsNavIcon.innerHTML = svgIcon("settings");
+            if (settingsNavIcon) settingsNavIcon.innerHTML = svgIcon("user");
             const buttonMap = {
                 storyButton: "camera",
                 notificationButton: "bell",
@@ -1456,6 +1453,7 @@
                 const tab = document.querySelector(`.nav-tab[data-section="${section}"]`);
                 if (tab) tab.style.order = index + 1;
             });
+            if ($("settingsButton")) $("settingsButton").style.order = "5";
             const composerOrder = isMobile ? mobileComposer : desktopComposer;
             const map = {
                 attach: "attachButton",
@@ -5499,7 +5497,7 @@
             setNavBadge("contacts", 0);
         }
 
-        const SWIPE_SECTION_ORDER = ["stories", "calls", "chats", "contacts", "explore"];
+        const SWIPE_SECTION_ORDER = ["chats", "calls", "explore", "contacts"];
 
         function visibleNavTabs() {
             return SWIPE_SECTION_ORDER
@@ -13245,7 +13243,13 @@
         };
         $("voiceButton").onclick = () => isAiChat(activeChat()) ? startAiSpeechInput() : toggleVoiceRecording();
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
-        $("settingsButton").onclick = openSettings;
+        $("settingsButton").onclick = () => {
+            document.querySelectorAll(".nav-tab").forEach(tab => tab.classList.remove("active"));
+            $("settingsButton").classList.add("active");
+            syncNavIndicatorToElement($("settingsButton"), true);
+            openSettings();
+            setSettingsView("profile");
+        };
         $("topSettingsButton").onclick = openSettings;
         $("accountSwitcherButton").onclick = toggleAccountSwitcher;
         $("archiveShortcutButton").onclick = () => {

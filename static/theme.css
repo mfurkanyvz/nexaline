@@ -6002,3 +6002,305 @@ button {
     .call-panel.connected-call.video-call #cameraButton { order: 3; }
     .call-panel.connected-call.video-call #endCallButton { order: 4; }
 }
+
+/* NexaLine iPhone 16 mobile design system */
+:root {
+    --screen-width: 393px;
+    --screen-height: 852px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --page-padding: 16px;
+    --content-width: calc(100vw - 32px);
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --radius-pill: 999px;
+    --bottom-nav-height: 70px;
+    --bottom-nav-width: calc(100vw - 32px);
+    --bottom-nav-bottom: calc(12px + var(--safe-bottom));
+    --bg-main: #080A0F;
+    --bg-page: #0B0D14;
+    --bg-card: #111827;
+    --bg-card-soft: #151A23;
+    --bg-input: #171C26;
+    --border-soft: rgba(255, 255, 255, 0.08);
+    --border-active: rgba(139, 92, 246, 0.45);
+    --text-main: #FFFFFF;
+    --text-muted: #9CA3AF;
+    --text-soft: #6B7280;
+    --accent-purple: #8B5CF6;
+    --accent-violet: #A855F7;
+    --accent-indigo: #6366F1;
+    --accent-blue: #3B82F6;
+    --danger: #EF4444;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --bg-dark: var(--bg-main);
+    --glass-panel: rgba(17, 24, 39, 0.78);
+    --glass-panel-strong: rgba(21, 26, 35, 0.9);
+    --glass-panel-soft: rgba(21, 26, 35, 0.62);
+    --glass-border-color: var(--border-soft);
+    --glass-border: 1px solid var(--border-soft);
+    --neon-blue: var(--accent-indigo);
+    --neon-purple: var(--accent-purple);
+    --neon-pink: var(--accent-violet);
+    --shadow-deep: 0 18px 50px rgba(0, 0, 0, 0.45);
+    --app-height: 100dvh;
+}
+
+.mobile-page {
+    width: 100vw;
+    max-width: var(--screen-width);
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background: var(--bg-main);
+    color: var(--text-main);
+    padding:
+        calc(12px + var(--safe-top))
+        var(--page-padding)
+        calc(96px + var(--safe-bottom));
+}
+
+.page-enter {
+    opacity: 0;
+    transform: translateX(18px);
+}
+
+.page-enter-active {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.page-exit {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.page-exit-active {
+    opacity: 0;
+    transform: translateX(-18px);
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+@media (max-width: 860px) {
+    html,
+    body {
+        min-height: 100dvh;
+        background: var(--bg-main);
+    }
+
+    body {
+        color: var(--text-main);
+        overflow: hidden;
+    }
+
+    .auth-screen,
+    .app {
+        background:
+            radial-gradient(circle at 16% 0%, rgba(139, 92, 246, 0.16), transparent 34%),
+            radial-gradient(circle at 95% 10%, rgba(59, 130, 246, 0.1), transparent 32%),
+            var(--bg-main);
+    }
+
+    .app {
+        width: min(100vw, var(--screen-width));
+        max-width: var(--screen-width);
+        min-height: 100dvh;
+        height: 100dvh;
+        left: 50%;
+        transform: translateX(-50%);
+        overflow: hidden;
+    }
+
+    .sidebar,
+    .chat-pane {
+        width: 100%;
+        max-width: var(--screen-width);
+        min-height: 100dvh;
+        height: 100dvh;
+        overflow-x: hidden;
+        background: var(--bg-main);
+        color: var(--text-main);
+    }
+
+    .sidebar {
+        padding-bottom: calc(96px + var(--safe-bottom));
+    }
+
+    .topbar,
+    .chat-top {
+        min-height: calc(64px + var(--safe-top));
+        padding:
+            calc(10px + var(--safe-top))
+            16px
+            10px;
+        border-bottom: 0;
+        background: linear-gradient(180deg, rgba(8, 10, 15, 0.96), rgba(8, 10, 15, 0.72));
+    }
+
+    .search-box {
+        padding: 10px 16px 12px;
+    }
+
+    .search-box input,
+    .field,
+    .composer-input,
+    #messageInput,
+    textarea {
+        background: var(--bg-input);
+        border: 1px solid var(--border-soft);
+        color: var(--text-main);
+    }
+
+    .nav-tabs {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        bottom: var(--bottom-nav-bottom);
+        width: var(--bottom-nav-width);
+        max-width: 361px;
+        height: var(--bottom-nav-height);
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        align-items: center;
+        gap: 0;
+        margin: 0 auto;
+        padding: 0 6px;
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius-xl);
+        background: rgba(17, 24, 39, 0.92);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        z-index: 1200;
+    }
+
+    .nav-tab {
+        width: 100%;
+        min-width: 0;
+        min-height: 58px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 3px;
+        padding: 4px 0;
+        border: 0;
+        border-radius: 18px;
+        background: transparent;
+        color: var(--text-muted);
+        box-shadow: none;
+        font-size: 9px;
+        line-height: 1.05;
+        transition: transform 160ms ease, color 160ms ease, background 160ms ease;
+    }
+
+    .nav-tab[data-section="chats"] { order: 1; }
+    .nav-tab[data-section="calls"] { order: 2; }
+    .nav-tab[data-section="explore"] { order: 3; }
+    .nav-tab[data-section="contacts"] { order: 4; }
+    .settings-rail-button { order: 5; }
+
+    .settings-rail-button {
+        display: grid;
+    }
+
+    .nav-tab .nav-icon {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    .nav-tab .nexa-svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 1.65;
+    }
+
+    .nav-tab .nav-label {
+        width: 100%;
+        max-width: 64px;
+        overflow: hidden;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: inherit;
+    }
+
+    .nav-tab.active {
+        color: var(--accent-purple);
+        transform: translateY(-3px);
+        background: transparent;
+        box-shadow: none;
+        text-shadow: none;
+    }
+
+    .nav-tab.active .nav-icon {
+        background: rgba(139, 92, 246, 0.16);
+        box-shadow: 0 0 22px rgba(139, 92, 246, 0.35);
+    }
+
+    .nav-tab:active {
+        transform: scale(0.92);
+    }
+
+    .nav-tab.active:active {
+        transform: translateY(-3px) scale(0.92);
+    }
+
+    .chat-list,
+    .contact-list,
+    .story-list,
+    .scroll-area {
+        padding: 0 16px calc(96px + var(--safe-bottom));
+        scrollbar-color: rgba(139, 92, 246, 0.42) transparent;
+    }
+
+    .chat-item,
+    .contact-row,
+    .call-row,
+    .community-card,
+    .profile-card,
+    .voice-room-card,
+    .vault-card,
+    .archive-card,
+    .ai-card,
+    .file-pill {
+        border: 1px solid var(--border-soft);
+        background: var(--bg-card);
+        color: var(--text-main);
+        transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+
+    .chat-item:active,
+    .contact-row:active,
+    .call-row:active,
+    .community-card:active,
+    .profile-card:active,
+    .voice-room-card:active,
+    .vault-card:active,
+    .archive-card:active,
+    .ai-card:active {
+        transform: scale(0.98);
+    }
+
+    .section-frame-enter {
+        animation: mobile-slide-fade 220ms ease both;
+    }
+}
+
+@keyframes mobile-slide-fade {
+    from {
+        opacity: 0;
+        transform: translateX(18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
