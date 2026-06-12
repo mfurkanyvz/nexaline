@@ -2454,6 +2454,12 @@
 
         function closeModal() {
             const panel = $("modalPanel");
+            if (panel.classList.contains("account-switcher-panel") && !panel.classList.contains("account-switcher-closing")) {
+                panel.classList.add("account-switcher-closing");
+                modalCloseTimer = setTimeout(finalizeModalClose, 285);
+                return;
+            }
+            if (panel.classList.contains("account-switcher-closing")) return;
             if (panel.classList.contains("message-context-popover") && !panel.classList.contains("message-context-closing")) {
                 panel.classList.add("message-context-closing");
                 messageMenuAnchor?.classList.remove("message-menu-anchor", "message-pressing");
@@ -5270,9 +5276,8 @@
                 body.appendChild(list);
             }, [
                 { label: "+ Hesap Ekle", onClick: () => { closeModal(); localStorage.removeItem("nexalineUser"); resetToAuth("Eklemek istediğin hesapla giriş yap."); } },
-                { label: "Çıkış Yap", primary: true, onClick: () => { closeModal(); logout(); } },
-                { label: "Kapat", onClick: closeModal }
-            ], "sheet");
+                { label: "Çıkış Yap", primary: true, onClick: () => { closeModal(); logout(); } }
+            ], "account-switcher-panel");
         }
 
         async function openPointsPanel() {

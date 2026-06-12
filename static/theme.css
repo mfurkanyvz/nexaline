@@ -7711,3 +7711,213 @@ button {
         filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.72));
     }
 }
+
+/* Stage 19: full-screen account switcher */
+@media (max-width: 860px) {
+    .modal-panel.account-switcher-panel {
+        inset: auto;
+        top: var(--viewport-top);
+        left: var(--viewport-left);
+        width: var(--viewport-width);
+        height: var(--app-height);
+        max-width: var(--viewport-width);
+        max-height: var(--app-height);
+        padding: 0;
+        display: block;
+        overflow: hidden;
+        background: rgba(2, 4, 9, 0.7);
+        backdrop-filter: blur(16px) saturate(120%);
+        -webkit-backdrop-filter: blur(16px) saturate(120%);
+        animation: account-switcher-backdrop-in 300ms ease both;
+    }
+
+    .account-switcher-panel .modal-box {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        padding: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(139, 92, 246, 0.16), transparent 32%),
+            linear-gradient(180deg, #080a0f, #0b0d14);
+        box-shadow: none;
+        transform-origin: calc(16px + 22px) calc(var(--safe-top) + 30px);
+        animation: account-switcher-grow-down 320ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+    }
+
+    .account-switcher-panel .modal-head {
+        min-height: calc(64px + var(--safe-top));
+        margin: 0;
+        padding:
+            calc(10px + var(--safe-top))
+            calc(16px + var(--safe-right))
+            10px
+            calc(16px + var(--safe-left));
+        border-bottom: 1px solid var(--border-soft);
+        background: rgba(8, 10, 15, 0.76);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .account-switcher-panel .modal-head strong {
+        font-size: 19px;
+        font-weight: 820;
+    }
+
+    .account-switcher-panel #modalCloseButton {
+        width: 42px;
+        height: 42px;
+        min-height: 42px;
+        margin-left: auto;
+        border: 1px solid var(--border-soft);
+        border-radius: 50%;
+        background: var(--bg-card-soft);
+        color: #fff;
+    }
+
+    .account-switcher-panel .modal-body {
+        min-height: 0;
+        padding:
+            16px
+            calc(16px + var(--safe-right))
+            18px
+            calc(16px + var(--safe-left));
+        align-content: start;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+    }
+
+    .account-switcher-panel .account-switcher-list {
+        gap: 12px;
+    }
+
+    .account-switcher-panel .account-switcher-row {
+        min-height: 94px;
+        padding: 14px;
+        grid-template-columns: 48px minmax(0, 1fr);
+        grid-template-rows: minmax(42px, auto) auto;
+        column-gap: 12px;
+        row-gap: 10px;
+        border-radius: 20px;
+        background: var(--bg-card);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+    }
+
+    .account-switcher-panel .account-switcher-avatar {
+        width: 48px;
+        height: 48px;
+    }
+
+    .account-switcher-panel .account-switcher-copy {
+        align-self: center;
+    }
+
+    .account-switcher-panel .account-switcher-copy .chat-title {
+        font-size: 15px;
+    }
+
+    .account-switcher-panel .account-switcher-copy .last-message {
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .account-switcher-panel .account-switcher-actions {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: min(100%, 176px);
+        justify-self: end;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .account-switcher-panel .account-switcher-actions .mini-btn {
+        min-height: 36px;
+        height: 36px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 12px;
+    }
+
+    .account-switcher-panel .modal-actions {
+        min-height: calc(70px + var(--safe-bottom));
+        margin: 0;
+        padding:
+            10px
+            calc(16px + var(--safe-right))
+            calc(10px + var(--safe-bottom))
+            calc(16px + var(--safe-left));
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        border-top: 1px solid var(--border-soft);
+        background: rgba(8, 10, 15, 0.88);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .account-switcher-panel .modal-actions .mini-btn {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        padding: 0 12px;
+        overflow: hidden;
+        border-radius: 16px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .modal-panel.account-switcher-panel.account-switcher-closing {
+        pointer-events: none;
+        animation: account-switcher-backdrop-out 280ms ease both;
+    }
+
+    .account-switcher-panel.account-switcher-closing .modal-box {
+        animation: account-switcher-shrink-up 280ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    }
+}
+
+@keyframes account-switcher-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes account-switcher-backdrop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes account-switcher-grow-down {
+    from {
+        opacity: 0.24;
+        transform: translate(-8px, -14px) scale(0.14);
+        border-radius: 50%;
+    }
+    58% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1.015);
+        border-radius: 18px;
+    }
+    to {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+        border-radius: 0;
+    }
+}
+
+@keyframes account-switcher-shrink-up {
+    from {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+        border-radius: 0;
+    }
+    to {
+        opacity: 0;
+        transform: translate(-8px, -14px) scale(0.14);
+        border-radius: 50%;
+    }
+}
