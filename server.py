@@ -5314,6 +5314,74 @@ class ProcessAI:
 process_ai = ProcessAI()
 
 
+TURKISH_IMAGE_PROMPT_WORDS = {
+    "acik", "adam", "aksam", "altinda", "araba", "arkaplan", "ay", "beyaz", "bir",
+    "ciz", "cizim", "cocuk", "dag", "deniz", "detayli", "dogal", "ev", "evde", "fotograf",
+    "gece", "gercekci", "gibi", "gokyuzu", "gol", "gorsel", "gun", "gunes", "icinde", "ile",
+    "insan", "kadin", "karanlik", "kedi", "kirmizi", "kiz", "kopek", "kosan", "kus",
+    "manzara", "mavi", "mor", "olan", "olsun", "onunde", "orman", "olustur",
+    "pembe", "portre", "resim", "sahilde", "sahne", "sari", "sehir", "siyah", "sokakta",
+    "tarzinda", "turuncu", "ustunde", "uzay", "uzayda", "ve", "yagmur", "yaninda", "yap",
+    "yesil",
+}
+
+
+def detect_image_prompt_language(prompt):
+    value = str(prompt or "").strip()
+    if re.search(r"[çğıöşüÇĞİÖŞÜ]", value):
+        return "tr"
+    tokens = set(re.findall(r"[a-z0-9]+", fold_tr_ascii(value)))
+    matches = tokens.intersection(TURKISH_IMAGE_PROMPT_WORDS)
+    if len(matches) >= 2 or matches.intersection({"gorsel", "olustur", "resim", "ciz", "yap"}):
+        return "tr"
+    return "en"
+
+
+def remote_image_provider_ready():
+    return any(
+        os.environ.get(name)
+        for name in (
+            "OPENAI_API_KEY",
+            "GEMINI_API_KEY",
+            "VITE_GEMINI_API_KEY",
+            "HF_TOKEN",
+            "HUGGINGFACE_API_KEY",
+        )
+    )
+
+
+def prepare_image_generation_prompt(prompt, translate_prompt=True):
+    original_prompt = re.sub(r"\s+", " ", str(prompt or "")).strip()
+    language = detect_image_prompt_language(original_prompt)
+    metadata = {
+        "promptLanguage": language,
+        "promptTranslated": False,
+    }
+    if language != "tr":
+        return original_prompt[:1000], metadata
+    if not translate_prompt:
+        metadata["translationSkipped"] = "no-remote-image-provider"
+        return original_prompt[:1000], metadata
+
+    try:
+        translated, translation_provider = process_ai.translate_text(original_prompt, "tr", "en")
+        translated = re.sub(r"\s+", " ", translated).strip()
+        if translated:
+            metadata["promptTranslated"] = True
+            metadata["translationProvider"] = (translation_provider or {}).get("provider")
+            return translated[:1000], metadata
+    except Exception as error:
+        app.logger.info("Turkish image prompt translation fallback: %s", error)
+
+    bilingual_prompt = (
+        "Create an image that follows this Turkish request exactly. "
+        "Preserve every named subject, color, number, style, and composition detail. "
+        f"Turkish request: {original_prompt}"
+    )
+    metadata["translationFallback"] = "bilingual"
+    return bilingual_prompt[:1000], metadata
+
+
 def call_openai_image(prompt):
     data_url, note, _provider = process_ai.generate_image(prompt)
     return data_url, note
@@ -5500,24 +5568,29 @@ def ai_image():
         return jsonify({"ok": False, "message": "Görsel için ne istediğini yaz."}), 400
     if len(prompt) > 800:
         prompt = prompt[:800]
+    provider_prompt, prompt_metadata = prepare_image_generation_prompt(
+        prompt,
+        translate_prompt=remote_image_provider_ready(),
+    )
     provider = {"provider": "local", "model": "nexaline-free-image", "ready": True, "free": True}
     note = "Ücretsiz yerel görsel üretildi."
     try:
-        data_url, note = call_openai_image(prompt)
+        data_url, note = call_openai_image(provider_prompt)
         provider = {"provider": "openai-image", "model": os.environ.get("OPENAI_IMAGE_MODEL", "dall-e-3"), "ready": True}
     except Exception as error:
         app.logger.info("AI image OpenAI fallback: %s", error)
         try:
-            data_url, note = call_gemini_image(prompt)
+            data_url, note = call_gemini_image(provider_prompt)
             provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
         except Exception as error:
             app.logger.info("AI image Gemini fallback: %s", error)
             try:
-                data_url, note = call_huggingface_image(prompt)
+                data_url, note = call_huggingface_image(provider_prompt)
                 provider = {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": True}
             except Exception as error:
                 app.logger.info("AI image local fallback: %s", error)
                 data_url = local_generated_image_data_url(prompt, variant)
+    provider.update(prompt_metadata)
     mime_match = re.match(r"data:([^;]+);", data_url)
     mime_type = mime_match.group(1) if mime_match else "image/svg+xml"
     extension = "png" if mime_type == "image/png" else "jpg" if mime_type == "image/jpeg" else "svg"

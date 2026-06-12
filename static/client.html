@@ -2840,7 +2840,7 @@
                 input.click();
             };
             return [
-                { id: "image", icon: "◎", color: "orange", title: "Görsel oluştur", hint: "Prompt ile görsel üret", run: openAiImageGenerator },
+                { id: "image", icon: "◎", color: "orange", title: "Görsel oluştur", hint: "Türkçe veya İngilizce tarifle", run: openAiImageGenerator },
                 { id: "file-upload", icon: "▧", color: "blue", title: "Dosya yükle", hint: "Dosya veya görsel analiz et", run: () => chooseAiFile("image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip") },
                 { id: "camera", icon: "▣", color: "green", title: "Kamera aç", hint: "Kamera ile görsel yakala", run: openCameraCapture },
                 { id: "voice-create", icon: "♪", color: "blue", title: "Ses oluştur", hint: "Metni Nexa AI sesiyle üret", run: () => this.openAiVoiceCreatorPanel() },
@@ -3085,7 +3085,7 @@
             openModal("Görsel Oluştur", body => {
                 body.innerHTML = `
                     <div class="nexal-form-grid">
-                        <textarea id="aiImagePromptInput" rows="3" placeholder="Dağ manzarası, gün batımı, modern ev, göl, sakin"></textarea>
+                        <textarea id="aiImagePromptInput" rows="3" lang="tr" placeholder="Türkçe yazabilirsin: Gün batımında göl kenarında modern bir ev"></textarea>
                         <div id="aiImagePreview" class="nexal-generated-image hidden"></div>
                         <div class="nexal-thumb-row"><span class="nexal-thumb"></span><span class="nexal-thumb"></span><span class="nexal-thumb"></span><span class="nexal-thumb"></span></div>
                         <button id="aiImageCreateButton" class="nexal-pill-button primary" type="button">Oluştur</button>
