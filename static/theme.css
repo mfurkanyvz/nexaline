@@ -7081,3 +7081,209 @@ button {
         padding-bottom: calc(var(--composer-height) + 14px);
     }
 }
+
+/* Stage 15: message long-press glass capsule */
+.bubble.message-pressing,
+.message-bubble.message-pressing {
+    transform: scale(0.985);
+    filter: brightness(1.08);
+    transition: transform 120ms ease, filter 120ms ease;
+}
+
+.bubble.message-menu-anchor,
+.message-bubble.message-menu-anchor {
+    transform: scale(1.015);
+    filter: brightness(1.12);
+}
+
+.modal-panel.message-context-popover {
+    display: block;
+    padding: 0;
+    background: rgba(2, 5, 10, 0.34);
+    backdrop-filter: blur(8px) saturate(112%);
+    -webkit-backdrop-filter: blur(8px) saturate(112%);
+    animation: message-context-backdrop-in 180ms ease both;
+}
+
+.message-context-popover .modal-box {
+    position: fixed;
+    top: var(--message-menu-top, 50%);
+    left: var(--message-menu-left, 50%);
+    width: min(318px, calc(100vw - 20px));
+    max-height: min(620px, calc(var(--app-height) - 20px));
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 24px;
+    background: transparent;
+    box-shadow: none;
+    transform-origin: var(--message-menu-origin-x, 50%) top;
+    animation: message-context-capsule-in 180ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+}
+
+.message-context-popover.opens-above .modal-box {
+    transform-origin: var(--message-menu-origin-x, 50%) bottom;
+}
+
+.message-context-popover .modal-head,
+.message-context-popover .modal-actions {
+    display: none;
+}
+
+.message-context-popover .modal-body,
+.message-context-actions {
+    display: grid;
+    gap: 8px;
+}
+
+.message-reaction-row {
+    width: max-content;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(20, 25, 32, 0.94);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.36);
+    backdrop-filter: blur(22px) saturate(135%);
+    -webkit-backdrop-filter: blur(22px) saturate(135%);
+}
+
+.message-reaction-row button {
+    width: 45px;
+    height: 45px;
+    min-height: 45px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: transparent;
+    font-size: 25px;
+    transition: transform 140ms ease, background 140ms ease;
+}
+
+.message-reaction-row button:active {
+    transform: scale(1.18);
+    background: rgba(139, 92, 246, 0.18);
+}
+
+.message-action-capsule {
+    max-height: min(500px, calc(var(--app-height) - 94px));
+    padding: 8px;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    background: rgba(18, 26, 31, 0.96);
+    box-shadow: 0 22px 54px rgba(0, 0, 0, 0.48);
+    backdrop-filter: blur(24px) saturate(130%);
+    -webkit-backdrop-filter: blur(24px) saturate(130%);
+}
+
+.message-context-summary {
+    max-height: 46px;
+    margin: 0 4px 5px;
+    padding: 7px 9px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.message-context-row {
+    display: grid;
+    gap: 2px;
+}
+
+.message-context-row + .message-context-row {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.message-context-row button {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    border-radius: 13px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.94);
+    text-align: left;
+    transition: transform 140ms ease, background 140ms ease;
+}
+
+.message-context-row button .nexa-svg {
+    width: 21px;
+    height: 21px;
+}
+
+.message-context-row button:active {
+    transform: scale(0.975);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.message-context-row button.danger-action {
+    color: #fb7185;
+}
+
+.message-context-extra.hidden {
+    display: none;
+}
+
+.message-context-extra:not(.hidden) {
+    animation: message-context-extra-in 160ms ease both;
+}
+
+.message-context-popover.message-context-closing {
+    pointer-events: none;
+    animation: message-context-backdrop-out 160ms ease both;
+}
+
+.message-context-popover.message-context-closing .modal-box {
+    animation: message-context-capsule-out 160ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes message-context-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes message-context-backdrop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes message-context-capsule-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.84); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes message-context-capsule-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(6px) scale(0.88); }
+}
+
+@keyframes message-context-extra-in {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 380px) {
+    .message-context-popover .modal-box {
+        width: min(304px, calc(100vw - 16px));
+    }
+
+    .message-reaction-row button {
+        width: 42px;
+        height: 42px;
+        min-height: 42px;
+        font-size: 23px;
+    }
+}

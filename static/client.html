@@ -1275,7 +1275,12 @@
             arrowUp: '<path d="m18 15-6-6-6 6"/><path d="M12 9v10"/>',
             arrowDown: '<path d="m6 9 6 6 6-6"/><path d="M12 5v10"/>',
             heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/>',
-            zap: '<path d="M13 2 3 14h8l-1 8 10-12h-8z"/>'
+            zap: '<path d="M13 2 3 14h8l-1 8 10-12h-8z"/>',
+            reply: '<path d="m9 17-5-5 5-5"/><path d="M4 12h9a7 7 0 0 1 7 7"/>',
+            forward: '<path d="m15 17 5-5-5-5"/><path d="M20 12h-9a7 7 0 0 0-7 7"/>',
+            copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/>',
+            pin: '<path d="m12 17-5 5"/><path d="m15 3 6 6-4 2-4 4-4-4 4-4z"/>',
+            more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'
         };
 
         function svgIcon(name) {
@@ -2417,7 +2422,14 @@
             return html.replace(/\n/g, "<br>");
         }
 
-        function closeModal() {
+        let modalCloseTimer = null;
+        let messageMenuAnchor = null;
+
+        function finalizeModalClose() {
+            if (modalCloseTimer) {
+                clearTimeout(modalCloseTimer);
+                modalCloseTimer = null;
+            }
             state.aiReminderOpen = false;
             state.pendingVaultMessage = null;
             setAttachmentSheetOpen(false);
@@ -2426,14 +2438,38 @@
                 state.cameraCaptureStop();
                 state.cameraCaptureStop = null;
             }
-            $("modalPanel").classList.add("hidden");
-            $("modalPanel").className = "modal-panel hidden";
+            messageMenuAnchor?.classList.remove("message-menu-anchor", "message-pressing");
+            messageMenuAnchor = null;
+            const panel = $("modalPanel");
+            panel.classList.add("hidden");
+            panel.className = "modal-panel hidden";
+            panel.style.removeProperty("--message-menu-left");
+            panel.style.removeProperty("--message-menu-top");
+            panel.style.removeProperty("--message-menu-origin-x");
             $("modalBody").innerHTML = "";
             $("modalActions").innerHTML = "";
             state.profileCrop = null;
         }
 
+        function closeModal() {
+            const panel = $("modalPanel");
+            if (panel.classList.contains("message-context-popover") && !panel.classList.contains("message-context-closing")) {
+                panel.classList.add("message-context-closing");
+                messageMenuAnchor?.classList.remove("message-menu-anchor", "message-pressing");
+                modalCloseTimer = setTimeout(finalizeModalClose, 165);
+                return;
+            }
+            if (panel.classList.contains("message-context-closing")) return;
+            finalizeModalClose();
+        }
+
         function openModal(title, buildBody, actions = [], variant = "") {
+            if (modalCloseTimer) {
+                clearTimeout(modalCloseTimer);
+                modalCloseTimer = null;
+            }
+            messageMenuAnchor?.classList.remove("message-menu-anchor", "message-pressing");
+            messageMenuAnchor = null;
             $("modalTitle").textContent = title;
             const body = $("modalBody");
             const actionBar = $("modalActions");
@@ -9436,12 +9472,14 @@
             let pressTimer = null;
             let startX = 0;
             let startY = 0;
+            let longPressOpened = false;
 
             const clearPress = () => {
                 if (pressTimer) {
                     clearTimeout(pressTimer);
                     pressTimer = null;
                 }
+                if (!longPressOpened) bubble.classList.remove("message-pressing");
             };
 
             const isInteractiveTarget = target => Boolean(target?.closest?.("button, a, input, textarea, select"));
@@ -9450,24 +9488,37 @@
                 if (message.deletedAt || isInteractiveTarget(event.target)) return;
                 startX = event.clientX;
                 startY = event.clientY;
+                longPressOpened = false;
                 clearPress();
+                bubble.classList.add("message-pressing");
                 pressTimer = setTimeout(() => {
                     pressTimer = null;
-                    openMessageMenu(message);
-                }, event.pointerType === "mouse" ? 420 : 520);
+                    longPressOpened = true;
+                    navigator.vibrate?.(12);
+                    openMessageMenu(message, bubble);
+                }, event.pointerType === "mouse" ? 400 : 460);
             });
             bubble.addEventListener("pointermove", event => {
                 if (Math.abs(event.clientX - startX) > 10 || Math.abs(event.clientY - startY) > 10) {
                     clearPress();
                 }
             });
-            bubble.addEventListener("pointerup", clearPress);
-            bubble.addEventListener("pointercancel", clearPress);
-            bubble.addEventListener("pointerleave", clearPress);
+            bubble.addEventListener("pointerup", () => {
+                clearPress();
+                longPressOpened = false;
+            });
+            bubble.addEventListener("pointercancel", () => {
+                longPressOpened = false;
+                clearPress();
+            });
+            bubble.addEventListener("pointerleave", () => {
+                longPressOpened = false;
+                clearPress();
+            });
             bubble.addEventListener("contextmenu", event => {
                 if (message.deletedAt) return;
                 event.preventDefault();
-                openMessageMenu(message);
+                openMessageMenu(message, bubble);
             });
         }
 
@@ -10160,13 +10211,53 @@
             ]);
         }
 
-        function openMessageMenu(message) {
+        function positionMessageMenu(anchor, alignRight = false) {
+            const panel = $("modalPanel");
+            const box = panel.querySelector(".modal-box");
+            if (
+                !anchor?.isConnected
+                || !box
+                || panel.classList.contains("hidden")
+                || !panel.classList.contains("message-context-popover")
+            ) return;
+            const viewport = window.visualViewport;
+            const viewportLeft = viewport?.offsetLeft || 0;
+            const viewportTop = viewport?.offsetTop || 0;
+            const viewportWidth = viewport?.width || window.innerWidth;
+            const viewportHeight = viewport?.height || window.innerHeight;
+            const anchorRect = anchor.getBoundingClientRect();
+            const boxRect = box.getBoundingClientRect();
+            const margin = 10;
+            const gap = 9;
+            const viewportRight = viewportLeft + viewportWidth;
+            const viewportBottom = viewportTop + viewportHeight;
+            const opensAbove = anchorRect.bottom + gap + boxRect.height > viewportBottom - margin
+                && anchorRect.top - gap - boxRect.height >= viewportTop + margin;
+            const preferredTop = opensAbove
+                ? anchorRect.top - gap - boxRect.height
+                : anchorRect.bottom + gap;
+            const top = clamp(preferredTop, viewportTop + margin, viewportBottom - boxRect.height - margin);
+            const alignedLeft = alignRight
+                ? anchorRect.right - boxRect.width
+                : anchorRect.left;
+            const left = clamp(alignedLeft, viewportLeft + margin, viewportRight - boxRect.width - margin);
+            const originX = clamp(anchorRect.left + anchorRect.width / 2 - left, 26, boxRect.width - 26);
+
+            panel.style.setProperty("--message-menu-left", `${Math.round(left)}px`);
+            panel.style.setProperty("--message-menu-top", `${Math.round(top)}px`);
+            panel.style.setProperty("--message-menu-origin-x", `${Math.round(originX)}px`);
+            panel.classList.toggle("opens-above", opensAbove);
+        }
+
+        function openMessageMenu(message, anchor = null) {
             const mine = message.sender === state.me.username;
+            closeSoftKeyboard();
             openModal("Mesaj", body => {
                 const wrap = document.createElement("div");
                 wrap.className = "message-context-actions";
 
                 const summary = document.createElement("p");
+                summary.className = "message-context-summary";
                 summary.textContent = message.body || message.attachment?.name || "Mesaj";
 
                 const reactionRow = document.createElement("div");
@@ -10182,22 +10273,27 @@
                     reactionRow.appendChild(button);
                 });
 
+                const actionCapsule = document.createElement("div");
+                actionCapsule.className = "message-action-capsule";
                 const actionRow = document.createElement("div");
                 actionRow.className = "message-context-row";
-                const addAction = (key, label, handler) => {
+                const extraRow = document.createElement("div");
+                extraRow.className = "message-context-row message-context-extra hidden";
+                const addAction = (container, key, label, icon, handler, danger = false) => {
                     const button = document.createElement("button");
                     button.type = "button";
                     button.dataset.contextAction = key;
-                    button.textContent = label;
+                    button.classList.toggle("danger-action", danger);
+                    button.innerHTML = `${svgIcon(icon)}<span>${escapeHtml(label)}</span>`;
                     button.onclick = handler;
-                    actionRow.appendChild(button);
+                    container.appendChild(button);
                 };
 
-                addAction("reply", "Yanıtla", () => {
+                addAction(actionRow, "reply", "Yanıtla", "reply", () => {
                     setReplyTo(message);
                     closeModal();
                 });
-                addAction("forward", "İlet", async () => {
+                addAction(actionRow, "forward", "İlet", "forward", async () => {
                     const text = message.body || message.attachment?.name || "";
                     if (navigator.share && text) {
                         try {
@@ -10215,7 +10311,7 @@
                     }
                     closeModal();
                 });
-                addAction("copy", "Kopyala", async () => {
+                addAction(actionRow, "copy", "Kopyala", "copy", async () => {
                     const text = message.body || message.attachment?.name || "";
                     try {
                         await navigator.clipboard.writeText(text);
@@ -10225,52 +10321,52 @@
                     }
                     closeModal();
                 });
-                addAction("delete", "Sil", () => {
-                    closeModal();
-                    socket.emit("message:delete", { messageId: message.id, scope: "me" });
-                });
-
-                const extraRow = document.createElement("div");
-                extraRow.className = "message-context-row";
-                const addExtra = (key, label, handler) => {
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.dataset.contextAction = key;
-                    button.textContent = label;
-                    button.onclick = handler;
-                    extraRow.appendChild(button);
-                };
-                if (mine) {
-                    addExtra("info", "Düzenle", () => editMessage(message));
-                }
-                if (message.versions?.length) {
-                    addExtra("info", "Geçmiş", () => openMessageHistory(message));
-                }
-                addExtra("star", "Yıldızla", () => {
+                addAction(actionRow, "star", "Yıldızla", "star", () => {
                     showToast("Mesaj yıldızlandı.");
                     closeModal();
                 });
-                if (vaultMessageIsEligible(message)) {
-                    addExtra("vault", "Gizli Kasaya Ekle", () => requestMessageVaultSave(message));
+                addAction(actionRow, "delete", "Sil", "trash", () => {
+                    closeModal();
+                    socket.emit("message:delete", { messageId: message.id, scope: "me" });
+                }, true);
+                addAction(actionRow, "more", "Daha fazla...", "more", () => {
+                    const expanded = extraRow.classList.toggle("hidden") === false;
+                    actionCapsule.classList.toggle("expanded", expanded);
+                    requestAnimationFrame(() => positionMessageMenu(anchor, mine));
+                });
+
+                if (mine) {
+                    addAction(extraRow, "info", "Düzenle", "type", () => editMessage(message));
                 }
-                addExtra("pin", "Sabitle", () => {
+                if (message.versions?.length) {
+                    addAction(extraRow, "info", "Geçmiş", "clock", () => openMessageHistory(message));
+                }
+                if (vaultMessageIsEligible(message)) {
+                    addAction(extraRow, "vault", "Gizli Kasaya Ekle", "lock", () => requestMessageVaultSave(message));
+                }
+                addAction(extraRow, "pin", "Sabitle", "pin", () => {
                     showToast("Mesaj sohbet içinde işaretlendi.");
                     closeModal();
                 });
-                addExtra("report", "Şikayet", () => {
+                addAction(extraRow, "report", "Şikayet", "shield", () => {
                     showToast("Mesaj inceleme için işaretlendi.");
                     closeModal();
                 });
                 if (mine || activeChat()?.members.find(member => member.username === state.me.username)?.isAdmin) {
-                    addExtra("delete", "Herkesten Sil", () => {
+                    addAction(extraRow, "delete", "Herkesten Sil", "trash", () => {
                         closeModal();
                         socket.emit("message:delete", { messageId: message.id, scope: "all" });
-                    });
+                    }, true);
                 }
 
-                wrap.append(summary, reactionRow, actionRow, extraRow);
+                actionCapsule.append(summary, actionRow, extraRow);
+                wrap.append(reactionRow, actionCapsule);
                 body.appendChild(wrap);
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+            }, [], "message-context-popover");
+            messageMenuAnchor = anchor;
+            messageMenuAnchor?.classList.add("message-menu-anchor");
+            requestAnimationFrame(() => positionMessageMenu(anchor, mine));
+            [180, 360].forEach(delay => setTimeout(() => positionMessageMenu(anchor, mine), delay));
         }
 
         function openMessageHistory(message) {
