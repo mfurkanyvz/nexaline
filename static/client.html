@@ -2429,7 +2429,11 @@
             buildBody(body);
             actions.forEach(action => {
                 const button = document.createElement("button");
-                button.className = action.primary ? "primary mini-btn" : "mini-btn";
+                button.className = action.danger
+                    ? "danger mini-btn"
+                    : action.primary
+                        ? "primary mini-btn"
+                        : "mini-btn";
                 button.type = "button";
                 button.textContent = action.label;
                 button.onclick = () => action.onClick?.();
@@ -8192,6 +8196,68 @@
             ], "sheet");
         }
 
+        function openSettingsVaultPanel() {
+            openModal("Gizli Kasa", body => {
+                body.innerHTML = `
+                    <div class="settings-vault-choice-grid">
+                        <button id="settingsVaultEnterButton" class="settings-vault-choice" type="button">
+                            <span class="attachment-option-icon">${svgIcon("lock")}</span>
+                            <span><strong>Gizli Kasaya Gir</strong><small>PIN ekranını aç ve kasa içeriğine eriş.</small></span>
+                            <span class="settings-vault-choice-arrow">›</span>
+                        </button>
+                        <button id="settingsVaultResetButton" class="settings-vault-choice danger-option" type="button">
+                            <span class="attachment-option-icon">${svgIcon("x")}</span>
+                            <span><strong>Şifreyi Sıfırla</strong><small>PIN'i ve kasadaki tüm içerikleri kalıcı olarak sil.</small></span>
+                            <span class="settings-vault-choice-arrow">›</span>
+                        </button>
+                    </div>
+                `;
+                $("settingsVaultEnterButton").onclick = openVaultPanel;
+                $("settingsVaultResetButton").onclick = openVaultResetWarning;
+            }, [
+                { label: "Kapat", onClick: closeModal }
+            ], "sheet");
+        }
+
+        function openVaultResetWarning() {
+            openModal("Gizli Kasayı Sıfırla", body => {
+                body.innerHTML = `
+                    <div class="vault-reset-warning">
+                        <span class="attachment-option-icon">${svgIcon("x")}</span>
+                        <strong>Şifren ve kasa içeriğin silinecek</strong>
+                        <p>Bu işlem eski PIN'i sormadan yeni bir başlangıç yapar. Kasadaki notlar ve diğer tüm kayıtlar kalıcı olarak silinir.</p>
+                    </div>
+                `;
+            }, [
+                { label: "Vazgeç", onClick: openSettingsVaultPanel },
+                { label: "Sıfırla", danger: true, onClick: resetVault }
+            ], "sheet");
+        }
+
+        async function resetVault() {
+            const resetButton = $("modalActions")?.querySelector(".danger");
+            if (resetButton) resetButton.disabled = true;
+            try {
+                const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/reset`, {
+                    method: "DELETE",
+                    headers: authHeaders()
+                });
+                const data = await response.json();
+                showToast(data.message || "Gizli kasa sıfırlanamadı.");
+                if (!data.ok) return;
+                state.me = data.user || state.me;
+                state.vaultItems = [];
+                state.vaultPin = "";
+                state.vaultPinDraft = "";
+                state.vaultUnlocked = false;
+                openVaultPanel();
+            } catch (_error) {
+                showToast("Gizli kasa sıfırlanamadı.");
+            } finally {
+                if (resetButton?.isConnected) resetButton.disabled = false;
+            }
+        }
+
         function renderVaultPinDots() {
             const dots = $("vaultPinDots");
             if (!dots) return;
@@ -13440,7 +13506,7 @@
         $("settingsBlockedTab").onclick = openBlockedSettings;
         $("settingsAppearanceTab").onclick = () => setSettingsView("appearance");
         $("settingsAiTab").onclick = () => setSettingsView("ai");
-        $("settingsVaultTab").onclick = openVaultPanel;
+        $("settingsVaultTab").onclick = openSettingsVaultPanel;
         $("settingsNearbyTab").onclick = openNearbyPanel;
         $("settingsDeviceTab").onclick = () => setSettingsView("device");
         $("settingsAccountTab").onclick = () => setSettingsView("account");

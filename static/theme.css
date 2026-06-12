@@ -6758,3 +6758,70 @@ button {
         margin-left: auto;
     }
 }
+
+/* Stage 11: settings-only vault entry and destructive reset */
+.settings-vault-choice-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.settings-vault-choice {
+    width: 100%;
+    min-height: 84px;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.08));
+    border-radius: 22px;
+    background: linear-gradient(135deg, #111827, #171c26);
+    color: var(--text-main);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.settings-vault-choice:active {
+    transform: scale(0.98);
+}
+
+.settings-vault-choice > span:nth-child(2) {
+    display: grid;
+    gap: 4px;
+}
+
+.settings-vault-choice small {
+    line-height: 1.35;
+}
+
+.settings-vault-choice-arrow {
+    color: var(--text-muted);
+    font-size: 24px;
+}
+
+.settings-vault-choice.danger-option {
+    border-color: rgba(239, 68, 68, 0.26);
+    background: linear-gradient(135deg, rgba(64, 19, 28, 0.92), rgba(35, 17, 25, 0.96));
+}
+
+.settings-vault-choice.danger-option strong,
+.settings-vault-choice.danger-option .settings-vault-choice-arrow {
+    color: #ff8b9a;
+}
+
+.vault-reset-warning {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    border-radius: 22px;
+    background: rgba(64, 19, 28, 0.52);
+}
+
+.vault-reset-warning p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.5;
+}

@@ -6985,6 +6985,32 @@ def vault_unlock(username):
     return jsonify({"ok": True, "items": vault_items_for(username), "user": private_user(username)})
 
 
+@app.route("/vault/<username>/reset", methods=["DELETE"])
+def vault_reset(username):
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    device_id = request.headers.get("X-Nexa-Device") or ""
+    device = db.session.get(DeviceSession, normalize_device_id(device_id)) if device_id else None
+    if not device or device.username != username or device.revoked_at is not None:
+        return jsonify({"ok": False, "message": "Bu işlem için aktif cihaz oturumu gerekli."}), 403
+
+    deleted_items = VaultItem.query.filter_by(username=username).delete(synchronize_session=False)
+    user.vault_pin_hash = None
+    user.vault_failed_attempts = 0
+    user.vault_locked_until = None
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "message": "Gizli kasa sıfırlandı. PIN ve kasa içeriği silindi.",
+        "deletedItems": deleted_items,
+        "items": [],
+        "user": private_user(username),
+    })
+
+
 @app.route("/vault/<username>/items", methods=["POST"])
 def vault_item_create(username):
     data = request.get_json() or {}
