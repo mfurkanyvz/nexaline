@@ -6458,3 +6458,118 @@ button {
         color: var(--text-muted);
     }
 }
+
+/* Stage 3: discover and updates mobile surfaces */
+@media (max-width: 860px) {
+    .explore-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding-bottom: calc(96px + var(--safe-bottom));
+    }
+
+    .discover-card,
+    .explore-card {
+        width: 100%;
+        min-height: 92px;
+        display: grid;
+        grid-template-columns: 46px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        margin: 0;
+        padding: 18px;
+        border-radius: 22px;
+        background: linear-gradient(135deg, #111827, #171C26);
+        border: 1px solid var(--border-soft);
+        box-shadow: none;
+    }
+
+    .discover-card[data-explore-module="ai"] {
+        border-color: rgba(139, 92, 246, 0.32);
+        background:
+            radial-gradient(circle at 8% 0%, rgba(139, 92, 246, 0.28), transparent 34%),
+            linear-gradient(135deg, #111827, #171C26);
+        box-shadow: 0 0 28px rgba(139, 92, 246, 0.16);
+    }
+
+    .discover-card .attachment-option-icon,
+    .explore-card .attachment-option-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        background: rgba(139, 92, 246, 0.14);
+        color: var(--accent-purple);
+        box-shadow: none;
+    }
+
+    .story-row {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0 0 8px;
+        scrollbar-width: none;
+    }
+
+    .story-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .story-row .story-item {
+        flex: 0 0 68px;
+        min-height: 88px;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .story-avatar,
+    .story-row .story-item .story-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        padding: 3px;
+        background: linear-gradient(135deg, #8B5CF6, #3B82F6);
+        box-shadow: none;
+    }
+
+    .x-feed {
+        gap: 12px;
+        padding: 0 0 20px;
+    }
+
+    .x-compose-card,
+    .update-post {
+        border-radius: 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        padding: 14px;
+        box-shadow: none;
+    }
+
+    .x-feed-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .voice-post,
+    .x-feed-audio {
+        height: 54px;
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        overflow: hidden;
+        border-radius: var(--radius-pill);
+        background: var(--bg-input);
+        border: 1px solid var(--border-soft);
+        padding: 0 12px;
+    }
+
+    .voice-post audio,
+    .voice-post details,
+    .voice-post .x-audio-wave {
+        display: none;
+    }
+}

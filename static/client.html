@@ -5789,13 +5789,13 @@
             const storyList = $("storyList");
             storyList.innerHTML = "";
             const bubbles = document.createElement("div");
-            bubbles.className = "story-bubbles";
+            bubbles.className = "story-row story-bubbles";
             storyList.appendChild(bubbles);
 
             const add = document.createElement("button");
             add.className = "story-item";
             add.onclick = createStory;
-            add.innerHTML = `<div class="avatar">+</div><div><strong class="chat-title">Durum ekle</strong><div class="last-message">Resim, video veya yazı</div></div><span class="chat-time"></span>`;
+            add.innerHTML = `<div class="avatar story-avatar">+</div><div><strong class="chat-title">Durum ekle</strong><div class="last-message">Resim, video veya yazı</div></div><span class="chat-time"></span>`;
             bubbles.appendChild(add);
 
             const storiesByUser = new Map();
@@ -5813,7 +5813,7 @@
                 button.onclick = () => showStory(story, userStories);
 
                 const avatar = document.createElement("div");
-                avatar.className = "avatar" + (story.user?.online ? " online" : "");
+                avatar.className = "avatar story-avatar" + (story.user?.online ? " online" : "");
                 setAvatar(avatar, story.user, story.user.displayName);
 
                 const body = document.createElement("div");
@@ -6075,7 +6075,7 @@
 
         function renderUpdatesFeedPost(post) {
             const row = document.createElement("article");
-            row.className = "x-feed-card";
+            row.className = "x-feed-card update-post";
             const owner = state.users.find(user => user.username === post.username) || { displayName: post.displayName, username: post.username };
             const avatar = document.createElement("div");
             avatar.className = "avatar";
@@ -6091,7 +6091,7 @@
                 ).join("")}</div>`
                 : "";
             const audioMedia = audioItems.map(item => `
-                <div class="x-feed-audio">
+                <div class="x-feed-audio voice-post">
                     <span class="x-feed-audio-icon">${svgIcon("mic")}</span>
                     <div class="x-feed-audio-body">
                         <strong>Sesli güncelleme</strong>
@@ -6874,15 +6874,14 @@
             grid.className = "explore-grid";
             const cards = [
                 ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", "zap", openAiPanel],
+                ["play", "Nexa Play", "Satranç, Solitaire, 2048 ve Block Blast", "star", openNexaPlay],
                 ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", "location", openNearbyPanel],
-                ["voice", "Sesli Odalar", "Canlı odaları keşfet, oluştur ve yönet", "mic", openVoiceRoomsHub],
-                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel],
-                ["play", "Nexa Play", "Satranç, Solitaire, 2048 ve Block Blast", "star", openNexaPlay]
+                ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel]
             ];
             cards.forEach(([key, title, hint, icon, action]) => {
                 const card = document.createElement("button");
                 card.type = "button";
-                card.className = "explore-card";
+                card.className = "explore-card discover-card";
                 card.dataset.exploreModule = key;
                 card.innerHTML = `
                     <span class="attachment-option-icon">${svgIcon(icon)}</span>
