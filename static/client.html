@@ -6943,7 +6943,23 @@
                 card.onclick = action;
                 grid.appendChild(card);
             });
+            applyDiscoverCardStack(grid);
             list.append(heading, grid);
+        }
+
+        function applyDiscoverCardStack(container) {
+            const cards = Array.from(container.children).filter(item => item.classList.contains("discover-card"));
+            cards.forEach((card, index) => {
+                card.style.setProperty("--discover-stack-top", `${Math.min(index, 6) * 4}px`);
+                card.style.setProperty("--discover-stack-z", String(30 + index));
+            });
+            container.classList.toggle("has-discover-stack", cards.length > 1);
+            if (cards.length > 1) {
+                const spacer = document.createElement("div");
+                spacer.className = "discover-stack-spacer";
+                spacer.setAttribute("aria-hidden", "true");
+                container.appendChild(spacer);
+            }
         }
 
         const NEXA_PLAY_CATALOG = {
@@ -13256,18 +13272,40 @@
             renderContacts();
             renderArchives();
         };
+        function resetActiveSectionView(section) {
+            const listMap = {
+                chats: "chatList",
+                calls: "callList",
+                explore: "exploreList",
+                contacts: "contactList",
+                stories: "storyList"
+            };
+            if (section === "chats") {
+                state.chatListMode = "chats";
+                state.chatSearch = "";
+                renderChats();
+            } else if (section === "calls") {
+                state.callFilter = "all";
+                state.callSearch = "";
+                renderCalls();
+            } else if (section === "explore") {
+                renderExplore();
+            } else if (section === "contacts") {
+                state.contactListMode = "friends";
+                state.contactSearch = "";
+                state.contactTransition = "backward";
+                renderContacts();
+            }
+            const list = $(listMap[section]);
+            if (list) list.scrollTop = 0;
+        }
         document.querySelectorAll(".nav-tab").forEach(tab => {
             tab.onclick = () => {
                 if (state.ignoreNextNavClickUntil && Date.now() < state.ignoreNextNavClickUntil) {
                     return;
                 }
                 if (state.activeSection === tab.dataset.section) {
-                    if (tab.dataset.section === "chats") {
-                        state.chatListMode = "chats";
-                        state.chatSearch = "";
-                        renderChats();
-                        $("chatList").scrollTop = 0;
-                    }
+                    resetActiveSectionView(tab.dataset.section);
                     syncNavIndicatorToElement(tab);
                     return;
                 }
