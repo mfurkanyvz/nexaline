@@ -6922,3 +6922,105 @@ button {
 .vault-list.hidden {
     display: none;
 }
+
+/* Stage 13: responsive mobile account switcher */
+.account-switcher-list {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.account-switcher-row {
+    width: 100%;
+    min-width: 0;
+    min-height: 82px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 7px;
+    overflow: hidden;
+    border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.08));
+    border-radius: 18px;
+    background: var(--bg-card, #111827);
+    color: var(--text-main, #fff);
+}
+
+.account-switcher-row.account-active {
+    border-color: var(--border-active, rgba(139, 92, 246, 0.45));
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.13), rgba(17, 24, 39, 0.98));
+}
+
+.account-switcher-avatar {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 44px;
+    height: 44px;
+    align-self: center;
+}
+
+.account-switcher-copy {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.account-switcher-copy .chat-title,
+.account-switcher-copy .last-message {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-switcher-actions {
+    grid-column: 2;
+    grid-row: 2;
+    width: min(100%, 132px);
+    min-width: 0;
+    justify-self: end;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.account-switcher-actions .mini-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    height: 34px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.account-switcher-switch:disabled {
+    opacity: 1;
+    cursor: default;
+    color: #c4b5fd;
+    background: rgba(139, 92, 246, 0.16);
+    border-color: rgba(139, 92, 246, 0.32);
+}
+
+@media (max-width: 360px) {
+    .account-switcher-row {
+        grid-template-columns: 40px minmax(0, 1fr);
+        padding: 10px;
+    }
+
+    .account-switcher-avatar {
+        width: 40px;
+        height: 40px;
+    }
+}

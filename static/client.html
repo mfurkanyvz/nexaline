@@ -5142,33 +5142,39 @@
             openModal("Hesaplarım", body => {
                 const accounts = rememberedAccounts();
                 const list = document.createElement("div");
-                list.className = "list";
+                list.className = "account-switcher-list";
                 if (!accounts.length) {
                     list.innerHTML = `<div class="last-message">Bu cihazda kayıtlı hesap yok.</div>`;
                 }
                 accounts.forEach(account => {
                     const row = document.createElement("div");
-                    row.className = "chat-item" + (account.username === state.me?.username ? " account-active" : "");
+                    const isActiveAccount = account.username === state.me?.username;
+                    row.className = "account-switcher-row" + (isActiveAccount ? " account-active" : "");
                     const avatar = document.createElement("div");
-                    avatar.className = "avatar";
+                    avatar.className = "avatar account-switcher-avatar";
                     setAvatar(avatar, account, account.displayName || account.username);
                     const text = document.createElement("div");
-                    text.innerHTML = `<strong class="chat-title">${escapeHtml(account.displayName || account.username)}</strong><div class="last-message">@${escapeHtml(account.username)}${account.username === state.me?.username ? " • Aktif" : ""}</div>`;
+                    text.className = "account-switcher-copy";
+                    text.innerHTML = `<strong class="chat-title">${escapeHtml(account.displayName || account.username)}</strong><div class="last-message">@${escapeHtml(account.username)}${isActiveAccount ? " • Aktif" : ""}</div>`;
                     const actions = document.createElement("div");
-                    actions.className = "icon-row";
+                    actions.className = "account-switcher-actions";
                     const switchButton = document.createElement("button");
-                    switchButton.className = "mini-btn";
+                    switchButton.className = "mini-btn account-switcher-switch";
                     switchButton.type = "button";
-                    switchButton.textContent = account.username === state.me?.username ? "Aktif" : "Geç";
+                    switchButton.textContent = isActiveAccount ? "Aktif" : "Geç";
+                    switchButton.setAttribute("aria-label", isActiveAccount ? `${account.username} aktif hesap` : `${account.username} hesabına geç`);
+                    switchButton.disabled = isActiveAccount;
+                    if (isActiveAccount) switchButton.setAttribute("aria-current", "true");
                     switchButton.onclick = () => {
-                        if (account.username === state.me?.username) return;
+                        if (isActiveAccount) return;
                         localStorage.setItem("nexalineUser", account.username);
                         location.reload();
                     };
                     const removeButton = document.createElement("button");
-                    removeButton.className = "mini-btn danger";
+                    removeButton.className = "mini-btn danger account-switcher-remove";
                     removeButton.type = "button";
                     removeButton.textContent = "Kaldır";
+                    removeButton.setAttribute("aria-label", `${account.username} hesabını bu cihazdan kaldır`);
                     removeButton.onclick = () => {
                         removeRememberedAccount(account.username);
                         if (account.username === state.me?.username) {
