@@ -8628,15 +8628,22 @@
                 pendingBadge.textContent = "Bekliyor";
                 side.appendChild(pendingBadge);
             } else {
-                const relationBadge = document.createElement("span");
-                relationBadge.className = "contact-relation-badge";
-                relationBadge.textContent = "Kullanıcı";
-                side.appendChild(relationBadge);
+                const requestButton = document.createElement("button");
+                requestButton.className = "request-button";
+                requestButton.type = "button";
+                requestButton.textContent = "İstek gönder";
+                requestButton.onclick = event => {
+                    event.stopPropagation();
+                    socket.emit("chat:create", { target: user.username });
+                };
+                side.appendChild(requestButton);
             }
-            const score = document.createElement("span");
-            score.className = "contact-score";
-            score.textContent = `${Number(user.points || 0)} puan`;
-            side.appendChild(score);
+            if (status !== "none") {
+                const score = document.createElement("span");
+                score.className = "contact-score";
+                score.textContent = `${Number(user.points || 0)} puan`;
+                side.appendChild(score);
+            }
 
             button.append(avatar, body, side);
             return button;
@@ -8743,7 +8750,7 @@
             switcher.setAttribute("role", "tablist");
             [
                 ["friends", "Arkadaşlarım"],
-                ["users", "Kullanıcılar"]
+                ["users", "Kişiler"]
             ].forEach(([mode, label]) => {
                 const button = document.createElement("button");
                 button.type = "button";
@@ -8765,6 +8772,7 @@
         function renderContacts() {
             const contactList = $("contactList");
             contactList.innerHTML = "";
+            appendContactModeSwitcher(contactList);
             const header = document.createElement("div");
             header.className = "contacts-inline-header";
             header.innerHTML = `
@@ -8794,7 +8802,6 @@
                 });
             };
 
-            appendContactModeSwitcher(contactList);
             const results = document.createElement("div");
             results.className = `contact-results-frame mode-${state.contactTransition || "forward"}`;
             contactList.appendChild(results);
