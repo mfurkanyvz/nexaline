@@ -353,8 +353,7 @@
                             <p id="settingsProfileMeta">@nexaline</p>
                         </div>
                     </div>
-                    <div class="profile-metrics-grid">
-                        <div class="profile-metric"><strong id="settingsProfilePoints">0</strong><small>NexaPuan</small></div>
+                    <div class="profile-notes-grid">
                         <button id="profileAboutShortcut" class="profile-note-card" type="button"><strong>Hakkımda</strong><small id="settingsProfileAboutText">NexaLine kullanıyorum.</small></button>
                     </div>
                     <button id="profileAiAnalysisButton" class="profile-ai-analysis-button" type="button">
@@ -2775,21 +2774,24 @@
         }
 
             aiCommandItems() {
+            const chooseAiFile = accept => {
+                const input = $("aiFileInput");
+                if (!input) return;
+                input.accept = accept;
+                input.value = "";
+                input.click();
+            };
             return [
-                { id: "tasks", icon: "✓", color: "green", title: "Günlük plan oluştur", hint: "Bugün için plan yap", run: openAiTasksPanel },
-                { id: "summarize", icon: "▤", color: "blue", title: "Metin özetle", hint: "Uzun metinleri kısalt", run: openAiSummarizerPanel },
-                { id: "translate", icon: "⌁", color: "blue", title: "Çeviri yap", hint: "Diller arası çeviri", run: openAiTranslatePanel },
-                { id: "fix", icon: "✎", color: "orange", title: "Yazıyı düzelt", hint: "Yazım ve dil bilgisi kontrolü", run: openAiWritingFixPanel },
-                { id: "chat-analysis", icon: "◫", color: "blue", title: "Sohbeti analiz et", hint: "Önemli konuları, kararları ve özeti çıkar", run: () => this.openAiChatAnalysisPanel() },
                 { id: "image", icon: "◎", color: "orange", title: "Görsel oluştur", hint: "Prompt ile görsel üret", run: openAiImageGenerator },
-                { id: "file-analysis", icon: "▧", color: "blue", title: "Dosya veya görsel analiz et", hint: "İçeriği incele, açıkla ve özetle", run: () => $("aiFileInput").click() },
-                { id: "location-info", icon: "⌖", color: "green", title: "Konum bilgisi", hint: "Bulunduğun konumu incelet ve çevreyi sor", run: () => this.sendAiCurrentLocation() },
-                { id: "settings", icon: "⚙", color: "gray", title: "AI Ayarları", hint: "Ses, geçmiş ve gizlilik", run: openAiSettingsPanel }
+                { id: "file-upload", icon: "▧", color: "blue", title: "Dosya yükle", hint: "Dosya veya görsel analiz et", run: () => chooseAiFile("image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip") },
+                { id: "camera", icon: "▣", color: "green", title: "Kamera aç", hint: "Kamera ile görsel yakala", run: openCameraCapture },
+                { id: "voice-create", icon: "♪", color: "blue", title: "Ses oluştur", hint: "Metni Nexa AI sesiyle üret", run: () => this.openAiVoiceCreatorPanel() },
+                { id: "pdf-analysis", icon: "▤", color: "orange", title: "PDF analiz et", hint: "PDF içeriğini özetle ve açıkla", run: () => chooseAiFile(".pdf") }
             ];
         }
 
             openAiCommandCenter() {
-            openModal("Komut Örnekleri", body => {
+            openModal("Nexa AI +", body => {
                 body.innerHTML = `<div class="nexal-command-list">${this.aiCommandItems().map(item => `
                     <button class="nexal-command-card" type="button" data-ai-command="${item.id}">
                         <span class="nexal-card-icon ${item.color}">${item.icon}</span>
@@ -2812,7 +2814,7 @@
                         }, 120);
                     };
                 });
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet ai-plus-menu");
         }
 
             filteredAiPlanTasks(filter) {
@@ -3144,6 +3146,36 @@
                 return true;
             }
             return speakAiText(text);
+        }
+
+            openAiVoiceCreatorPanel() {
+            openModal("Ses oluştur", body => {
+                body.innerHTML = `
+                    <div class="nexal-form-grid">
+                        <textarea id="aiVoiceCreateInput" maxlength="600" placeholder="Oluşturulacak sesi yaz"></textarea>
+                        <div id="aiVoiceCreatePreview" class="voice-post hidden"></div>
+                    </div>
+                `;
+            }, [
+                { label: "Vazgeç", onClick: closeModal },
+                { label: "Ses Oluştur", primary: true, onClick: async () => {
+                    const input = $("aiVoiceCreateInput");
+                    const preview = $("aiVoiceCreatePreview");
+                    const text = input?.value.trim() || "";
+                    if (!text) {
+                        showToast("Ses oluşturmak için metin yaz.");
+                        return;
+                    }
+                    const data = await this.runAiTts(text);
+                    if (!data.ok || !data.audioDataUrl) {
+                        showToast(data.message || "Ses oluşturulamadı.");
+                        return;
+                    }
+                    preview.classList.remove("hidden");
+                    preview.innerHTML = `<span class="x-feed-audio-icon">${svgIcon("volume")}</span><strong>Ses hazır</strong><audio controls src="${escapeHtml(data.audioDataUrl)}"></audio>`;
+                    new Audio(data.audioDataUrl).play().catch(() => {});
+                } }
+            ], "sheet ai-plus-menu");
         }
 
                 async runAiStt(audioDataUrl) {
@@ -5317,7 +5349,7 @@
             ["4-5-9", '[data-chat-delete-action]'],
             ["5", ".profile-page, .profile-hero, .profile-hero-card"],
             ["5-1", ".profile-avatar-xl, .profile-title, #settingsAvatar"],
-            ["5-2", ".profile-grid, .profile-metrics-grid"],
+            ["5-2", ".profile-grid, .profile-notes-grid"],
             ["5-3", ".profile-actions"],
             ["5-3-1", ".remove-friend-sheet"],
             ["5-4", ".profile-quick-call-action-bar, .profile-action"],
@@ -11550,7 +11582,6 @@
             const avatarValue = $("avatarTextInput")?.value.trim() || state.me?.avatar || initials(displayName);
             $("settingsProfileName").textContent = displayName;
             $("settingsProfileMeta").textContent = `@${username} • ${state.me?.emailVerified ? "Gmail doğrulandı" : "Gmail bekliyor"}`;
-            $("settingsProfilePoints").textContent = `${state.me?.points || 0} puan`;
             $("settingsProfileAboutText").textContent = $("aboutInput")?.value.trim() || state.me?.about || "NexaLine kullanıyorum.";
             setAvatar($("settingsAvatar"), {
                 profileImage: state.profileImageDraft,
