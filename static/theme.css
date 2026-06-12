@@ -6736,3 +6736,25 @@ button {
         pointer-events: none;
     }
 }
+
+/* Stage 10: settings header alignment and bottom pull close affordance */
+@media (max-width: 860px) {
+    .settings-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .settings-head > div:first-child {
+        min-width: 0;
+    }
+
+    #closeSettingsButton {
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+    }
+}

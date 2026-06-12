@@ -280,7 +280,7 @@
                     <strong>Ayarlar</strong>
                     <div id="settingsEmail" class="last-message"></div>
                 </div>
-                <button id="closeSettingsButton" class="icon-btn" type="button">×</button>
+                <button id="closeSettingsButton" class="icon-btn" type="button" aria-label="Ayarları kapat">×</button>
             </div>
             <div id="settingsMenu" class="settings-menu">
                 <button id="settingsProfileTab" class="settings-option" type="button">
@@ -11644,9 +11644,77 @@
             });
         }
 
+        let settingsBottomPullCount = 0;
+        let settingsBottomPullAt = 0;
+        let settingsBottomPullLockUntil = 0;
+
+        function resetSettingsBottomPull() {
+            settingsBottomPullCount = 0;
+            settingsBottomPullAt = 0;
+            settingsBottomPullLockUntil = 0;
+        }
+
+        function settingsPanelAtBottom(panel) {
+            return panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 4;
+        }
+
+        function registerSettingsBottomPull() {
+            const now = Date.now();
+            if (now < settingsBottomPullLockUntil) return;
+            settingsBottomPullLockUntil = now + 320;
+            settingsBottomPullCount = now - settingsBottomPullAt <= 1600
+                ? settingsBottomPullCount + 1
+                : 1;
+            settingsBottomPullAt = now;
+            if (settingsBottomPullCount >= 2) {
+                resetSettingsBottomPull();
+                closeSettings();
+                return;
+            }
+            showToast("Ayarları kapatmak için bir kez daha çek.");
+        }
+
+        function setupSettingsBottomPullClose() {
+            const panel = $("settingsPanel");
+            if (panel.dataset.bottomPullReady === "true") return;
+            panel.dataset.bottomPullReady = "true";
+            let touchStartY = null;
+
+            panel.addEventListener("wheel", event => {
+                if (!settingsPanelAtBottom(panel)) {
+                    resetSettingsBottomPull();
+                    return;
+                }
+                if (event.deltaY > 18) registerSettingsBottomPull();
+            }, { passive: true });
+
+            panel.addEventListener("touchstart", event => {
+                touchStartY = event.touches[0]?.clientY ?? null;
+            }, { passive: true });
+
+            panel.addEventListener("touchend", event => {
+                const touchEndY = event.changedTouches[0]?.clientY ?? null;
+                if (touchStartY === null || touchEndY === null) return;
+                const downwardScrollDistance = touchStartY - touchEndY;
+                touchStartY = null;
+                if (!settingsPanelAtBottom(panel)) {
+                    resetSettingsBottomPull();
+                    return;
+                }
+                if (downwardScrollDistance >= 48) registerSettingsBottomPull();
+            }, { passive: true });
+
+            panel.addEventListener("scroll", () => {
+                if (!settingsPanelAtBottom(panel)) resetSettingsBottomPull();
+            }, { passive: true });
+        }
+
         function openSettings() {
             ensureSettingsExtras();
-            $("settingsPanel").classList.remove("settings-closing");
+            const panel = $("settingsPanel");
+            panel.classList.remove("settings-closing");
+            setupSettingsBottomPullClose();
+            resetSettingsBottomPull();
             $("settingsEmail").textContent = state.me.email ? `Gmail: ${state.me.email}` : "Gmail doğrulanmamış";
             $("displayNameInput").value = state.me.displayName || "";
             $("profileUsernameInput").value = state.me.username || "";
@@ -11682,13 +11750,15 @@
             renderBlockedUsers();
             renderDevices();
             setSettingsView("menu");
-            $("settingsPanel").classList.remove("hidden");
+            panel.classList.remove("hidden");
+            panel.scrollTop = 0;
             pushAppHistory("settings");
         }
 
         function closeSettings() {
             const panel = $("settingsPanel");
             if (panel.classList.contains("hidden") || panel.classList.contains("settings-closing")) return;
+            resetSettingsBottomPull();
             panel.classList.add("settings-closing");
             setTimeout(() => {
                 panel.classList.add("hidden");
