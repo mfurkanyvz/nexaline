@@ -6301,6 +6301,54 @@ button {
     }
 }
 
+/* Active bottom-tab reselect returns the current section home without snapping. */
+@media (max-width: 860px) {
+    .chat-list.section-resetting,
+    .contact-list.section-resetting,
+    .story-list.section-resetting {
+        scroll-behavior: auto !important;
+        overscroll-behavior-y: none;
+        pointer-events: none;
+    }
+
+    .section-resetting .chat-item,
+    .section-resetting .discover-card,
+    .section-resetting .call-item,
+    .section-resetting .contact-row,
+    .section-resetting .person-card,
+    .section-resetting .story-item,
+    .section-resetting .update-post {
+        animation: section-reset-settle 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: calc(var(--section-reset-order, 0) * 7ms);
+    }
+
+    .nav-tab.section-reset-active .nav-icon {
+        animation: section-reset-nav-pulse 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+}
+
+@keyframes section-reset-settle {
+    0% {
+        filter: brightness(1.08);
+    }
+
+    48% {
+        transform: translateY(3px) scale(0.992);
+        filter: brightness(1.04);
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+        filter: brightness(1);
+    }
+}
+
+@keyframes section-reset-nav-pulse {
+    50% {
+        transform: translateY(-2px) scale(1.08);
+    }
+}
+
 /* Stage 2: chats and people mobile cards */
 @media (max-width: 860px) {
     .chat-mode-switch {

@@ -13973,7 +13973,88 @@
             renderContacts();
             renderArchives();
         };
-        function resetActiveSectionView(section) {
+        let sectionResetAnimationFrame = 0;
+        let sectionResetResolve = null;
+        let sectionResetToken = 0;
+        let sectionResetList = null;
+
+        function clearSectionResetStyles(list = sectionResetList) {
+            if (!list) return;
+            list.classList.remove("section-resetting");
+            list.style.removeProperty("--section-reset-progress");
+            list.querySelectorAll("[style*='--section-reset-order']").forEach(item => {
+                item.style.removeProperty("--section-reset-order");
+            });
+            if (sectionResetList === list) sectionResetList = null;
+        }
+
+        function cancelSectionResetAnimation() {
+            sectionResetToken += 1;
+            if (sectionResetAnimationFrame) {
+                cancelAnimationFrame(sectionResetAnimationFrame);
+                sectionResetAnimationFrame = 0;
+            }
+            clearSectionResetStyles();
+            if (sectionResetResolve) {
+                const resolve = sectionResetResolve;
+                sectionResetResolve = null;
+                resolve(false);
+            }
+        }
+
+        function animateSectionListHome(list) {
+            cancelSectionResetAnimation();
+            if (!list) return Promise.resolve(true);
+
+            const token = sectionResetToken;
+            const startTop = Math.max(0, list.scrollTop);
+            const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+            const duration = reduceMotion ? 1 : (startTop > 8 ? 300 : 190);
+            const startedAt = performance.now();
+            const animatedItems = list.querySelectorAll(
+                ".chat-item, .discover-card, .call-item, .contact-row, .person-card, .story-item, .update-post"
+            );
+
+            sectionResetList = list;
+            list.classList.add("section-resetting");
+            animatedItems.forEach((item, index) => {
+                item.style.setProperty("--section-reset-order", String(Math.min(index, 8)));
+            });
+
+            return new Promise(resolve => {
+                sectionResetResolve = resolve;
+                const finish = completed => {
+                    if (sectionResetAnimationFrame) {
+                        cancelAnimationFrame(sectionResetAnimationFrame);
+                        sectionResetAnimationFrame = 0;
+                    }
+                    if (sectionResetResolve === resolve) sectionResetResolve = null;
+                    if (completed) list.scrollTop = 0;
+                    clearSectionResetStyles(list);
+                    resolve(completed);
+                };
+
+                const tick = now => {
+                    if (token !== sectionResetToken) {
+                        finish(false);
+                        return;
+                    }
+                    const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    list.scrollTop = startTop * (1 - eased);
+                    list.style.setProperty("--section-reset-progress", eased.toFixed(3));
+                    if (progress < 1) {
+                        sectionResetAnimationFrame = requestAnimationFrame(tick);
+                        return;
+                    }
+                    finish(true);
+                };
+
+                sectionResetAnimationFrame = requestAnimationFrame(tick);
+            });
+        }
+
+        async function resetActiveSectionView(section) {
             const listMap = {
                 chats: "chatList",
                 calls: "callList",
@@ -13981,6 +14062,13 @@
                 contacts: "contactList",
                 stories: "storyList"
             };
+            const activeTab = document.querySelector(`.nav-tab[data-section="${section}"]`);
+            const list = $(listMap[section]);
+            activeTab?.classList.add("section-reset-active");
+            const completed = await animateSectionListHome(list);
+            activeTab?.classList.remove("section-reset-active");
+            if (!completed || state.activeSection !== section) return;
+
             if (section === "chats") {
                 state.chatListMode = "chats";
                 state.chatSearch = "";
@@ -13996,9 +14084,11 @@
                 state.contactSearch = "";
                 state.contactTransition = "backward";
                 renderContacts();
+            } else if (section === "stories") {
+                renderStories();
             }
-            const list = $(listMap[section]);
-            if (list) list.scrollTop = 0;
+            const refreshedList = $(listMap[section]);
+            if (refreshedList) refreshedList.scrollTop = 0;
         }
         document.querySelectorAll(".nav-tab").forEach(tab => {
             tab.onclick = () => {
@@ -14010,6 +14100,10 @@
                     syncNavIndicatorToElement(tab);
                     return;
                 }
+                cancelSectionResetAnimation();
+                document.querySelectorAll(".nav-tab.section-reset-active").forEach(item => {
+                    item.classList.remove("section-reset-active");
+                });
                 syncNavIndicatorToElement(tab, true);
                 clearActiveNewMarker();
                 state.activeSection = tab.dataset.section;
