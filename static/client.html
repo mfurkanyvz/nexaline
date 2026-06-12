@@ -164,7 +164,7 @@
                 <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
                 <button class="nav-tab" data-section="explore" type="button" title="Keşfet"><span class="nav-icon">✦</span><span class="nav-label">Keşfet</span></button>
-                <button class="nav-tab settings-rail-button" id="settingsButton" type="button" title="Profil"><span class="nav-icon">◎</span><span class="nav-label">Profil</span></button>
+                <button class="nav-tab" id="flowButton" data-section="stories" type="button" title="Akış"><span class="nav-icon">◉</span><span class="nav-label">Akış</span></button>
             </nav>
 
             <div class="section-head">
@@ -1225,7 +1225,7 @@
             ["Gülümse", "😊", "#00D96F", "#704CFF"],
             ["Nexa", "✦", "#00D8FF", "#FF00B8"]
         ];
-        const STAGE_MOBILE_NAV_ORDER = ["chats", "calls", "explore", "contacts"];
+        const STAGE_MOBILE_NAV_ORDER = ["chats", "calls", "explore", "contacts", "stories"];
         loadAdminDesign();
 
         const NEXA_SVGS = {
@@ -1286,8 +1286,6 @@
                 const target = document.querySelector(`.nav-tab[data-section="${section}"] .nav-icon`);
                 if (target) target.innerHTML = svgIcon(icon);
             });
-            const settingsNavIcon = document.querySelector("#settingsButton .nav-icon");
-            if (settingsNavIcon) settingsNavIcon.innerHTML = svgIcon("user");
             const buttonMap = {
                 storyButton: "camera",
                 notificationButton: "bell",
@@ -1414,7 +1412,7 @@
             const labels = {
                 chats: "Sohbetler",
                 groups: "Gruplar",
-                stories: "Güncellemeler",
+                stories: "Akış",
                 explore: "Keşfet",
                 calls: "Aramalar",
                 friends: "Arkadaşlarım",
@@ -1422,7 +1420,7 @@
                 archives: "Arşiv"
             };
             Object.entries(labels).forEach(([key, fallback]) => {
-                const value = text[key] || fallback;
+                const value = key === "stories" ? "Akış" : (text[key] || fallback);
                 const tab = document.querySelector(`.nav-tab[data-section="${key}"]`);
                 if (tab) {
                     tab.title = value;
@@ -1452,7 +1450,6 @@
                 const tab = document.querySelector(`.nav-tab[data-section="${section}"]`);
                 if (tab) tab.style.order = index + 1;
             });
-            if ($("settingsButton")) $("settingsButton").style.order = "5";
             const composerOrder = isMobile ? mobileComposer : desktopComposer;
             const map = {
                 attach: "attachButton",
@@ -5298,7 +5295,7 @@
             ["2", ".topbar, .chat-top"],
             ["2-1", "#meAvatar, #meName, #accountSwitcherButton, #accountSwitcherMenu"],
             ["2-2", "#searchInput"],
-            ["2-3", "#settingsButton, #topSettingsButton"],
+            ["2-3", "#flowButton, #topSettingsButton"],
             ["2-4", "#archiveShortcutButton, #archiveBackButton, #archiveList"],
             ["3", "#chatList"],
             ["3-1", ".filter-chip"],
@@ -5529,7 +5526,7 @@
             setNavBadge("contacts", 0);
         }
 
-        const SWIPE_SECTION_ORDER = ["chats", "calls", "explore", "contacts"];
+        const SWIPE_SECTION_ORDER = ["chats", "calls", "explore", "contacts", "stories"];
 
         function visibleNavTabs() {
             return SWIPE_SECTION_ORDER
@@ -5581,7 +5578,7 @@
             const labels = {
                 chats: designText("chats", "Sohbetler"),
                 groups: designText("groups", "Gruplar"),
-                stories: designText("stories", "Güncellemeler"),
+                stories: "Akış",
                 explore: "Keşfet",
                 calls: designText("calls", "Aramalar"),
                 friends: designText("friends", "Arkadaşlarım"),
@@ -5891,7 +5888,7 @@
             compose.className = "x-compose-card";
             compose.innerHTML = `
                 <div class="x-compose-head">
-                    <strong>Güncellemeler</strong>
+                    <strong>Akış</strong>
                     <small>Yazı, fotoğraf veya ses kaydı paylaş</small>
                 </div>
                 <textarea id="updatesFeedBody" maxlength="420" placeholder="Bugün ne paylaşmak istersin?">${escapeHtml(state.updatesDraft || "")}</textarea>
@@ -5918,7 +5915,7 @@
             pruneUpdatesFeed();
             const posts = state.updatesFeed.slice(0, 20);
             if (!posts.length) {
-                list.innerHTML = `<div class="empty-state-view"><div class="empty-state-icon">${svgIcon("image")}</div><strong>Henüz güncelleme yok</strong><span>İlk paylaşımı sen yapabilirsin.</span></div>`;
+                list.innerHTML = `<div class="empty-state-view"><div class="empty-state-icon">${svgIcon("image")}</div><strong>Henüz akış paylaşımı yok</strong><span>İlk paylaşımı sen yapabilirsin.</span></div>`;
             } else {
                 posts.forEach(post => list.appendChild(renderUpdatesFeedPost(post)));
             }
@@ -13280,13 +13277,6 @@
         };
         $("voiceButton").onclick = () => isAiChat(activeChat()) ? startAiSpeechInput() : toggleVoiceRecording();
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
-        $("settingsButton").onclick = () => {
-            document.querySelectorAll(".nav-tab").forEach(tab => tab.classList.remove("active"));
-            $("settingsButton").classList.add("active");
-            syncNavIndicatorToElement($("settingsButton"), true);
-            openSettings();
-            setSettingsView("profile");
-        };
         $("topSettingsButton").onclick = openSettings;
         $("accountSwitcherButton").onclick = toggleAccountSwitcher;
         $("archiveShortcutButton").onclick = () => {

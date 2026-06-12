@@ -6200,11 +6200,7 @@ button {
     .nav-tab[data-section="calls"] { order: 2; }
     .nav-tab[data-section="explore"] { order: 3; }
     .nav-tab[data-section="contacts"] { order: 4; }
-    .settings-rail-button { order: 5; }
-
-    .settings-rail-button {
-        display: grid;
-    }
+    .nav-tab[data-section="stories"] { order: 5; }
 
     .nav-tab .nav-icon {
         width: 32px;

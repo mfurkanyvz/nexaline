@@ -529,7 +529,7 @@ DEFAULT_DESIGN_SETTINGS = {
     "text": {
         "chats": "Sohbetler",
         "groups": "Gruplar",
-        "stories": "Güncellemeler",
+        "stories": "Akış",
         "explore": "Keşfet",
         "calls": "Aramalar",
         "friends": "Arkadaşlarım",
@@ -3410,7 +3410,7 @@ def local_app_help(prompt):
         (["şifre", "sifre"], "Şifre için Ayarlar > Hesap bölümünden değiştirme, giriş ekranından da “Şifremi unuttum” akışı var."),
         (["gizlilik", "son görülme", "online", "gmail"], "Gizlilik ayarlarında son görülme, çevrim içi durum, okundu bilgisi ve Gmail görünürlüğünü yönetebilirsin."),
         (["grup"], "Grup oluşturabilir, davet gönderebilir, yönetici olarak üye çıkarabilir ve grup bilgisini düzenleyebilirsin."),
-        (["durum", "story", "hikaye"], "Güncellemeler bölümünden 24 saatlik durum paylaşabilir, gelen durumlara cevap verebilirsin."),
+        (["durum", "story", "hikaye"], "Akış bölümünden 24 saatlik durum paylaşabilir, gelen durumlara cevap verebilirsin."),
         (["arama", "sesli", "görüntülü"], "Sohbet içindeki telefon ve kamera düğmeleriyle sesli ya da görüntülü arama başlatabilirsin."),
         (["arşiv", "arsiv", "sil"], "Sohbet silerken arşive alma veya kalıcı gizleme seçenekleri var; arşivler 3 gün içinde temizlenir."),
     ]
