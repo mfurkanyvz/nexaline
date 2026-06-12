@@ -7456,3 +7456,165 @@ button {
         transform: translateY(0) scale(1);
     }
 }
+
+/* Stage 17: timed story viewer and gesture transitions */
+.story-panel {
+    --story-drag-x: 0px;
+    --story-drag-y: 0px;
+    --story-drag-opacity: 1;
+    touch-action: none;
+}
+
+.story-panel.story-opening {
+    animation: story-backdrop-in 220ms ease both;
+}
+
+.story-panel.story-closing {
+    pointer-events: none;
+    animation: story-backdrop-out 180ms ease both;
+}
+
+.story-panel.story-opening .story-box {
+    animation: story-viewer-in 220ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+}
+
+.story-panel.story-closing .story-box {
+    animation: story-viewer-out 180ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+}
+
+.story-panel.story-dragging {
+    background: rgba(1, 4, 11, 0.68);
+}
+
+.story-panel.story-dragging .story-box {
+    opacity: var(--story-drag-opacity);
+    transform: translate3d(var(--story-drag-x), var(--story-drag-y), 0) scale(0.992);
+    transition: none;
+}
+
+.story-box {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    transform-origin: center;
+    transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.story-progress {
+    z-index: 3;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 4px;
+    padding: 9px 12px 0;
+}
+
+.story-progress-segment {
+    height: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.story-progress-fill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: #fff;
+    transform: scaleX(0);
+    transform-origin: left center;
+}
+
+.story-progress-segment.complete .story-progress-fill {
+    transform: scaleX(1);
+}
+
+.story-progress-segment.active:not(.video-progress) .story-progress-fill {
+    animation: story-progress-fill var(--story-duration, 5000ms) linear both;
+}
+
+.story-panel.story-paused .story-progress-segment.active .story-progress-fill {
+    animation-play-state: paused;
+}
+
+#storyBody.story-content-enter.story-forward {
+    animation: story-content-forward 190ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+}
+
+#storyBody.story-content-enter.story-backward {
+    animation: story-content-backward 190ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+}
+
+#storyBody .story-text {
+    margin: 0;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 22px;
+    background: rgba(17, 24, 39, 0.72);
+    color: #fff;
+    font-size: clamp(18px, 5.2vw, 25px);
+    line-height: 1.36;
+    text-align: center;
+}
+
+#storyBody .story-media {
+    width: 100%;
+    max-height: min(72dvh, 680px);
+    border-radius: 20px;
+    background: #000;
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.34);
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+@media (max-width: 860px) {
+    .story-progress {
+        padding:
+            calc(7px + var(--safe-top))
+            calc(12px + var(--safe-right))
+            0
+            calc(12px + var(--safe-left));
+    }
+
+    .story-head {
+        min-height: 58px;
+        padding:
+            7px
+            calc(12px + var(--safe-right))
+            7px
+            calc(12px + var(--safe-left));
+    }
+}
+
+@keyframes story-progress-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes story-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes story-backdrop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes story-viewer-in {
+    from { opacity: 0; transform: translateY(16px) scale(0.94); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes story-viewer-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(12px) scale(0.95); }
+}
+
+@keyframes story-content-forward {
+    from { opacity: 0; transform: translateX(20px) scale(0.99); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes story-content-backward {
+    from { opacity: 0; transform: translateX(-20px) scale(0.99); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}

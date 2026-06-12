@@ -262,6 +262,7 @@
 
     <section id="storyPanel" class="story-panel hidden">
         <div class="story-box">
+            <div id="storyProgress" class="story-progress" aria-hidden="true"></div>
             <div class="story-head">
                 <div>
                     <strong id="storyTitle">Durum</strong>
@@ -6340,23 +6341,154 @@
             showStory(stories[0], stories);
         }
 
-        function showStory(story, queue = null) {
+        const STORY_IMAGE_DURATION_MS = 5000;
+        let storyAdvanceTimer = null;
+        let storyCloseTimer = null;
+        let storyOpenTimer = null;
+        let storyPlayback = null;
+
+        function clearStoryAdvance() {
+            if (storyAdvanceTimer) {
+                clearTimeout(storyAdvanceTimer);
+                storyAdvanceTimer = null;
+            }
+            const video = $("storyBody")?.querySelector("video.story-media");
+            if (video) {
+                video.pause();
+                video.onloadedmetadata = null;
+                video.ontimeupdate = null;
+                video.onended = null;
+                video.onerror = null;
+            }
+            storyPlayback = null;
+            $("storyPanel")?.classList.remove("story-paused");
+        }
+
+        function activeStoryProgressFill() {
+            return $("storyProgress")?.querySelector(".story-progress-segment.active .story-progress-fill") || null;
+        }
+
+        function renderStoryProgress(durationMs, videoMode = false) {
+            const progress = $("storyProgress");
+            const queueLength = Math.max(1, state.storyQueue.length);
+            progress.innerHTML = "";
+            progress.style.gridTemplateColumns = `repeat(${queueLength}, minmax(0, 1fr))`;
+            for (let index = 0; index < queueLength; index += 1) {
+                const segment = document.createElement("span");
+                segment.className = "story-progress-segment";
+                const fill = document.createElement("span");
+                fill.className = "story-progress-fill";
+                if (index < state.activeStoryIndex) {
+                    segment.classList.add("complete");
+                } else if (index === state.activeStoryIndex) {
+                    segment.classList.add("active");
+                    fill.style.setProperty("--story-duration", `${Math.max(1, durationMs || 1)}ms`);
+                    if (videoMode) {
+                        segment.classList.add("video-progress");
+                    }
+                }
+                segment.appendChild(fill);
+                progress.appendChild(segment);
+            }
+        }
+
+        function startStoryTimer(durationMs = STORY_IMAGE_DURATION_MS) {
+            const duration = Math.max(250, Number(durationMs) || STORY_IMAGE_DURATION_MS);
+            renderStoryProgress(duration);
+            storyPlayback = {
+                kind: "timer",
+                durationMs: duration,
+                remainingMs: duration,
+                startedAt: performance.now()
+            };
+            storyAdvanceTimer = setTimeout(showNextStory, duration);
+        }
+
+        function startStoryVideo(video) {
+            let started = false;
+            const start = () => {
+                if (started) return;
+                started = true;
+                const durationMs = Number.isFinite(video.duration) && video.duration > 0
+                    ? Math.max(250, Math.round(video.duration * 1000))
+                    : STORY_IMAGE_DURATION_MS;
+                renderStoryProgress(durationMs, true);
+                const playback = { kind: "video", durationMs, video };
+                storyPlayback = playback;
+                video.ontimeupdate = () => {
+                    const fill = activeStoryProgressFill();
+                    if (!fill || !video.duration) return;
+                    fill.style.transform = `scaleX(${clamp(video.currentTime / video.duration, 0, 1)})`;
+                };
+                video.onended = showNextStory;
+                video.play().catch(() => {
+                    if (storyPlayback !== playback || $("storyPanel").classList.contains("hidden")) return;
+                    storyPlayback = null;
+                    startStoryTimer(durationMs);
+                });
+            };
+            video.onloadedmetadata = start;
+            video.onerror = () => startStoryTimer(STORY_IMAGE_DURATION_MS);
+            if (video.readyState >= 1) {
+                start();
+            }
+        }
+
+        function pauseStoryPlayback() {
+            if (!storyPlayback || $("storyPanel").classList.contains("story-paused")) return;
+            $("storyPanel").classList.add("story-paused");
+            if (storyPlayback.kind === "timer") {
+                const elapsed = performance.now() - storyPlayback.startedAt;
+                storyPlayback.remainingMs = Math.max(80, storyPlayback.remainingMs - elapsed);
+                clearTimeout(storyAdvanceTimer);
+                storyAdvanceTimer = null;
+            } else if (storyPlayback.video) {
+                storyPlayback.video.pause();
+            }
+        }
+
+        function resumeStoryPlayback() {
+            if (!storyPlayback || !$("storyPanel").classList.contains("story-paused")) return;
+            $("storyPanel").classList.remove("story-paused");
+            if (storyPlayback.kind === "timer") {
+                storyPlayback.startedAt = performance.now();
+                storyAdvanceTimer = setTimeout(showNextStory, storyPlayback.remainingMs);
+            } else if (storyPlayback.video) {
+                storyPlayback.video.play().catch(() => {});
+            }
+        }
+
+        function showStory(story, queue = null, direction = "forward") {
+            const panel = $("storyPanel");
+            const opening = panel.classList.contains("hidden");
+            if (storyCloseTimer) {
+                clearTimeout(storyCloseTimer);
+                storyCloseTimer = null;
+            }
+            clearStoryAdvance();
             if (queue) {
                 state.storyQueue = queue;
                 state.activeStoryIndex = Math.max(0, queue.findIndex(item => item.id === story.id));
+            } else if (!state.storyQueue.length) {
+                state.storyQueue = [story];
+                state.activeStoryIndex = 0;
             }
             const expires = new Date(story.expiresAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
             $("storyTitle").textContent = story.user.displayName;
             $("storyMeta").textContent = `${relativeTime(story.createdAt)} paylaşıldı • Bitiş: ${expires}`;
             const body = $("storyBody");
             body.innerHTML = "";
+            body.classList.remove("story-content-enter", "story-forward", "story-backward");
             if (story.body) {
                 const text = document.createElement("p");
+                text.className = "story-text";
                 text.textContent = story.body;
                 body.appendChild(text);
             }
+            let storyMedia = null;
             if (story.attachment) {
-                body.appendChild(renderStoryAttachment(story.attachment));
+                storyMedia = renderStoryAttachment(story.attachment);
+                body.appendChild(storyMedia);
             }
             if (story.username === state.me.username) {
                 const deleteButton = document.createElement("button");
@@ -6385,22 +6517,61 @@
                 };
                 $("storyReplyInput").onclick = event => event.stopPropagation();
             }
-            $("storyPanel").classList.remove("hidden");
+            void body.offsetWidth;
+            body.classList.add("story-content-enter", direction === "backward" ? "story-backward" : "story-forward");
+            panel.classList.remove("hidden", "story-closing");
+            if (opening) {
+                panel.classList.add("story-opening");
+                if (storyOpenTimer) clearTimeout(storyOpenTimer);
+                storyOpenTimer = setTimeout(() => {
+                    panel.classList.remove("story-opening");
+                    storyOpenTimer = null;
+                }, 230);
+            }
+            if (storyMedia?.tagName === "VIDEO") {
+                startStoryVideo(storyMedia);
+            } else {
+                startStoryTimer(STORY_IMAGE_DURATION_MS);
+            }
             if (story.username !== state.me.username) {
                 socket.emit("story:view", { storyId: story.id });
             }
-            pushAppHistory("story");
+            if (opening) {
+                pushAppHistory("story");
+            }
+        }
+
+        function finalizeStoryClose() {
+            const panel = $("storyPanel");
+            panel.classList.add("hidden");
+            panel.classList.remove("story-opening", "story-closing", "story-dragging", "story-paused");
+            panel.style.removeProperty("--story-drag-x");
+            panel.style.removeProperty("--story-drag-y");
+            panel.style.removeProperty("--story-drag-opacity");
+            $("storyBody").innerHTML = "";
+            $("storyProgress").innerHTML = "";
+            $("storyProgress").style.removeProperty("grid-template-columns");
+            state.storyQueue = [];
+            state.activeStoryIndex = 0;
+            storyCloseTimer = null;
         }
 
         function closeStoryPanel() {
-            $("storyPanel").classList.add("hidden");
-            $("storyBody").innerHTML = "";
-            state.storyQueue = [];
-            state.activeStoryIndex = 0;
+            const panel = $("storyPanel");
+            if (panel.classList.contains("hidden") || panel.classList.contains("story-closing")) return;
+            clearStoryAdvance();
+            if (storyOpenTimer) {
+                clearTimeout(storyOpenTimer);
+                storyOpenTimer = null;
+            }
+            panel.classList.remove("story-opening", "story-dragging");
+            panel.classList.add("story-closing");
+            storyCloseTimer = setTimeout(finalizeStoryClose, 185);
         }
 
         function showNextStory() {
             if (!state.storyQueue.length) {
+                closeStoryPanel();
                 return;
             }
             state.activeStoryIndex += 1;
@@ -6408,15 +6579,22 @@
                 closeStoryPanel();
                 return;
             }
-            showStory(state.storyQueue[state.activeStoryIndex]);
+            showStory(state.storyQueue[state.activeStoryIndex], null, "forward");
+        }
+
+        function showPreviousStory() {
+            if (!state.storyQueue.length) return;
+            state.activeStoryIndex = Math.max(0, state.activeStoryIndex - 1);
+            showStory(state.storyQueue[state.activeStoryIndex], null, "backward");
         }
 
         function renderStoryAttachment(attachment) {
             if (attachment.type?.startsWith("video/")) {
                 const video = document.createElement("video");
                 video.className = "story-media";
-                video.controls = true;
+                video.controls = false;
                 video.playsInline = true;
+                video.preload = "auto";
                 video.src = attachment.dataUrl;
                 return video;
             }
@@ -6425,10 +6603,6 @@
                 image.className = "story-media";
                 image.src = attachment.dataUrl;
                 image.alt = attachment.name || "Durum";
-                image.onclick = event => {
-                    event.stopPropagation();
-                    openMediaViewer(attachment);
-                };
                 return image;
             }
             const link = document.createElement("a");
@@ -13813,12 +13987,62 @@
         $("notificationButton").onclick = openNotificationPanel;
         $("viewOnceButton").onclick = () => isAiChat(activeChat()) ? openAiVoiceAssistant() : toggleViewOnceMode();
         $("closeStoryButton").onclick = closeStoryPanel;
-        $("storyPanel").onclick = event => {
-            if (event.target.closest("button, input, textarea, a, video")) {
+        let storyGesture = null;
+        $("storyPanel").addEventListener("pointerdown", event => {
+            if (event.target.closest("button, input, textarea, a")) {
                 return;
             }
-            showNextStory();
-        };
+            storyGesture = {
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                startedAt: performance.now()
+            };
+            pauseStoryPlayback();
+            $("storyPanel").setPointerCapture?.(event.pointerId);
+        });
+        $("storyPanel").addEventListener("pointermove", event => {
+            if (!storyGesture || event.pointerId !== storyGesture.pointerId) return;
+            const dx = event.clientX - storyGesture.startX;
+            const dy = event.clientY - storyGesture.startY;
+            if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+            const panel = $("storyPanel");
+            panel.classList.add("story-dragging");
+            panel.style.setProperty("--story-drag-x", `${Math.round(dx * 0.18)}px`);
+            panel.style.setProperty("--story-drag-y", `${Math.round(Math.max(0, dy) * 0.36)}px`);
+            panel.style.setProperty("--story-drag-opacity", String(clamp(1 - Math.max(0, dy) / 480, 0.64, 1)));
+        });
+        $("storyPanel").addEventListener("pointerup", event => {
+            if (!storyGesture || event.pointerId !== storyGesture.pointerId) return;
+            const gesture = storyGesture;
+            storyGesture = null;
+            const dx = event.clientX - gesture.startX;
+            const dy = event.clientY - gesture.startY;
+            const elapsed = performance.now() - gesture.startedAt;
+            const panel = $("storyPanel");
+            panel.classList.remove("story-dragging");
+            panel.style.removeProperty("--story-drag-x");
+            panel.style.removeProperty("--story-drag-y");
+            panel.style.removeProperty("--story-drag-opacity");
+            if (dy > 72 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+                closeStoryPanel();
+            } else if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+                dx < 0 ? showNextStory() : showPreviousStory();
+            } else if (elapsed < 340 && Math.abs(dx) < 14 && Math.abs(dy) < 14) {
+                event.clientX < window.innerWidth * 0.36 ? showPreviousStory() : showNextStory();
+            } else {
+                resumeStoryPlayback();
+            }
+        });
+        $("storyPanel").addEventListener("pointercancel", () => {
+            storyGesture = null;
+            const panel = $("storyPanel");
+            panel.classList.remove("story-dragging");
+            panel.style.removeProperty("--story-drag-x");
+            panel.style.removeProperty("--story-drag-y");
+            panel.style.removeProperty("--story-drag-opacity");
+            resumeStoryPlayback();
+        });
         $("voiceButton").onclick = () => isAiChat(activeChat()) ? startAiSpeechInput() : toggleVoiceRecording();
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("topSettingsButton").onclick = openSettings;
