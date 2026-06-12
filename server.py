@@ -76,7 +76,10 @@ TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECOND
 PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz")).rstrip("/")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
-VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", f"mailto:{os.environ.get('SMTP_USER', 'admin@nexalineapp.xyz')}").strip()
+DEFAULT_SMTP_HOST = "smtp.gmail.com"
+DEFAULT_SMTP_PORT = 587
+DEFAULT_SMTP_USERNAME = "nexalineapp@gmail.com"
+VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", f"mailto:{os.environ.get('SMTP_USERNAME', DEFAULT_SMTP_USERNAME)}").strip()
 POINT_RULES = {
     "daily_login": 10,
     "message": 1,
@@ -2498,6 +2501,13 @@ def verification_resend_wait_seconds(row):
     return max(0, int(TWO_FACTOR_RESEND_SECONDS - elapsed))
 
 
+def expose_verification_codes():
+    configured = os.environ.get("EXPOSE_VERIFICATION_CODES")
+    if configured is None:
+        return not bool(os.environ.get("RENDER"))
+    return configured.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def send_email_code(email, code, purpose):
     subject = email_subject(purpose)
     body = email_body(code)
@@ -2516,14 +2526,14 @@ def send_email_code(email, code, purpose):
         except Exception:
             app.logger.exception("Dogrulama maili Brevo ile gonderilemedi")
 
-    smtp_host = os.environ.get("SMTP_HOST")
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-    smtp_username = os.environ.get("SMTP_USERNAME")
-    smtp_password = os.environ.get("SMTP_PASSWORD")
+    smtp_host = os.environ.get("SMTP_HOST", DEFAULT_SMTP_HOST).strip()
+    smtp_port = int(os.environ.get("SMTP_PORT", str(DEFAULT_SMTP_PORT)))
+    smtp_username = os.environ.get("SMTP_USERNAME", DEFAULT_SMTP_USERNAME).strip().lower()
+    smtp_password = "".join(os.environ.get("SMTP_PASSWORD", "").split())
     mail_from = os.environ.get("MAIL_FROM") or smtp_username
 
     if not smtp_host or not smtp_username or not smtp_password or not mail_from:
-        app.logger.warning("SMTP ayarları eksik. %s doğrulama kodu: %s", email, code)
+        app.logger.warning("SMTP ayarları eksik; %s adresine doğrulama maili gönderilemedi.", email)
         return False
 
     message = EmailMessage()
@@ -2546,8 +2556,11 @@ def send_email_code(email, code, purpose):
 def verification_response(message, code=None, sent=True):
     response = {"ok": True, "requiresVerification": True, "message": message, "mailSent": bool(sent)}
     if not sent:
-        response["message"] += " Mail servisi hazır olmadığı için kod ekranda gösteriliyor."
-        response["devCode"] = code
+        if expose_verification_codes():
+            response["message"] += " Mail servisi hazır olmadığı için kod geliştirme modunda gösteriliyor."
+            response["devCode"] = code
+        else:
+            response["message"] += " Doğrulama e-postası gönderilemedi; lütfen yeniden dene."
     return jsonify(response)
 
 
@@ -6144,8 +6157,11 @@ def login():
             "resendAfter": TWO_FACTOR_RESEND_SECONDS,
         }
         if not sent:
-            response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
-            response["devCode"] = code
+            if expose_verification_codes():
+                response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
+                response["devCode"] = code
+            else:
+                response["message"] += " Doğrulama e-postası gönderilemedi; lütfen yeniden dene."
         return jsonify(response)
 
     return jsonify(login_success_payload(user, device_id))
@@ -6170,8 +6186,11 @@ def login_two_factor_resend():
         "resendAfter": TWO_FACTOR_RESEND_SECONDS,
     }
     if not sent:
-        response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
-        response["devCode"] = code
+        if expose_verification_codes():
+            response["message"] += " Mail ayarları eksik olduğu için kod geliştirme modunda gösteriliyor."
+            response["devCode"] = code
+        else:
+            response["message"] += " Doğrulama e-postası gönderilemedi; lütfen yeniden dene."
     return jsonify(response)
 
 

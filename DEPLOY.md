@@ -45,6 +45,14 @@ Tablolar uygulama acilirken otomatik olusturulur.
 
 ## Gmail dogrulama maili
 
+NexaLine'in gonderici hesabi `nexalineapp@gmail.com` olarak ayarlidir. `render.yaml` Gmail sunucusunu, 587 portunu, kullanici adini ve gonderici adresini tanimlar. Uygulama sifresi kaynak koda yazilmaz.
+
+Render web servisinin `Environment` bolumunde yalnizca su gizli degeri ekle:
+
+- `SMTP_PASSWORD`: `NexaLine` adiyla uretilen Gmail uygulama sifresi
+
+Uygulama sifresi bosluklu kopyalansa bile sunucu bosluklari temizleyerek kullanir. `EXPOSE_VERIFICATION_CODES=0` oldugu icin mail gonderimi basarisiz olursa dogrulama kodu uretim ekraninda veya logda acik edilmez.
+
 Kayit, Gmail degistirme ve sifremi unuttum kodlari icin Render'da HTTPS tabanli mail servisi kullanmak daha guvenlidir. Render'in ucretsiz web servislerinde Gmail SMTP baglantisi zaman asimina dusebilir.
 
 Onerilen seceneklerden birini Render web servisinin `Environment` bolumune ekle:
