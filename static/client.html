@@ -927,17 +927,17 @@
             }
         });
         Object.assign(CHAT_THEMES[CHAT_THEME_DEFAULT], {
-            label: "NexaLine Neon",
-            backgroundColor: "#050911",
-            backgroundImage: "radial-gradient(circle at 18% 0%, rgba(112,76,255,.22), transparent 30%), radial-gradient(circle at 88% 18%, rgba(255,0,184,.14), transparent 30%), radial-gradient(circle at 12% 88%, rgba(0,216,255,.08), transparent 34%)",
+            label: "NexaLine Elite",
+            backgroundColor: "#030406",
+            backgroundImage: "radial-gradient(circle at 88% 0%, rgba(10,132,255,.10), transparent 30%), radial-gradient(circle at 8% 94%, rgba(139,92,246,.08), transparent 34%)",
             backgroundSize: "cover",
             backgroundRepeat: "no-repeat",
-            incoming: "rgba(20,29,42,.92)",
-            outgoing: "linear-gradient(90deg, #704CFF 0%, #8D4EFF 25%, #B000FF 50%, #FF00B8 100%)",
+            incoming: "linear-gradient(145deg, #777A76, #8D908B)",
+            outgoing: "linear-gradient(145deg, #0A84FF, #0072E6)",
             incomingText: "#FFFFFF",
             outgoingText: "#FFFFFF",
-            border: "rgba(255,255,255,.08)",
-            accent: "#9747FF"
+            border: "rgba(255,255,255,.09)",
+            accent: "#0A84FF"
         });
         const SYSTEM_SOUND_LABELS = {
             classic: "Klasik Bip",
@@ -4231,9 +4231,24 @@
             return window.matchMedia("(max-width: 760px)").matches;
         }
 
+        let mobileChatAnimationTimer = null;
+
         function openMobileChat() {
             if (isMobileView()) {
-                $("app").classList.add("chat-open");
+                const app = $("app");
+                if (mobileChatAnimationTimer) {
+                    clearTimeout(mobileChatAnimationTimer);
+                    mobileChatAnimationTimer = null;
+                }
+                app.classList.remove("chat-closing", "chat-opening");
+                app.classList.add("chat-open");
+                requestAnimationFrame(() => {
+                    app.classList.add("chat-opening");
+                    mobileChatAnimationTimer = setTimeout(() => {
+                        app.classList.remove("chat-opening");
+                        mobileChatAnimationTimer = null;
+                    }, 230);
+                });
                 pushAppHistory("chat");
                 updateAiAssistantVisibility();
             }
@@ -4241,10 +4256,25 @@
 
         function closeMobileChat() {
             clearActiveNewMarker();
-            state.activeChatId = null;
-            state.activeProfileUsername = null;
-            $("app").classList.remove("chat-open", "profile-open");
-            render();
+            const app = $("app");
+            const finishClose = () => {
+                state.activeChatId = null;
+                state.activeProfileUsername = null;
+                app.classList.remove("chat-open", "profile-open", "chat-opening", "chat-closing");
+                mobileChatAnimationTimer = null;
+                render();
+            };
+            if (isMobileView() && app.classList.contains("chat-open")) {
+                if (mobileChatAnimationTimer) {
+                    clearTimeout(mobileChatAnimationTimer);
+                }
+                closeSoftKeyboard();
+                app.classList.remove("chat-opening");
+                app.classList.add("chat-closing");
+                mobileChatAnimationTimer = setTimeout(finishClose, 185);
+                return;
+            }
+            finishClose();
         }
 
         function resetToAuth(message = "") {
@@ -9737,6 +9767,7 @@
                 messageBox.innerHTML = "";
                 messageBox.classList.remove("profile-mode");
                 messageBox.dataset.bg = "none";
+                delete messageBox.dataset.chatType;
                 clearChatThemeStyles(messageBox);
                 $("emptyChat").classList.remove("hidden");
                 $("smartReplies").classList.add("hidden");
@@ -9773,6 +9804,7 @@
             updateAiAssistantVisibility();
             messageBox.innerHTML = "";
             messageBox.classList.remove("profile-mode");
+            messageBox.dataset.chatType = aiMode ? "ai" : chat.type;
             applyChatThemeToMessageBox(chat);
 
             const markerId = state.newMessageMarkers[chat.id];
@@ -9789,7 +9821,7 @@
                 messageBox.appendChild(more);
             }
 
-            visibleMessages.forEach(message => {
+            visibleMessages.forEach((message, messageIndex) => {
                 if (markerId && message.id === markerId) {
                     const divider = document.createElement("div");
                     divider.className = "new-message-divider";
@@ -9799,6 +9831,7 @@
                 const mine = message.sender === state.me.username;
                 const bubble = document.createElement("article");
                 bubble.className = "bubble" + (mine ? " mine" : " theirs");
+                bubble.style.setProperty("--message-enter-delay", `${Math.min(messageIndex, 6) * 16}ms`);
 
                 const sender = document.createElement("div");
                 sender.className = "sender";
@@ -9835,6 +9868,7 @@
                     bubble.appendChild(warning);
                 } else if (!message.deletedAt && message.body) {
                     const text = document.createElement("div");
+                    text.className = "message-text";
                     text.textContent = message.body;
                     bubble.appendChild(text);
                     const preview = renderLinkPreview(firstUrl(message.body));
