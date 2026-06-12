@@ -1552,29 +1552,40 @@
             document.documentElement.style.setProperty("--safe-bottom-fallback", `${safeBottomFallback}px`);
         }
 
+        const mobileViewportBaseline = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+
         function updateAppViewportHeight() {
             const viewport = window.visualViewport;
             const viewportHeight = viewport?.height || window.innerHeight;
             const viewportTop = Math.max(0, viewport?.offsetTop || 0);
             const viewportLeft = Math.max(0, viewport?.offsetLeft || 0);
             const viewportWidth = viewport?.width || window.innerWidth;
-            const rawKeyboardInset = viewport
-                ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-                : 0;
             const messageInput = $("messageInput");
             const inputFocused = document.activeElement === messageInput;
-            const isMobileViewport = window.matchMedia("(max-width: 760px)").matches;
-            const detectedKeyboard = rawKeyboardInset > 20 || viewportHeight < window.innerHeight - 40;
-            const keyboardOpen = Boolean(
-                inputFocused
-                && (detectedKeyboard || isMobileViewport)
+            const viewportWidthChanged = Math.abs(viewportWidth - mobileViewportBaseline.width) > 40;
+            if (!inputFocused || viewportWidthChanged) {
+                mobileViewportBaseline.width = viewportWidth;
+                mobileViewportBaseline.height = viewportHeight;
+            }
+            const layoutHeight = Math.max(
+                viewportHeight,
+                mobileViewportBaseline.height,
+                window.innerHeight || 0,
+                document.documentElement.clientHeight || 0
             );
-            const appHeight = keyboardOpen
-                ? viewportHeight
-                : (viewport ? viewportHeight : window.innerHeight);
+            const rawKeyboardInset = viewport
+                ? Math.max(0, layoutHeight - viewport.height - viewport.offsetTop)
+                : 0;
+            const detectedKeyboard = rawKeyboardInset > 20 || viewportHeight < window.innerHeight - 40;
+            const keyboardOpen = Boolean(inputFocused && detectedKeyboard);
+            const appHeight = viewportHeight;
             const keyboardInset = keyboardOpen ? rawKeyboardInset : 0;
             updateSafeAreaFallback(viewportHeight, viewportTop);
             document.documentElement.style.setProperty("--app-height", `${Math.round(appHeight)}px`);
+            document.documentElement.style.setProperty("--layout-height", `${Math.round(layoutHeight)}px`);
             document.documentElement.style.setProperty("--viewport-top", `${Math.round(viewportTop)}px`);
             document.documentElement.style.setProperty("--viewport-left", `${Math.round(viewportLeft)}px`);
             document.documentElement.style.setProperty("--viewport-width", `${Math.round(viewportWidth)}px`);
@@ -14285,8 +14296,8 @@
             updateNavIndicator();
             applyAdminDesign(window.nexalineDesign || {});
         });
-        window.visualViewport?.addEventListener("resize", updateAppViewportHeight);
-        window.visualViewport?.addEventListener("scroll", updateAppViewportHeight);
+        window.visualViewport?.addEventListener("resize", updateAppViewportHeight, { passive: true });
+        window.visualViewport?.addEventListener("scroll", updateAppViewportHeight, { passive: true });
         window.addEventListener("orientationchange", () => {
             [80, 260, 520].forEach(delay => setTimeout(updateAppViewportHeight, delay));
         });
