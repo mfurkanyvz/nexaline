@@ -6420,6 +6420,15 @@
             container.appendChild(switcher);
         }
 
+        function applyChatCardStack(container) {
+            const cards = Array.from(container.children).filter(item => item.classList.contains("chat-item"));
+            cards.forEach((card, index) => {
+                card.style.setProperty("--chat-stack-top", `${Math.min(index, 6) * 3}px`);
+                card.style.setProperty("--chat-stack-z", String(20 + index));
+            });
+            container.classList.toggle("has-chat-stack", cards.length > 1);
+        }
+
         function renderChats(direction = "") {
             const filter = state.chatSearch.trim().toLocaleLowerCase("tr-TR");
             const chatList = $("chatList");
@@ -6432,6 +6441,7 @@
             chatList.appendChild(content);
             if (state.chatListMode === "groups") {
                 appendGroupItems(content, filter);
+                applyChatCardStack(content);
                 return;
             }
 
@@ -6561,6 +6571,7 @@
                     button.append(avatar, body, side);
                     content.appendChild(button);
                 });
+            applyChatCardStack(content);
         }
 
         function emptyStateMarkup(icon, title, body) {

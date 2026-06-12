@@ -6637,3 +6637,30 @@ button {
         border: 1px solid var(--border-soft);
     }
 }
+
+/* Stage 6: stacked chat cards */
+@media (max-width: 860px) {
+    #chatList {
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #chatList .chat-mode-content.has-chat-stack {
+        position: relative;
+        padding-bottom: calc(52dvh + var(--safe-bottom));
+    }
+
+    #chatList .chat-mode-content.has-chat-stack > .chat-item {
+        position: sticky;
+        top: var(--chat-stack-top, 0px);
+        z-index: var(--chat-stack-z, 20);
+        transform-origin: top center;
+        background: linear-gradient(135deg, var(--bg-card), var(--bg-card-soft));
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.24), 0 12px 28px rgba(0, 0, 0, 0.3);
+        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+
+    #chatList .chat-mode-content.has-chat-stack > .chat-item:active {
+        transform: scale(0.98);
+    }
+}
