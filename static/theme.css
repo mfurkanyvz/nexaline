@@ -7618,3 +7618,96 @@ button {
     from { opacity: 0; transform: translateX(-20px) scale(0.99); }
     to { opacity: 1; transform: translateX(0) scale(1); }
 }
+
+/* Stage 18: finger-following glass capsule navigation */
+@media (max-width: 860px) {
+    .nav-tabs {
+        --indicator-left: 6px;
+        --indicator-top: 8px;
+        --indicator-width: 58px;
+        --indicator-height: 54px;
+        --indicator-intensity: 1;
+        isolation: isolate;
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    .nav-tabs::before {
+        content: "";
+        position: absolute;
+        z-index: 0;
+        left: var(--indicator-left);
+        top: var(--indicator-top);
+        width: var(--indicator-width);
+        height: var(--indicator-height);
+        pointer-events: none;
+        border: 1px solid rgba(196, 181, 253, 0.28);
+        border-radius: 20px;
+        background:
+            radial-gradient(circle at 35% 18%, rgba(255, 255, 255, 0.2), transparent 38%),
+            linear-gradient(145deg, rgba(139, 92, 246, 0.27), rgba(99, 102, 241, 0.17));
+        box-shadow:
+            inset 0 1px rgba(255, 255, 255, 0.16),
+            0 0 22px rgba(139, 92, 246, 0.25),
+            0 10px 24px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(16px) saturate(145%);
+        -webkit-backdrop-filter: blur(16px) saturate(145%);
+        transform: translateZ(0);
+        transition:
+            left 220ms cubic-bezier(0.2, 0.82, 0.24, 1),
+            top 220ms cubic-bezier(0.2, 0.82, 0.24, 1),
+            width 180ms ease,
+            height 180ms ease,
+            background 160ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease;
+        will-change: left, top, width, height;
+    }
+
+    .nav-tabs.indicator-no-transition::before,
+    .nav-tabs.indicator-following::before {
+        transition: none;
+    }
+
+    .nav-tabs.indicator-following::before {
+        border-color: rgba(196, 181, 253, 0.22);
+        background:
+            radial-gradient(circle at 35% 18%, rgba(255, 255, 255, 0.18), transparent 38%),
+            linear-gradient(145deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.1));
+        box-shadow:
+            inset 0 1px rgba(255, 255, 255, 0.14),
+            0 0 16px rgba(139, 92, 246, 0.18),
+            0 8px 18px rgba(0, 0, 0, 0.24);
+    }
+
+    .nav-tabs.indicator-hot::before {
+        border-color: rgba(216, 180, 254, 0.56);
+        background:
+            radial-gradient(circle at 35% 16%, rgba(255, 255, 255, 0.3), transparent 40%),
+            linear-gradient(145deg, rgba(139, 92, 246, 0.48), rgba(99, 102, 241, 0.32));
+        box-shadow:
+            inset 0 1px rgba(255, 255, 255, 0.24),
+            0 0 30px rgba(139, 92, 246, 0.48),
+            0 12px 26px rgba(0, 0, 0, 0.3);
+    }
+
+    .nav-tabs .nav-tab {
+        position: relative;
+        z-index: 1;
+        background: transparent;
+    }
+
+    .nav-tabs .nav-tab.active .nav-icon {
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .nav-tabs .nav-tab.nav-preview {
+        color: #ddd6fe;
+    }
+
+    .nav-tabs .nav-tab.nav-preview .nav-icon {
+        transform: translateY(-2px) scale(1.14);
+        filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.72));
+    }
+}

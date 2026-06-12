@@ -5640,18 +5640,60 @@
             }
         }
 
+        function navIndicatorRectForTab(tab) {
+            const rect = tab.getBoundingClientRect();
+            const width = clamp(rect.width - 10, 50, 62);
+            const height = clamp(rect.height - 5, 48, 54);
+            return {
+                left: rect.left + (rect.width - width) / 2,
+                top: rect.top + (rect.height - height) / 2,
+                width,
+                height
+            };
+        }
+
+        function setNavPreviewTab(tab = null) {
+            document.querySelectorAll(".nav-tab.nav-preview").forEach(item => item.classList.remove("nav-preview"));
+            tab?.classList.add("nav-preview");
+        }
+
         function syncNavIndicatorToElement(element, instant = false) {
             const nav = document.querySelector(".nav-tabs");
             if (!nav || !element) return;
-            setNavIndicatorRect(element.getBoundingClientRect(), nav.getBoundingClientRect(), instant);
+            nav.classList.remove("indicator-hot");
+            nav.style.setProperty("--indicator-intensity", "1");
+            setNavIndicatorRect(navIndicatorRectForTab(element), nav.getBoundingClientRect(), instant);
+        }
+
+        function syncNavIndicatorToPointer(clientX, targetTab) {
+            const nav = document.querySelector(".nav-tabs");
+            if (!nav || !targetTab) return;
+            const navRect = nav.getBoundingClientRect();
+            const targetRect = targetTab.getBoundingClientRect();
+            const targetCenter = targetRect.left + targetRect.width / 2;
+            const proximity = clamp(1 - Math.abs(clientX - targetCenter) / Math.max(30, targetRect.width * 0.72), 0, 1);
+            const width = 48 + proximity * 12;
+            const height = 47 + proximity * 7;
+            const centerX = clamp(clientX, navRect.left + width / 2 + 4, navRect.right - width / 2 - 4);
+            const centerY = targetRect.top + targetRect.height / 2;
+            nav.classList.add("indicator-following");
+            nav.classList.toggle("indicator-hot", proximity > 0.58);
+            nav.style.setProperty("--indicator-intensity", proximity.toFixed(3));
+            setNavPreviewTab(targetTab);
+            setNavIndicatorRect({
+                left: centerX - width / 2,
+                top: centerY - height / 2,
+                width,
+                height
+            }, navRect, true);
         }
 
         function syncNavIndicatorBetween(fromTab, toTab, progress) {
             const nav = document.querySelector(".nav-tabs");
             if (!nav || !fromTab || !toTab) return;
             const navRect = nav.getBoundingClientRect();
-            const fromRect = fromTab.getBoundingClientRect();
-            const toRect = toTab.getBoundingClientRect();
+            const fromRect = navIndicatorRectForTab(fromTab);
+            const toRect = navIndicatorRectForTab(toTab);
             const mix = clamp(progress, 0, 1);
             setNavIndicatorRect({
                 left: fromRect.left + (toRect.left - fromRect.left) * mix,
@@ -5731,7 +5773,6 @@
             let dragStartedAt = 0;
             let navPointerMode = false;
             let lastNavDragSection = null;
-            let lastNavLiveSwitch = 0;
 
             const sectionListMap = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
 
@@ -5774,8 +5815,9 @@
                 dragStartedAt = 0;
                 navPointerMode = false;
                 lastNavDragSection = null;
-                lastNavLiveSwitch = 0;
-                nav?.classList.remove("dragging-nav", "swipe-glow");
+                nav?.classList.remove("dragging-nav", "swipe-glow", "indicator-following", "indicator-hot");
+                nav?.style.setProperty("--indicator-intensity", "1");
+                setNavPreviewTab();
                 surface.classList.remove("section-dragging");
                 if (dragActiveList) {
                     dragActiveList.style.transform = "";
@@ -5796,9 +5838,13 @@
                 dragging = false;
                 dragTargetSection = null;
                 navPointerMode = Boolean(navHit);
-                lastNavDragSection = navPointerMode ? navTabAtPoint(event.clientX, event.clientY)?.dataset.section || state.activeSection : null;
+                const pointerTab = navPointerMode ? navTabAtPoint(event.clientX, event.clientY) : null;
+                lastNavDragSection = pointerTab?.dataset.section || (navPointerMode ? state.activeSection : null);
                 dragStartedAt = Date.now();
                 dragActiveList = listForSection(state.activeSection);
+                if (navPointerMode && pointerTab) {
+                    syncNavIndicatorToPointer(event.clientX, pointerTab);
+                }
             }, { passive: false });
 
             surface.addEventListener("pointermove", event => {
@@ -5820,11 +5866,7 @@
                     const targetTab = navTabAtPoint(event.clientX, event.clientY);
                     if (targetTab) {
                         lastNavDragSection = targetTab.dataset.section;
-                        syncNavIndicatorToElement(targetTab, true);
-                        if (targetTab.dataset.section !== state.activeSection && Date.now() - lastNavLiveSwitch > 70) {
-                            lastNavLiveSwitch = Date.now();
-                            commitDragSection(targetTab.dataset.section);
-                        }
+                        syncNavIndicatorToPointer(event.clientX, targetTab);
                     }
                     if (dragActiveList) {
                         dragActiveList.style.transform = `translateX(${clamp(dx * .12, -20, 20)}px)`;
