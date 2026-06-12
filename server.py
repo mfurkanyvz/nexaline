@@ -1249,6 +1249,8 @@ def is_view_once_attachment(attachment):
     if not isinstance(attachment, dict):
         return False
     attachment_type = str(attachment.get("type") or "")
+    if attachment_type == "bundle":
+        return any(is_view_once_attachment(item) for item in (attachment.get("items") or []))
     return bool(
         attachment.get("viewOnce")
         or attachment_type == "view_once_text"
@@ -6934,6 +6936,36 @@ def vault_items_for(username):
     ]
 
 
+def vault_message_kind(attachment, body):
+    if not isinstance(attachment, dict):
+        return "message" if str(body or "").strip() else None
+    attachment_type = str(attachment.get("type") or "").lower()
+    if attachment_type == "bundle":
+        items = attachment.get("items") or []
+        if items and all(vault_message_kind(item, "") in {"image", "video", "audio", "media"} for item in items):
+            return "media"
+        return None
+    if attachment_type.startswith("image/") or attachment_type == "gif":
+        return "image"
+    if attachment_type.startswith("video/"):
+        return "video"
+    if attachment_type.startswith("audio/"):
+        return "audio"
+    return None
+
+
+def vault_message_title(message, kind):
+    sender_name = message.sender_user.display_name if message.sender_user else message.sender
+    labels = {
+        "message": "Mesaj",
+        "image": "Görsel",
+        "video": "Video",
+        "audio": "Sesli mesaj",
+        "media": "Medya paketi",
+    }
+    return f"{sender_name} - {labels.get(kind, 'Gönderi')}"[:140]
+
+
 def verify_vault_pin(user, pin):
     now = datetime.now(timezone.utc)
     locked_until = user.vault_locked_until
@@ -7028,6 +7060,68 @@ def vault_item_create(username):
     db.session.add(VaultItem(id=uuid4().hex, username=username, kind=kind or "note", title=title or "Kasa notu", payload=payload))
     db.session.commit()
     return jsonify({"ok": True, "items": vault_items_for(username), "user": private_user(username)})
+
+
+@app.route("/vault/<username>/messages/<message_id>", methods=["POST"])
+def vault_message_create(username, message_id):
+    data = request.get_json() or {}
+    username = username.strip().lower()
+    user = db.session.get(User, username)
+    message = Message.query.options(joinedload(Message.sender_user)).filter_by(id=message_id).first()
+    if not user or not message:
+        return jsonify({"ok": False, "message": "Mesaj bulunamadı."}), 404
+
+    ok, pin_message = verify_vault_pin(user, data.get("pin"))
+    if not ok:
+        db.session.commit()
+        return jsonify({"ok": False, "message": pin_message, "user": private_user(username)}), 403
+
+    chat = db.session.get(Chat, message.chat_id)
+    if not chat or not user_can_see_chat(chat, username) or username in (message.deleted_for or []):
+        return jsonify({"ok": False, "message": "Bu mesaja erişimin yok."}), 403
+    if message.sender == username:
+        return jsonify({"ok": False, "message": "Yalnızca gelen mesajlar kasaya eklenebilir."}), 400
+    if message.deleted_at:
+        return jsonify({"ok": False, "message": "Silinmiş mesaj kasaya eklenemez."}), 400
+    if is_view_once_attachment(message.attachment):
+        return jsonify({"ok": False, "message": "Tek görüntülemelik içerik kasaya eklenemez."}), 400
+
+    kind = vault_message_kind(message.attachment, message.body)
+    if not kind:
+        return jsonify({"ok": False, "message": "Bu içerik türü kasaya eklenemez."}), 400
+
+    existing = next(
+        (
+            row for row in VaultItem.query.filter_by(username=username).order_by(VaultItem.created_at.desc()).limit(240).all()
+            if (row.payload or {}).get("source") == "chat" and (row.payload or {}).get("messageId") == message.id
+        ),
+        None,
+    )
+    if existing:
+        return jsonify({"ok": True, "message": "Bu gönderi zaten gizli kasada.", "items": vault_items_for(username), "user": private_user(username)})
+
+    attachment_copy = json.loads(json.dumps(message.attachment, ensure_ascii=False)) if message.attachment else None
+    sender_name = message.sender_user.display_name if message.sender_user else message.sender
+    payload = {
+        "source": "chat",
+        "messageId": message.id,
+        "chatId": message.chat_id,
+        "sender": message.sender,
+        "senderName": sender_name,
+        "body": message.body or "",
+        "attachment": attachment_copy,
+        "messageCreatedAt": to_iso(message.created_at),
+        "savedAt": now_iso(),
+    }
+    db.session.add(VaultItem(
+        id=uuid4().hex,
+        username=username,
+        kind=kind,
+        title=vault_message_title(message, kind),
+        payload=payload,
+    ))
+    db.session.commit()
+    return jsonify({"ok": True, "message": "Gönderi gizli kasaya eklendi.", "items": vault_items_for(username), "user": private_user(username)})
 
 
 @app.route("/vault/<username>/items/<item_id>", methods=["DELETE"])

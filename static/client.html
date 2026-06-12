@@ -1145,6 +1145,8 @@
             vaultItems: [],
             vaultPin: "",
             vaultPinDraft: "",
+            pendingVaultMessage: null,
+            vaultSenderFilter: "",
             archivePinDraft: "",
             activeVoiceRoomId: "",
             voiceAudio: {
@@ -2406,6 +2408,7 @@
 
         function closeModal() {
             state.aiReminderOpen = false;
+            state.pendingVaultMessage = null;
             setAttachmentSheetOpen(false);
             stopQrScanner();
             if (state.cameraCaptureStop) {
@@ -8192,7 +8195,7 @@
                 bindVaultKeypad(ready);
                 if (state.vaultUnlocked) renderVaultItems();
             }, [
-                { label: "Kapat", onClick: closeModal }
+                { label: "Kapat", onClick: closeVaultPanel }
             ], "sheet");
         }
 
@@ -8250,11 +8253,89 @@
                 state.vaultPin = "";
                 state.vaultPinDraft = "";
                 state.vaultUnlocked = false;
+                state.pendingVaultMessage = null;
+                state.vaultSenderFilter = "";
                 openVaultPanel();
             } catch (_error) {
                 showToast("Gizli kasa sıfırlanamadı.");
             } finally {
                 if (resetButton?.isConnected) resetButton.disabled = false;
+            }
+        }
+
+        function vaultAttachmentIsEligible(attachment) {
+            if (!attachment || typeof attachment !== "object") return false;
+            if (attachment.viewOnce || attachment.type === "view_once_text" || attachment.viewOnceId) return false;
+            const type = String(attachment.type || "").toLowerCase();
+            if (type === "bundle") {
+                const items = attachment.items || [];
+                return Boolean(items.length && items.every(vaultAttachmentIsEligible));
+            }
+            return type.startsWith("image/")
+                || type.startsWith("video/")
+                || type.startsWith("audio/")
+                || type === "gif";
+        }
+
+        function vaultMessageIsEligible(message) {
+            if (!message?.id || message.deletedAt || message.sender === state.me?.username) return false;
+            if (message.attachment) return vaultAttachmentIsEligible(message.attachment);
+            return Boolean(String(message.body || "").trim());
+        }
+
+        function closeVaultPanel() {
+            state.pendingVaultMessage = null;
+            closeModal();
+        }
+
+        async function requestMessageVaultSave(message) {
+            if (!vaultMessageIsEligible(message)) {
+                showToast(message?.attachment?.viewOnce || message?.attachment?.type === "view_once_text"
+                    ? "Tek görüntülemelik içerik gizli kasaya eklenemez."
+                    : "Bu içerik gizli kasaya eklenemez.");
+                return;
+            }
+            state.pendingVaultMessage = message;
+            if (!state.me?.vaultReady) {
+                showToast("Önce gizli kasa için 4 haneli PIN oluştur.");
+                state.vaultUnlocked = false;
+                state.vaultPin = "";
+                openVaultPanel();
+                return;
+            }
+            if (!state.vaultUnlocked || !state.vaultPin) {
+                openVaultPanel();
+                return;
+            }
+            await saveMessageToVault(message);
+        }
+
+        async function saveMessageToVault(message = state.pendingVaultMessage) {
+            if (!message?.id) return false;
+            try {
+                const response = await fetch(`/vault/${encodeURIComponent(state.me.username)}/messages/${encodeURIComponent(message.id)}`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ pin: state.vaultPin })
+                });
+                const data = await response.json();
+                showToast(data.message || "Gönderi gizli kasaya eklenemedi.");
+                if (!data.ok) {
+                    if (response.status === 403) {
+                        state.vaultUnlocked = false;
+                        state.vaultPin = "";
+                        openVaultPanel();
+                    }
+                    return false;
+                }
+                state.vaultItems = data.items || [];
+                state.me = data.user || state.me;
+                state.pendingVaultMessage = null;
+                closeModal();
+                return true;
+            } catch (_error) {
+                showToast("Gönderi gizli kasaya eklenemedi.");
+                return false;
             }
         }
 
@@ -8315,7 +8396,11 @@
                 state.vaultPin = pin;
                 state.vaultPinDraft = "";
                 state.vaultUnlocked = true;
-                openVaultPanel();
+                if (state.pendingVaultMessage) {
+                    await saveMessageToVault();
+                } else {
+                    openVaultPanel();
+                }
             }
         }
 
@@ -8339,28 +8424,127 @@
             state.vaultUnlocked = true;
             state.vaultItems = data.items || [];
             state.me = data.user || state.me;
-            renderVaultItems();
+            if (state.pendingVaultMessage) {
+                await saveMessageToVault();
+            } else {
+                renderVaultItems();
+            }
+        }
+
+        function vaultItemGroup(item) {
+            if (item.payload?.source === "chat" && item.payload?.sender) {
+                return {
+                    key: item.payload.sender,
+                    label: item.payload.senderName || item.payload.sender
+                };
+            }
+            return { key: "__notes__", label: "Kasa Notlarım" };
+        }
+
+        function appendVaultSavedItem(container, item) {
+            const card = document.createElement("div");
+            card.className = "vault-card vault-saved-item";
+            const title = document.createElement("strong");
+            title.textContent = item.title || "Kasa kaydı";
+            const meta = document.createElement("small");
+            meta.textContent = item.payload?.messageCreatedAt
+                ? `Gönderildi: ${relativeTime(item.payload.messageCreatedAt)}`
+                : `Kaydedildi: ${relativeTime(item.createdAt)}`;
+            card.append(title, meta);
+
+            if (item.payload?.body) {
+                const text = document.createElement("div");
+                text.className = "vault-saved-text";
+                text.textContent = item.payload.body;
+                card.appendChild(text);
+            } else if (item.payload?.text) {
+                const text = document.createElement("div");
+                text.className = "vault-saved-text";
+                text.textContent = item.payload.text;
+                card.appendChild(text);
+            }
+
+            if (item.payload?.attachment) {
+                const media = document.createElement("div");
+                media.className = "vault-saved-media";
+                media.appendChild(renderAttachment(item.payload.attachment, null));
+                card.appendChild(media);
+            }
+
+            const remove = document.createElement("button");
+            remove.className = "mini-btn danger";
+            remove.type = "button";
+            remove.textContent = "Sil";
+            remove.onclick = () => deleteVaultItem(item.id);
+            card.appendChild(remove);
+            container.appendChild(card);
         }
 
         function renderVaultItems() {
             const content = $("vaultContent");
             if (!content) return;
+            document.querySelector(".vault-unlock-card")?.classList.add("hidden");
             content.classList.remove("hidden");
             content.innerHTML = `
                 <div class="vault-actions">
                     <button id="vaultAddNoteButton" class="mini-btn" type="button">Not ekle</button>
                     <button id="vaultLockButton" class="mini-btn danger" type="button">Kilitle</button>
                 </div>
-                ${(state.vaultItems || []).map(item => `<div class="vault-card"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.payload?.text || item.kind || "")}</small><button class="mini-btn danger" type="button" data-vault-delete="${escapeHtml(item.id)}">Sil</button></div>`).join("") || '<div class="vault-card"><strong>Kasa boş</strong><small>PIN korumalı notlarını buraya ekleyebilirsin.</small></div>'}
+                <div id="vaultGroupedContent" class="vault-grouped-content"></div>
             `;
             $("vaultAddNoteButton").onclick = addVaultNote;
             $("vaultLockButton").onclick = () => {
                 state.vaultUnlocked = false;
                 state.vaultPin = "";
+                state.vaultSenderFilter = "";
                 openVaultPanel();
             };
-            content.querySelectorAll("[data-vault-delete]").forEach(button => {
-                button.onclick = () => deleteVaultItem(button.dataset.vaultDelete);
+
+            const groupedContent = $("vaultGroupedContent");
+            const groups = new Map();
+            (state.vaultItems || []).forEach(item => {
+                const group = vaultItemGroup(item);
+                if (!groups.has(group.key)) groups.set(group.key, { ...group, items: [] });
+                groups.get(group.key).items.push(item);
+            });
+
+            if (!groups.size) {
+                groupedContent.innerHTML = '<div class="vault-card"><strong>Kasa boş</strong><small>Sohbetlerden kaydettiğin gönderiler ve PIN korumalı notların burada görünür.</small></div>';
+                return;
+            }
+
+            if (state.vaultSenderFilter && !groups.has(state.vaultSenderFilter)) {
+                state.vaultSenderFilter = "";
+            }
+
+            if (state.vaultSenderFilter) {
+                const group = groups.get(state.vaultSenderFilter);
+                const header = document.createElement("div");
+                header.className = "vault-group-header";
+                header.innerHTML = `<button class="mini-btn" type="button">← Gönderenler</button><span><strong>${escapeHtml(group.label)}</strong><small>${group.items.length} kayıt</small></span>`;
+                header.querySelector("button").onclick = () => {
+                    state.vaultSenderFilter = "";
+                    renderVaultItems();
+                };
+                groupedContent.appendChild(header);
+                group.items.forEach(item => appendVaultSavedItem(groupedContent, item));
+                return;
+            }
+
+            [...groups.values()].forEach(group => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "vault-sender-card";
+                button.innerHTML = `
+                    <span class="avatar">${escapeHtml(initials(group.label))}</span>
+                    <span><strong>${escapeHtml(group.label)}</strong><small>${group.items.length} kayıt</small></span>
+                    <span class="settings-vault-choice-arrow">›</span>
+                `;
+                button.onclick = () => {
+                    state.vaultSenderFilter = group.key;
+                    renderVaultItems();
+                };
+                groupedContent.appendChild(button);
             });
         }
 
@@ -9243,7 +9427,7 @@
                 }
             };
 
-            const isInteractiveTarget = target => Boolean(target?.closest?.("button, a, input, textarea, select, audio, video"));
+            const isInteractiveTarget = target => Boolean(target?.closest?.("button, a, input, textarea, select"));
 
             bubble.addEventListener("pointerdown", event => {
                 if (message.deletedAt || isInteractiveTarget(event.target)) return;
@@ -10049,6 +10233,9 @@
                     showToast("Mesaj yıldızlandı.");
                     closeModal();
                 });
+                if (vaultMessageIsEligible(message)) {
+                    addExtra("vault", "Gizli Kasaya Ekle", () => requestMessageVaultSave(message));
+                }
                 addExtra("pin", "Sabitle", () => {
                     showToast("Mesaj sohbet içinde işaretlendi.");
                     closeModal();
@@ -10199,6 +10386,7 @@
                 video.controls = true;
                 video.playsInline = true;
                 video.src = attachment.dataUrl;
+                video.onclick = () => openMediaViewer(attachment, message);
                 return video;
             }
 
@@ -10206,7 +10394,7 @@
                 const image = document.createElement("img");
                 image.src = attachment.dataUrl;
                 image.alt = attachment.name;
-                image.onclick = () => openMediaViewer(attachment);
+                image.onclick = () => openMediaViewer(attachment, message);
                 return image;
             }
 
@@ -10282,6 +10470,7 @@
                 image.src = attachment.dataUrl || animatedGifDataUrl(attachment.label || "Nexa", attachment.symbol || "✨", attachment.colors || ["#704CFF", "#FF00B8"]);
                 image.alt = attachment.name || "Nexa GIF";
                 image.loading = "lazy";
+                image.onclick = () => openMediaViewer({ ...attachment, type: "image/gif", dataUrl: image.src }, message);
                 const label = document.createElement("small");
                 label.textContent = attachment.name || "Nexa GIF";
                 wrap.append(image, label);
@@ -10407,7 +10596,7 @@
             showToast(`${queued.length} bekleyen mesaj gönderildi.`);
         }
 
-        function openMediaViewer(attachment) {
+        function openMediaViewer(attachment, message = null) {
             if (!attachment?.dataUrl) {
                 return;
             }
@@ -10437,6 +10626,14 @@
                     download.download = attachment.name || "nexaline-gorsel.jpg";
                     download.textContent = "İndir";
                     actions.appendChild(download);
+                    if (vaultMessageIsEligible(message)) {
+                        const vaultButton = document.createElement("button");
+                        vaultButton.type = "button";
+                        vaultButton.className = "mini-btn";
+                        vaultButton.textContent = "Gizli Kasaya Ekle";
+                        vaultButton.onclick = () => requestMessageVaultSave(message);
+                        actions.appendChild(vaultButton);
+                    }
                 }
                 body.append(media, actions);
             }, [{ label: "Kapat", onClick: closeModal }]);

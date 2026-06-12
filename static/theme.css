@@ -6825,3 +6825,100 @@ button {
     color: var(--text-muted);
     line-height: 1.5;
 }
+
+/* Stage 12: chat-to-vault actions and sender groups */
+.media-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.media-actions > a,
+.media-actions > button {
+    min-height: 38px;
+    padding: 8px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+}
+
+.vault-grouped-content {
+    display: grid;
+    gap: 12px;
+}
+
+.vault-sender-card {
+    width: 100%;
+    min-height: 72px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    border: 1px solid var(--border-soft, rgba(255, 255, 255, 0.08));
+    border-radius: 18px;
+    background: var(--bg-card, #111827);
+    color: var(--text-main);
+    transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.vault-sender-card:active {
+    transform: scale(0.98);
+}
+
+.vault-sender-card > span:nth-child(2) {
+    display: grid;
+    gap: 4px;
+}
+
+.vault-group-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+}
+
+.vault-group-header > span {
+    display: grid;
+    gap: 2px;
+}
+
+.vault-saved-item {
+    width: 100%;
+    display: grid;
+    align-items: start;
+    gap: 10px;
+}
+
+.vault-saved-text {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--bg-input, #171c26);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.vault-saved-media,
+.vault-saved-media > * {
+    width: 100%;
+    max-width: 100%;
+}
+
+.vault-saved-media img,
+.vault-saved-media video {
+    max-height: 320px;
+    object-fit: contain;
+    border-radius: 16px;
+}
+
+.vault-saved-media audio {
+    width: 100%;
+}
+
+.vault-unlock-card.hidden,
+.vault-list.hidden {
+    display: none;
+}
