@@ -6868,7 +6868,7 @@
                     body.append(title, last);
 
                     const side = document.createElement("span");
-                    side.className = "chat-side";
+                    side.className = "chat-side chat-list-meta";
                     const time = document.createElement("span");
                     time.className = "chat-time";
                     time.textContent = chat.lastMessage ? formatTime(chat.lastMessage.createdAt) : "";
@@ -6983,7 +6983,7 @@
                     body.append(title, last);
 
                     const side = document.createElement("span");
-                    side.className = "chat-side";
+                    side.className = "chat-side chat-list-meta";
                     const time = document.createElement("span");
                     time.className = "chat-time";
                     time.textContent = chat.lastMessage ? relativeTime(chat.lastMessage.createdAt) : "";

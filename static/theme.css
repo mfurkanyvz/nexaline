@@ -6349,6 +6349,117 @@ button {
     }
 }
 
+/* Compact flow composer and quieter chat-list metadata. */
+@media (max-width: 860px) {
+    .story-list .x-compose-card {
+        padding: 11px;
+        border-radius: 20px;
+    }
+
+    .x-compose-head {
+        gap: 2px;
+        margin-bottom: 7px;
+    }
+
+    .x-compose-head strong {
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+    .x-compose-head small {
+        font-size: 10px;
+        line-height: 1.25;
+    }
+
+    .x-compose-card textarea {
+        min-height: 52px;
+        max-height: 108px;
+        padding: 9px 10px;
+        resize: none;
+        border-radius: 15px;
+        font-size: 13px;
+        line-height: 1.35;
+    }
+
+    .x-compose-card .x-actions {
+        margin-top: 8px;
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+
+    .x-compose-card .x-actions button {
+        min-width: 0;
+        min-height: 34px;
+        padding: 6px 9px;
+        justify-content: center;
+        font-size: 11px;
+        line-height: 1;
+    }
+
+    .x-compose-card .x-actions #updatesFeedVoiceButton {
+        min-width: 62px;
+    }
+
+    .chat-list .chat-item > .chat-list-meta {
+        min-width: 44px;
+        height: 100%;
+        padding: 1px 0 2px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: flex-end;
+        gap: 3px;
+    }
+
+    .chat-list .chat-item > .chat-list-meta .chat-time {
+        order: 3;
+        color: rgba(156, 163, 175, 0.62);
+        font-size: 9px;
+        font-weight: 480;
+        line-height: 1;
+        letter-spacing: 0.01em;
+    }
+
+    .chat-list .chat-item > .chat-list-meta .chat-flags {
+        order: 1;
+    }
+
+    .chat-list .chat-item > .chat-list-meta .badge {
+        order: 2;
+    }
+
+    .chat-list .chat-item > .chat-time {
+        align-self: end;
+        margin-bottom: 2px;
+        color: rgba(156, 163, 175, 0.58);
+        font-size: 9px;
+        font-weight: 480;
+        line-height: 1;
+    }
+}
+
+.bubble,
+.message-bubble,
+.message-context-popover {
+    -webkit-touch-callout: none;
+}
+
+.bubble .message-text,
+.message-bubble .message-text,
+.message-context-popover button,
+.message-context-popover p,
+.message-context-popover span {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.bubble ::selection,
+.message-bubble ::selection,
+.message-context-popover ::selection {
+    background: rgba(139, 92, 246, 0.3);
+    color: var(--text-main);
+}
+
 /* Stage 2: chats and people mobile cards */
 @media (max-width: 860px) {
     .chat-mode-switch {
