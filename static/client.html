@@ -5772,7 +5772,11 @@
                 .filter(chat => chat.type === "group")
                 .reduce((total, chat) => total + unreadCount(chat), 0) + state.groupInvites.filter(invite => invite.status === "pending").length;
             const incomingRequests = state.contactRequests.filter(item => item.status === "pending" && item.to?.username === state.me?.username).length;
-            const missedCalls = state.callLogs.filter(log => log.status === "missed").length;
+            const missedCalls = state.callLogs.filter(log =>
+                log.status === "missed"
+                && log.caller !== state.me?.username
+                && !log.seen
+            ).length;
             const activeStories = state.stories.filter(story => story.username !== state.me?.username).length;
             setNavBadge("chats", chatUnread);
             setNavBadge("groups", groupUnread);
@@ -5781,6 +5785,21 @@
             setNavBadge("stories", activeStories);
             setNavBadge("explore", activeStories + state.groupInvites.filter(invite => invite.status === "pending").length);
             setNavBadge("contacts", incomingRequests);
+        }
+
+        function markMissedCallsSeen() {
+            if (state.activeSection !== "calls") return;
+            const callIds = state.callLogs
+                .filter(log =>
+                    log.status === "missed"
+                    && log.caller !== state.me?.username
+                    && !log.seen
+                )
+                .map(log => log.id);
+            if (!callIds.length) return;
+            const seenIds = new Set(callIds);
+            state.callLogs = state.callLogs.map(log => seenIds.has(log.id) ? { ...log, seen: true } : log);
+            socket.emit("calls:seen", { callIds });
         }
 
         const SWIPE_SECTION_ORDER = ["stories", "calls", "explore", "chats", "contacts"];
@@ -5999,6 +6018,7 @@
             ["chatList", "groupList", "storyList", "callList", "exploreList", "friendList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
             const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
             const activeList = $(map[state.activeSection] || "chatList");
+            markMissedCallsSeen();
             activeList.classList.remove("hidden");
             activeList.classList.remove("section-frame-enter");
             void activeList.offsetWidth;
@@ -7415,7 +7435,7 @@
         }
 
         function callLogType(log) {
-            if (log.status === "missed") return "missed";
+            if (log.status === "missed" && log.caller !== state.me?.username) return "missed";
             return log.caller === state.me?.username ? "outgoing" : "incoming";
         }
 
@@ -7432,7 +7452,7 @@
 
         function callMatchesFilter(log, filter) {
             if (filter === "all") return true;
-            if (filter === "missed") return log.status === "missed";
+            if (filter === "missed") return log.status === "missed" && log.caller !== state.me?.username;
             if (filter === "outgoing") return log.caller === state.me?.username;
             if (filter === "incoming") return log.caller !== state.me?.username;
             return true;
@@ -15049,6 +15069,7 @@
         socket.on("calls:update", callLogs => {
             state.callLogs = callLogs || [];
             renderCalls();
+            updateNavBadges();
         });
 
         socket.on("social:update", data => {

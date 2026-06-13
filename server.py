@@ -297,6 +297,7 @@ class CallLog(db.Model):
     caller = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False)
     kind = db.Column(db.String(20), nullable=False, default="audio")
     status = db.Column(db.String(20), nullable=False, default="ended")
+    seen_by = db.Column(db.JSON, nullable=False, default=list)
     duration_seconds = db.Column(db.Integer, nullable=False, default=0)
     started_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     ended_at = db.Column(db.DateTime, nullable=True)
@@ -1541,6 +1542,7 @@ def restore_archive_for_user(archive):
 
 def call_log_to_dict(log, username):
     chat = db.session.get(Chat, log.chat_id)
+    seen_by = list(log.seen_by or [])
     return {
         "id": log.id,
         "chatId": log.chat_id,
@@ -1549,6 +1551,7 @@ def call_log_to_dict(log, username):
         "callerName": log.caller_user.display_name if log.caller_user else log.caller,
         "kind": log.kind,
         "status": log.status,
+        "seen": username in seen_by,
         "durationSeconds": log.duration_seconds,
         "startedAt": to_iso(log.started_at),
         "endedAt": to_iso(log.ended_at),
@@ -9060,6 +9063,42 @@ def emit_call_logs_for_chat(chat):
             socketio.emit("calls:update", visible_call_logs(member), room=sid)
 
 
+@socketio.on("calls:seen")
+def handle_calls_seen(data=None):
+    username = connections.get(request.sid)
+    if not username:
+        return {"ok": False, "message": "Oturum bulunamadı."}
+
+    requested_ids = {
+        str(item)
+        for item in ((data or {}).get("callIds") or [])
+        if str(item).strip()
+    }
+    logs = (
+        CallLog.query.join(Chat, CallLog.chat_id == Chat.id)
+        .join(ChatMember, ChatMember.chat_id == Chat.id)
+        .filter(
+            ChatMember.username == username,
+            CallLog.status == "missed",
+            CallLog.caller != username,
+        )
+        .all()
+    )
+    changed = 0
+    for log in logs:
+        if requested_ids and log.id not in requested_ids:
+            continue
+        seen_by = list(log.seen_by or [])
+        if username in seen_by:
+            continue
+        log.seen_by = [*seen_by, username]
+        changed += 1
+    if changed:
+        db.session.commit()
+    emit("calls:update", visible_call_logs(username))
+    return {"ok": True, "seenCount": changed}
+
+
 def emit_scheduled_update(username):
     for sid in connected_sids_for(username):
         socketio.emit("scheduled:update", visible_scheduled_messages(username), room=sid)
@@ -9581,6 +9620,10 @@ with app.app_context():
     chat_columns = {column["name"] for column in inspector.get_columns("chat")} if inspector.has_table("chat") else set()
     if "image" not in chat_columns:
         db.session.execute(text("ALTER TABLE chat ADD COLUMN image TEXT"))
+        db.session.commit()
+    call_log_columns = {column["name"] for column in inspector.get_columns("call_log")} if inspector.has_table("call_log") else set()
+    if "seen_by" not in call_log_columns:
+        db.session.execute(text("ALTER TABLE call_log ADD COLUMN seen_by JSON"))
         db.session.commit()
     user_columns = {column["name"] for column in inspector.get_columns("user")} if inspector.has_table("user") else set()
     user_migrations = {
