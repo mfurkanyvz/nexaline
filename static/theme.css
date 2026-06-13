@@ -4259,6 +4259,30 @@ button {
         border-radius: 24px;
         background: rgba(12, 18, 29, 0.96);
     }
+
+    .modal-panel.sheet.share-menu-sheet:not(.hidden) {
+        inset: 0;
+        width: var(--viewport-width, 100vw);
+        height: var(--app-height);
+        max-height: var(--app-height);
+        display: flex;
+        justify-content: flex-end;
+        padding:
+            calc(12px + var(--safe-top))
+            calc(12px + var(--safe-right))
+            calc(12px + var(--safe-bottom))
+            calc(12px + var(--safe-left));
+        overflow: hidden;
+        border-radius: 0;
+        background: rgba(2, 5, 12, 0.5);
+        backdrop-filter: blur(14px) saturate(120%);
+        -webkit-backdrop-filter: blur(14px) saturate(120%);
+    }
+
+    .share-menu-sheet .modal-box {
+        width: 100%;
+        max-height: none;
+    }
 }
 
 @keyframes settings-panel-grow-down {
@@ -4493,6 +4517,12 @@ button {
     font-size: 0;
 }
 
+.composer #voiceButton:not(.recording),
+.composer #voiceButton.voice-btn:not(.recording) {
+    filter: none;
+    box-shadow: none !important;
+}
+
 .composer #voiceButton svg {
     width: 19px;
     height: 19px;
@@ -4706,18 +4736,19 @@ button {
 }
 
 #messageInput {
-    padding: 7px 39px 7px 13px;
+    padding: 7px 43px 7px 13px;
     border: 0;
     background: transparent;
     box-shadow: none;
 }
 
 #gifInlineButton {
-    right: 7px;
-    width: 25px;
-    height: 25px;
-    min-height: 25px;
-    border-radius: 8px;
+    right: 6px;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    border-radius: 10px;
+    font-size: 10px;
 }
 
 .smart-replies {
@@ -4780,10 +4811,15 @@ button {
 .compact-share-menu {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 9px;
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
 }
 
 .compact-share-menu .attachment-option {
-    min-height: 92px;
+    min-height: 90px;
     padding: 11px 7px;
     border-radius: 17px;
 }
@@ -4853,6 +4889,17 @@ button {
         min-height: 36px;
         height: 36px;
         max-height: 36px;
+    }
+
+    #messageInput {
+        padding-right: 40px;
+    }
+
+    #gifInlineButton {
+        width: 28px;
+        height: 28px;
+        min-height: 28px;
+        right: 5px;
     }
 
     .emoji-panel {
