@@ -2117,6 +2117,67 @@
             updateNotificationButton();
         }
 
+        async function closeSystemNotificationsForChat(chatId) {
+            if (!chatId) return;
+            try {
+                const registration = await navigator.serviceWorker?.ready;
+                if (!registration?.getNotifications) return;
+                const notifications = await registration.getNotifications();
+                notifications.forEach(notification => {
+                    if (notification.tag === `chat-${chatId}` || notification.data?.chatId === chatId) {
+                        notification.close();
+                    }
+                });
+            } catch (_error) {}
+        }
+
+        function markChatNotificationsRead(chatId) {
+            if (!chatId) return false;
+            let changed = false;
+            state.notifications.forEach(item => {
+                if (item.chatId === chatId && !item.read) {
+                    item.read = true;
+                    changed = true;
+                }
+            });
+            if (changed) {
+                saveNotificationLog();
+                updateNotificationButton();
+            }
+            return changed;
+        }
+
+        function markChatAsViewed(chat) {
+            if (!chat || isAiChat(chat) || chat.id !== state.activeChatId) return false;
+            const username = state.me?.username;
+            if (!username) return false;
+            const unreadMessages = (chat.messages || []).filter(message => (
+                message.sender !== username
+                && (!Array.isArray(message.readBy) || !message.readBy.includes(username))
+            ));
+            const unreadIds = unreadMessages.map(message => message.id).filter(Boolean);
+            unreadMessages.forEach(message => {
+                message.readBy = Array.isArray(message.readBy) ? message.readBy : [];
+                if (!message.readBy.includes(username)) {
+                    message.readBy.push(username);
+                }
+            });
+            const notificationsChanged = markChatNotificationsRead(chat.id);
+            if (unreadIds.length || notificationsChanged) {
+                closeSystemNotificationsForChat(chat.id);
+            }
+            for (let index = 0; index < unreadIds.length; index += 200) {
+                socket.emit("message:read", {
+                    chatId: chat.id,
+                    messageIds: unreadIds.slice(index, index + 200)
+                });
+            }
+            if (unreadIds.length) {
+                updateNavBadges();
+            }
+            return unreadIds.length > 0;
+        }
+
         function isNotificationMuted() {
             if (state.notificationMuteUntil === "forever") {
                 return true;
@@ -10210,12 +10271,14 @@
             renderSmartReplies(chat);
             $("viewOnceButton").classList.toggle("active-tool", Boolean(state.pendingViewOnce));
             const readableSection = state.activeSection === "chats" || state.activeSection === "groups";
-            if (!isAiChat(chat) && document.visibilityState === "visible" && readableSection && chat.id === state.activeChatId && !state.me?.privacy?.readReceiptsOff && (!isMobileView() || $("app").classList.contains("chat-open"))) {
-                const unreadIds = visibleMessages
-                    .filter(message => message.sender !== state.me.username && !message.readBy.includes(state.me.username))
-                    .map(message => message.id);
-                if (unreadIds.length) {
-                    socket.emit("message:read", { chatId: chat.id, messageIds: unreadIds });
+            if (document.visibilityState === "visible" && readableSection && (!isMobileView() || $("app").classList.contains("chat-open"))) {
+                const readStateChanged = markChatAsViewed(chat);
+                if (readStateChanged) {
+                    if (chat.type === "group") {
+                        renderGroups();
+                    } else {
+                        renderChats();
+                    }
                 }
             }
         }
@@ -14683,19 +14746,27 @@
         });
 
         socket.on("message:read", data => {
-            if (state.me?.privacy?.readReceiptsOff) {
-                return;
-            }
             const chat = state.chats.find(item => item.id === data.chatId);
             if (!chat) {
                 return;
             }
 
             chat.messages.forEach(message => {
+                message.readBy = Array.isArray(message.readBy) ? message.readBy : [];
                 if (data.messageIds.includes(message.id) && !message.readBy.includes(data.reader)) {
                     message.readBy.push(data.reader);
                 }
             });
+            if (data.reader === state.me?.username) {
+                delete state.newMessageMarkers[data.chatId];
+                markChatNotificationsRead(data.chatId);
+                if (chat.type === "group") {
+                    renderGroups();
+                } else {
+                    renderChats();
+                }
+                updateNavBadges();
+            }
             renderActiveChat();
         });
 

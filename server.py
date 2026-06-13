@@ -8564,8 +8564,7 @@ def handle_message_read(data):
         return
 
     user = db.session.get(User, username)
-    if user and user.disable_read_receipts:
-        return
+    private_receipt = bool(user and user.disable_read_receipts)
 
     message_ids = [
         str(message_id)
@@ -8587,7 +8586,17 @@ def handle_message_read(data):
 
     if updated_ids:
         db.session.commit()
-        emit("message:read", {"chatId": chat_id, "reader": username, "messageIds": updated_ids}, room=chat_id)
+        payload = {
+            "chatId": chat_id,
+            "reader": username,
+            "messageIds": updated_ids,
+            "receiptVisible": not private_receipt,
+        }
+        if private_receipt:
+            for sid in connected_sids_for(username):
+                socketio.emit("message:read", payload, room=sid)
+        else:
+            emit("message:read", payload, room=chat_id)
 
 
 @socketio.on("message:view_once_opened")
