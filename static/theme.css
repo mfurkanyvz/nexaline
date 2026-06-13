@@ -7755,6 +7755,264 @@ button {
     }
 }
 
+/* Stage 9: account-wide chat theme picker */
+.settings-theme-card {
+    width: 100%;
+    min-width: 0;
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 72px;
+    align-items: center;
+    gap: 11px;
+    padding: 11px;
+    overflow: hidden;
+    border: 1px solid rgba(56, 189, 248, 0.16);
+    border-radius: 19px;
+    background:
+        radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.12), transparent 46%),
+        rgba(13, 20, 31, 0.92);
+    color: var(--text-main);
+    text-align: left;
+    box-shadow: none;
+}
+
+.settings-theme-card:active {
+    transform: scale(0.985);
+}
+
+.settings-theme-icon {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 14px;
+    background:
+        conic-gradient(from 35deg, #38bdf8, #6366f1, #a855f7, #38bdf8);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.16);
+}
+
+.settings-theme-icon::after {
+    content: "";
+    width: 17px;
+    height: 17px;
+    border: 3px solid rgba(8, 10, 15, 0.82);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.82);
+}
+
+.settings-theme-copy,
+.settings-theme-current,
+.chat-theme-picker-intro > span:last-child {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.settings-theme-copy strong,
+.chat-theme-picker-intro strong {
+    color: var(--text-main);
+    font-size: 14px;
+    line-height: 1.25;
+}
+
+.settings-theme-copy small,
+.chat-theme-picker-intro small {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.settings-theme-current {
+    justify-items: center;
+    gap: 4px;
+}
+
+.settings-theme-current img {
+    width: 52px;
+    height: 40px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 11px;
+    background: #080a0f;
+}
+
+.settings-theme-current span {
+    width: 68px;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 9px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.theme-picker-panel .modal-box {
+    width: min(680px, calc(100vw - 32px));
+    max-height: min(780px, calc(100dvh - 32px));
+    border: 1px solid rgba(56, 189, 248, 0.16);
+    background:
+        radial-gradient(circle at 90% 0, rgba(99, 102, 241, 0.12), transparent 34%),
+        rgba(8, 13, 22, 0.98);
+}
+
+.theme-picker-panel .modal-body {
+    gap: 13px;
+    overscroll-behavior: contain;
+}
+
+.chat-theme-picker-intro {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 11px;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background: rgba(17, 24, 39, 0.82);
+}
+
+.chat-theme-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 11px;
+}
+
+.chat-theme-picker-card {
+    position: relative;
+    min-width: 0;
+    min-height: 190px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 19px;
+    background: #080a0f;
+    box-shadow: none;
+    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.chat-theme-picker-card:active {
+    transform: scale(0.965);
+}
+
+.chat-theme-picker-card img {
+    width: 100%;
+    height: 190px;
+    display: block;
+    object-fit: cover;
+}
+
+.chat-theme-picker-card::after {
+    content: attr(title);
+    position: absolute;
+    right: 7px;
+    bottom: 7px;
+    left: 7px;
+    padding: 7px 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 11px;
+    background: rgba(3, 6, 12, 0.72);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 720;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+}
+
+.chat-theme-picker-card.active {
+    border-color: var(--picker-accent, #38bdf8);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--picker-accent, #38bdf8) 30%, transparent),
+        0 13px 32px rgba(0, 0, 0, 0.32);
+}
+
+.chat-theme-picker-check {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    right: 8px;
+    width: 29px;
+    height: 29px;
+    display: grid;
+    place-items: center;
+    opacity: 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    background: var(--picker-accent, #38bdf8);
+    color: #fff;
+    transform: scale(0.72);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.chat-theme-picker-check svg {
+    width: 16px;
+    height: 16px;
+}
+
+.chat-theme-picker-card.active .chat-theme-picker-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.chat-pane[data-theme] .chat-top {
+    border-color: var(--chat-theme-border, rgba(255, 255, 255, 0.08));
+    background: var(--chat-theme-top-panel, rgba(5, 10, 18, 0.84));
+}
+
+.chat-pane[data-theme] .composer {
+    border-color: var(--chat-theme-border, rgba(255, 255, 255, 0.08));
+    background: var(--chat-theme-bottom-panel, rgba(7, 14, 24, 0.9));
+}
+
+.chat-pane[data-theme] .message-input-shell,
+.chat-pane[data-theme] #messageInput {
+    border-color: var(--chat-theme-border, rgba(255, 255, 255, 0.08));
+    background: var(--chat-theme-input, rgba(13, 24, 38, 0.86));
+    color: var(--chat-theme-text, #fff);
+}
+
+.chat-pane[data-theme] .chat-top .icon-btn,
+.chat-pane[data-theme] .composer .icon-btn,
+.chat-pane[data-theme] .gif-inline-button {
+    color: var(--chat-theme-icon, #7dd3fc);
+}
+
+@media (max-width: 520px) {
+    .theme-picker-panel {
+        align-items: stretch;
+        padding: 0;
+    }
+
+    .theme-picker-panel .modal-box {
+        width: 100%;
+        max-width: none;
+        height: 100dvh;
+        max-height: 100dvh;
+        padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+        border-width: 0;
+        border-radius: 0;
+    }
+
+    .theme-picker-panel .modal-body {
+        padding-right: 1px;
+    }
+
+    .chat-theme-picker-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .chat-theme-picker-card,
+    .chat-theme-picker-card img {
+        min-height: 178px;
+        height: 178px;
+    }
+}
+
 /* Stage 16: native-feeling chat transition and message theme */
 .messages {
     background-color: var(--chat-theme-bg, #030406);
