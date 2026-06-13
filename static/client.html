@@ -679,6 +679,7 @@
         const MESSAGE_RENDER_STEP = 70;
         const MAX_CLIENT_ATTACHMENT_BYTES = 4_000_000;
         const MAX_CLIENT_ATTACHMENT_DATA_URL_CHARS = 5_500_000;
+        const MAX_PROFILE_SOURCE_BYTES = 12_000_000;
         const THEME_KEY = "nexalineTheme";
         const SECRET_PIN_KEY = "nexalineSecretPin";
         const ARCHIVE_PIN_KEY_PREFIX = "nexalineArchivePin";
@@ -13224,11 +13225,77 @@
         }
 
         function handleProfileImage(event) {
-            readImageFile(event.target.files[0], dataUrl => {
+            readProfileImageFile(event.target.files[0], dataUrl => {
                 if (dataUrl) {
                     openProfileCropper(dataUrl);
                 }
             });
+        }
+
+        function readProfileImageFile(file, onLoad) {
+            if (!file) {
+                onLoad(null);
+                return;
+            }
+            if (!file.type?.startsWith("image/")) {
+                showToast("Sadece resim seçebilirsin.");
+                onLoad(null);
+                return;
+            }
+            if (file.size > MAX_PROFILE_SOURCE_BYTES) {
+                showToast("Profil fotoğrafı 12 MB altında olmalı.");
+                onLoad(null);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => onLoad(reader.result);
+            reader.onerror = () => {
+                showToast("Fotoğraf okunamadı.");
+                onLoad(null);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        let profileImageSaveInFlight = false;
+
+        async function persistProfileImage(profileImage) {
+            if (profileImageSaveInFlight) return false;
+            profileImageSaveInFlight = true;
+            const photoButtons = [$("profileImageButton"), $("profileHeroPhotoButton"), $("removeProfileImageButton")].filter(Boolean);
+            photoButtons.forEach(button => button.disabled = true);
+            try {
+                const response = await fetch(`/account/${encodeURIComponent(state.me.username)}/profile`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        displayName: state.me.displayName,
+                        about: state.me.about || "",
+                        avatar: state.me.avatar || "",
+                        profileImage
+                    })
+                });
+                const data = await response.json();
+                if (!data.ok) {
+                    showToast(data.message || "Profil fotoğrafı güncellenemedi.");
+                    return false;
+                }
+                state.me = data.user;
+                state.profileImageDraft = data.user.profileImage || "";
+                localStorage.setItem("nexalineUser", data.user.username);
+                rememberAccount(data.user);
+                renderProfile();
+                renderProfileSettingsHero();
+                await loadBootstrap();
+                state.profileImageDraft = state.me.profileImage || "";
+                renderProfileSettingsHero();
+                return true;
+            } catch (_error) {
+                showToast("Profil fotoğrafı sunucuya kaydedilemedi.");
+                return false;
+            } finally {
+                profileImageSaveInFlight = false;
+                photoButtons.forEach(button => button.disabled = false);
+            }
         }
 
         async function changeAccountEmail() {
@@ -13760,7 +13827,7 @@
             ]);
         }
 
-        function useCroppedProfileImage() {
+        async function useCroppedProfileImage() {
             const crop = state.profileCrop;
             const image = crop?.image;
             if (!crop || !image?.naturalWidth || !image?.naturalHeight) {
@@ -13792,12 +13859,20 @@
             context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
 
             const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+            const previousImage = state.me.profileImage || "";
             state.profileImageDraft = dataUrl;
             state.profileCrop = null;
             setAvatar($("settingsAvatar"), { profileImage: dataUrl, displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
             renderProfileSettingsHero();
             closeModal();
-            showToast("Profil fotoğrafı hazır. Kaydetmeyi unutma.");
+            showToast("Profil fotoğrafı kaydediliyor.");
+            const saved = await persistProfileImage(dataUrl);
+            if (!saved) {
+                state.profileImageDraft = previousImage;
+                renderProfileSettingsHero();
+                return;
+            }
+            showToast("Profil fotoğrafı güncellendi.");
         }
 
         async function handleFile(event) {
@@ -14644,10 +14719,19 @@
         $("hideEmailInput").onchange = () => {
             $("emailScopeInput").value = $("hideEmailInput").checked ? "nobody" : "friends";
         };
-        $("removeProfileImageButton").onclick = () => {
+        $("removeProfileImageButton").onclick = async () => {
+            const previousImage = state.me.profileImage || "";
             state.profileImageDraft = "";
             setAvatar($("settingsAvatar"), { displayName: $("displayNameInput").value || state.me.displayName }, state.me.displayName);
             renderProfileSettingsHero();
+            showToast("Profil fotoğrafı kaldırılıyor.");
+            const saved = await persistProfileImage("");
+            if (!saved) {
+                state.profileImageDraft = previousImage;
+                renderProfileSettingsHero();
+                return;
+            }
+            showToast("Profil fotoğrafı kaldırıldı.");
         };
         $("profileImageInput").onchange = handleProfileImage;
         $("saveProfileButton").onclick = saveProfile;
