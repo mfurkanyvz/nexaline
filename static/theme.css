@@ -9403,6 +9403,8 @@ button {
         --mode-color: rgb(0, 244, 85);
         --mode-left-color: rgb(0, 244, 85);
         --mode-right-color: rgb(255, 24, 52);
+        --mode-left-text: rgb(4, 12, 22);
+        --mode-right-text: rgb(248, 250, 255);
         --mode-color-soft: rgba(0, 244, 85, 0.94);
         --mode-color-glow: rgba(0, 244, 85, 0.82);
         --mode-lens: 0;
@@ -9461,6 +9463,10 @@ button {
     }
 
     .chat-mode-switch button {
+        color: #f8faff;
+        text-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.58),
+            0 0 7px rgba(255, 255, 255, 0.16);
         transition:
             color 180ms ease,
             opacity 180ms ease,
@@ -9469,19 +9475,24 @@ button {
     }
 
     .chat-mode-switch button:first-child {
-        color: color-mix(in srgb, var(--mode-left-color) 92%, white);
+        color: var(--mode-left-text);
         opacity: var(--mode-left-opacity);
         transform: scale(var(--mode-left-scale));
     }
 
     .chat-mode-switch button:nth-child(2) {
-        color: color-mix(in srgb, var(--mode-right-color) 92%, white);
+        color: var(--mode-right-text);
         opacity: var(--mode-right-opacity);
         transform: scale(var(--mode-right-scale));
     }
 
     .chat-mode-switch button:not(.active) {
         filter: saturate(0.92) brightness(0.94);
+    }
+
+    .chat-mode-switch button.active {
+        font-weight: 850;
+        letter-spacing: 0.005em;
     }
 
     .chat-mode-switch.mode-switch-dragging button,

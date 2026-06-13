@@ -627,7 +627,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage20-mode-switch-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage21-mode-label-contrast-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -7167,10 +7167,20 @@
             const color = palette.left.map((channel, index) => (
                 Math.round(channel + (palette.right[index] - channel) * nextProgress)
             ));
+            const activeText = [4, 12, 22];
+            const inactiveText = [248, 250, 255];
+            const leftText = activeText.map((channel, index) => (
+                Math.round(channel + (inactiveText[index] - channel) * nextProgress)
+            ));
+            const rightText = inactiveText.map((channel, index) => (
+                Math.round(channel + (activeText[index] - channel) * nextProgress)
+            ));
             const lens = 1 - Math.abs(nextProgress * 2 - 1);
             switcher.style.setProperty("--mode-progress", nextProgress.toFixed(4));
             switcher.style.setProperty("--mode-left-color", `rgb(${palette.left.join(", ")})`);
             switcher.style.setProperty("--mode-right-color", `rgb(${palette.right.join(", ")})`);
+            switcher.style.setProperty("--mode-left-text", `rgb(${leftText.join(", ")})`);
+            switcher.style.setProperty("--mode-right-text", `rgb(${rightText.join(", ")})`);
             switcher.style.setProperty("--mode-color", `rgb(${color.join(", ")})`);
             switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .94)`);
             switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .82)`);
