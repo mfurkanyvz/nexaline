@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage17-voice-transcript-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage18-rich-message-cards-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -10681,6 +10681,13 @@
                 }
 
                 if (!message.deletedAt && !hiddenLabels.length && message.attachment) {
+                    const attachmentType = String(message.attachment.type || "");
+                    bubble.classList.add("has-attachment");
+                    if (attachmentType.startsWith("audio/")) bubble.classList.add("has-voice-attachment");
+                    if (attachmentType === "location") bubble.classList.add("has-location-attachment");
+                    if (message.attachment.viewOnce || attachmentType === "view_once_text") {
+                        bubble.classList.add("has-view-once-attachment");
+                    }
                     bubble.appendChild(renderAttachment(message.attachment, message));
                 }
 
@@ -11361,12 +11368,17 @@
                 link.href = attachment.url;
                 link.target = "_blank";
                 link.rel = "noreferrer";
-                const lat = Number(attachment.lat);
-                const lng = Number(attachment.lng);
                 link.innerHTML = `
-                    <span class="location-map-preview"></span>
-                    <strong>${escapeHtml(attachment.name || "Mevcut konum")}</strong>
-                    <small>${Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : "Haritada aç"}</small>
+                    <span class="location-map-preview" aria-hidden="true">
+                        <i class="location-map-road road-one"></i>
+                        <i class="location-map-road road-two"></i>
+                        <span class="location-map-pin">${svgIcon("location")}</span>
+                    </span>
+                    <span class="location-card-copy">
+                        <strong>${escapeHtml(attachment.name || "Paylaşılan konum")}</strong>
+                        <small>Haritada görüntülemek için dokun</small>
+                    </span>
+                    <span class="location-card-arrow">${svgIcon("chevron")}</span>
                 `;
                 return link;
             }
@@ -11464,7 +11476,7 @@
             const button = document.createElement("button");
             button.type = "button";
             button.className = "profile-action primary";
-            button.textContent = "Tek Görüntülemelik İçeriği Aç";
+            button.textContent = "Bir kez görüntüle";
             button.onclick = () => {
                 localStorage.setItem(key, "opened");
                 markViewOnceOpened(message, attachment);
@@ -11512,7 +11524,7 @@
             const button = document.createElement("button");
             button.type = "button";
             button.className = "profile-action primary";
-            button.textContent = "Tek Mesajı Aç";
+            button.textContent = "Tek mesajı aç";
             button.onclick = () => {
                 localStorage.setItem(key, "opened");
                 markViewOnceOpened(message, attachment);
@@ -12343,7 +12355,7 @@
                 const lng = position.coords.longitude;
                 state.attachment = applyPendingViewOnce({
                     type: "location",
-                    name: "Mevcut konum",
+                    name: "Paylaşılan konum",
                     lat,
                     lng,
                     url: `https://www.google.com/maps?q=${lat},${lng}`
