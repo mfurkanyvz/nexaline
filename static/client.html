@@ -388,28 +388,6 @@
                 <input id="avatarTextInput" maxlength="5" placeholder="Avatar harfi veya kısa logo yazısı">
                 <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
                 <div id="avatarPresetGrid" class="avatar-preset-grid"></div>
-                <div class="privacy-grid">
-                    <label class="toggle-row">
-                        <span>Geçici durum</span>
-                        <select id="temporaryStatusInput">
-                            <option value="">Yok</option>
-                            <option value="Müsait">Müsait</option>
-                            <option value="Meşgul">Meşgul</option>
-                            <option value="Dersteyim">Dersteyim</option>
-                            <option value="Uyuyorum">Uyuyorum</option>
-                        </select>
-                    </label>
-                    <label class="toggle-row">
-                        <span>Süre</span>
-                        <select id="temporaryStatusMinutesInput">
-                            <option value="60">1 saat</option>
-                            <option value="180">3 saat</option>
-                            <option value="480">8 saat</option>
-                            <option value="1440">1 gün</option>
-                        </select>
-                    </label>
-                </div>
-                <button id="saveTemporaryStatusButton" type="button">Geçici Durumu Kaydet</button>
                 <button id="saveProfileButton" class="primary" type="button">Profili Kaydet</button>
             </div>
 
@@ -649,7 +627,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage18-rich-message-cards-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage19-avatar-presets-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1000,6 +978,7 @@
                 displayName: user.displayName || user.username,
                 profileImage: user.profileImage || "",
                 avatar: user.avatar || initials(user.displayName || user.username),
+                avatarGradient: user.avatarGradient || "",
                 lastUsedAt: new Date().toISOString()
             });
             localStorage.setItem(ACCOUNT_LIST_KEY, JSON.stringify(next.slice(0, 6)));
@@ -1225,6 +1204,7 @@
             recordedChunks: [],
             cancelRecording: false,
             profileImageDraft: null,
+            profileAvatarGradientDraft: "",
             profileCrop: null,
             call: {
                 peers: {},
@@ -3916,6 +3896,8 @@
                 body: JSON.stringify({
                     displayName,
                     about,
+                    avatar: state.me.avatar || "",
+                    avatarGradient: state.me.avatarGradient || "",
                     profileImage: state.me.profileImage || null
                 })
             });
@@ -4365,14 +4347,24 @@
 
         function setAvatar(element, userOrTitle, fallbackText) {
             const image = userOrTitle?.profileImage || userOrTitle?.image;
+            const gradient = String(userOrTitle?.avatarGradient || "").trim();
             element.innerHTML = "";
+            element.classList.toggle("avatar-has-custom-gradient", Boolean(gradient) && !image);
+            if (gradient && !image) {
+                element.style.setProperty("--avatar-user-gradient", gradient);
+            } else {
+                element.style.removeProperty("--avatar-user-gradient");
+            }
             if (image) {
                 const img = document.createElement("img");
                 img.src = image;
                 img.alt = fallbackText || userOrTitle.displayName || userOrTitle.title || "NexaLine";
                 element.appendChild(img);
             } else {
-                element.textContent = initials(fallbackText || userOrTitle?.displayName || userOrTitle?.title || userOrTitle || "NL");
+                element.textContent = String(
+                    userOrTitle?.avatar
+                    || initials(fallbackText || userOrTitle?.displayName || userOrTitle?.title || userOrTitle || "NL")
+                ).slice(0, 5);
             }
         }
 
@@ -9761,7 +9753,7 @@
         function contactMatches(user, filter = "") {
             const query = String(filter || "").trim().toLocaleLowerCase("tr-TR");
             if (!query) return true;
-            return [user.displayName, user.username, user.about, user.temporaryStatus?.text]
+            return [user.displayName, user.username, user.about]
                 .filter(Boolean)
                 .some(value => String(value).toLocaleLowerCase("tr-TR").includes(query));
         }
@@ -10043,9 +10035,6 @@
         }
 
         function contactLine(user) {
-            if (user?.temporaryStatus?.text) {
-                return `${user.temporaryStatus.text} • ${user.online ? "çevrimiçi" : "son görülme " + relativeTime(user.lastSeen)}`;
-            }
             const status = contactStatus(user.username);
             if (status === "accepted") {
                 return user.online ? "çevrimiçi" : `son görülme ${relativeTime(user.lastSeen)}`;
@@ -10481,7 +10470,6 @@
                     <span class="profile-chip">${escapeHtml(relationText)}</span>
                     <span class="profile-chip">${Number(user.points || 0)} puan</span>
                     ${pointBadges.map(badge => `<span class="profile-chip point-badge-chip">★ ${escapeHtml(badge.title)}</span>`).join("")}
-                    ${user.temporaryStatus?.text ? `<span class="profile-chip">${escapeHtml(user.temporaryStatus.text)}</span>` : ""}
                     <span class="profile-chip">${user.online ? "Aktif" : "Uygun değil"}</span>
                 </div>
             `;
@@ -12865,6 +12853,7 @@
             $("settingsProfileAboutText").textContent = $("aboutInput")?.value.trim() || state.me?.about || "NexaLine kullanıyorum.";
             setAvatar($("settingsAvatar"), {
                 profileImage: state.profileImageDraft,
+                avatarGradient: state.profileAvatarGradientDraft,
                 avatar: avatarValue,
                 displayName
             }, displayName);
@@ -12875,10 +12864,11 @@
             const grid = $("avatarPresetGrid");
             if (!grid) return;
             const current = ($("avatarTextInput")?.value || state.me?.avatar || "").trim();
+            const currentGradient = state.profileAvatarGradientDraft || state.me?.avatarGradient || "";
             const nameInitials = initials($("displayNameInput")?.value || state.me?.displayName || "NexaLine").slice(0, 5);
             const presets = [{ label: "İsimden", value: nameInitials, gradient: "linear-gradient(135deg,#2ED3C6,#2F80FF)" }, ...AVATAR_PRESETS];
             grid.innerHTML = presets.map(item => `
-                <button class="avatar-preset-card ${current === item.value ? "active" : ""}" type="button" data-avatar-preset="${escapeHtml(item.value)}" data-gradient="${escapeHtml(item.gradient)}">
+                <button class="avatar-preset-card ${current === item.value && currentGradient === item.gradient ? "active" : ""}" type="button" data-avatar-preset="${escapeHtml(item.value)}" data-gradient="${escapeHtml(item.gradient)}">
                     <span class="avatar-mini-preview" style="--avatar-gradient:${escapeHtml(item.gradient)}">${escapeHtml(item.value)}</span>
                     <span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.value)} avatar yazısı</small></span>
                 </button>
@@ -12886,6 +12876,8 @@
             grid.querySelectorAll("[data-avatar-preset]").forEach(button => {
                 button.onclick = () => {
                     $("avatarTextInput").value = button.dataset.avatarPreset || "";
+                    state.profileAvatarGradientDraft = button.dataset.gradient || "";
+                    state.profileImageDraft = "";
                     renderProfileSettingsHero();
                 };
             });
@@ -12967,7 +12959,6 @@
             $("profileUsernameInput").value = state.me.username || "";
             $("avatarTextInput").value = state.me.avatar || initials(state.me.displayName || state.me.username || "NexaLine").slice(0, 5);
             $("aboutInput").value = state.me.about || "";
-            $("temporaryStatusInput").value = state.me.temporaryStatus?.text || "";
             $("hideLastSeenInput").checked = Boolean(state.me.privacy?.lastSeenHidden);
             $("hideOnlineInput").checked = Boolean(state.me.privacy?.onlineHidden);
             $("readReceiptsInput").checked = Boolean(state.me.privacy?.readReceiptsOff);
@@ -12989,6 +12980,7 @@
             $("secretPinInput").value = "";
             $("lockedChatSummary").textContent = `${lockedChatCount()} gizli sohbet var.`;
             state.profileImageDraft = state.me.profileImage || null;
+            state.profileAvatarGradientDraft = state.me.avatarGradient || "";
             state.aiAvatarDraft = state.aiSettings.image || "";
             setAvatar($("settingsAvatar"), state.me, state.me.displayName);
             renderPrivacyScopeSelects();
@@ -13286,6 +13278,7 @@
                         displayName: $("displayNameInput").value.trim(),
                         about: $("aboutInput").value.trim(),
                         avatar: $("avatarTextInput").value.trim(),
+                        avatarGradient: state.profileAvatarGradientDraft,
                         profileImage: state.profileImageDraft
                     })
                 });
@@ -13303,23 +13296,6 @@
                 showToast("Profil güncellendi.");
             } catch (_error) {
                 showToast("Profil sunucusuna ulaşılamadı.");
-            }
-        }
-
-        async function saveTemporaryStatus() {
-            const response = await fetch(`/account/${state.me.username}/status`, {
-                method: "POST",
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    text: $("temporaryStatusInput").value,
-                    minutes: Number($("temporaryStatusMinutesInput").value || 60)
-                })
-            });
-            const data = await response.json();
-            showToast(data.message || "Durum güncellendi.");
-            if (data.ok) {
-                state.me = data.user;
-                renderProfile();
             }
         }
 
@@ -13482,6 +13458,7 @@
                         displayName: state.me.displayName,
                         about: state.me.about || "",
                         avatar: state.me.avatar || "",
+                        avatarGradient: state.me.avatarGradient || "",
                         profileImage
                     })
                 });
@@ -14915,7 +14892,6 @@
         };
         $("profileImageInput").onchange = handleProfileImage;
         $("saveProfileButton").onclick = saveProfile;
-        $("saveTemporaryStatusButton").onclick = saveTemporaryStatus;
         $("savePrivacyButton").onclick = savePrivacy;
         $("saveAppearanceButton").onclick = saveAppearance;
         $("nextAiImageButton").onclick = chooseNextAiImage;

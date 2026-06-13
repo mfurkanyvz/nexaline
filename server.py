@@ -87,7 +87,6 @@ POINT_RULES = {
     "friend_accept": 10,
     "group_join": 20,
     "story": 5,
-    "temporary_status": 5,
     "voice_room_join": 50,
     "voice_room_10min": 5,
     "community_join": 20,
@@ -95,6 +94,13 @@ POINT_RULES = {
     "quest_daily": 50,
     "quest_weekly": 120,
     "quest_special": 200,
+}
+AVATAR_GRADIENTS = {
+    "linear-gradient(135deg,#2ED3C6,#2F80FF)",
+    "linear-gradient(135deg,#2F80FF,#E5485D)",
+    "linear-gradient(135deg,#7B4DFF,#2ED3C6)",
+    "linear-gradient(135deg,#F7C948,#E5485D)",
+    "linear-gradient(135deg,#111827,#2F80FF)",
 }
 POINT_MILESTONES = [
     {"id": "first_light", "threshold": 2500, "title": "İlk Işık", "reward": "Başlangıç rozeti"},
@@ -145,6 +151,7 @@ class User(db.Model):
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
     profile_image = db.Column(db.Text, nullable=True)
     avatar = db.Column(db.String(8), nullable=False)
+    avatar_gradient = db.Column(db.String(160), nullable=True)
     hide_last_seen = db.Column(db.Boolean, nullable=False, default=False)
     hide_online = db.Column(db.Boolean, nullable=False, default=False)
     disable_read_receipts = db.Column(db.Boolean, nullable=False, default=False)
@@ -157,8 +164,6 @@ class User(db.Model):
     notification_sound = db.Column(db.String(40), nullable=False, default="classic")
     ai_settings = db.Column(db.JSON, nullable=True)
     about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
-    temporary_status = db.Column(db.String(80), nullable=True)
-    temporary_status_expires_at = db.Column(db.DateTime, nullable=True)
     nearby_enabled = db.Column(db.Boolean, nullable=False, default=False)
     last_lat = db.Column(db.Float, nullable=True)
     last_lng = db.Column(db.Float, nullable=True)
@@ -849,21 +854,6 @@ def maybe_award_profile_completion(user):
     return False
 
 
-def active_temp_status(user):
-    if not user or not user.temporary_status:
-        return None
-    expires_at = user.temporary_status_expires_at
-    now = datetime.now(timezone.utc)
-    if expires_at:
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at <= now:
-            user.temporary_status = None
-            user.temporary_status_expires_at = None
-            return None
-    return {"text": user.temporary_status, "expiresAt": to_iso(user.temporary_status_expires_at) if user.temporary_status_expires_at else None}
-
-
 def distance_km(lat1, lng1, lat2, lng2):
     radius = 6371
     phi1 = math.radians(lat1)
@@ -1036,20 +1026,19 @@ def public_user(username, viewer=None):
     show_email = not blocked and can_view_user_scope(user, viewer, "email")
     show_about = not blocked and can_view_user_scope(user, viewer, "about")
     show_photo = not blocked and can_view_user_scope(user, viewer, "photo")
-    temp_status = None if blocked else active_temp_status(user)
     points = 0 if blocked else user_points(username) if user else 0
     privacy_scopes = privacy_scopes_for(user)
     return {
         "username": username,
         "displayName": user.display_name if user else username,
         "avatar": user.avatar if user else username[:2].upper(),
+        "avatarGradient": user.avatar_gradient if user else None,
         "profileImage": user.profile_image if user and show_photo else None,
         "about": user.about if user and show_about else "",
         "createdAt": to_iso(user.created_at) if user else now_iso(),
         "points": points,
         "pointLevel": point_level(points),
         "pointBadges": point_milestone_badges(points, unlocked_only=True),
-        "temporaryStatus": temp_status,
         "email": user.email if user and show_email else None,
         "online": online if show_online else False,
         "lastSeen": now_iso() if online and show_online else to_iso(user.last_seen) if user and show_last_seen else None,
@@ -6478,6 +6467,7 @@ def update_profile(username):
     about = (data.get("about") or user.about or "").strip()
     profile_image = data.get("profileImage")
     avatar = re.sub(r"\s+", "", str(data.get("avatar") or "")).strip()
+    avatar_gradient = str(data.get("avatarGradient") or "").strip()
 
     if len(display_name) < 2 or len(display_name) > 80:
         return jsonify({"ok": False, "message": "Görünen ad 2-40 karakter olmalı."}), 400
@@ -6490,6 +6480,7 @@ def update_profile(username):
         user.avatar = tr_upper(avatar[:5])
     else:
         user.avatar = tr_upper(display_name[:2])
+    user.avatar_gradient = avatar_gradient if avatar_gradient in AVATAR_GRADIENTS else None
     user.about = about or "NexaLine kullanıyorum."
     if isinstance(profile_image, str):
         if profile_image and not profile_image.startswith("data:image/"):
@@ -6684,24 +6675,6 @@ def update_preferences(username):
     return jsonify({"ok": True, "message": "Tercihler kaydedildi.", "user": private_user(username)})
 
 
-@app.route("/account/<username>/status", methods=["POST"])
-def update_temporary_status(username):
-    data = request.get_json() or {}
-    username = username.strip().lower()
-    user = db.session.get(User, username)
-    if not user:
-        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
-    text_value = re.sub(r"\s+", " ", (data.get("text") or "").strip())[:80]
-    minutes = max(0, min(24 * 60, int(data.get("minutes") or 0)))
-    user.temporary_status = text_value or None
-    user.temporary_status_expires_at = datetime.now(timezone.utc) + timedelta(minutes=minutes) if text_value and minutes else None
-    if text_value:
-        add_points_once(username, POINT_RULES["temporary_status"], "temporary_status", datetime.now(timezone.utc).strftime("%Y-%m-%d"), {"text": text_value})
-    db.session.commit()
-    broadcast_presence()
-    return jsonify({"ok": True, "message": "Geçici durum güncellendi.", "user": private_user(username)})
-
-
 BADGE_DEFINITIONS = [
     {"id": "first_step", "title": "İlk Adım", "description": "İlk puanını kazan.", "reward": "+25", "target": 1, "reason": "any"},
     {"id": "chat_master", "title": "Sohbet Ustası", "description": "100 mesaj puanı kazan.", "reward": "Sohbet rozeti", "target": 100, "reason": "message"},
@@ -6765,7 +6738,7 @@ def badge_progress(username, points):
         elif reason == "daily_streak":
             value = streak
         elif reason == "feature_mix":
-            value = len(feature_reasons.intersection({"message", "story", "voice_room_join", "community_join", "ai_chat", "temporary_status"}))
+            value = len(feature_reasons.intersection({"message", "story", "voice_room_join", "community_join", "ai_chat"}))
         elif reason == "any":
             value = PointLedger.query.filter_by(username=username).count()
         else:
@@ -9631,6 +9604,7 @@ with app.app_context():
         "email_normalized": "ALTER TABLE \"user\" ADD COLUMN email_normalized VARCHAR(255)",
         "email_verified": "ALTER TABLE \"user\" ADD COLUMN email_verified BOOLEAN DEFAULT FALSE NOT NULL",
         "profile_image": "ALTER TABLE \"user\" ADD COLUMN profile_image TEXT",
+        "avatar_gradient": "ALTER TABLE \"user\" ADD COLUMN avatar_gradient VARCHAR(160)",
         "last_seen": "ALTER TABLE \"user\" ADD COLUMN last_seen TIMESTAMP",
         "hide_last_seen": "ALTER TABLE \"user\" ADD COLUMN hide_last_seen BOOLEAN DEFAULT FALSE NOT NULL",
         "hide_online": "ALTER TABLE \"user\" ADD COLUMN hide_online BOOLEAN DEFAULT FALSE NOT NULL",
@@ -9643,8 +9617,6 @@ with app.app_context():
         "font_size_preference": "ALTER TABLE \"user\" ADD COLUMN font_size_preference VARCHAR(20) DEFAULT 'medium' NOT NULL",
         "notification_sound": "ALTER TABLE \"user\" ADD COLUMN notification_sound VARCHAR(40) DEFAULT 'classic' NOT NULL",
         "ai_settings": "ALTER TABLE \"user\" ADD COLUMN ai_settings JSON",
-        "temporary_status": "ALTER TABLE \"user\" ADD COLUMN temporary_status VARCHAR(80)",
-        "temporary_status_expires_at": "ALTER TABLE \"user\" ADD COLUMN temporary_status_expires_at TIMESTAMP",
         "nearby_enabled": "ALTER TABLE \"user\" ADD COLUMN nearby_enabled BOOLEAN DEFAULT FALSE NOT NULL",
         "last_lat": "ALTER TABLE \"user\" ADD COLUMN last_lat FLOAT",
         "last_lng": "ALTER TABLE \"user\" ADD COLUMN last_lng FLOAT",
