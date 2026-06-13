@@ -4319,6 +4319,19 @@
             return "none";
         }
 
+        function cancelOutgoingContactRequest(user, closePanel = false) {
+            const requestRow = contactRequestWith(user?.username);
+            const canCancel = requestRow
+                && requestRow.status === "pending"
+                && requestRow.from?.username === state.me?.username;
+            if (!canCancel) {
+                showToast("Geri çekilecek bekleyen istek bulunamadı.");
+                return;
+            }
+            if (closePanel) closeModal();
+            socket.emit("contact:cancel", { requestId: requestRow.id });
+        }
+
         function userByUsername(username) {
             return state.users.find(user => user.username === username) || (state.me?.username === username ? state.me : null);
         }
@@ -5765,7 +5778,7 @@
             setNavBadge("calls", missedCalls);
             setNavBadge("stories", activeStories);
             setNavBadge("explore", activeStories + state.groupInvites.filter(invite => invite.status === "pending").length);
-            setNavBadge("contacts", 0);
+            setNavBadge("contacts", incomingRequests);
         }
 
         const SWIPE_SECTION_ORDER = ["stories", "calls", "explore", "chats", "contacts"];
@@ -9411,10 +9424,16 @@
                 incomingBadge.textContent = "İstek";
                 side.appendChild(incomingBadge);
             } else if (status === "outgoing") {
-                const pendingBadge = document.createElement("span");
-                pendingBadge.className = "contact-relation-badge pending";
-                pendingBadge.textContent = "Bekliyor";
-                side.appendChild(pendingBadge);
+                const pendingButton = document.createElement("button");
+                pendingButton.className = "request-button pending";
+                pendingButton.type = "button";
+                pendingButton.textContent = "İstek gönderildi";
+                pendingButton.setAttribute("aria-label", "İstek gönderildi, geri çek");
+                pendingButton.onclick = event => {
+                    event.stopPropagation();
+                    cancelOutgoingContactRequest(user);
+                };
+                side.appendChild(pendingButton);
             } else {
                 const requestButton = document.createElement("button");
                 requestButton.className = "request-button";
@@ -9794,7 +9813,10 @@
                     }
                 });
             } else if (status === "outgoing") {
-                actions.unshift({ label: "İstek Gönderildi", onClick: () => showToast("İstek zaten gönderildi.") });
+                actions.unshift({
+                    label: "İsteği Geri Çek",
+                    onClick: () => cancelOutgoingContactRequest(user, true)
+                });
             } else if (status === "blocked") {
                 actions.unshift({
                     label: "Engeli Kaldır",
@@ -10114,7 +10136,7 @@
                 addAction("İsteği Kabul Et", "primary", () => socket.emit("contact:respond", { requestId: requestRow.id, accept: true }));
                 addAction("Reddet", "", () => socket.emit("contact:respond", { requestId: requestRow.id, accept: false }));
             } else if (status === "outgoing") {
-                addAction("İstek Gönderildi", "", () => showToast("İstek zaten gönderildi."));
+                addAction("İsteği Geri Çek", "", () => cancelOutgoingContactRequest(user));
             } else if (status === "blocked") {
                 addAction("Engeli Kaldır", "primary", () => socket.emit("user:block", { username: user.username, blocked: false }));
             } else {

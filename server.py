@@ -8039,6 +8039,28 @@ def handle_contact_respond(data):
     emit("notice", {"message": "İstek kabul edildi." if accept else "İstek reddedildi."})
 
 
+@socketio.on("contact:cancel")
+def handle_contact_cancel(data):
+    username = connections.get(request.sid)
+    request_row = db.session.get(ContactRequest, (data or {}).get("requestId"))
+
+    if (
+        not username
+        or not request_row
+        or request_row.from_username != username
+        or request_row.status != "pending"
+    ):
+        emit("notice", {"message": "Geri çekilecek bekleyen istek bulunamadı."})
+        return
+
+    target = request_row.to_username
+    request_row.status = "cancelled"
+    request_row.responded_at = datetime.now(timezone.utc)
+    db.session.commit()
+    emit_social_updates(username, target)
+    emit("notice", {"message": "Arkadaşlık isteği geri çekildi."})
+
+
 @socketio.on("contact:remove")
 def handle_contact_remove(data):
     username = connections.get(request.sid)
@@ -8119,14 +8141,22 @@ def handle_chat_create(data):
         if existing_request and existing_request.status == "pending":
             emit("notice", {"message": "Mesajlaşma isteği zaten bekliyor."})
         else:
-            request_row = ContactRequest(
-                id=uuid4().hex,
-                from_username=username,
-                to_username=target,
-                status="pending",
-            )
-            db.session.add(request_row)
-            add_points(username, POINT_RULES["friend_invite"], "friend_invite", {"target": target})
+            if existing_request:
+                request_row = existing_request
+                request_row.from_username = username
+                request_row.to_username = target
+                request_row.status = "pending"
+                request_row.created_at = datetime.now(timezone.utc)
+                request_row.responded_at = None
+            else:
+                request_row = ContactRequest(
+                    id=uuid4().hex,
+                    from_username=username,
+                    to_username=target,
+                    status="pending",
+                )
+                db.session.add(request_row)
+                add_points(username, POINT_RULES["friend_invite"], "friend_invite", {"target": target})
             db.session.commit()
             emit("notice", {"message": "Mesajlaşma isteği gönderildi. Karşı taraf kabul edince sohbet açılacak."})
             emit_social_updates(username, target)
