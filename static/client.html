@@ -627,7 +627,8 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage21-mode-label-contrast-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage22-fast-startup-v1";
+        const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
             try {
@@ -1141,6 +1142,8 @@
             outbox: readStoredJson("nexalineOutbox", []),
             transitionTimer: null,
             transitionHideTimer: null,
+            startupGuardTimer: null,
+            startupShellRevealed: false,
             paneTransitionTimer: null,
             paneTransitionHideTimer: null,
             activeSection: "chats",
@@ -2123,7 +2126,24 @@
             }
         }
 
-        function restoreOfflineBootstrap() {
+        function clearStartupGuard() {
+            clearTimeout(state.startupGuardTimer);
+            state.startupGuardTimer = null;
+        }
+
+        function revealStartupShell(message = "") {
+            clearStartupGuard();
+            if (!state.me) return;
+            state.offlineMode = true;
+            state.startupShellRevealed = true;
+            render();
+            hideScreenTransition();
+            if (message) {
+                showToast(message);
+            }
+        }
+
+        function restoreOfflineBootstrap({ silent = false } = {}) {
             const key = offlineBootstrapKey();
             const cached = key ? readStoredJson(key, null) : null;
             if (!cached?.user) return false;
@@ -2139,9 +2159,13 @@
             applyPushDeepLink(currentChatId);
             state.bootReady = true;
             state.offlineMode = true;
+            state.startupShellRevealed = true;
+            clearStartupGuard();
             render();
             hideScreenTransition();
-            showToast("Cevrimdisi mod: son kaydedilen veriler gosteriliyor.");
+            if (!silent) {
+                showToast("Cevrimdisi mod: son kaydedilen veriler gosteriliyor.");
+            }
             return true;
         }
 
@@ -4524,6 +4548,7 @@
 
         function resetToAuth(message = "") {
             resetVoiceRoomAudio();
+            clearStartupGuard();
             localStorage.removeItem("nexalineUser");
             state.me = null;
             state.users = [];
@@ -4547,6 +4572,7 @@
             state.activeChatId = null;
             state.activeProfileUsername = null;
             state.bootReady = false;
+            state.startupShellRevealed = false;
             $("app").classList.add("hidden");
             $("app").classList.remove("chat-open", "keyboard-open");
             $("accountSwitcherMenu")?.classList.add("hidden");
@@ -5249,12 +5275,22 @@
             loadAiSettings();
             startAiPlanReminderEngine();
             checkPermission().catch(() => {});
+            clearStartupGuard();
+            state.startupShellRevealed = false;
             showScreenTransition("NexaLine açılıyor", 0);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
+            const restoredFromCache = restoreOfflineBootstrap({ silent: true });
+            if (!restoredFromCache) {
+                state.startupGuardTimer = setTimeout(() => {
+                    if (!state.startupShellRevealed) {
+                        revealStartupShell("Bağlantı yavaş; güncel veriler arka planda yükleniyor.");
+                    }
+                }, STARTUP_UI_DEADLINE_MS);
+            }
             joinRealtime();
             loadRtcConfig();
-            loadBootstrap();
+            loadBootstrap().catch(() => {});
         }
 
         async function loadRtcConfig() {
@@ -5283,13 +5319,12 @@
                 });
                 data = await response.json();
             } catch (error) {
-                if (!state.bootReady && restoreOfflineBootstrap()) {
+                if (!state.bootReady && restoreOfflineBootstrap({ silent: false })) {
                     state.bootstrapLoading = false;
                     return;
                 }
                 if (!state.bootReady) {
-                    hideScreenTransition();
-                    $("authStatus").textContent = "Sunucuya bağlanılamadı. Birazdan tekrar dene.";
+                    revealStartupShell("Sunucuya bağlanılamadı. Bağlantı gelince yeniden denenecek.");
                 }
                 state.bootstrapLoading = false;
                 return;
@@ -5311,14 +5346,15 @@
                 hydrateRealtimeState(data);
                 applyPushDeepLink(currentChatId);
                 state.bootReady = true;
+                state.startupShellRevealed = true;
+                clearStartupGuard();
                 render();
                 hideScreenTransition();
                 maybePromptGeneralGroup();
             } else if (response.status === 401 || response.status === 404) {
                 resetToAuth(data.message || "Oturum bulunamadı. Yeniden giriş yap.");
             } else if (!state.bootReady) {
-                hideScreenTransition();
-                $("authStatus").textContent = data.message || "Başlangıç verileri alınamadı.";
+                revealStartupShell(data.message || "Başlangıç verileri alınamadı.");
             }
             state.bootstrapLoading = false;
         }
@@ -15090,6 +15126,8 @@
             hydrateRealtimeState(data);
             applyPushDeepLink(currentChatId);
             state.bootReady = true;
+            state.startupShellRevealed = true;
+            clearStartupGuard();
             render();
             hideScreenTransition();
             maybePromptGeneralGroup();

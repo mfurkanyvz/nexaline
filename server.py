@@ -1,6 +1,7 @@
 import os
 import ipaddress
 import base64
+import gzip
 import hashlib
 import html
 import mimetypes
@@ -51,6 +52,50 @@ app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 db = SQLAlchemy(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_http_buffer_size=10_000_000)
+
+
+@app.after_request
+def gzip_text_responses(response):
+    accept_encoding = request.headers.get("Accept-Encoding", "").lower()
+    mime_type = (response.mimetype or "").lower()
+    compressible_types = {
+        "application/javascript",
+        "application/json",
+        "application/manifest+json",
+        "application/xml",
+    }
+    if (
+        "gzip" not in accept_encoding
+        or request.method == "HEAD"
+        or request.headers.get("Range")
+        or request.path.startswith("/socket.io/")
+        or response.status_code < 200
+        or response.status_code in {204, 304}
+        or response.headers.get("Content-Encoding")
+        or mime_type == "text/event-stream"
+        or not (mime_type.startswith("text/") or mime_type in compressible_types)
+    ):
+        return response
+
+    if response.direct_passthrough:
+        response.direct_passthrough = False
+    body = response.get_data()
+    if len(body) < 1024:
+        return response
+
+    compressed = gzip.compress(body, compresslevel=6)
+    if len(compressed) >= len(body):
+        return response
+
+    response.set_data(compressed)
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = str(len(compressed))
+    vary = [item.strip() for item in response.headers.get("Vary", "").split(",") if item.strip()]
+    if "Accept-Encoding" not in vary:
+        vary.append("Accept-Encoding")
+    response.headers["Vary"] = ", ".join(vary)
+    return response
+
 
 connections = {}
 typing_users = {}
