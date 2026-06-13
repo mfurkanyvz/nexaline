@@ -5845,11 +5845,89 @@
             tab?.classList.add("nav-preview");
         }
 
+        function resetNavTabInterpolation() {
+            const nav = document.querySelector(".nav-tabs");
+            nav?.classList.remove("nav-interpolating");
+            document.querySelectorAll(".nav-tab").forEach(tab => {
+                tab.style.removeProperty("--nav-focus");
+                tab.style.removeProperty("--nav-lift");
+                tab.style.removeProperty("--nav-icon-lift");
+                tab.style.removeProperty("--nav-icon-scale");
+                tab.style.removeProperty("--nav-icon-glow");
+                tab.style.removeProperty("--nav-icon-bg");
+                tab.style.removeProperty("color");
+            });
+        }
+
+        function setNavTabFocus(tab, focus) {
+            if (!tab) return;
+            const mix = clamp(focus, 0, 1);
+            const muted = [156, 163, 175];
+            const active = [56, 189, 248];
+            const color = muted.map((channel, index) => Math.round(channel + (active[index] - channel) * mix));
+            tab.style.setProperty("--nav-focus", mix.toFixed(3));
+            tab.style.setProperty("--nav-lift", `${(-3 * mix).toFixed(2)}px`);
+            tab.style.setProperty("--nav-icon-lift", `${(-2 * mix).toFixed(2)}px`);
+            tab.style.setProperty("--nav-icon-scale", (1 + .14 * mix).toFixed(3));
+            tab.style.setProperty("--nav-icon-glow", `${(9 * mix).toFixed(2)}px`);
+            tab.style.setProperty("--nav-icon-bg", `rgba(56, 189, 248, ${(.08 * mix).toFixed(3)})`);
+            tab.style.setProperty("color", `rgb(${color.join(", ")})`);
+        }
+
+        function applyNavTabInterpolation(fromTab, toTab, progress) {
+            const nav = document.querySelector(".nav-tabs");
+            if (!nav || !fromTab || !toTab) return;
+            const mix = clamp(progress, 0, 1);
+            nav.classList.add("nav-interpolating");
+            document.querySelectorAll(".nav-tab").forEach(tab => setNavTabFocus(tab, 0));
+            if (fromTab === toTab) {
+                setNavTabFocus(fromTab, 1);
+                setNavPreviewTab(fromTab);
+                return;
+            }
+            setNavTabFocus(fromTab, 1 - mix);
+            setNavTabFocus(toTab, mix);
+            setNavPreviewTab(mix >= .5 ? toTab : fromTab);
+        }
+
+        function navInterpolationAtPointer(clientX) {
+            const tabs = visibleNavTabs();
+            if (!tabs.length) return null;
+            const positions = tabs
+                .map(tab => {
+                    const rect = tab.getBoundingClientRect();
+                    return { tab, center: rect.left + rect.width / 2 };
+                })
+                .sort((left, right) => left.center - right.center);
+            if (clientX <= positions[0].center) {
+                return { fromTab: positions[0].tab, toTab: positions[0].tab, progress: 1 };
+            }
+            const last = positions[positions.length - 1];
+            if (clientX >= last.center) {
+                return { fromTab: last.tab, toTab: last.tab, progress: 1 };
+            }
+            for (let index = 0; index < positions.length - 1; index += 1) {
+                const from = positions[index];
+                const to = positions[index + 1];
+                if (clientX <= to.center) {
+                    const distance = Math.max(1, to.center - from.center);
+                    return {
+                        fromTab: from.tab,
+                        toTab: to.tab,
+                        progress: clamp((clientX - from.center) / distance, 0, 1)
+                    };
+                }
+            }
+            return { fromTab: last.tab, toTab: last.tab, progress: 1 };
+        }
+
         function syncNavIndicatorToElement(element, instant = false) {
             const nav = document.querySelector(".nav-tabs");
             if (!nav || !element) return;
             nav.classList.remove("indicator-hot");
             nav.style.setProperty("--indicator-intensity", "1");
+            resetNavTabInterpolation();
+            setNavPreviewTab();
             setNavIndicatorRect(navIndicatorRectForTab(element), nav.getBoundingClientRect(), instant);
         }
 
@@ -5868,7 +5946,10 @@
             nav.classList.add("indicator-following");
             nav.classList.toggle("indicator-hot", proximity > 0.58);
             nav.style.setProperty("--indicator-intensity", proximity.toFixed(3));
-            setNavPreviewTab(targetTab);
+            const interpolation = navInterpolationAtPointer(clientX);
+            if (interpolation) {
+                applyNavTabInterpolation(interpolation.fromTab, interpolation.toTab, interpolation.progress);
+            }
             setNavIndicatorRect({
                 left: centerX - width / 2,
                 top: centerY - height / 2,
@@ -5884,6 +5965,7 @@
             const fromRect = navIndicatorRectForTab(fromTab);
             const toRect = navIndicatorRectForTab(toTab);
             const mix = clamp(progress, 0, 1);
+            applyNavTabInterpolation(fromTab, toTab, mix);
             setNavIndicatorRect({
                 left: fromRect.left + (toRect.left - fromRect.left) * mix,
                 top: fromRect.top + (toRect.top - fromRect.top) * mix,
@@ -6007,6 +6089,7 @@
                 nav?.classList.remove("dragging-nav", "swipe-glow", "indicator-following", "indicator-hot");
                 nav?.style.setProperty("--indicator-intensity", "1");
                 setNavPreviewTab();
+                resetNavTabInterpolation();
                 surface.classList.remove("section-dragging");
                 if (dragActiveList) {
                     dragActiveList.style.transform = "";
