@@ -272,6 +272,7 @@
                 <button id="closeStoryButton" class="icon-btn" type="button">×</button>
             </div>
             <div id="storyBody"></div>
+            <div id="storyActionBar" class="story-action-bar"></div>
         </div>
     </section>
 
@@ -6660,6 +6661,7 @@
         let storyCloseTimer = null;
         let storyOpenTimer = null;
         let storyPlayback = null;
+        let storyReplyPending = false;
 
         function clearStoryAdvance() {
             if (storyAdvanceTimer) {
@@ -6791,8 +6793,12 @@
             $("storyTitle").textContent = story.user.displayName;
             $("storyMeta").textContent = `${relativeTime(story.createdAt)} paylaşıldı • Bitiş: ${expires}`;
             const body = $("storyBody");
+            const actionBar = $("storyActionBar");
             body.innerHTML = "";
-            body.classList.remove("story-content-enter", "story-forward", "story-backward");
+            actionBar.innerHTML = "";
+            body.classList.remove("story-content-enter", "story-forward", "story-backward", "story-has-copy", "story-has-media");
+            body.classList.toggle("story-has-copy", Boolean(story.body));
+            body.classList.toggle("story-has-media", Boolean(story.attachment));
             if (story.body) {
                 const text = document.createElement("p");
                 text.className = "story-text";
@@ -6806,30 +6812,44 @@
             }
             if (story.username === state.me.username) {
                 const deleteButton = document.createElement("button");
-                deleteButton.className = "mini-btn danger";
+                deleteButton.className = "story-delete-button danger";
                 deleteButton.type = "button";
                 deleteButton.textContent = "Durumu Sil";
-                deleteButton.onclick = () => {
+                deleteButton.onclick = event => {
+                    event.stopPropagation();
                     socket.emit("story:delete", { storyId: story.id });
                     closeStoryPanel();
                 };
-                body.appendChild(deleteButton);
+                actionBar.appendChild(deleteButton);
             } else {
                 const reply = document.createElement("div");
                 reply.className = "story-reply";
-                reply.innerHTML = `<input id="storyReplyInput" placeholder="Duruma yanıt yaz"><button id="storyReplyButton" type="button">Yanıtla</button>`;
-                body.appendChild(reply);
-                $("storyReplyButton").onclick = event => {
+                reply.innerHTML = `<input id="storyReplyInput" enterkeyhint="send" autocomplete="off" placeholder="Duruma yanıt yaz"><button id="storyReplyButton" type="button">Gönder</button>`;
+                actionBar.appendChild(reply);
+                const sendReply = event => {
                     event.stopPropagation();
+                    if (storyReplyPending) return;
                     const value = $("storyReplyInput").value.trim();
                     if (!value) {
+                        $("storyReplyInput").focus();
                         return;
                     }
+                    storyReplyPending = true;
+                    $("storyReplyButton").disabled = true;
+                    $("storyReplyInput").disabled = true;
                     socket.emit("story:reply", { storyId: story.id, body: value });
-                    $("storyReplyInput").value = "";
-                    closeStoryPanel();
                 };
+                $("storyReplyButton").onclick = sendReply;
                 $("storyReplyInput").onclick = event => event.stopPropagation();
+                $("storyReplyInput").onfocus = pauseStoryPlayback;
+                $("storyReplyInput").onblur = () => {
+                    if (!storyReplyPending) resumeStoryPlayback();
+                };
+                $("storyReplyInput").onkeydown = event => {
+                    if (event.key !== "Enter" || event.shiftKey) return;
+                    event.preventDefault();
+                    sendReply(event);
+                };
             }
             void body.offsetWidth;
             body.classList.add("story-content-enter", direction === "backward" ? "story-backward" : "story-forward");
@@ -6863,10 +6883,12 @@
             panel.style.removeProperty("--story-drag-y");
             panel.style.removeProperty("--story-drag-opacity");
             $("storyBody").innerHTML = "";
+            $("storyActionBar").innerHTML = "";
             $("storyProgress").innerHTML = "";
             $("storyProgress").style.removeProperty("grid-template-columns");
             state.storyQueue = [];
             state.activeStoryIndex = 0;
+            storyReplyPending = false;
             storyCloseTimer = null;
         }
 
@@ -6898,6 +6920,10 @@
 
         function showPreviousStory() {
             if (!state.storyQueue.length) return;
+            if (state.activeStoryIndex <= 0) {
+                resumeStoryPlayback();
+                return;
+            }
             state.activeStoryIndex = Math.max(0, state.activeStoryIndex - 1);
             showStory(state.storyQueue[state.activeStoryIndex], null, "backward");
         }
@@ -14645,12 +14671,12 @@
             panel.style.removeProperty("--story-drag-x");
             panel.style.removeProperty("--story-drag-y");
             panel.style.removeProperty("--story-drag-opacity");
-            if (dy > 72 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+            if (dy > 54 && Math.abs(dy) > Math.abs(dx) * 1.15) {
                 closeStoryPanel();
             } else if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.1) {
                 dx < 0 ? showNextStory() : showPreviousStory();
             } else if (elapsed < 340 && Math.abs(dx) < 14 && Math.abs(dy) < 14) {
-                event.clientX < window.innerWidth * 0.36 ? showPreviousStory() : showNextStory();
+                event.clientX < window.innerWidth * 0.5 ? showPreviousStory() : showNextStory();
             } else {
                 resumeStoryPlayback();
             }
@@ -14997,6 +15023,27 @@
             if (!storyId) return;
             state.stories = (state.stories || []).filter(story => story.id !== storyId);
             renderStories();
+        });
+
+        socket.on("story:reply:result", data => {
+            storyReplyPending = false;
+            const input = $("storyReplyInput");
+            const button = $("storyReplyButton");
+            if (!data?.ok || !data.chat) {
+                if (input) input.disabled = false;
+                if (button) button.disabled = false;
+                showToast(data?.message || "Durum yanıtı gönderilemedi.");
+                input?.focus();
+                return;
+            }
+            upsertChat(data.chat);
+            state.activeSection = "chats";
+            state.activeProfileUsername = null;
+            state.activeChatId = data.chat.id;
+            closeStoryPanel();
+            render();
+            openMobileChat();
+            showToast(data.message || "Yanıt gönderildi.");
         });
 
         socket.on("calls:update", callLogs => {

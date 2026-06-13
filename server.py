@@ -8866,14 +8866,16 @@ def handle_story_reply(data):
     body = (data.get("body") or "").strip()
 
     if not username or not story or story.username == username or not body:
+        if username:
+            emit("story:reply:result", {"ok": False, "message": "Durum yanıtı gönderilemedi."})
         return
 
     if is_blocked_between(username, story.username):
-        emit("notice", {"message": "Bu kişiye yanıt gönderilemiyor."})
+        emit("story:reply:result", {"ok": False, "message": "Bu kişiye yanıt gönderilemiyor."})
         return
 
     if not accepted_contact(username, story.username):
-        emit("notice", {"message": "Duruma yanıt vermek için önce mesajlaşma isteği kabul edilmeli."})
+        emit("story:reply:result", {"ok": False, "message": "Duruma yanıt vermek için önce mesajlaşma isteği kabul edilmeli."})
         return
 
     chat = ensure_direct_chat(username, story.username)
@@ -8900,6 +8902,12 @@ def handle_story_reply(data):
         for sid in connected_sids_for(member):
             join_room(chat.id, sid=sid)
             socketio.emit("chat:upsert", chat_for_user(chat, member), room=sid)
+    emit("story:reply:result", {
+        "ok": True,
+        "message": "Durum yanıtı gönderildi.",
+        "storyId": story.id,
+        "chat": chat_for_user(chat, username),
+    })
 
 
 @socketio.on("updates:create")
