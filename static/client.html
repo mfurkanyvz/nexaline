@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage14-vivid-tabs-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage15-native-media-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -11826,7 +11826,14 @@
             }, [{ label: "Vazgeç", onClick: closeModal }], "sheet");
         }
 
-        async function openCameraCapture() {
+        function openCameraCapture() {
+            const input = $("cameraInput");
+            if (!input) return;
+            input.value = "";
+            input.click();
+        }
+
+        async function openInAppCameraCapture() {
             let stream = null;
             let facingMode = "environment";
             let capturedDataUrl = "";
