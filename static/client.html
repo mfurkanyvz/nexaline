@@ -1198,6 +1198,7 @@
             loadingOlder: {},
             preserveScrollChatId: null,
             lastRenderedChatId: null,
+            chatAutoScrollToken: 0,
             historyArmed: false,
             typing: {},
             attachment: null,
@@ -1659,6 +1660,38 @@
         function messageRenderLimit(chatId) {
             state.messageRenderLimits[chatId] = state.messageRenderLimits[chatId] || INITIAL_MESSAGE_RENDER_LIMIT;
             return state.messageRenderLimits[chatId];
+        }
+
+        function cancelScheduledChatScroll() {
+            state.chatAutoScrollToken += 1;
+        }
+
+        function scheduleChatScrollToLatest(chatId) {
+            if (!chatId) return;
+            const token = ++state.chatAutoScrollToken;
+            const messageBox = $("messages");
+            const scrollToLatest = () => {
+                if (
+                    token !== state.chatAutoScrollToken
+                    || state.activeChatId !== chatId
+                    || !messageBox
+                ) {
+                    return;
+                }
+                messageBox.scrollTop = messageBox.scrollHeight;
+            };
+            scrollToLatest();
+            requestAnimationFrame(() => {
+                scrollToLatest();
+                requestAnimationFrame(scrollToLatest);
+            });
+            [120, 320, 700].forEach(delay => setTimeout(scrollToLatest, delay));
+            messageBox.querySelectorAll("img, video, audio").forEach(media => {
+                const ready = media.tagName === "IMG" ? media.complete : media.readyState >= 1;
+                if (!ready) {
+                    media.addEventListener(media.tagName === "IMG" ? "load" : "loadedmetadata", scrollToLatest, { once: true });
+                }
+            });
         }
 
         async function showOlderMessages(chatId) {
@@ -10090,6 +10123,7 @@
             const wasNearBottom = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight < 140;
 
             if (!chat) {
+                cancelScheduledChatScroll();
                 document.querySelector(".chat-top").classList.add("empty-state");
                 state.lastRenderedChatId = null;
                 $("activeTitle").textContent = "";
@@ -10264,7 +10298,9 @@
             if (preserveScroll) {
                 messageBox.scrollTop = Math.max(0, messageBox.scrollHeight - previousScrollHeight + previousScrollTop);
                 state.preserveScrollChatId = null;
-            } else if (chatChanged || wasNearBottom) {
+            } else if (chatChanged) {
+                scheduleChatScrollToLatest(chat.id);
+            } else if (wasNearBottom) {
                 messageBox.scrollTop = messageBox.scrollHeight;
             }
             state.lastRenderedChatId = chat.id;
@@ -11399,9 +11435,6 @@
         }
 
         async function openCameraCapture() {
-            closeModal();
-            $("cameraInput").click();
-            return;
             let stream = null;
             let facingMode = "environment";
             let capturedDataUrl = "";
@@ -11579,6 +11612,7 @@
                 showToast("Önce düzenlenecek bir mesaj yaz.");
                 return;
             }
+            let editedText = "";
             try {
                 showToast("Nexa AI mesajı düzenliyor...");
                 const response = await fetch("/ai/text-tool", {
@@ -11593,16 +11627,32 @@
                     })
                 });
                 const data = await response.json();
-                if (!data.ok) {
-                    showToast(data.message || "AI düzenleyemedi.");
-                    return;
+                if (response.ok && data.ok) {
+                    editedText = cleanAiEditedText(data.result || "");
+                } else {
+                    showToast(data.message || "Nexa AI çevrimdışı; temel düzeltme uygulanıyor.");
                 }
-                input.value = cleanAiEditedText(data.result || text);
-                input.focus();
-                updateComposerState();
             } catch (_error) {
-                showToast("AI düzenleme şu an kullanılamıyor.");
+                showToast("Nexa AI çevrimdışı; temel düzeltme uygulandı.");
             }
+            input.value = editedText || localComposerCleanup(text);
+            input.focus();
+            input.setSelectionRange?.(input.value.length, input.value.length);
+            updateComposerState();
+        }
+
+        function localComposerCleanup(value) {
+            let result = String(value || "")
+                .replace(/\s+/g, " ")
+                .replace(/\s+([,.!?;:])/g, "$1")
+                .replace(/([,.!?;:])(?=\S)/g, "$1 ")
+                .trim();
+            if (!result) return "";
+            result = result.charAt(0).toLocaleUpperCase("tr-TR") + result.slice(1);
+            if (!/[.!?…]$/.test(result)) {
+                result += ".";
+            }
+            return result;
         }
 
         function cleanAiEditedText(value) {
@@ -14475,6 +14525,8 @@
             event.preventDefault();
             $("messages").classList.add("drag-ready");
         });
+        $("messages").addEventListener("pointerdown", cancelScheduledChatScroll, { passive: true });
+        $("messages").addEventListener("wheel", cancelScheduledChatScroll, { passive: true });
         $("messages").addEventListener("dragleave", () => $("messages").classList.remove("drag-ready"));
         $("messages").addEventListener("drop", event => {
             event.preventDefault();
