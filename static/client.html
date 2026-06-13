@@ -1314,7 +1314,9 @@
             forward: '<path d="m15 17 5-5-5-5"/><path d="M20 12h-9a7 7 0 0 0-7 7"/>',
             copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/>',
             pin: '<path d="m12 17-5 5"/><path d="m15 3 6 6-4 2-4 4-4-4 4-4z"/>',
-            more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'
+            more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+            ai: '<rect x="4" y="6" width="16" height="14" rx="5"/><path d="M9 2h6"/><path d="M12 2v4"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M9 16h6"/><path d="M4 11H2"/><path d="M22 11h-2"/>',
+            radar: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/><path d="m12 12 6-6"/><path d="M18.5 13.5a7 7 0 0 0-8-8"/>',
         };
 
         function svgIcon(name) {
@@ -7401,9 +7403,9 @@
             const grid = document.createElement("div");
             grid.className = "explore-grid";
             const cards = [
-                ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", "zap", openAiPanel],
+                ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", "ai", openAiPanel],
                 ["play", "Nexa Play", "Satranç, Solitaire, 2048 ve Block Blast", "star", openNexaPlay],
-                ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", "location", openNearbyPanel],
+                ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", "radar", openNearbyPanel],
                 ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel]
             ];
             cards.forEach(([key, title, hint, icon, action]) => {
