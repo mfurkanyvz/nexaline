@@ -629,7 +629,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage6-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage7-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -10760,7 +10760,7 @@
             }
             openModal("Sohbet ayarları ve temalar", body => {
                 const detail = document.createElement("div");
-                detail.className = "profile-preview";
+                detail.className = "profile-preview chat-pref-profile";
                 const detailAvatar = document.createElement("div");
                 detailAvatar.className = "avatar" + (isChatOnline(chat) ? " online" : "");
                 const detailText = document.createElement("div");
@@ -10789,7 +10789,7 @@
                 }
                 detail.append(detailAvatar, detailText);
                 const toggles = document.createElement("div");
-                toggles.className = "privacy-grid";
+                toggles.className = "privacy-grid chat-pref-toggles";
                 toggles.innerHTML = `
                     <label class="toggle-row"><span>Sohbeti sabitle</span><input id="chatPinnedInput" type="checkbox" ${prefs.pinned ? "checked" : ""}></label>
                     <label class="toggle-row"><span>Sessize al</span><input id="chatMutedInput" type="checkbox" ${prefs.muted ? "checked" : ""}></label>
@@ -10805,7 +10805,7 @@
                 themeInput.id = "chatThemeInput";
                 themeInput.value = chatThemeKey(chat.id);
                 const themeGrid = document.createElement("div");
-                themeGrid.className = "theme-grid";
+                themeGrid.className = "theme-grid chat-pref-theme-grid";
                 Object.entries(CHAT_THEMES).forEach(([key, theme]) => {
                     const card = document.createElement("button");
                     card.type = "button";
@@ -10844,21 +10844,26 @@
                     const row = document.createElement("div");
                     row.className = "sound-row";
                     const text = document.createElement("div");
+                    text.className = "sound-row-copy";
                     text.innerHTML = `<strong>${escapeHtml(title)}</strong><small>${escapeHtml(hint)}</small>`;
                     const button = document.createElement("button");
                     button.type = "button";
                     button.className = "sound-test-button";
                     button.textContent = "▶";
+                    button.title = `${title} önizle`;
+                    button.setAttribute("aria-label", `${title} önizle`);
                     button.onclick = onClick;
                     row.append(text, button);
                     return row;
                 };
                 const tone = document.createElement("select");
                 tone.id = "chatToneInput";
+                tone.className = "chat-pref-select";
                 tone.innerHTML = Object.entries(TONE_LABELS).map(([value, label]) => `<option value="${value}">Gelen mesaj sesi: ${label}</option>`).join("");
                 tone.value = prefs.tone || "classic";
                 const systemSound = document.createElement("select");
                 systemSound.id = "systemSoundInput";
+                systemSound.className = "chat-pref-select";
                 systemSound.innerHTML = Object.entries(SYSTEM_SOUND_LABELS).map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
                 systemSound.value = localStorage.getItem(SYSTEM_SOUND_KEY) || "classic";
                 systemSound.onchange = () => NexaAudio.changeSystemSound(systemSound.value);
@@ -10871,7 +10876,7 @@
                 soundSection.append(soundTitle, soundPanel);
 
                 body.append(detail, toggles, themeSection, soundSection);
-            }, actions);
+            }, actions, "chat-preferences-panel");
         }
 
         function openDeleteChatMenu() {
