@@ -6888,6 +6888,108 @@
             container.appendChild(shell);
         }
 
+        function binaryModePalette(variant) {
+            return variant === "contacts"
+                ? { left: [0, 216, 255], right: [190, 18, 60] }
+                : { left: [34, 197, 94], right: [239, 68, 68] };
+        }
+
+        function updateBinaryModeProgress(switcher, progress) {
+            const nextProgress = clamp(Number(progress) || 0, 0, 1);
+            const palette = binaryModePalette(switcher.dataset.modeVariant);
+            const color = palette.left.map((channel, index) => (
+                Math.round(channel + (palette.right[index] - channel) * nextProgress)
+            ));
+            const lens = 1 - Math.abs(nextProgress * 2 - 1);
+            switcher.style.setProperty("--mode-progress", nextProgress.toFixed(4));
+            switcher.style.setProperty("--mode-color", `rgb(${color.join(", ")})`);
+            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .24)`);
+            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .3)`);
+            switcher.style.setProperty("--mode-lens", lens.toFixed(4));
+            switcher.style.setProperty("--mode-left-scale", (1 + (1 - nextProgress) * 0.075).toFixed(4));
+            switcher.style.setProperty("--mode-right-scale", (1 + nextProgress * 0.075).toFixed(4));
+            switcher.style.setProperty("--mode-left-opacity", (0.6 + (1 - nextProgress) * 0.4).toFixed(4));
+            switcher.style.setProperty("--mode-right-opacity", (0.6 + nextProgress * 0.4).toFixed(4));
+        }
+
+        function setupBinaryModeSwitcher(switcher, options) {
+            const buttons = Array.from(switcher.querySelectorAll("button"));
+            const modes = options.modes || [];
+            const currentIndex = Math.max(0, modes.indexOf(options.current));
+            let pointerId = null;
+            let startX = 0;
+            let dragging = false;
+            let settling = false;
+
+            switcher.dataset.modeVariant = options.variant || "chats";
+            updateBinaryModeProgress(switcher, currentIndex);
+
+            const progressAt = clientX => {
+                const rect = switcher.getBoundingClientRect();
+                const inset = 4;
+                const usableWidth = Math.max(1, rect.width - inset * 2);
+                return clamp((clientX - rect.left - inset) / usableWidth, 0, 1);
+            };
+
+            const commit = (targetIndex, delay = 220) => {
+                const nextIndex = clamp(targetIndex, 0, modes.length - 1);
+                if (settling) return;
+                if (nextIndex === currentIndex) {
+                    updateBinaryModeProgress(switcher, currentIndex);
+                    return;
+                }
+                settling = true;
+                switcher.classList.add("mode-switch-settling");
+                updateBinaryModeProgress(switcher, nextIndex);
+                window.setTimeout(() => options.onChange?.(modes[nextIndex]), delay);
+            };
+
+            buttons.forEach((button, index) => {
+                button.onclick = () => {
+                    if (switcher.dataset.suppressClick === "true") return;
+                    commit(index);
+                };
+            });
+
+            switcher.addEventListener("pointerdown", event => {
+                if (!event.isPrimary || settling) return;
+                pointerId = event.pointerId;
+                startX = event.clientX;
+                dragging = false;
+            }, { passive: true });
+
+            switcher.addEventListener("pointermove", event => {
+                if (pointerId !== event.pointerId || settling) return;
+                if (!dragging && Math.abs(event.clientX - startX) < 4) return;
+                dragging = true;
+                switcher.classList.add("mode-switch-dragging");
+                switcher.setPointerCapture?.(event.pointerId);
+                event.preventDefault();
+                updateBinaryModeProgress(switcher, progressAt(event.clientX));
+            }, { passive: false });
+
+            switcher.addEventListener("pointerup", event => {
+                if (pointerId !== event.pointerId) return;
+                pointerId = null;
+                if (!dragging) {
+                    updateBinaryModeProgress(switcher, currentIndex);
+                    return;
+                }
+                dragging = false;
+                switcher.classList.remove("mode-switch-dragging");
+                switcher.dataset.suppressClick = "true";
+                window.setTimeout(() => delete switcher.dataset.suppressClick, 80);
+                commit(progressAt(event.clientX) >= 0.5 ? 1 : 0, 120);
+            }, { passive: true });
+
+            switcher.addEventListener("pointercancel", () => {
+                pointerId = null;
+                dragging = false;
+                switcher.classList.remove("mode-switch-dragging");
+                updateBinaryModeProgress(switcher, currentIndex);
+            }, { passive: true });
+        }
+
         function appendChatModeSwitcher(container) {
             const switcher = document.createElement("div");
             switcher.className = `chat-mode-switch ${state.chatListMode === "groups" ? "groups-active" : ""}`;
@@ -6902,14 +7004,18 @@
                 button.setAttribute("aria-selected", String(state.chatListMode === mode));
                 button.className = state.chatListMode === mode ? "active" : "";
                 button.textContent = label;
-                button.onclick = () => {
-                    if (state.chatListMode === mode) return;
+                switcher.appendChild(button);
+            });
+            setupBinaryModeSwitcher(switcher, {
+                variant: "chats",
+                current: state.chatListMode,
+                modes: ["chats", "groups"],
+                onChange: mode => {
                     const previousMode = state.chatListMode;
                     state.chatListMode = mode;
                     state.chatSearch = "";
                     renderChats(previousMode === "chats" ? "forward" : "backward");
-                };
-                switcher.appendChild(button);
+                }
             });
             container.appendChild(switcher);
         }
@@ -9565,13 +9671,17 @@
                 button.setAttribute("aria-selected", String(state.contactListMode === mode));
                 button.className = state.contactListMode === mode ? "active" : "";
                 button.textContent = label;
-                button.onclick = () => {
-                    if (state.contactListMode === mode) return;
+                switcher.appendChild(button);
+            });
+            setupBinaryModeSwitcher(switcher, {
+                variant: "contacts",
+                current: state.contactListMode,
+                modes: ["friends", "users"],
+                onChange: mode => {
                     state.contactTransition = mode === "users" ? "forward" : "backward";
                     state.contactListMode = mode;
                     renderContacts();
-                };
-                switcher.appendChild(button);
+                }
             });
             container.appendChild(switcher);
         }
