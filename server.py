@@ -514,7 +514,7 @@ def save_nexa_play_state(username, payload):
 
 DEFAULT_DESIGN_SETTINGS = {
     "brandName": "NexaLine",
-    "logoUrl": "/static/nexaline-mark-3d.png",
+    "logoUrl": "/static/nexaline-logo.png",
     "colors": {
         "background": "#070a0f",
         "panel": "#0f141f",

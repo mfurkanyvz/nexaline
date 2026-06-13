@@ -1005,6 +1005,84 @@ textarea {
     border-radius: 36px;
 }
 
+.screen-transition:not(.hidden) .transition-card {
+    animation: brand-card-arrive 520ms cubic-bezier(.2, .82, .24, 1) both;
+}
+
+.screen-transition:not(.hidden) .transition-mark {
+    position: relative;
+    overflow: visible;
+    background: #000;
+    border: 1px solid rgba(44, 216, 235, 0.22);
+    box-shadow:
+        0 0 28px rgba(19, 205, 220, 0.22),
+        0 0 56px rgba(44, 105, 255, 0.14);
+    animation: brand-logo-breathe 1.45s ease-in-out infinite;
+}
+
+.screen-transition:not(.hidden) .transition-mark::before {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    z-index: -1;
+    border: 1px solid rgba(44, 216, 235, 0.28);
+    border-radius: 44px;
+    opacity: 0;
+    animation: brand-logo-ring 1.45s ease-out infinite;
+}
+
+.screen-transition:not(.hidden) .transition-mark img {
+    border-radius: 34px;
+    animation: brand-logo-shine 1.45s ease-in-out infinite;
+}
+
+.screen-transition:not(.hidden) .transition-lines {
+    display: none;
+}
+
+.screen-transition:not(.hidden) .transition-text {
+    margin-top: 16px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    animation: brand-text-pulse 1.45s ease-in-out infinite;
+}
+
+@keyframes brand-card-arrive {
+    from { opacity: 0; transform: translateY(10px) scale(.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes brand-logo-breathe {
+    0%, 100% { transform: scale(.96); }
+    50% { transform: scale(1.035); }
+}
+
+@keyframes brand-logo-ring {
+    0% { opacity: .7; transform: scale(.82); }
+    75%, 100% { opacity: 0; transform: scale(1.18); }
+}
+
+@keyframes brand-logo-shine {
+    0%, 100% { filter: brightness(.94) saturate(1.02); }
+    50% { filter: brightness(1.14) saturate(1.18); }
+}
+
+@keyframes brand-text-pulse {
+    0%, 100% { opacity: .58; }
+    50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .screen-transition:not(.hidden) .transition-card,
+    .screen-transition:not(.hidden) .transition-mark,
+    .screen-transition:not(.hidden) .transition-mark::before,
+    .screen-transition:not(.hidden) .transition-mark img,
+    .screen-transition:not(.hidden) .transition-text {
+        animation: none;
+    }
+}
+
 .call-panel {
     z-index: 2200;
 }

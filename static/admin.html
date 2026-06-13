@@ -569,7 +569,7 @@
     <main class="shell">
         <aside class="side">
             <div class="brand">
-                <img src="/static/nexaline-mark-3d.png" alt="NexaLine">
+                <img src="/static/nexaline-logo.png" alt="NexaLine">
                 <div>
                     <h1>NexaLine Admin</h1>
                     <small id="ipInfo">IP bilgisi yükleniyor</small>
@@ -1238,7 +1238,7 @@
                     <h3>Marka, renk ve logo</h3>
                     <div class="form-grid">
                         <label>Site adi<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
-                        <label>Logo URL veya data<input id="designLogoUrl" value="${escapeAttr(design.logoUrl || "/static/nexaline-mark-3d.png")}"></label>
+                        <label>Logo URL veya data<input id="designLogoUrl" value="${escapeAttr(design.logoUrl || "/static/nexaline-logo.png")}"></label>
                         <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#070a0f")}"></label>
                         <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#0f141f")}"></label>
                         <label>Ikincil panel<input id="designPanel2" type="color" value="${escapeAttr(colors.panel2 || "#161d2b")}"></label>
@@ -1254,7 +1254,7 @@
                         <label>Sohbet zemini<input id="designChatBackground" type="color" value="${escapeAttr(colors.chatBackground || "#11151d")}"></label>
                     </div>
                     <div class="logo-preview">
-                        <img id="designLogoPreview" src="${escapeAttr(design.logoUrl || "/static/nexaline-mark-3d.png")}" alt="Logo">
+                        <img id="designLogoPreview" src="${escapeAttr(design.logoUrl || "/static/nexaline-logo.png")}" alt="Logo">
                         <input id="designLogoFile" type="file" accept="image/*">
                     </div>
                 </article>
@@ -1314,7 +1314,7 @@
                 };
             });
             $("designLogoUrl").oninput = () => {
-                $("designLogoPreview").src = $("designLogoUrl").value.trim() || "/static/nexaline-mark-3d.png";
+                $("designLogoPreview").src = $("designLogoUrl").value.trim() || "/static/nexaline-logo.png";
             };
             $("designLogoFile").onchange = handleDesignLogoFile;
         }
@@ -1468,7 +1468,7 @@
 
         function resetDesignForm() {
             $("designBrandName").value = "NexaLine";
-            $("designLogoUrl").value = "/static/nexaline-mark-3d.png";
+            $("designLogoUrl").value = "/static/nexaline-logo.png";
             $("designBackground").value = "#10131b";
             $("designPanel").value = "#171b25";
             $("designPanel2").value = "#202631";

@@ -1,8 +1,8 @@
-const CACHE_NAME = "nexaline-pwa-v62-segment-20260613";
+const CACHE_NAME = "nexaline-pwa-v63-logo-20260614";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
-  "/static/nexaline-mark-3d.png",
+  "/static/nexaline-logo.png",
   "/static/icons/icon-192-3d.png",
   "/static/icons/icon-512-3d.png",
   "/static/icons/maskable-512-3d.png",
