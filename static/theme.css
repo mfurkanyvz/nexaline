@@ -5107,6 +5107,92 @@ button {
     height: 32px;
 }
 
+.voice-card {
+    display: grid;
+    gap: 7px;
+    width: min(238px, 62vw);
+    min-width: 0;
+}
+
+.voice-card-head,
+.voice-card-actions {
+    display: flex;
+    align-items: center;
+}
+
+.voice-card-head {
+    gap: 7px;
+    min-width: 0;
+}
+
+.voice-card-head strong {
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.voice-card-icon {
+    width: 25px;
+    height: 25px;
+    flex: 0 0 25px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #e0f5ff;
+    background: rgba(14, 165, 233, 0.34);
+}
+
+.voice-card-icon .nexa-svg {
+    width: 15px;
+    height: 15px;
+}
+
+.voice-card-actions {
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.voice-card-action {
+    min-height: 27px;
+    padding: 0 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.voice-transcript-button {
+    flex: 1;
+}
+
+.voice-card-action .nexa-svg {
+    width: 13px;
+    height: 13px;
+}
+
+.voice-card-action:disabled {
+    opacity: 0.58;
+}
+
+.voice-transcript {
+    max-width: 100%;
+    padding: 8px 9px;
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(2, 8, 23, 0.3);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
 /* Stage 4: compact chat interaction system */
 .composer {
     grid-template-columns: 36px 36px minmax(0, 1fr) 36px;
@@ -5296,7 +5382,8 @@ button {
 }
 
 .voice-card audio {
-    width: min(220px, 58vw);
+    width: 100%;
+    max-width: 100%;
 }
 
 .bubble .message-meta,

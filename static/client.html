@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage16-attachment-icons-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage17-voice-transcript-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1224,8 +1224,6 @@
             recorder: null,
             recordedChunks: [],
             cancelRecording: false,
-            speechRecognition: null,
-            voiceTranscript: "",
             profileImageDraft: null,
             profileCrop: null,
             call: {
@@ -11274,30 +11272,67 @@
                 wrap.className = "voice-card";
                 setUiIndexMetadata(wrap, "4-3-5");
                 const head = document.createElement("div");
-                head.className = "profile-preview";
-                head.innerHTML = `<span class="attachment-option-icon">${svgIcon("mic")}</span><span><strong>Sesli mesaj</strong><small>${escapeHtml(attachment.name || "NexaLine ses kaydı")}</small></span>`;
+                head.className = "voice-card-head";
+                head.innerHTML = `<span class="voice-card-icon">${svgIcon("mic")}</span><strong>Sesli mesaj</strong>`;
                 const audio = document.createElement("audio");
                 audio.className = "voice-message";
                 setUiIndexMetadata(audio, "4-3-5");
                 audio.controls = true;
+                audio.preload = "metadata";
                 audio.src = attachment.dataUrl;
+                const actions = document.createElement("div");
+                actions.className = "voice-card-actions";
                 const speed = document.createElement("button");
                 speed.type = "button";
-                speed.className = "mini-btn";
+                speed.className = "voice-card-action";
                 speed.textContent = "1x";
                 speed.onclick = () => {
                     const next = audio.playbackRate >= 2 ? 1 : audio.playbackRate >= 1.5 ? 2 : 1.5;
                     audio.playbackRate = next;
                     speed.textContent = `${next}x`;
                 };
-                wrap.append(head, audio, speed);
-                if (attachment.transcript) {
+                const transcriptButton = document.createElement("button");
+                transcriptButton.type = "button";
+                transcriptButton.className = "voice-card-action voice-transcript-button";
+                transcriptButton.innerHTML = `${svgIcon("type")}<span>Yazıya çevir</span>`;
+                transcriptButton.onclick = async event => {
+                    event.stopPropagation();
+                    const existing = wrap.querySelector(".voice-transcript");
+                    if (existing) {
+                        existing.classList.toggle("hidden");
+                        transcriptButton.querySelector("span").textContent = existing.classList.contains("hidden")
+                            ? "Yazıyı göster"
+                            : "Yazıyı gizle";
+                        return;
+                    }
+                    transcriptButton.disabled = true;
+                    transcriptButton.querySelector("span").textContent = "Çevriliyor...";
+                    let transcriptText = String(attachment.transcript || "").trim();
+                    if (!transcriptText) {
+                        try {
+                            const result = await runAiStt(attachment.dataUrl);
+                            if (!result?.ok || !result.text) {
+                                throw new Error(result?.message || "Ses yazıya çevrilemedi.");
+                            }
+                            transcriptText = String(result.text).trim().slice(0, 1600);
+                            attachment.transcript = transcriptText;
+                        } catch (error) {
+                            showToast(error.message || "Ses yazıya çevrilemedi.");
+                            transcriptButton.disabled = false;
+                            transcriptButton.querySelector("span").textContent = "Yazıya çevir";
+                            return;
+                        }
+                    }
                     const transcript = document.createElement("div");
                     transcript.className = "voice-transcript";
                     setUiIndexMetadata(transcript, "4-3-6");
-                    transcript.textContent = `Yazıya döküm: ${attachment.transcript}`;
+                    transcript.textContent = transcriptText;
                     wrap.appendChild(transcript);
-                }
+                    transcriptButton.disabled = false;
+                    transcriptButton.querySelector("span").textContent = "Yazıyı gizle";
+                };
+                actions.append(speed, transcriptButton);
+                wrap.append(head, audio, actions);
                 return wrap;
             }
 
@@ -12571,7 +12606,6 @@
                 state.recorder.stop();
                 resetVoiceRecordUi();
                 stopVoiceWave();
-                stopVoiceTranscript();
                 return;
             }
 
@@ -12596,7 +12630,6 @@
                     : "";
             state.recorder = preferredType ? new MediaRecorder(stream, { mimeType: preferredType }) : new MediaRecorder(stream);
             startVoiceWave(stream);
-            startVoiceTranscript();
             state.recorder.ondataavailable = event => {
                 if (event.data.size > 0) {
                     state.recordedChunks.push(event.data);
@@ -12605,7 +12638,6 @@
             state.recorder.onstop = () => {
                 stream.getTracks().forEach(track => track.stop());
                 stopVoiceWave();
-                stopVoiceTranscript();
                 resetVoiceRecordUi();
                 if (state.cancelRecording) {
                     state.recordedChunks = [];
@@ -12633,10 +12665,9 @@
                     state.attachment = applyPendingViewOnce({
                         name: `sesli-mesaj-${Date.now()}.webm`,
                         type: mime,
-                        dataUrl: reader.result,
-                        transcript: state.voiceTranscript
+                        dataUrl: reader.result
                     });
-                    $("messageInput").placeholder = state.voiceTranscript ? "Sesli mesaj ve metin hazır" : "Sesli mesaj hazır";
+                    $("messageInput").placeholder = "Sesli mesaj hazır";
                     state.recordedChunks = [];
                     updateComposerState();
                 };
@@ -12654,7 +12685,6 @@
                 state.recorder.stop();
                 resetVoiceRecordUi();
                 stopVoiceWave();
-                stopVoiceTranscript();
                 showToast("Ses kaydı iptal edildi.");
             }
         }
@@ -13722,40 +13752,6 @@
                 $("voiceWave")._audioContext = null;
             }
             $("voiceWave").classList.remove("active");
-        }
-
-        function startVoiceTranscript() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            state.voiceTranscript = "";
-            if (!SpeechRecognition) {
-                return;
-            }
-            try {
-                const recognition = new SpeechRecognition();
-                recognition.lang = "tr-TR";
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.onresult = event => {
-                    state.voiceTranscript = [...event.results].map(result => result[0]?.transcript || "").join(" ").trim();
-                    if (state.voiceTranscript) {
-                        $("messageInput").placeholder = `Yazıya dökülüyor: ${state.voiceTranscript.slice(0, 42)}`;
-                    }
-                };
-                recognition.onerror = () => {};
-                recognition.start();
-                state.speechRecognition = recognition;
-            } catch (_error) {
-                state.speechRecognition = null;
-            }
-        }
-
-        function stopVoiceTranscript() {
-            if (state.speechRecognition) {
-                try {
-                    state.speechRecognition.stop();
-                } catch (_error) {}
-                state.speechRecognition = null;
-            }
         }
 
         function playTone(frequency, duration) {
