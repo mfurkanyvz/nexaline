@@ -9106,9 +9106,9 @@ button {
 @media (max-width: 860px) {
     .chat-mode-switch {
         --mode-progress: 0;
-        --mode-color: rgb(34, 197, 94);
-        --mode-color-soft: rgba(34, 197, 94, 0.24);
-        --mode-color-glow: rgba(34, 197, 94, 0.3);
+        --mode-color: rgb(0, 244, 85);
+        --mode-color-soft: rgba(0, 244, 85, 0.76);
+        --mode-color-glow: rgba(0, 244, 85, 0.7);
         --mode-lens: 0;
         --mode-left-scale: 1.075;
         --mode-right-scale: 1;

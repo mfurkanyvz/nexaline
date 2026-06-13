@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage13-boot-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage14-vivid-tabs-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -7161,8 +7161,8 @@
 
         function binaryModePalette(variant) {
             return variant === "contacts"
-                ? { left: [10, 132, 255], right: [255, 138, 0] }
-                : { left: [22, 230, 86], right: [255, 45, 69] };
+                ? { left: [0, 140, 255], right: [255, 112, 0] }
+                : { left: [0, 244, 85], right: [255, 24, 52] };
         }
 
         function updateBinaryModeProgress(switcher, progress) {
@@ -7174,8 +7174,8 @@
             const lens = 1 - Math.abs(nextProgress * 2 - 1);
             switcher.style.setProperty("--mode-progress", nextProgress.toFixed(4));
             switcher.style.setProperty("--mode-color", `rgb(${color.join(", ")})`);
-            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .46)`);
-            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .52)`);
+            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .76)`);
+            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .7)`);
             switcher.style.setProperty("--mode-lens", lens.toFixed(4));
             switcher.style.setProperty("--mode-left-scale", (1 + (1 - nextProgress) * 0.075).toFixed(4));
             switcher.style.setProperty("--mode-right-scale", (1 + nextProgress * 0.075).toFixed(4));
