@@ -110,6 +110,7 @@
                 <button id="authBackButton" class="secondary hidden" type="button">Geri</button>
                 <button id="authButton" class="primary" type="button">Giriş Yap</button>
             </div>
+            <button id="accountAddBackButton" class="secondary account-add-back hidden" type="button">← Hesaplarıma Geri Dön</button>
             <button id="forgotButton" class="text-btn" type="button">Şifremi unuttum</button>
             <button id="resendTwoFactorButton" class="text-btn hidden" type="button">Kodu tekrar gönder</button>
             <button id="supportAccessButton" class="text-btn" type="button">Hesabıma erişemiyorum</button>
@@ -685,6 +686,7 @@
         const NOTIFICATION_MUTE_KEY = "nexalineNotificationMuteUntil";
         const SYSTEM_SOUND_KEY = "nexalineSystemSound";
         const ACCOUNT_LIST_KEY = "nexalineAccounts";
+        const ACCOUNT_ADD_RETURN_KEY = "nexalineAccountAddReturn";
         const AI_CACHE_KEY_PREFIX = "nexalineAiServerCache";
         const DEVICE_ID_KEY = "nexalineDeviceId";
         const AI_CHAT_ID = "__next_ai_chat__";
@@ -998,6 +1000,36 @@
 
         function removeRememberedAccount(username) {
             localStorage.setItem(ACCOUNT_LIST_KEY, JSON.stringify(rememberedAccounts().filter(item => item.username !== username)));
+        }
+
+        function accountAddReturnUsername() {
+            const username = sessionStorage.getItem(ACCOUNT_ADD_RETURN_KEY) || "";
+            return rememberedAccounts().some(account => account.username === username) ? username : "";
+        }
+
+        function clearAccountAddReturn() {
+            sessionStorage.removeItem(ACCOUNT_ADD_RETURN_KEY);
+        }
+
+        function beginAddAccount() {
+            const currentUsername = state.me?.username || localStorage.getItem("nexalineUser") || "";
+            if (currentUsername) {
+                sessionStorage.setItem(ACCOUNT_ADD_RETURN_KEY, currentUsername);
+            }
+            localStorage.removeItem("nexalineUser");
+            resetToAuth("Eklemek istediğin hesapla giriş yap.");
+        }
+
+        function cancelAddAccount() {
+            const username = accountAddReturnUsername();
+            if (!username) {
+                clearAccountAddReturn();
+                updateAuthView();
+                return;
+            }
+            clearAccountAddReturn();
+            localStorage.setItem("nexalineUser", username);
+            location.reload();
         }
 
         function defaultAiSettings() {
@@ -2006,11 +2038,11 @@
             }
             if (Notification.permission === "granted") {
                 state.notificationReady = true;
+                nexaAiEngine.registerPushNotifications();
                 return true;
             }
             state.notificationReady = false;
             if (Notification.permission === "denied") {
-                showPushPermissionNotice();
                 return false;
             }
             return requestIfNeeded ? requestNotificationPermission() : false;
@@ -2026,6 +2058,7 @@
             }
             if (Notification.permission === "granted") {
                 state.notificationReady = true;
+                nexaAiEngine.registerPushNotifications();
                 return true;
             }
             if (Notification.permission === "denied") {
@@ -2034,6 +2067,9 @@
             }
             const permission = await Notification.requestPermission();
             state.notificationReady = permission === "granted";
+            if (state.notificationReady) {
+                nexaAiEngine.registerPushNotifications();
+            }
             if (!state.notificationReady) {
                 showPushPermissionNotice();
             }
@@ -2522,7 +2558,6 @@
 
             init() {
                 this.renderPanel();
-                this.registerPushNotifications();
             }
 
             pushServerKeyToUint8Array(base64String) {
@@ -2559,16 +2594,9 @@
                     return false;
                 }
 
-                let permission = Notification.permission;
-                if (permission === "default") {
-                    permission = await Notification.requestPermission();
-                }
+                const permission = Notification.permission;
                 state.notificationReady = permission === "granted";
 
-                if (permission === "denied") {
-                    this.showPushPermissionInfo();
-                    return false;
-                }
                 if (permission !== "granted") {
                     return false;
                 }
@@ -4363,6 +4391,7 @@
             show("supportAccessButton", !isRegister && !isTwoFactor);
             show("resendTwoFactorButton", isTwoFactor);
             show("authBackButton", isTwoFactor || (isRegister && step > 0));
+            show("accountAddBackButton", Boolean(accountAddReturnUsername()));
 
             $("authActions").classList.toggle("with-back", isTwoFactor || (isRegister && step > 0));
             $("password").autocomplete = isRegister ? "new-password" : "current-password";
@@ -4468,6 +4497,7 @@
                     state.pendingTwoFactor = null;
                     state.me = data.user;
                     rememberAccount(data.user);
+                    clearAccountAddReturn();
                     localStorage.setItem("nexalineUser", data.user.username);
                     openApp();
                     return;
@@ -4497,6 +4527,7 @@
 
                 state.me = data.user;
                 rememberAccount(data.user);
+                clearAccountAddReturn();
                 localStorage.setItem("nexalineUser", data.user.username);
                 openApp();
             } catch (error) {
@@ -4917,6 +4948,7 @@
 
             state.me = data.user;
             rememberAccount(data.user);
+            clearAccountAddReturn();
             localStorage.setItem("nexalineUser", data.user.username);
             openApp();
         }
@@ -5199,8 +5231,7 @@
             });
             menu.querySelector("[data-add-account]")?.addEventListener("click", () => {
                 menu.classList.add("hidden");
-                localStorage.removeItem("nexalineUser");
-                resetToAuth("Eklemek istediğin hesapla giriş yap.");
+                beginAddAccount();
             });
             menu.querySelector("[data-logout-account]")?.addEventListener("click", () => {
                 menu.classList.add("hidden");
@@ -5275,7 +5306,7 @@
                 });
                 body.appendChild(list);
             }, [
-                { label: "+ Hesap Ekle", onClick: () => { closeModal(); localStorage.removeItem("nexalineUser"); resetToAuth("Eklemek istediğin hesapla giriş yap."); } },
+                { label: "+ Hesap Ekle", onClick: () => { closeModal(); beginAddAccount(); } },
                 { label: "Çıkış Yap", primary: true, onClick: () => { closeModal(); logout(); } }
             ], "account-switcher-panel");
         }
@@ -13953,6 +13984,7 @@
         $("loginTab").onclick = () => setAuthMode("login");
         $("registerTab").onclick = () => setAuthMode("register");
         $("authBackButton").onclick = goBackAuthStep;
+        $("accountAddBackButton").onclick = cancelAddAccount;
         $("authButton").onclick = submitAuth;
         $("qrLoginStartButton").onclick = startQrLogin;
         ["username", "lastName", "registerUsername", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
@@ -14410,6 +14442,7 @@
             }
             stopQrLoginPolling();
             state.me = data.user;
+            clearAccountAddReturn();
             localStorage.setItem("nexalineUser", data.user.username);
             $("qrLoginStatus").textContent = "Bağlandı. NexaLine açılıyor...";
             openApp();

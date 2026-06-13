@@ -453,6 +453,11 @@ textarea {
     gap: 10px;
 }
 
+.account-add-back {
+    width: 100%;
+    margin-top: 10px;
+}
+
 .auth-progress {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
