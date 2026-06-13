@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage12-logo-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage13-boot-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -670,8 +670,8 @@
                 window.location.reload();
             });
 
-            window.addEventListener("load", () => {
-                clearLegacyAppCaches();
+            window.addEventListener("load", async () => {
+                await clearLegacyAppCaches();
                 navigator.serviceWorker
                     .register(`/sw.js?v=${encodeURIComponent(NEXALINE_CLIENT_BUILD)}`, { updateViaCache: "none" })
                     .then(registration => {
