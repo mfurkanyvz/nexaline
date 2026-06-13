@@ -161,11 +161,11 @@
             </div>
 
             <nav class="nav-tabs">
+                <button class="nav-tab" id="flowButton" data-section="stories" type="button" title="Akış"><span class="nav-icon">◉</span><span class="nav-label">Akış</span></button>
                 <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
+                <button class="nav-tab" data-section="explore" type="button" title="Keşfet"><span class="nav-icon">✦</span><span class="nav-label">Keşfet</span></button>
                 <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
-                <button class="nav-tab" data-section="explore" type="button" title="Keşfet"><span class="nav-icon">✦</span><span class="nav-label">Keşfet</span></button>
-                <button class="nav-tab" id="flowButton" data-section="stories" type="button" title="Akış"><span class="nav-icon">◉</span><span class="nav-label">Akış</span></button>
             </nav>
 
             <div class="section-head">
@@ -628,7 +628,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-09-stage7-ai-v7";
+        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage21-nav-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1260,7 +1260,7 @@
             ["Gülümse", "😊", "#00D96F", "#704CFF"],
             ["Nexa", "✦", "#00D8FF", "#FF00B8"]
         ];
-        const STAGE_MOBILE_NAV_ORDER = ["chats", "calls", "explore", "contacts", "stories"];
+        const STAGE_MOBILE_NAV_ORDER = ["stories", "calls", "explore", "chats", "contacts"];
         loadAdminDesign();
 
         const NEXA_SVGS = {
@@ -5653,7 +5653,8 @@
             setNavBadge("contacts", 0);
         }
 
-        const SWIPE_SECTION_ORDER = ["chats", "calls", "explore", "contacts", "stories"];
+        const SWIPE_SECTION_ORDER = ["stories", "calls", "explore", "chats", "contacts"];
+        let navIndicatorTransitionFrame = 0;
 
         function visibleNavTabs() {
             return SWIPE_SECTION_ORDER
@@ -5664,15 +5665,38 @@
         function setNavIndicatorRect(rect, navRect, instant = false) {
             const nav = document.querySelector(".nav-tabs");
             if (!nav || !rect || !navRect) return;
+            const horizontalInset = 7;
+            const verticalInset = 6;
+            const width = Math.min(rect.width, Math.max(0, navRect.width - horizontalInset * 2));
+            const height = Math.min(rect.height, Math.max(0, navRect.height - verticalInset * 2));
+            const left = clamp(
+                rect.left - navRect.left,
+                horizontalInset,
+                Math.max(horizontalInset, navRect.width - horizontalInset - width)
+            );
+            const top = clamp(
+                rect.top - navRect.top,
+                verticalInset,
+                Math.max(verticalInset, navRect.height - verticalInset - height)
+            );
+            if (navIndicatorTransitionFrame) {
+                cancelAnimationFrame(navIndicatorTransitionFrame);
+                navIndicatorTransitionFrame = 0;
+            }
             if (instant) {
                 nav.classList.add("indicator-no-transition");
+            } else {
+                nav.classList.remove("indicator-no-transition");
             }
-            nav.style.setProperty("--indicator-left", `${rect.left - navRect.left}px`);
-            nav.style.setProperty("--indicator-top", `${rect.top - navRect.top}px`);
-            nav.style.setProperty("--indicator-width", `${rect.width}px`);
-            nav.style.setProperty("--indicator-height", `${rect.height}px`);
+            nav.style.setProperty("--indicator-left", `${left}px`);
+            nav.style.setProperty("--indicator-top", `${top}px`);
+            nav.style.setProperty("--indicator-width", `${width}px`);
+            nav.style.setProperty("--indicator-height", `${height}px`);
             if (instant) {
-                requestAnimationFrame(() => nav.classList.remove("indicator-no-transition"));
+                navIndicatorTransitionFrame = requestAnimationFrame(() => {
+                    nav.classList.remove("indicator-no-transition");
+                    navIndicatorTransitionFrame = 0;
+                });
             }
         }
 
@@ -5708,9 +5732,10 @@
             const targetRect = targetTab.getBoundingClientRect();
             const targetCenter = targetRect.left + targetRect.width / 2;
             const proximity = clamp(1 - Math.abs(clientX - targetCenter) / Math.max(30, targetRect.width * 0.72), 0, 1);
-            const width = 48 + proximity * 12;
-            const height = 47 + proximity * 7;
-            const centerX = clamp(clientX, navRect.left + width / 2 + 4, navRect.right - width / 2 - 4);
+            const safeInset = 7;
+            const width = Math.min(48 + proximity * 12, Math.max(0, navRect.width - safeInset * 2));
+            const height = Math.min(47 + proximity * 7, Math.max(0, navRect.height - 12));
+            const centerX = clamp(clientX, navRect.left + width / 2 + safeInset, navRect.right - width / 2 - safeInset);
             const centerY = targetRect.top + targetRect.height / 2;
             nav.classList.add("indicator-following");
             nav.classList.toggle("indicator-hot", proximity > 0.58);
@@ -5844,7 +5869,7 @@
                 }
             };
 
-            const resetDrag = () => {
+            const resetDrag = ({ restoreIndicator = true } = {}) => {
                 pointerId = null;
                 dragging = false;
                 dragTargetSection = null;
@@ -5861,7 +5886,9 @@
                     dragActiveList.style.transition = "";
                     dragActiveList = null;
                 }
-                updateNavIndicator();
+                if (restoreIndicator) {
+                    updateNavIndicator();
+                }
             };
 
             surface.addEventListener("pointerdown", event => {
@@ -5878,9 +5905,6 @@
                 lastNavDragSection = pointerTab?.dataset.section || (navPointerMode ? state.activeSection : null);
                 dragStartedAt = Date.now();
                 dragActiveList = listForSection(state.activeSection);
-                if (navPointerMode && pointerTab) {
-                    syncNavIndicatorToPointer(event.clientX, pointerTab);
-                }
             }, { passive: false });
 
             surface.addEventListener("pointermove", event => {
@@ -5945,7 +5969,7 @@
                         commitDragSection(lastNavDragSection);
                     }
                     const suppressClick = dragging;
-                    resetDrag();
+                    resetDrag({ restoreIndicator: suppressClick });
                     if (suppressClick) {
                         state.ignoreNextNavClickUntil = Date.now() + 460;
                     }
@@ -14136,7 +14160,7 @@
                 document.querySelectorAll(".nav-tab.section-reset-active").forEach(item => {
                     item.classList.remove("section-reset-active");
                 });
-                syncNavIndicatorToElement(tab, true);
+                syncNavIndicatorToElement(tab);
                 clearActiveNewMarker();
                 state.activeSection = tab.dataset.section;
                 state.activeChatId = null;

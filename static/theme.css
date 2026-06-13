@@ -6173,6 +6173,9 @@ button {
         gap: 0;
         margin: 0 auto;
         padding: 0 6px;
+        box-sizing: border-box;
+        overflow: hidden;
+        contain: paint;
         border: 1px solid var(--border-soft);
         border-radius: var(--radius-xl);
         background: rgba(17, 24, 39, 0.92);
@@ -6201,11 +6204,11 @@ button {
         transition: transform 160ms ease, color 160ms ease, background 160ms ease;
     }
 
-    .nav-tab[data-section="chats"] { order: 1; }
+    .nav-tab[data-section="stories"] { order: 1; }
     .nav-tab[data-section="calls"] { order: 2; }
     .nav-tab[data-section="explore"] { order: 3; }
-    .nav-tab[data-section="contacts"] { order: 4; }
-    .nav-tab[data-section="stories"] { order: 5; }
+    .nav-tab[data-section="chats"] { order: 4; }
+    .nav-tab[data-section="contacts"] { order: 5; }
 
     .nav-tab .nav-icon {
         width: 32px;
@@ -6233,7 +6236,7 @@ button {
     }
 
     .nav-tab.active {
-        color: var(--accent-purple);
+        color: #38bdf8;
         transform: translateY(-3px);
         background: transparent;
         box-shadow: none;
@@ -6241,8 +6244,8 @@ button {
     }
 
     .nav-tab.active .nav-icon {
-        background: rgba(139, 92, 246, 0.16);
-        box-shadow: 0 0 22px rgba(139, 92, 246, 0.35);
+        background: rgba(56, 189, 248, 0.16);
+        box-shadow: 0 0 22px rgba(56, 189, 248, 0.4);
     }
 
     .nav-tab:active {
@@ -7793,6 +7796,8 @@ button {
         --indicator-intensity: 1;
         isolation: isolate;
         overflow: hidden;
+        box-sizing: border-box;
+        contain: paint;
         touch-action: none;
     }
 
@@ -7804,15 +7809,18 @@ button {
         top: var(--indicator-top);
         width: var(--indicator-width);
         height: var(--indicator-height);
+        max-width: calc(100% - 14px);
+        max-height: calc(100% - 12px);
+        box-sizing: border-box;
         pointer-events: none;
-        border: 1px solid rgba(196, 181, 253, 0.28);
+        border: 1px solid rgba(125, 211, 252, 0.38);
         border-radius: 20px;
         background:
-            radial-gradient(circle at 35% 18%, rgba(255, 255, 255, 0.2), transparent 38%),
-            linear-gradient(145deg, rgba(139, 92, 246, 0.27), rgba(99, 102, 241, 0.17));
+            radial-gradient(circle at 35% 18%, rgba(255, 255, 255, 0.24), transparent 38%),
+            linear-gradient(145deg, rgba(56, 189, 248, 0.4), rgba(14, 165, 233, 0.22));
         box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.16),
-            0 0 22px rgba(139, 92, 246, 0.25),
+            0 0 24px rgba(56, 189, 248, 0.34),
             0 10px 24px rgba(0, 0, 0, 0.28);
         backdrop-filter: blur(16px) saturate(145%);
         -webkit-backdrop-filter: blur(16px) saturate(145%);
@@ -7834,24 +7842,24 @@ button {
     }
 
     .nav-tabs.indicator-following::before {
-        border-color: rgba(196, 181, 253, 0.22);
+        border-color: rgba(125, 211, 252, 0.28);
         background:
             radial-gradient(circle at 35% 18%, rgba(255, 255, 255, 0.18), transparent 38%),
-            linear-gradient(145deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.1));
+            linear-gradient(145deg, rgba(56, 189, 248, 0.25), rgba(14, 165, 233, 0.13));
         box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.14),
-            0 0 16px rgba(139, 92, 246, 0.18),
+            0 0 18px rgba(56, 189, 248, 0.24),
             0 8px 18px rgba(0, 0, 0, 0.24);
     }
 
     .nav-tabs.indicator-hot::before {
-        border-color: rgba(216, 180, 254, 0.56);
+        border-color: rgba(186, 230, 253, 0.7);
         background:
-            radial-gradient(circle at 35% 16%, rgba(255, 255, 255, 0.3), transparent 40%),
-            linear-gradient(145deg, rgba(139, 92, 246, 0.48), rgba(99, 102, 241, 0.32));
+            radial-gradient(circle at 35% 16%, rgba(255, 255, 255, 0.38), transparent 40%),
+            linear-gradient(145deg, rgba(56, 189, 248, 0.68), rgba(14, 165, 233, 0.44));
         box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.24),
-            0 0 30px rgba(139, 92, 246, 0.48),
+            0 0 32px rgba(56, 189, 248, 0.56),
             0 12px 26px rgba(0, 0, 0, 0.3);
     }
 
@@ -7864,15 +7872,20 @@ button {
     .nav-tabs .nav-tab.active .nav-icon {
         background: transparent;
         box-shadow: none;
+        filter: drop-shadow(0 0 9px rgba(56, 189, 248, 0.8));
+    }
+
+    .nav-tabs .nav-tab.active {
+        color: #38bdf8;
     }
 
     .nav-tabs .nav-tab.nav-preview {
-        color: #ddd6fe;
+        color: #7dd3fc;
     }
 
     .nav-tabs .nav-tab.nav-preview .nav-icon {
         transform: translateY(-2px) scale(1.14);
-        filter: drop-shadow(0 0 8px rgba(196, 181, 253, 0.72));
+        filter: drop-shadow(0 0 9px rgba(56, 189, 248, 0.82));
     }
 }
 
