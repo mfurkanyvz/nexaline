@@ -9095,13 +9095,13 @@ button {
     }
 
     .chat-mode-switch button:first-child {
-        color: color-mix(in srgb, var(--mode-color) 74%, white);
+        color: color-mix(in srgb, var(--mode-color) 88%, white);
         opacity: var(--mode-left-opacity);
         transform: scale(var(--mode-left-scale));
     }
 
     .chat-mode-switch button:nth-child(2) {
-        color: color-mix(in srgb, var(--mode-color) 74%, white);
+        color: color-mix(in srgb, var(--mode-color) 88%, white);
         opacity: var(--mode-right-opacity);
         transform: scale(var(--mode-right-scale));
     }
@@ -9112,7 +9112,7 @@ button {
 
     .chat-mode-switch.mode-switch-dragging button,
     .chat-mode-switch.mode-switch-settling button {
-        color: color-mix(in srgb, var(--mode-color) 74%, white);
+        color: color-mix(in srgb, var(--mode-color) 88%, white);
     }
 }
 

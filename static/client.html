@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage10-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage11-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -6267,6 +6267,7 @@
             surface.addEventListener("pointerdown", event => {
                 const navHit = event.target.closest?.(".nav-tabs");
                 if (!isMobileView() || !event.isPrimary || event.target.closest("input, textarea, select, audio, video")) return;
+                if (event.target.closest?.(".chat-mode-switch")) return;
                 if (!navHit && state.activeChatId) return;
                 pointerId = event.pointerId;
                 startX = event.clientX;
@@ -7160,8 +7161,8 @@
 
         function binaryModePalette(variant) {
             return variant === "contacts"
-                ? { left: [0, 216, 255], right: [190, 18, 60] }
-                : { left: [34, 197, 94], right: [239, 68, 68] };
+                ? { left: [10, 132, 255], right: [255, 138, 0] }
+                : { left: [22, 230, 86], right: [255, 45, 69] };
         }
 
         function updateBinaryModeProgress(switcher, progress) {
@@ -7173,8 +7174,8 @@
             const lens = 1 - Math.abs(nextProgress * 2 - 1);
             switcher.style.setProperty("--mode-progress", nextProgress.toFixed(4));
             switcher.style.setProperty("--mode-color", `rgb(${color.join(", ")})`);
-            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .24)`);
-            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .3)`);
+            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .46)`);
+            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .52)`);
             switcher.style.setProperty("--mode-lens", lens.toFixed(4));
             switcher.style.setProperty("--mode-left-scale", (1 + (1 - nextProgress) * 0.075).toFixed(4));
             switcher.style.setProperty("--mode-right-scale", (1 + nextProgress * 0.075).toFixed(4));
@@ -7223,13 +7224,15 @@
 
             switcher.addEventListener("pointerdown", event => {
                 if (!event.isPrimary || settling) return;
+                event.stopPropagation();
                 pointerId = event.pointerId;
                 startX = event.clientX;
                 dragging = false;
-            }, { passive: true });
+            }, { passive: false });
 
             switcher.addEventListener("pointermove", event => {
                 if (pointerId !== event.pointerId || settling) return;
+                event.stopPropagation();
                 if (!dragging && Math.abs(event.clientX - startX) < 4) return;
                 dragging = true;
                 switcher.classList.add("mode-switch-dragging");
@@ -7240,6 +7243,7 @@
 
             switcher.addEventListener("pointerup", event => {
                 if (pointerId !== event.pointerId) return;
+                event.stopPropagation();
                 pointerId = null;
                 if (!dragging) {
                     updateBinaryModeProgress(switcher, currentIndex);
@@ -7252,7 +7256,8 @@
                 commit(progressAt(event.clientX) >= 0.5 ? 1 : 0, 120);
             }, { passive: true });
 
-            switcher.addEventListener("pointercancel", () => {
+            switcher.addEventListener("pointercancel", event => {
+                event.stopPropagation();
                 pointerId = null;
                 dragging = false;
                 switcher.classList.remove("mode-switch-dragging");
