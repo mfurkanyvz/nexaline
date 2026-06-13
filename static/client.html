@@ -97,10 +97,18 @@
             </div>
 
             <div id="authFields" class="auth-fields">
-                <input id="username" class="field" autocomplete="username" placeholder="Kullanıcı adı">
+                <input id="username" class="field auth-identity-field" autocomplete="username" placeholder="Kullanıcı adı, Gmail veya telefon">
+                <div id="loginIdentityMeta" class="auth-identity-meta" data-kind="username">
+                    <span class="auth-identity-badge" aria-hidden="true"></span>
+                    <span><strong id="loginIdentityLabel">Kullanıcı adı</strong><small id="loginIdentityHint">Kullanıcı adın veya Gmail adresinle giriş yapabilirsin.</small></span>
+                </div>
                 <input id="lastName" class="field hidden" autocomplete="family-name" placeholder="SOYİSİM">
                 <input id="registerUsername" class="field hidden" autocomplete="username" placeholder="Kullanıcı adı">
-                <input id="email" class="field hidden" autocomplete="email" placeholder="Gmail adresi">
+                <input id="email" class="field auth-identity-field hidden" autocomplete="email" placeholder="Gmail veya telefon numarası">
+                <div id="registerContactMeta" class="auth-identity-meta hidden" data-kind="gmail">
+                    <span class="auth-identity-badge" aria-hidden="true"></span>
+                    <span><strong id="registerContactLabel">Gmail doğrulaması</strong><small id="registerContactHint">Doğrulama kodu Gmail adresine gönderilir.</small></span>
+                </div>
                 <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
                 <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
                 <input id="confirmPassword" class="field hidden" autocomplete="new-password" type="password" placeholder="Şifreyi tekrar yaz">
@@ -372,6 +380,10 @@
                 </div>
                 <input id="displayNameInput" placeholder="İsim soyisim">
                 <input id="profileUsernameInput" maxlength="30" autocomplete="username" placeholder="Kullanıcı adı">
+                <div class="profile-phone-preview" aria-disabled="true">
+                    <span class="profile-phone-icon" aria-hidden="true">+</span>
+                    <span><strong>Telefon numarası</strong><small>Numara ekleme ve SMS doğrulaması yakında etkinleştirilecek.</small></span>
+                </div>
                 <input id="avatarTextInput" maxlength="5" placeholder="Avatar harfi veya kısa logo yazısı">
                 <textarea id="aboutInput" placeholder="Hakkımda"></textarea>
                 <div id="avatarPresetGrid" class="avatar-preset-grid"></div>
@@ -629,7 +641,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage7-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-13-stage8-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -4485,6 +4497,41 @@
             updateAuthView();
         }
 
+        function authIdentityKind(value) {
+            const input = String(value || "").trim();
+            const phoneDigits = input.replace(/\D/g, "");
+            if (phoneDigits.length >= 7 && /^[+\d\s().-]+$/.test(input)) {
+                return "phone";
+            }
+            if (input.includes("@")) {
+                return "gmail";
+            }
+            return "username";
+        }
+
+        function updateAuthIdentityTheme() {
+            const loginKind = authIdentityKind($("username").value);
+            const registerKind = authIdentityKind($("email").value);
+            const loginCopy = {
+                username: ["Kullanıcı adı", "Kullanıcı adın ve şifrenle giriş yap."],
+                gmail: ["Gmail adresi", "Doğrulanmış Gmail adresin ve şifrenle giriş yap."],
+                phone: ["Telefon numarası (yakında)", "Telefonla giriş teması hazır; numara doğrulaması sonraki aşamada bağlanacak."]
+            };
+            const registerCopy = {
+                username: ["Gmail veya telefon", "Doğrulama için Gmail adresini ya da telefon numaranı yaz."],
+                gmail: ["Gmail doğrulaması", "6 haneli doğrulama kodu Gmail adresine gönderilir."],
+                phone: ["Telefon doğrulaması (yakında)", "SMS kodu altyapısı sonraki aşamada etkinleştirilecek."]
+            };
+            const apply = (input, meta, label, hint, kind, copy) => {
+                input.dataset.identityKind = kind;
+                meta.dataset.kind = kind;
+                label.textContent = copy[kind][0];
+                hint.textContent = copy[kind][1];
+            };
+            apply($("username"), $("loginIdentityMeta"), $("loginIdentityLabel"), $("loginIdentityHint"), loginKind, loginCopy);
+            apply($("email"), $("registerContactMeta"), $("registerContactLabel"), $("registerContactHint"), registerKind, registerCopy);
+        }
+
         function updateAuthView(direction = "next") {
             const isRegister = state.mode === "register";
             const isTwoFactor = !isRegister && Boolean(state.pendingTwoFactor?.username);
@@ -4494,13 +4541,16 @@
             $("loginTab").classList.toggle("active", !isRegister);
             $("registerTab").classList.toggle("active", isRegister);
             $("qrLoginCard").classList.toggle("hidden", isRegister);
-            $("username").placeholder = isRegister ? "İsim" : "Kullanıcı adı";
+            $("username").placeholder = isRegister ? "İsim" : "Kullanıcı adı, Gmail veya telefon";
             $("username").autocomplete = isRegister ? "given-name" : "username";
+            $("email").placeholder = "Gmail veya telefon numarası";
             show("registerProgress", isRegister);
             show("username", isRegister ? step === 0 : !isTwoFactor);
+            show("loginIdentityMeta", !isRegister && !isTwoFactor);
             show("lastName", isRegister && step === 0);
             show("registerUsername", isRegister && step === 1);
             show("email", isRegister && step === 2);
+            show("registerContactMeta", isRegister && step === 2);
             show("verificationCode", isTwoFactor || (isRegister && step === 3));
             show("password", (!isRegister && !isTwoFactor) || step === 4);
             show("confirmPassword", isRegister && step === 4);
@@ -4534,13 +4584,14 @@
                 const hints = [
                     "Önce isim ve soyismini yaz.",
                     "Sonra sana özel kullanıcı adını seç.",
-                    "Gmail adresine doğrulama kodu göndereceğiz.",
+                    "Gmail adresini veya telefon numaranı yaz. SMS doğrulaması yakında.",
                     "Gmail'e gelen 6 haneli kodu yaz.",
                     "Güçlü şifreni iki kez yaz."
                 ];
                 $("authStatus").textContent = hints[step];
             }
 
+            updateAuthIdentityTheme();
             animateAuthFields(direction);
             setTimeout(() => {
                 if (isTwoFactor) {
@@ -5000,6 +5051,10 @@
             }
 
             if (state.registerStep === 2) {
+                if (authIdentityKind(email) === "phone") {
+                    $("authStatus").textContent = "Telefonla kayıt teması hazır. SMS doğrulaması etkinleşene kadar Gmail adresini kullan.";
+                    return;
+                }
                 const payload = {
                     firstName: state.pendingRegister?.firstName || firstName,
                     lastName: state.pendingRegister?.lastName || lastName,
@@ -14485,6 +14540,8 @@
         $("accountAddBackButton").onclick = cancelAddAccount;
         $("authButton").onclick = submitAuth;
         $("qrLoginStartButton").onclick = startQrLogin;
+        $("username").addEventListener("input", updateAuthIdentityTheme);
+        $("email").addEventListener("input", updateAuthIdentityTheme);
         ["username", "lastName", "registerUsername", "email", "verificationCode", "password", "confirmPassword"].forEach(id => {
             $(id).addEventListener("keydown", event => {
                 if (event.key === "Enter") {
