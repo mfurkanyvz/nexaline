@@ -649,7 +649,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage15-native-media-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage16-attachment-icons-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -1301,6 +1301,12 @@
             lock: '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
             info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
             logOut: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+            attachmentMedia: '<rect x="2.5" y="4" width="14" height="16" rx="3"/><circle cx="7" cy="9" r="1.5"/><path d="m3 17 4-4 3 3 2-2 4.5 4.5"/><circle cx="18" cy="8" r="4"/><path d="m17 6.5 3 1.5-3 1.5z"/>',
+            attachmentLocation: '<path d="M12 22s7-4.6 7-11a7 7 0 1 0-14 0c0 6.4 7 11 7 11z"/><circle cx="12" cy="11" r="3"/><path d="M12 8V5.5"/><path d="M15 11h2.5"/><path d="M12 14v2.5"/><path d="M9 11H6.5"/>',
+            attachmentFile: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-7"/><path d="m9 14 3-3 3 3"/>',
+            attachmentOnce: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3.5"/><path d="M12 10v4"/><path d="M11 10h1"/>',
+            attachmentAi: '<path d="m14 3 1.3 3.7L19 8l-3.7 1.3L14 13l-1.3-3.7L9 8l3.7-1.3z"/><path d="m6 12 .9 2.1L9 15l-2.1.9L6 18l-.9-2.1L3 15l2.1-.9z"/><path d="m15 15 5 5"/><path d="m17 13-4 4"/>',
+            attachmentPoll: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="7" cy="9" r="1"/><path d="M10 9h7"/><circle cx="7" cy="13" r="1"/><path d="M10 13h5"/><circle cx="7" cy="17" r="1"/><path d="M10 17h8"/>',
             image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
             file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/>',
             eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
@@ -11751,18 +11757,19 @@
                 const menu = document.createElement("div");
                 menu.className = "attachment-menu compact-share-menu";
                 const items = [
-                    ["4-2-2", "image", "Fotoğraf ve video", () => openMediaArchiveDirectly()],
-                    ["4-2-9", "location", "Konum", sendCurrentLocation],
-                    ["4-2-1", "file", "Belge", () => $("fileInput").click()],
-                    ["4-2-10", "eye", "Tek mesaj", openViewOnceTextComposer],
-                    ["4-2-11", "zap", "AI ile düzenle", improveComposerWithAi],
-                    ["4-2-6", "poll", "Anket", openPollCreator]
+                    ["4-2-2", "attachmentMedia", "media", "Fotoğraf ve video", () => openMediaArchiveDirectly()],
+                    ["4-2-9", "attachmentLocation", "location", "Konum", sendCurrentLocation],
+                    ["4-2-1", "attachmentFile", "file", "Belge", () => $("fileInput").click()],
+                    ["4-2-10", "attachmentOnce", "once", "Tek mesaj", openViewOnceTextComposer],
+                    ["4-2-11", "attachmentAi", "ai", "AI ile düzenle", improveComposerWithAi],
+                    ["4-2-6", "attachmentPoll", "poll", "Anket", openPollCreator]
                 ];
-                items.forEach(([index, icon, title, action]) => {
+                items.forEach(([index, icon, tone, title, action]) => {
                     const button = document.createElement("button");
                     button.type = "button";
                     button.className = "attachment-option";
                     button.dataset.attachmentIndex = index;
+                    button.dataset.attachmentTone = tone;
                     setUiIndexMetadata(button, index);
                     button.innerHTML = `<span class="attachment-option-icon">${svgIcon(icon)}</span><span><strong>${escapeHtml(title)}</strong></span>`;
                     button.onclick = () => {

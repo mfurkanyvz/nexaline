@@ -843,6 +843,52 @@ textarea {
     box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
 }
 
+.compact-share-menu .attachment-option[data-attachment-tone="media"] .attachment-option-icon {
+    color: #5ee7ff;
+    background: linear-gradient(145deg, #075985, #2563eb);
+    box-shadow: 0 0 22px rgba(56, 189, 248, 0.42);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone="location"] .attachment-option-icon {
+    color: #d9ff70;
+    background: linear-gradient(145deg, #166534, #22c55e);
+    box-shadow: 0 0 22px rgba(74, 222, 128, 0.4);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone="file"] .attachment-option-icon {
+    color: #fff1a8;
+    background: linear-gradient(145deg, #b45309, #f59e0b);
+    box-shadow: 0 0 22px rgba(245, 158, 11, 0.42);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone="once"] .attachment-option-icon {
+    color: #ffd2e0;
+    background: linear-gradient(145deg, #be123c, #fb3b72);
+    box-shadow: 0 0 22px rgba(251, 59, 114, 0.42);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone="ai"] .attachment-option-icon {
+    color: #f5ddff;
+    background: linear-gradient(145deg, #6d28d9, #d946ef);
+    box-shadow: 0 0 22px rgba(217, 70, 239, 0.44);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone="poll"] .attachment-option-icon {
+    color: #cbfff7;
+    background: linear-gradient(145deg, #0f766e, #14b8a6);
+    box-shadow: 0 0 22px rgba(45, 212, 191, 0.4);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone] .attachment-option-icon {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.compact-share-menu .attachment-option[data-attachment-tone] .nexa-svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.8;
+}
+
 .compact-share-menu .attachment-option strong {
     display: block;
     font-size: 12px;
