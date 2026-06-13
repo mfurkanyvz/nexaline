@@ -1982,11 +1982,11 @@ button {
 }
 
 .contact-results-frame.mode-forward {
-    animation: chatModeForward 260ms cubic-bezier(.2, .8, .2, 1);
+    animation: chatModeForward 320ms cubic-bezier(.18, .82, .22, 1);
 }
 
 .contact-results-frame.mode-backward {
-    animation: chatModeBackward 260ms cubic-bezier(.2, .8, .2, 1);
+    animation: chatModeBackward 320ms cubic-bezier(.18, .82, .22, 1);
 }
 
 .contact-list-row {
@@ -2275,11 +2275,11 @@ button {
 }
 
 .chat-mode-content.mode-forward {
-    animation: chatModeForward 260ms cubic-bezier(.2, .8, .2, 1);
+    animation: chatModeForward 320ms cubic-bezier(.18, .82, .22, 1);
 }
 
 .chat-mode-content.mode-backward {
-    animation: chatModeBackward 260ms cubic-bezier(.2, .8, .2, 1);
+    animation: chatModeBackward 320ms cubic-bezier(.18, .82, .22, 1);
 }
 
 @keyframes chatModeForward {
@@ -9401,8 +9401,10 @@ button {
     .chat-mode-switch {
         --mode-progress: 0;
         --mode-color: rgb(0, 244, 85);
-        --mode-color-soft: rgba(0, 244, 85, 0.76);
-        --mode-color-glow: rgba(0, 244, 85, 0.7);
+        --mode-left-color: rgb(0, 244, 85);
+        --mode-right-color: rgb(255, 24, 52);
+        --mode-color-soft: rgba(0, 244, 85, 0.94);
+        --mode-color-glow: rgba(0, 244, 85, 0.82);
         --mode-lens: 0;
         --mode-left-scale: 1.075;
         --mode-right-scale: 1;
@@ -9411,7 +9413,7 @@ button {
         isolation: isolate;
         overflow: hidden;
         touch-action: pan-y;
-        background: rgba(17, 24, 39, 0.62);
+        background: rgba(9, 14, 24, 0.94);
         border-color: rgba(255, 255, 255, 0.1);
         box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.045),
@@ -9431,14 +9433,14 @@ button {
         width: calc(50% - 4px);
         height: calc(100% - 8px);
         inset-block: 4px;
-        border: 1px solid color-mix(in srgb, var(--mode-color) 46%, rgba(255, 255, 255, 0.32));
+        border: 1px solid color-mix(in srgb, var(--mode-color) 82%, white);
         border-radius: var(--radius-pill);
         background:
-            radial-gradient(circle at 34% 16%, rgba(255, 255, 255, 0.22), transparent 42%),
-            linear-gradient(145deg, rgba(255, 255, 255, 0.08), var(--mode-color-soft));
+            radial-gradient(circle at 34% 16%, rgba(255, 255, 255, 0.34), transparent 46%),
+            linear-gradient(145deg, color-mix(in srgb, var(--mode-color) 78%, white), var(--mode-color-soft));
         box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.13),
-            0 0 22px var(--mode-color-glow),
+            0 0 28px var(--mode-color-glow),
             0 8px 18px rgba(0, 0, 0, 0.2);
         backdrop-filter: blur(18px) saturate(140%);
         -webkit-backdrop-filter: blur(18px) saturate(140%);
@@ -9447,10 +9449,10 @@ button {
             scale(calc(1 + var(--mode-lens) * 0.045));
         transform-origin: center;
         transition:
-            transform 220ms cubic-bezier(0.2, 0.82, 0.24, 1),
-            background 80ms linear,
-            border-color 80ms linear,
-            box-shadow 80ms linear;
+            transform 340ms cubic-bezier(0.18, 0.82, 0.22, 1),
+            background 180ms ease,
+            border-color 180ms ease,
+            box-shadow 180ms ease;
         will-change: transform, background, box-shadow;
     }
 
@@ -9460,31 +9462,31 @@ button {
 
     .chat-mode-switch button {
         transition:
-            color 80ms linear,
-            opacity 80ms linear,
-            transform 80ms linear;
+            color 180ms ease,
+            opacity 180ms ease,
+            transform 180ms ease;
         will-change: transform, opacity;
     }
 
     .chat-mode-switch button:first-child {
-        color: color-mix(in srgb, var(--mode-color) 88%, white);
+        color: color-mix(in srgb, var(--mode-left-color) 92%, white);
         opacity: var(--mode-left-opacity);
         transform: scale(var(--mode-left-scale));
     }
 
     .chat-mode-switch button:nth-child(2) {
-        color: color-mix(in srgb, var(--mode-color) 88%, white);
+        color: color-mix(in srgb, var(--mode-right-color) 92%, white);
         opacity: var(--mode-right-opacity);
         transform: scale(var(--mode-right-scale));
     }
 
     .chat-mode-switch button:not(.active) {
-        color: var(--text-muted);
+        filter: saturate(0.92) brightness(0.94);
     }
 
     .chat-mode-switch.mode-switch-dragging button,
     .chat-mode-switch.mode-switch-settling button {
-        color: color-mix(in srgb, var(--mode-color) 88%, white);
+        filter: saturate(1.08) brightness(1.04);
     }
 }
 

@@ -627,7 +627,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage19-avatar-presets-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage20-mode-switch-v1";
 
         async function clearLegacyAppCaches() {
             try {
@@ -7169,14 +7169,16 @@
             ));
             const lens = 1 - Math.abs(nextProgress * 2 - 1);
             switcher.style.setProperty("--mode-progress", nextProgress.toFixed(4));
+            switcher.style.setProperty("--mode-left-color", `rgb(${palette.left.join(", ")})`);
+            switcher.style.setProperty("--mode-right-color", `rgb(${palette.right.join(", ")})`);
             switcher.style.setProperty("--mode-color", `rgb(${color.join(", ")})`);
-            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .76)`);
-            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .7)`);
+            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .94)`);
+            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .82)`);
             switcher.style.setProperty("--mode-lens", lens.toFixed(4));
             switcher.style.setProperty("--mode-left-scale", (1 + (1 - nextProgress) * 0.075).toFixed(4));
             switcher.style.setProperty("--mode-right-scale", (1 + nextProgress * 0.075).toFixed(4));
-            switcher.style.setProperty("--mode-left-opacity", (0.6 + (1 - nextProgress) * 0.4).toFixed(4));
-            switcher.style.setProperty("--mode-right-opacity", (0.6 + nextProgress * 0.4).toFixed(4));
+            switcher.style.setProperty("--mode-left-opacity", (0.76 + (1 - nextProgress) * 0.24).toFixed(4));
+            switcher.style.setProperty("--mode-right-opacity", (0.76 + nextProgress * 0.24).toFixed(4));
         }
 
         function setupBinaryModeSwitcher(switcher, options) {
@@ -7198,7 +7200,7 @@
                 return clamp((clientX - rect.left - inset) / usableWidth, 0, 1);
             };
 
-            const commit = (targetIndex, delay = 220) => {
+            const commit = (targetIndex, delay = 340) => {
                 const nextIndex = clamp(targetIndex, 0, modes.length - 1);
                 if (settling) return;
                 if (nextIndex === currentIndex) {
@@ -7249,7 +7251,7 @@
                 switcher.classList.remove("mode-switch-dragging");
                 switcher.dataset.suppressClick = "true";
                 window.setTimeout(() => delete switcher.dataset.suppressClick, 80);
-                commit(progressAt(event.clientX) >= 0.5 ? 1 : 0, 120);
+                commit(progressAt(event.clientX) >= 0.5 ? 1 : 0, 300);
             }, { passive: true });
 
             switcher.addEventListener("pointercancel", event => {
