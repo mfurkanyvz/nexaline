@@ -2584,6 +2584,12 @@
 
         function closeModal() {
             const panel = $("modalPanel");
+            if (panel.classList.contains("points-panel") && !panel.classList.contains("points-panel-closing")) {
+                panel.classList.add("points-panel-closing");
+                modalCloseTimer = setTimeout(finalizeModalClose, 280);
+                return;
+            }
+            if (panel.classList.contains("points-panel-closing")) return;
             if (panel.classList.contains("account-switcher-panel") && !panel.classList.contains("account-switcher-closing")) {
                 panel.classList.add("account-switcher-closing");
                 modalCloseTimer = setTimeout(finalizeModalClose, 285);
@@ -5406,6 +5412,17 @@
         }
 
         async function openPointsPanel() {
+            openModal("NexaPuan Merkezi", body => {
+                body.classList.add("points-panel-body");
+                body.scrollTop = 0;
+                body.innerHTML = `
+                    <div class="points-panel-loading">
+                        <span class="points-star">★</span>
+                        <strong>NexaPuan bilgilerin hazırlanıyor</strong>
+                        <small>Seviye, görev ve son hareketler yükleniyor.</small>
+                    </div>
+                `;
+            }, [], "points-panel");
             let data = null;
             try {
                 const response = await fetch(`/points/${encodeURIComponent(state.me.username)}`);
@@ -5421,9 +5438,12 @@
             const quests = data?.quests || [];
             const leaderboard = data?.leaderboard?.global || [];
             state.pointLedger = ledger;
-            openModal("NexaPuan Merkezi", body => {
-                body.classList.add("points-panel-body");
-                body.innerHTML = `
+            const panel = $("modalPanel");
+            if (panel.classList.contains("hidden") || !panel.classList.contains("points-panel")) return;
+            const body = $("modalBody");
+            body.classList.add("points-panel-body");
+            body.scrollTop = 0;
+            body.innerHTML = `
                     <div class="profile-hero">
                         <div class="avatar">${escapeHtml(initials(state.me?.displayName || "NL"))}</div>
                         <div class="profile-title">
@@ -5471,24 +5491,23 @@
                         ${ledger.length ? ledger.slice(0, 12).map(item => `<div class="point-ledger-row"><strong>+${escapeHtml(item.amount)} ${escapeHtml(item.reason)}</strong><small>${escapeHtml(relativeTime(item.createdAt))}</small></div>`).join("") : '<div class="point-ledger-row"><strong>Henüz hareket yok</strong><small>Uygulamayı kullandıkça burada görünecek.</small></div>'}
                     </div>
                 `;
-                body.querySelectorAll("[data-quest-claim]").forEach(button => {
-                    button.onclick = async () => {
-                        const response = await fetch(`/points/${encodeURIComponent(state.me.username)}/quests/${encodeURIComponent(button.dataset.questClaim)}/claim`, {
-                            method: "POST",
-                            headers: authHeaders()
-                        });
-                        const next = await response.json();
-                        if (next.ok) {
-                            state.me.points = next.points;
-                            showToast("Görev ödülü puana işlendi.");
-                            closeModal();
-                            openPointsPanel();
-                        } else {
-                            showToast(next.message || "Ödül alınamadı.");
-                        }
-                    };
-                });
-            }, [{ label: "Kapat", primary: true, onClick: closeModal }]);
+            body.querySelectorAll("[data-quest-claim]").forEach(button => {
+                button.onclick = async () => {
+                    const response = await fetch(`/points/${encodeURIComponent(state.me.username)}/quests/${encodeURIComponent(button.dataset.questClaim)}/claim`, {
+                        method: "POST",
+                        headers: authHeaders()
+                    });
+                    const next = await response.json();
+                    if (next.ok) {
+                        state.me.points = next.points;
+                        showToast("Görev ödülü puana işlendi.");
+                        closeModal();
+                        openPointsPanel();
+                    } else {
+                        showToast(next.message || "Ödül alınamadı.");
+                    }
+                };
+            });
         }
 
         function updateAiAssistantVisibility() {

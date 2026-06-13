@@ -8058,6 +8058,124 @@ button {
     }
 }
 
+/* Stage 21: settings-style Nexa Points panel */
+@media (max-width: 860px) {
+    .modal-panel.points-panel {
+        inset: auto;
+        top: var(--viewport-top);
+        left: var(--viewport-left);
+        width: var(--viewport-width);
+        height: var(--app-height);
+        max-width: var(--viewport-width);
+        max-height: var(--app-height);
+        display: block;
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background: rgba(3, 7, 14, 0.88);
+        transform-origin: top right;
+        animation: settings-panel-grow-down 0.34s cubic-bezier(0.2, 0.82, 0.24, 1) both;
+    }
+
+    .modal-panel.points-panel .modal-box {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background:
+            radial-gradient(circle at 82% 5%, rgba(245, 190, 48, 0.1), transparent 30%),
+            var(--bg-main);
+        box-shadow: none;
+        transform-origin: top right;
+        animation: none;
+    }
+
+    .modal-panel.points-panel .modal-head {
+        min-height: calc(64px + var(--safe-top));
+        margin: 0;
+        padding:
+            calc(10px + var(--safe-top))
+            calc(12px + var(--safe-right))
+            10px
+            calc(16px + var(--safe-left));
+        border-bottom: 1px solid var(--border-soft);
+        background: rgba(8, 10, 15, 0.86);
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+    }
+
+    .modal-panel.points-panel .modal-head > strong {
+        font-size: 18px;
+    }
+
+    .modal-panel.points-panel .modal-head .icon-btn {
+        width: 42px;
+        height: 42px;
+        margin-left: auto;
+        border: 1px solid var(--border-soft);
+        border-radius: 50%;
+        background: var(--bg-card-soft);
+    }
+
+    .modal-panel.points-panel .modal-body {
+        min-height: 0;
+        grid-auto-rows: max-content;
+        align-content: start;
+        padding:
+            14px
+            calc(14px + var(--safe-right))
+            calc(22px + var(--safe-bottom))
+            calc(14px + var(--safe-left));
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .modal-panel.points-panel .modal-actions {
+        display: none;
+    }
+
+    .modal-panel.points-panel.points-panel-closing {
+        pointer-events: none;
+        animation: settings-panel-shrink-up 0.28s cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    }
+
+    .points-panel-loading {
+        min-height: calc(var(--app-height) - 180px);
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 10px;
+        text-align: center;
+        color: var(--text-muted);
+    }
+
+    .points-panel-loading .points-star {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(245, 190, 48, 0.32);
+        border-radius: 20px;
+        background: rgba(245, 190, 48, 0.12);
+        color: #ffe59a;
+        font-size: 25px;
+        box-shadow: 0 0 28px rgba(245, 190, 48, 0.18);
+        animation: points-badge-pulse 1.4s ease-in-out infinite;
+    }
+
+    .points-panel-loading strong {
+        color: var(--text-main);
+    }
+}
+
 @keyframes account-switcher-backdrop-in {
     from { opacity: 0; }
     to { opacity: 1; }
