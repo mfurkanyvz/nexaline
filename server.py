@@ -2571,7 +2571,7 @@ def start_twilio_verification(phone_normalized):
     response = requests.post(
         f"https://verify.twilio.com/v2/Services/{service_sid}/Verifications",
         auth=(account_sid, auth_token),
-        data={"To": phone_normalized, "Channel": "sms"},
+        data={"To": phone_normalized, "Channel": "sms", "Locale": "tr"},
         timeout=15,
     )
     response.raise_for_status()
