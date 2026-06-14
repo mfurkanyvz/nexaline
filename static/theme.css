@@ -9403,8 +9403,8 @@ button {
         --mode-color: rgb(0, 244, 85);
         --mode-left-color: rgb(0, 244, 85);
         --mode-right-color: rgb(255, 24, 52);
-        --mode-left-text: rgb(4, 12, 22);
-        --mode-right-text: rgb(248, 250, 255);
+        --mode-left-text: #fff;
+        --mode-right-text: #fff;
         --mode-color-soft: rgba(0, 244, 85, 0.94);
         --mode-color-glow: rgba(0, 244, 85, 0.82);
         --mode-lens: 0;
