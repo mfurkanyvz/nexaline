@@ -55,6 +55,9 @@ public class MainActivity extends Activity {
 
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
+        webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
+        webView.setScrollBarStyle(WebView.SCROLLBARS_INSIDE_OVERLAY);
         setContentView(webView);
 
         WebSettings settings = webView.getSettings();
@@ -65,9 +68,15 @@ public class MainActivity extends Activity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setTextZoom(100);
+        settings.setSupportZoom(false);
+        settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            settings.setOffscreenPreRaster(true);
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             settings.setSafeBrowsingEnabled(true);
         }
@@ -97,6 +106,16 @@ public class MainActivity extends Activity {
                 }
                 recreateWebView();
                 return true;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                view.evaluateJavascript(
+                    "document.documentElement.classList.add('nexaline-native-android');"
+                        + "document.documentElement.style.webkitTapHighlightColor='transparent';",
+                    null
+                );
             }
 
             @Override
@@ -277,6 +296,11 @@ public class MainActivity extends Activity {
     }
 
     public class NativeBridge {
+        @JavascriptInterface
+        public boolean isNativeAndroid() {
+            return true;
+        }
+
         @JavascriptInterface
         public void notify(String title, String body, String tag) {
             runOnUiThread(() -> showNotification(title, body, tag));

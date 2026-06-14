@@ -695,6 +695,8 @@
         const DEFAULT_BRAND_LOGO = "/static/nexaline-logo.png";
         const DEFAULT_AI_NAME = "Nexa AI";
         const DEFAULT_AI_AVATAR = DEFAULT_BRAND_LOGO;
+        const IS_NATIVE_ANDROID = Boolean(window.NexaLineNative?.isNativeAndroid?.());
+        document.documentElement.classList.toggle("nexaline-native-android", IS_NATIVE_ANDROID);
         const MESSAGE_TONES = {
             classic: [[660, 70], [880, 80]],
             soft: [[520, 110], [640, 80]],
@@ -1375,8 +1377,13 @@
             });
         }
 
-        function applyAdminDesign(design = {}) {
+        let appliedAdminDesignSignature = "";
+
+        function applyAdminDesign(design = {}, force = false) {
             window.nexalineDesign = design || {};
+            const signature = `${window.innerWidth <= 760 ? "mobile" : "desktop"}:${JSON.stringify(design || {})}`;
+            if (!force && signature === appliedAdminDesignSignature) return;
+            appliedAdminDesignSignature = signature;
             const root = document.documentElement;
             const desktop = design.desktop || design;
             const mobile = design.mobile || {};
@@ -5896,7 +5903,10 @@
             element.setAttribute("debug-id", `NL-SYS-${index}`);
         }
 
+        let fullUiMetadataApplied = false;
+
         function applyUiIndexMetadata(root = document) {
+            if (root === document && fullUiMetadataApplied) return;
             NEXALINE_UI_INDEX_SELECTORS.forEach(([index, selector]) => {
                 try {
                     if (root instanceof Element && root.matches(selector)) {
@@ -5912,6 +5922,7 @@
                     root.querySelectorAll(fallbackSelector).forEach(element => setUiIndexMetadata(element, index));
                 }
             });
+            if (root === document) fullUiMetadataApplied = true;
         }
 
         const PREMIUM_GLASS_SELECTORS = [
@@ -5961,7 +5972,10 @@
             ".current"
         ];
 
+        let fullPremiumClassesApplied = false;
+
         function applyPremiumGlassClasses(root = document) {
+            if (root === document && fullPremiumClassesApplied) return;
             const scope = root instanceof Element ? root : document;
             PREMIUM_GLASS_SELECTORS.forEach(selector => {
                 try {
@@ -5999,6 +6013,7 @@
                 } catch (_error) {
                 }
             });
+            if (root === document) fullPremiumClassesApplied = true;
         }
 
         function setNavBadge(section, count) {
@@ -6271,8 +6286,7 @@
             markMissedCallsSeen();
             activeList.classList.remove("hidden");
             activeList.classList.remove("section-frame-enter");
-            void activeList.offsetWidth;
-            activeList.classList.add("section-frame-enter");
+            requestAnimationFrame(() => activeList.classList.add("section-frame-enter"));
             $("archiveShortcutButton").classList.toggle("hidden", state.activeSection !== "chats");
             $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
             $("newCallHeaderButton").classList.toggle("hidden", state.activeSection !== "calls");
@@ -6280,7 +6294,6 @@
             updateNavIndicator();
             requestAnimationFrame(updateNavIndicator);
             updateAiAssistantVisibility();
-            applyUiIndexMetadata();
         }
 
         function switchSectionBySwipe(direction) {
@@ -15599,7 +15612,7 @@
         window.addEventListener("resize", () => {
             updateAppViewportHeight();
             updateNavIndicator();
-            applyAdminDesign(window.nexalineDesign || {});
+            applyAdminDesign(window.nexalineDesign || {}, true);
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight, { passive: true });
         window.visualViewport?.addEventListener("scroll", updateAppViewportHeight, { passive: true });

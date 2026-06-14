@@ -142,6 +142,15 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+button,
+[role="button"],
+a,
+label,
+input[type="button"],
+input[type="submit"] {
+    touch-action: manipulation;
+}
+
 html,
 body {
     width: 100%;
@@ -158,6 +167,54 @@ body {
     padding: 0;
     min-height: 100dvh;
     overscroll-behavior: none;
+}
+
+html.nexaline-native-android *,
+html.nexaline-native-android *::before,
+html.nexaline-native-android *::after {
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 860px) {
+    html.nexaline-native-android .glass-card,
+    html.nexaline-native-android .modal-panel,
+    html.nexaline-native-android .modal-box,
+    html.nexaline-native-android .settings-panel,
+    html.nexaline-native-android .settings-box,
+    html.nexaline-native-android .composer,
+    html.nexaline-native-android .nav-tabs,
+    html.nexaline-native-android .mobile-nav,
+    html.nexaline-native-android .chat-top,
+    html.nexaline-native-android .attachment-menu,
+    html.nexaline-native-android .bottom-sheet,
+    html.nexaline-native-android .account-switcher-panel,
+    html.nexaline-native-android .toast {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    html.nexaline-native-android .glass-card,
+    html.nexaline-native-android .chat-item,
+    html.nexaline-native-android .contact-row,
+    html.nexaline-native-android .call-row,
+    html.nexaline-native-android .message-bubble,
+    html.nexaline-native-android .bubble {
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.24);
+    }
+
+    html.nexaline-native-android .nav-tabs,
+    html.nexaline-native-android .mobile-nav,
+    html.nexaline-native-android .composer,
+    html.nexaline-native-android .chat-top {
+        background-color: rgba(12, 17, 27, 0.98);
+    }
+
+    html.nexaline-native-android .chat-list,
+    html.nexaline-native-android .contact-list,
+    html.nexaline-native-android .messages {
+        -webkit-overflow-scrolling: touch;
+        contain: layout paint;
+    }
 }
 
 button,
