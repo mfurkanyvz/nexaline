@@ -596,6 +596,7 @@
                 <button class="tab" data-view="scheduled" type="button">Zamanlı</button>
                 <button class="tab" data-view="archives" type="button">Arşivler</button>
                 <button class="tab" data-view="social" type="button">Engel/İstek</button>
+                <button class="tab" data-view="mobile" type="button">Mobil Durum</button>
                 <button class="tab" data-view="design" type="button">Tasarım</button>
                 <button class="tab" data-view="create" type="button">Hesap Aç</button>
             </nav>
@@ -705,6 +706,7 @@
             if (state.view === "scheduled") renderScheduled();
             if (state.view === "archives") renderArchives();
             if (state.view === "social") renderSocial();
+            if (state.view === "mobile") renderMobilePlatform();
             if (state.view === "design") renderDesign();
             if (state.view === "create") renderCreateUsers();
             if (state.view === "userChats") renderUserChats(state.selectedUser);
@@ -1185,6 +1187,37 @@
                     <small class="meta">${new Date(item.createdAt).toLocaleString("tr-TR")}</small>
                 </div>
             `).join("") : empty("Grup isteği yok.");
+        }
+
+        function renderMobilePlatform() {
+            const mobile = state.data.mobilePlatform || {};
+            const capabilities = mobile.capabilities || [];
+            $("view").innerHTML = `
+                <h2>Mobil Uygulama Durumu</h2>
+                <div class="summary">
+                    <div class="metric"><strong>${escapeHtml(mobile.androidVersion || "-")}</strong><small>Android sürümü (${Number(mobile.androidVersionCode || 0)})</small></div>
+                    <div class="metric"><strong>${Number(mobile.targetSdk || 0)}</strong><small>Target SDK</small></div>
+                    <div class="metric"><strong>${Number(mobile.androidSessions || 0)}</strong><small>Aktif Android oturumu</small></div>
+                    <div class="metric"><strong>${Number(mobile.pushSubscriptions || 0)}</strong><small>Push aboneliği</small></div>
+                    <div class="metric"><strong>${Number(mobile.androidPushSubscriptions || 0)}</strong><small>Android push aboneliği</small></div>
+                    <div class="metric"><strong class="${mobile.vapidReady ? "status-ok" : "status-error"}">${mobile.vapidReady ? "Hazır" : "Eksik"}</strong><small>VAPID Web Push</small></div>
+                </div>
+                <div class="card">
+                    <h3>Mobil tasarım hedefi</h3>
+                    <p>${escapeHtml(mobile.viewport || "393 × 852 CSS px")} • safe-area • 100dvh • Android donanım hızlandırma</p>
+                </div>
+                <div class="grid" style="margin-top:12px">
+                    ${capabilities.map(item => `
+                        <article class="card">
+                            <div class="card-row" style="margin-top:0">
+                                <strong>${escapeHtml(item.name || "Özellik")}</strong>
+                                <span class="status-${item.status === "ready" ? "ok" : "warn"}">${item.status === "ready" ? "Hazır" : "Kontrol"}</span>
+                            </div>
+                            <p>${escapeHtml(item.detail || "")}</p>
+                        </article>
+                    `).join("")}
+                </div>
+            `;
         }
 
         function renderDesign() {
