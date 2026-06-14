@@ -1,5 +1,5 @@
-const DEFAULT_NOTIFICATION_ICON = "/static/icons/icon-192-3d.png";
-const DEFAULT_NOTIFICATION_BADGE = "/static/icons/icon-192-3d.png";
+const DEFAULT_NOTIFICATION_ICON = "/static/icons/nexaline-icon-192-v2.png";
+const DEFAULT_NOTIFICATION_BADGE = "/static/icons/nexaline-icon-192-v2.png";
 
 self.addEventListener("push", event => {
   let data = {};

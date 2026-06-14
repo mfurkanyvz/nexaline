@@ -2041,8 +2041,8 @@ def push_payload_for_chat(chat_id, title, message, notification_type="message", 
         "callKind": call_kind,
         "url": target_url,
         "tag": f"{notification_type or 'message'}-{chat_id}",
-        "icon": "/static/icons/icon-192-3d.png",
-        "badge": "/static/icons/icon-192-3d.png",
+        "icon": "/static/icons/nexaline-icon-192-v2.png",
+        "badge": "/static/icons/nexaline-icon-192-v2.png",
     }
 
 
@@ -4959,6 +4959,13 @@ def reset_client():
 @app.route("/manifest.webmanifest")
 def manifest():
     return send_from_directory("static", "manifest.webmanifest", mimetype="application/manifest+json")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    response = send_from_directory("static/icons", "nexaline-icon-48-v2.png", mimetype="image/png")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
 
 
 @app.route("/sw.js")
