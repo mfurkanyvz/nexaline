@@ -2426,6 +2426,47 @@ def user_by_login_identifier(identifier):
     return db.session.get(User, value)
 
 
+def username_edit_distance_at_most_one(left, right):
+    if left == right:
+        return True
+    if abs(len(left) - len(right)) > 1:
+        return False
+
+    if len(left) > len(right):
+        left, right = right, left
+
+    short_index = 0
+    long_index = 0
+    edits = 0
+    while short_index < len(left) and long_index < len(right):
+        if left[short_index] == right[long_index]:
+            short_index += 1
+            long_index += 1
+            continue
+        edits += 1
+        if edits > 1:
+            return False
+        if len(left) == len(right):
+            short_index += 1
+        long_index += 1
+
+    return True
+
+
+def user_by_username_typo(identifier, password):
+    value = (identifier or "").strip().lower()
+    if not value or "@" in value or normalize_phone(value)[1]:
+        return None
+
+    candidates = [
+        user
+        for user in User.query.filter(db.func.length(User.username).between(len(value) - 1, len(value) + 1)).all()
+        if username_edit_distance_at_most_one(value, user.username)
+        and check_password_hash(user.password_hash, password)
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
 def normalize_phone(phone):
     raw = (phone or "").strip()
     if not raw or not re.fullmatch(r"[+\d\s().-]+", raw):
@@ -6516,6 +6557,8 @@ def login():
     password = data.get("password") or ""
     device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
     user = user_by_login_identifier(identifier)
+    if not user and password:
+        user = user_by_username_typo(identifier, password)
 
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
