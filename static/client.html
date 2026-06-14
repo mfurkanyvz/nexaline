@@ -13976,11 +13976,12 @@
             };
             state.profileCrop = crop;
 
-            openModal("Fotografi kirp", body => {
+            openModal("Fotoğrafı kırp", body => {
                 const frame = document.createElement("div");
                 frame.className = "crop-frame";
                 const image = crop.image;
                 image.alt = "Profil";
+                image.draggable = false;
                 frame.appendChild(image);
 
                 const controls = document.createElement("div");
@@ -14043,7 +14044,7 @@
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 { label: "Kullan", primary: true, onClick: useCroppedProfileImage }
-            ]);
+            ], "profile-crop-modal");
         }
 
         async function useCroppedProfileImage() {

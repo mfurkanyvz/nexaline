@@ -994,6 +994,93 @@ textarea {
     margin-top: 16px;
 }
 
+.profile-crop-modal .modal-box {
+    width: min(430px, 100%);
+    overflow: hidden;
+}
+
+.profile-crop-modal .modal-body {
+    justify-items: center;
+}
+
+.crop-frame {
+    position: relative;
+    width: min(280px, calc(100vw - 76px));
+    aspect-ratio: 1;
+    overflow: hidden;
+    touch-action: none;
+    cursor: grab;
+    border: 3px solid rgba(255, 255, 255, 0.92);
+    border-radius: 50%;
+    background: #05070c;
+    box-shadow:
+        0 0 0 6px rgba(59, 130, 246, 0.16),
+        0 18px 44px rgba(0, 0, 0, 0.42);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.crop-frame:active {
+    cursor: grabbing;
+}
+
+.crop-frame img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    max-width: none;
+    max-height: none;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    transform-origin: center;
+    will-change: width, height, transform;
+}
+
+.crop-controls {
+    width: 100%;
+    display: grid;
+    gap: 10px;
+}
+
+.crop-controls label {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.crop-controls input[type="range"] {
+    width: 100%;
+    min-width: 0;
+    accent-color: var(--accent-blue);
+}
+
+@media (max-width: 640px) {
+    .profile-crop-modal {
+        align-items: center;
+        padding:
+            calc(12px + var(--safe-top))
+            14px
+            calc(12px + var(--safe-bottom));
+    }
+
+    .profile-crop-modal .modal-box {
+        max-height: calc(var(--app-height) - var(--safe-top) - var(--safe-bottom) - 24px);
+        padding: 16px;
+        overflow-y: auto;
+    }
+
+    .crop-frame {
+        width: min(260px, calc(100vw - 76px));
+    }
+}
+
 @keyframes modal-backdrop-in {
     from { opacity: 0; }
     to { opacity: 1; }
