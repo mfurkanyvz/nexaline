@@ -194,6 +194,9 @@ class User(db.Model):
     email = db.Column(db.String(255), nullable=True)
     email_normalized = db.Column(db.String(255), nullable=True, index=True)
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    phone = db.Column(db.String(24), nullable=True)
+    phone_normalized = db.Column(db.String(24), nullable=True, index=True, unique=True)
+    phone_verified = db.Column(db.Boolean, nullable=False, default=False)
     profile_image = db.Column(db.Text, nullable=True)
     avatar = db.Column(db.String(8), nullable=False)
     avatar_gradient = db.Column(db.String(160), nullable=True)
@@ -365,6 +368,20 @@ class EmailVerification(db.Model):
     password_hash = db.Column(db.String(255), nullable=True)
     code_hash = db.Column(db.String(255), nullable=False)
     attempts = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class PhoneVerification(db.Model):
+    id = db.Column(db.String(40), primary_key=True)
+    purpose = db.Column(db.String(40), nullable=False)
+    username = db.Column(db.String(80), nullable=True)
+    phone = db.Column(db.String(24), nullable=False)
+    phone_normalized = db.Column(db.String(24), nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=True)
+    code_hash = db.Column(db.String(255), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    provider_message_id = db.Column(db.String(120), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
@@ -1104,6 +1121,8 @@ def private_user(username):
     if user:
         data["email"] = user.email
         data["emailVerified"] = user.email_verified
+        data["phone"] = user.phone
+        data["phoneVerified"] = user.phone_verified
         data["privacy"] = {
             "lastSeenHidden": bool(user.hide_last_seen),
             "onlineHidden": bool(user.hide_online),
@@ -2392,12 +2411,55 @@ def user_by_login_identifier(identifier):
     value = (identifier or "").strip().lower()
     if not value:
         return None
+    _, phone_normalized = normalize_phone(value)
+    if phone_normalized:
+        return User.query.filter(User.phone_normalized == phone_normalized).first()
     if "@" in value:
         _, email_normalized = normalize_email(value)
         if not email_normalized:
             return None
         return User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first()
     return db.session.get(User, value)
+
+
+def normalize_phone(phone):
+    raw = (phone or "").strip()
+    if not raw or not re.fullmatch(r"[+\d\s().-]+", raw):
+        return None, None
+    digits = re.sub(r"\D", "", raw)
+    if digits.startswith("0090"):
+        digits = digits[4:]
+    elif digits.startswith("90") and len(digits) == 12:
+        digits = digits[2:]
+    elif digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+    if len(digits) != 10 or not digits.startswith("5"):
+        return None, None
+    normalized = f"+90{digits}"
+    return normalized, normalized
+
+
+def mask_phone(phone):
+    _, normalized = normalize_phone(phone)
+    if not normalized:
+        return ""
+    return f"+90 5** *** ** {normalized[-2:]}"
+
+
+def phone_error(phone):
+    original, normalized = normalize_phone(phone)
+    if not original or not normalized:
+        return "Geçerli bir Türkiye cep telefonu numarası yazmalısın."
+    return None
+
+
+def phone_exists(phone_normalized, except_username=None):
+    if not phone_normalized:
+        return False
+    query = User.query.filter(User.phone_normalized == phone_normalized)
+    if except_username:
+        query = query.filter(User.username != except_username)
+    return query.first() is not None
 
 
 def normalize_email(email):
@@ -2447,6 +2509,113 @@ def email_exists(email_normalized, except_username=None):
 
 def verification_code():
     return f"{secrets.randbelow(900000) + 100000}"
+
+
+def send_sms_via_iletimerkezi(phone_normalized, body):
+    api_key = os.environ.get("ILETIMERKEZI_API_KEY", "").strip()
+    api_hash = os.environ.get("ILETIMERKEZI_API_HASH", "").strip()
+    sender = os.environ.get("ILETIMERKEZI_SENDER", "").strip()
+    if not api_key or not api_hash or not sender:
+        return False, None
+
+    number = phone_normalized.lstrip("+")
+    response = requests.post(
+        "https://api.iletimerkezi.com/v1/send-sms/json",
+        headers={"Content-Type": "application/json"},
+        json={
+            "request": {
+                "authentication": {"key": api_key, "hash": api_hash},
+                "order": {
+                    "sender": sender,
+                    "iys": "0",
+                    "message": {
+                        "text": body,
+                        "receipents": {"number": [number]},
+                    },
+                },
+            }
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    provider_response = payload.get("response") or {}
+    status = provider_response.get("status") or {}
+    if int(status.get("code") or 0) != 200:
+        raise RuntimeError(status.get("message") or "SMS sağlayıcısı gönderimi reddetti.")
+    return True, str((provider_response.get("order") or {}).get("id") or "") or None
+
+
+def send_phone_code(phone_normalized, code, purpose):
+    purpose_labels = {
+        "register": "kayıt",
+        "forgot": "şifre sıfırlama",
+        "login_2fa": "giriş",
+        "phone_change": "telefon değiştirme",
+    }
+    label = purpose_labels.get(purpose, "doğrulama")
+    body = f"NexaLine {label} kodun: {code}. Kod 10 dakika geçerlidir."
+    try:
+        return send_sms_via_iletimerkezi(phone_normalized, body)
+    except Exception:
+        app.logger.exception("Doğrulama SMS'i gönderilemedi")
+        return False, None
+
+
+def create_phone_verification(purpose, phone, phone_normalized, username=None, password_hash=None):
+    previous = PhoneVerification.query.filter_by(
+        purpose=purpose,
+        username=username,
+        phone_normalized=phone_normalized,
+    ).order_by(PhoneVerification.created_at.desc()).first()
+    wait_seconds = verification_resend_wait_seconds(previous)
+    if wait_seconds:
+        return None, None, False, wait_seconds
+
+    PhoneVerification.query.filter_by(
+        purpose=purpose,
+        username=username,
+        phone_normalized=phone_normalized,
+    ).delete(synchronize_session=False)
+    code = verification_code()
+    verification = PhoneVerification(
+        id=uuid4().hex,
+        purpose=purpose,
+        username=username,
+        phone=phone,
+        phone_normalized=phone_normalized,
+        password_hash=password_hash,
+        code_hash=generate_password_hash(code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    db.session.add(verification)
+    db.session.commit()
+    sent, provider_message_id = send_phone_code(phone_normalized, code, purpose)
+    if provider_message_id:
+        verification.provider_message_id = provider_message_id
+        db.session.commit()
+    return verification, code, sent, 0
+
+
+def phone_verification_response(message, code=None, sent=True, retry_after=0):
+    if retry_after:
+        return jsonify({"ok": False, "message": f"Yeni kod için {retry_after} saniye bekle.", "retryAfter": retry_after}), 429
+    response = {
+        "ok": True,
+        "requiresVerification": True,
+        "verificationChannel": "phone",
+        "message": message,
+        "smsSent": bool(sent),
+        "resendAfter": TWO_FACTOR_RESEND_SECONDS,
+    }
+    if not sent:
+        if expose_verification_codes():
+            response["message"] += " SMS servisi hazır olmadığı için kod geliştirme modunda gösteriliyor."
+            response["devCode"] = code
+        else:
+            response["ok"] = False
+            response["message"] += " SMS gönderilemedi; lütfen yeniden dene."
+    return jsonify(response), (200 if response["ok"] else 503)
 
 
 def email_subject(purpose):
@@ -6095,24 +6264,15 @@ def register():
     try:
         data = request.get_json() or {}
         username = (data.get("username") or "").strip().lower()
-        email = (data.get("email") or "").strip()
+        contact = (data.get("contact") or data.get("email") or data.get("phone") or "").strip()
         password = data.get("password") or ""
 
         username_problem = username_error(username)
         if username_problem:
             return jsonify({"ok": False, "message": username_problem}), 400
 
-        email_problem = email_error(email)
-        if email_problem:
-            return jsonify({"ok": False, "message": email_problem}), 400
-
-        email, email_normalized = normalize_email(email)
-
         if db.session.get(User, username):
             return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı. Farklı bir kullanıcı adı dene."}), 409
-
-        if email_exists(email_normalized):
-            return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
 
         password_hash = None
         if password:
@@ -6121,6 +6281,30 @@ def register():
                 return jsonify({"ok": False, "message": password_problem}), 400
             password_hash = generate_password_hash(password)
 
+        phone, phone_normalized = normalize_phone(contact)
+        if phone_normalized:
+            if phone_exists(phone_normalized):
+                return jsonify({"ok": False, "message": "Bu telefon numarası zaten bir hesapta kullanılıyor."}), 409
+            _, code, sent, retry_after = create_phone_verification(
+                purpose="register",
+                username=username,
+                phone=phone,
+                phone_normalized=phone_normalized,
+                password_hash=password_hash,
+            )
+            return phone_verification_response(
+                f"{mask_phone(phone_normalized)} numarasına doğrulama kodu gönderdik.",
+                code,
+                sent,
+                retry_after,
+            )
+
+        email_problem = email_error(contact)
+        if email_problem:
+            return jsonify({"ok": False, "message": "Geçerli bir Gmail adresi veya Türkiye cep telefonu numarası yazmalısın."}), 400
+        email, email_normalized = normalize_email(contact)
+        if email_exists(email_normalized):
+            return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
         _, code, sent = create_email_verification(
             purpose="register",
             username=username,
@@ -6168,7 +6352,7 @@ def register_verify():
     try:
         data = request.get_json() or {}
         username = (data.get("username") or "").strip().lower()
-        email = (data.get("email") or "").strip()
+        contact = (data.get("contact") or data.get("email") or data.get("phone") or "").strip()
         code = (data.get("code") or "").strip()
         password = data.get("password") or ""
         confirm_password = data.get("confirmPassword")
@@ -6177,16 +6361,25 @@ def register_verify():
         if display_name_error:
             return jsonify({"ok": False, "message": display_name_error}), 400
 
-        email_problem = email_error(email)
-        if email_problem:
-            return jsonify({"ok": False, "message": email_problem}), 400
-
-        email, email_normalized = normalize_email(email)
-        verification = EmailVerification.query.filter_by(
-            purpose="register",
-            username=username,
-            email_normalized=email_normalized,
-        ).order_by(EmailVerification.created_at.desc()).first()
+        phone, phone_normalized = normalize_phone(contact)
+        if phone_normalized:
+            verification = PhoneVerification.query.filter_by(
+                purpose="register",
+                username=username,
+                phone_normalized=phone_normalized,
+            ).order_by(PhoneVerification.created_at.desc()).first()
+            contact_kind = "phone"
+        else:
+            email_problem = email_error(contact)
+            if email_problem:
+                return jsonify({"ok": False, "message": "Geçerli bir Gmail adresi veya Türkiye cep telefonu numarası yazmalısın."}), 400
+            email, email_normalized = normalize_email(contact)
+            verification = EmailVerification.query.filter_by(
+                purpose="register",
+                username=username,
+                email_normalized=email_normalized,
+            ).order_by(EmailVerification.created_at.desc()).first()
+            contact_kind = "email"
 
         if not verification:
             return jsonify({"ok": False, "message": "Doğrulama kaydı bulunamadı. Kayıt işlemini yeniden başlat."}), 404
@@ -6205,7 +6398,9 @@ def register_verify():
         if db.session.get(User, username):
             return jsonify({"ok": False, "message": "Bu kullanıcı adı zaten kayıtlı."}), 409
 
-        if email_exists(email_normalized):
+        if contact_kind == "phone" and phone_exists(phone_normalized):
+            return jsonify({"ok": False, "message": "Bu telefon numarası zaten bir hesapta kullanılıyor."}), 409
+        if contact_kind == "email" and email_exists(email_normalized):
             return jsonify({"ok": False, "message": "Bu Gmail zaten bir hesapta kullanılıyor."}), 409
 
         if not password and not verification.password_hash:
@@ -6228,9 +6423,12 @@ def register_verify():
             username=username,
             password_hash=password_hash,
             display_name=display_name[:120] or username,
-            email=verification.email,
-            email_normalized=verification.email_normalized,
-            email_verified=True,
+            email=verification.email if contact_kind == "email" else None,
+            email_normalized=verification.email_normalized if contact_kind == "email" else None,
+            email_verified=contact_kind == "email",
+            phone=verification.phone if contact_kind == "phone" else None,
+            phone_normalized=verification.phone_normalized if contact_kind == "phone" else None,
+            phone_verified=contact_kind == "phone",
             avatar=tr_upper((display_name or username)[:2]),
             about="NexaLine kullanıyorum.",
         )
@@ -9648,6 +9846,9 @@ with app.app_context():
         "email": "ALTER TABLE \"user\" ADD COLUMN email VARCHAR(255)",
         "email_normalized": "ALTER TABLE \"user\" ADD COLUMN email_normalized VARCHAR(255)",
         "email_verified": "ALTER TABLE \"user\" ADD COLUMN email_verified BOOLEAN DEFAULT FALSE NOT NULL",
+        "phone": "ALTER TABLE \"user\" ADD COLUMN phone VARCHAR(24)",
+        "phone_normalized": "ALTER TABLE \"user\" ADD COLUMN phone_normalized VARCHAR(24)",
+        "phone_verified": "ALTER TABLE \"user\" ADD COLUMN phone_verified BOOLEAN DEFAULT FALSE NOT NULL",
         "profile_image": "ALTER TABLE \"user\" ADD COLUMN profile_image TEXT",
         "avatar_gradient": "ALTER TABLE \"user\" ADD COLUMN avatar_gradient VARCHAR(160)",
         "last_seen": "ALTER TABLE \"user\" ADD COLUMN last_seen TIMESTAMP",
@@ -9675,6 +9876,8 @@ with app.app_context():
         if column_name not in user_columns:
             db.session.execute(text(statement))
             db.session.commit()
+    db.session.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ix_user_phone_normalized_unique ON "user" (phone_normalized)'))
+    db.session.commit()
     reset_user_data_once()
     db.session.execute(text("UPDATE \"user\" SET last_seen = COALESCE(last_seen, created_at)"))
     db.session.commit()

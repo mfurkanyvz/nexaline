@@ -110,7 +110,7 @@
                     <span class="auth-identity-badge" aria-hidden="true"></span>
                     <span><strong id="registerContactLabel">Gmail doğrulaması</strong><small id="registerContactHint">Doğrulama kodu Gmail adresine gönderilir.</small></span>
                 </div>
-                <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="Gmail doğrulama kodu">
+                <input id="verificationCode" class="field hidden" inputmode="numeric" maxlength="6" placeholder="6 haneli doğrulama kodu">
                 <input id="password" class="field" autocomplete="current-password" type="password" placeholder="Şifre">
                 <input id="confirmPassword" class="field hidden" autocomplete="new-password" type="password" placeholder="Şifreyi tekrar yaz">
             </div>
@@ -627,7 +627,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage22-fast-startup-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage23-phone-registration-v1";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -4622,12 +4622,12 @@
             const loginCopy = {
                 username: ["Kullanıcı adı", "Kullanıcı adın ve şifrenle giriş yap."],
                 gmail: ["Gmail adresi", "Doğrulanmış Gmail adresin ve şifrenle giriş yap."],
-                phone: ["Telefon numarası (yakında)", "Telefonla giriş teması hazır; numara doğrulaması sonraki aşamada bağlanacak."]
+                phone: ["Telefon numarası", "Doğrulanmış telefon numaran ve şifrenle giriş yap."]
             };
             const registerCopy = {
                 username: ["Gmail veya telefon", "Doğrulama için Gmail adresini ya da telefon numaranı yaz."],
                 gmail: ["Gmail doğrulaması", "6 haneli doğrulama kodu Gmail adresine gönderilir."],
-                phone: ["Telefon doğrulaması (yakında)", "SMS kodu altyapısı sonraki aşamada etkinleştirilecek."]
+                phone: ["Telefon doğrulaması", "6 haneli doğrulama kodu SMS ile gönderilir."]
             };
             const apply = (input, meta, label, hint, kind, copy) => {
                 input.dataset.identityKind = kind;
@@ -4691,8 +4691,8 @@
                 const hints = [
                     "Önce isim ve soyismini yaz.",
                     "Sonra sana özel kullanıcı adını seç.",
-                    "Gmail adresini veya telefon numaranı yaz. SMS doğrulaması yakında.",
-                    "Gmail'e gelen 6 haneli kodu yaz.",
+                    "Gmail adresini veya telefon numaranı yaz.",
+                    "Gelen 6 haneli doğrulama kodunu yaz.",
                     "Güçlü şifreni iki kez yaz."
                 ];
                 $("authStatus").textContent = hints[step];
@@ -5115,7 +5115,7 @@
             const lastName = normalizeSurname($("lastName").value);
             const displayName = buildDisplayName(firstName, lastName);
             const registerUsername = normalizeRegisterUsername($("registerUsername").value);
-            const email = $("email").value.trim();
+            const contact = $("email").value.trim();
             const code = $("verificationCode").value.trim();
             const password = $("password").value;
             const confirmPassword = $("confirmPassword").value;
@@ -5131,7 +5131,7 @@
                 }
                 $("username").value = firstName;
                 $("lastName").value = lastName;
-                state.pendingRegister = { firstName, lastName, displayName, username: "", email: "" };
+                state.pendingRegister = { firstName, lastName, displayName, username: "", contact: "" };
                 setRegisterStep(1);
                 return;
             }
@@ -5158,16 +5158,12 @@
             }
 
             if (state.registerStep === 2) {
-                if (authIdentityKind(email) === "phone") {
-                    $("authStatus").textContent = "Telefonla kayıt teması hazır. SMS doğrulaması etkinleşene kadar Gmail adresini kullan.";
-                    return;
-                }
                 const payload = {
                     firstName: state.pendingRegister?.firstName || firstName,
                     lastName: state.pendingRegister?.lastName || lastName,
                     displayName: state.pendingRegister?.displayName || displayName,
                     username: state.pendingRegister?.username || registerUsername,
-                    email
+                    contact
                 };
                 const response = await fetch("/register", {
                     method: "POST",
@@ -5181,6 +5177,9 @@
                 }
                 state.awaitingRegisterVerification = true;
                 state.pendingRegister = payload;
+                $("verificationCode").placeholder = authIdentityKind(contact) === "phone"
+                    ? "SMS doğrulama kodu"
+                    : "Gmail doğrulama kodu";
                 setRegisterStep(3);
                 $("authStatus").textContent = data.devCode ? `${data.message} Kod: ${data.devCode}` : data.message;
                 return;
@@ -12897,7 +12896,18 @@
             const username = $("profileUsernameInput")?.value.trim().toLocaleLowerCase("tr-TR") || state.me?.username || "nexaline";
             const avatarValue = $("avatarTextInput")?.value.trim() || state.me?.avatar || initials(displayName);
             $("settingsProfileName").textContent = displayName;
-            $("settingsProfileMeta").textContent = `@${username} • ${state.me?.emailVerified ? "Gmail doğrulandı" : "Gmail bekliyor"}`;
+            const verifiedContact = state.me?.phoneVerified
+                ? "Telefon doğrulandı"
+                : state.me?.emailVerified
+                    ? "Gmail doğrulandı"
+                    : "İletişim bilgisi bekliyor";
+            $("settingsProfileMeta").textContent = `@${username} • ${verifiedContact}`;
+            const phonePreview = document.querySelector(".profile-phone-preview small");
+            if (phonePreview) {
+                phonePreview.textContent = state.me?.phoneVerified && state.me?.phone
+                    ? `${state.me.phone} • Doğrulandı`
+                    : "Henüz doğrulanmış telefon numarası yok.";
+            }
             $("settingsProfileAboutText").textContent = $("aboutInput")?.value.trim() || state.me?.about || "NexaLine kullanıyorum.";
             setAvatar($("settingsAvatar"), {
                 profileImage: state.profileImageDraft,
