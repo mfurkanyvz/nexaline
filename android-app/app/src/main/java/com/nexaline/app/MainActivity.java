@@ -50,6 +50,7 @@ import java.util.List;
 public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 10;
     private static final int FILE_REQUEST = 11;
+    private static final int GEOLOCATION_PERMISSION_REQUEST = 12;
     private static final String CHANNEL_ID = "nexaline_messages_v2";
     private static final String CALL_CHANNEL_ID = "nexaline_calls_v1";
     private static final String PREFS_NAME = "nexaline_app";
@@ -58,6 +59,8 @@ public class MainActivity extends Activity {
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraOutputUri;
+    private String pendingGeolocationOrigin;
+    private GeolocationPermissions.Callback pendingGeolocationCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,7 +149,17 @@ public class MainActivity extends Activity {
 
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-                callback.invoke(origin, true, false);
+                if (hasLocationPermission()) {
+                    callback.invoke(origin, true, false);
+                    return;
+                }
+                pendingGeolocationOrigin = origin;
+                pendingGeolocationCallback = callback;
+                ActivityCompat.requestPermissions(
+                    MainActivity.this,
+                    new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
+                    GEOLOCATION_PERMISSION_REQUEST
+                );
             }
 
             @Override
@@ -366,8 +379,25 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return;
         }
-        String[] permissions = new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION };
+        String[] permissions = new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO };
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST);
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != GEOLOCATION_PERMISSION_REQUEST || pendingGeolocationCallback == null) {
+            return;
+        }
+        boolean granted = hasLocationPermission();
+        pendingGeolocationCallback.invoke(pendingGeolocationOrigin, granted, false);
+        pendingGeolocationCallback = null;
+        pendingGeolocationOrigin = null;
     }
 
     private void createNotificationChannel() {
