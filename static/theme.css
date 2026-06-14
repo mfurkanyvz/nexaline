@@ -8675,7 +8675,9 @@ button {
         display: grid;
         overflow: hidden;
         background: var(--bg-main);
-        will-change: transform, opacity;
+        contain: paint;
+        backface-visibility: hidden;
+        will-change: transform;
     }
 
     .app.chat-opening .chat-pane {
@@ -8717,12 +8719,10 @@ button {
 
 @keyframes mobile-chat-pane-out {
     from {
-        opacity: 1;
-        transform: translateX(0) scale(1);
+        transform: translate3d(0, 0, 0);
     }
     to {
-        opacity: 0.76;
-        transform: translateX(30px) scale(0.992);
+        transform: translate3d(30px, 0, 0);
     }
 }
 

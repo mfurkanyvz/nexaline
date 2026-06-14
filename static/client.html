@@ -4526,12 +4526,22 @@
         function closeMobileChat() {
             clearActiveNewMarker();
             const app = $("app");
-            const finishClose = () => {
+            const finishMobileClose = () => {
                 state.activeChatId = null;
                 state.activeProfileUsername = null;
                 app.classList.remove("chat-open", "profile-open", "chat-opening", "chat-closing");
                 mobileChatAnimationTimer = null;
-                render();
+                updateAiAssistantVisibility();
+                const clearHiddenChat = () => {
+                    if (!state.activeChatId && !app.classList.contains("chat-open")) {
+                        renderActiveChat();
+                    }
+                };
+                if ("requestIdleCallback" in window) {
+                    requestIdleCallback(clearHiddenChat, { timeout: 600 });
+                } else {
+                    setTimeout(clearHiddenChat, 60);
+                }
             };
             if (isMobileView() && app.classList.contains("chat-open")) {
                 if (mobileChatAnimationTimer) {
@@ -4540,10 +4550,15 @@
                 closeSoftKeyboard();
                 app.classList.remove("chat-opening");
                 app.classList.add("chat-closing");
-                mobileChatAnimationTimer = setTimeout(finishClose, 185);
+                mobileChatAnimationTimer = setTimeout(finishMobileClose, 185);
                 return;
             }
-            finishClose();
+            state.activeChatId = null;
+            state.activeProfileUsername = null;
+            app.classList.remove("chat-open", "profile-open", "chat-opening", "chat-closing");
+            mobileChatAnimationTimer = null;
+            renderActiveChat();
+            updateAiAssistantVisibility();
         }
 
         function resetToAuth(message = "") {

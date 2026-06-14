@@ -6494,6 +6494,10 @@ def register_verify():
             except Exception:
                 app.logger.exception("Twilio doğrulama kodu kontrol edilemedi")
                 return jsonify({"ok": False, "message": "SMS doğrulama servisine ulaşılamadı. Lütfen yeniden dene."}), 502
+            if code_is_valid:
+                verification.code_hash = generate_password_hash(code)
+                verification.provider = "twilio_verified"
+                db.session.commit()
         else:
             code_is_valid = check_password_hash(verification.code_hash, code)
 
