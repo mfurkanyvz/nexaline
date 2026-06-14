@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v82-background-notifications-20260615";
+const CACHE_NAME = "nexaline-pwa-v83-incoming-calls-20260615";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",

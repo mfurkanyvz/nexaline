@@ -7,6 +7,7 @@ import android.app.DownloadManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.Notification;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ResolveInfo;
@@ -17,7 +18,9 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 import android.provider.MediaStore;
+import android.media.AudioAttributes;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.GeolocationPermissions;
@@ -48,6 +51,7 @@ public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 10;
     private static final int FILE_REQUEST = 11;
     private static final String CHANNEL_ID = "nexaline_messages_v2";
+    private static final String CALL_CHANNEL_ID = "nexaline_calls_v1";
     private static final String PREFS_NAME = "nexaline_app";
     private static final String WEBVIEW_RESET_KEY = "webview_reset_version";
     private static final String WEBVIEW_RESET_VERSION = "2026-06-04-login-cache-fix";
@@ -58,6 +62,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        configureIncomingCallWindow(getIntent());
         createNotificationChannel();
         requestAppPermissions();
 
@@ -182,6 +187,32 @@ public class MainActivity extends Activity {
             webView.loadUrl(BuildConfig.NEXALINE_URL + "/reset-client?apk=" + WEBVIEW_RESET_VERSION);
         } else {
             webView.loadUrl(BuildConfig.NEXALINE_URL + "?apk=" + WEBVIEW_RESET_VERSION);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        configureIncomingCallWindow(intent);
+        if (webView != null && intent != null && intent.getBooleanExtra("nexaline_call", false)) {
+            webView.evaluateJavascript("window.dispatchEvent(new Event('nexaline:incoming-call-open'));", null);
+        }
+    }
+
+    private void configureIncomingCallWindow(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra("nexaline_call", false)) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+        } else {
+            getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                    | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            );
         }
     }
 
@@ -350,6 +381,18 @@ public class MainActivity extends Activity {
         channel.setSound(Settings.System.DEFAULT_NOTIFICATION_URI, null);
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(channel);
+
+        AudioAttributes callAudio = new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build();
+        NotificationChannel callChannel = new NotificationChannel(CALL_CHANNEL_ID, "NexaLine aramaları", NotificationManager.IMPORTANCE_HIGH);
+        callChannel.setDescription("Gelen NexaLine sesli ve görüntülü aramaları");
+        callChannel.enableVibration(true);
+        callChannel.setVibrationPattern(new long[] { 0, 500, 250, 500, 250, 800 });
+        callChannel.setSound(Settings.System.DEFAULT_RINGTONE_URI, callAudio);
+        callChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        manager.createNotificationChannel(callChannel);
     }
 
     private void showNotification(String title, String body, String tag) {
@@ -359,9 +402,15 @@ public class MainActivity extends Activity {
         }
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        boolean isCall = tag != null && tag.startsWith("call-");
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+        boolean isCall = tag != null && tag.startsWith("call");
+        intent.putExtra("nexaline_call", isCall);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            this,
+            isCall ? 1 : 0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, isCall ? CALL_CHANNEL_ID : CHANNEL_ID)
             .setSmallIcon(android.R.drawable.sym_action_chat)
             .setContentTitle(title)
             .setContentText(body)
@@ -370,6 +419,14 @@ public class MainActivity extends Activity {
             .setCategory(isCall ? NotificationCompat.CATEGORY_CALL : NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent);
+        if (isCall) {
+            builder
+                .setFullScreenIntent(pendingIntent, true)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(60_000)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+        }
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         manager.notify(Math.abs((tag == null ? title : tag).hashCode()), builder.build());
     }
