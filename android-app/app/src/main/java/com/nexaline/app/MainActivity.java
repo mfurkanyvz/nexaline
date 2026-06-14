@@ -9,12 +9,14 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ResolveInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
@@ -36,6 +38,11 @@ import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 10;
@@ -46,6 +53,7 @@ public class MainActivity extends Activity {
     private static final String WEBVIEW_RESET_VERSION = "2026-06-04-login-cache-fix";
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
+    private Uri cameraOutputUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,10 +150,14 @@ public class MainActivity extends Activity {
                     fileCallback.onReceiveValue(null);
                 }
                 fileCallback = callback;
-                Intent intent = params.createIntent();
                 try {
-                    startActivityForResult(intent, FILE_REQUEST);
+                    if (params.isCaptureEnabled()) {
+                        startActivityForResult(createCameraIntent(params.getAcceptTypes()), FILE_REQUEST);
+                    } else {
+                        startActivityForResult(createGalleryIntent(params), FILE_REQUEST);
+                    }
                 } catch (Exception error) {
+                    cameraOutputUri = null;
                     fileCallback = null;
                     return false;
                 }
@@ -171,6 +183,67 @@ public class MainActivity extends Activity {
         } else {
             webView.loadUrl(BuildConfig.NEXALINE_URL + "?apk=" + WEBVIEW_RESET_VERSION);
         }
+    }
+
+    private Intent createGalleryIntent(WebChromeClient.FileChooserParams params) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType(resolveMimeType(params.getAcceptTypes()));
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE);
+        String[] mimeTypes = resolveMimeTypes(params.getAcceptTypes());
+        if (mimeTypes.length > 1) {
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        }
+        return intent;
+    }
+
+    private Intent createCameraIntent(String[] acceptTypes) throws IOException {
+        boolean videoOnly = false;
+        if (acceptTypes != null && acceptTypes.length == 1) {
+            videoOnly = acceptTypes[0] != null && acceptTypes[0].startsWith("video/");
+        }
+        if (videoOnly) {
+            cameraOutputUri = null;
+            return new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+        }
+
+        File directory = new File(getCacheDir(), "camera");
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new IOException("Camera cache directory could not be created");
+        }
+        File output = File.createTempFile("nexaline-camera-", ".jpg", directory);
+        cameraOutputUri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", output);
+
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraOutputUri);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        List<ResolveInfo> cameraApps = getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+        for (ResolveInfo cameraApp : cameraApps) {
+            grantUriPermission(
+                cameraApp.activityInfo.packageName,
+                cameraOutputUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            );
+        }
+        return intent;
+    }
+
+    private String resolveMimeType(String[] acceptTypes) {
+        String[] mimeTypes = resolveMimeTypes(acceptTypes);
+        return mimeTypes.length == 1 ? mimeTypes[0] : "*/*";
+    }
+
+    private String[] resolveMimeTypes(String[] acceptTypes) {
+        if (acceptTypes == null || acceptTypes.length == 0) {
+            return new String[0];
+        }
+        return java.util.Arrays.stream(acceptTypes)
+            .filter(type -> type != null && !type.trim().isEmpty())
+            .flatMap(type -> java.util.Arrays.stream(type.split(",")))
+            .map(String::trim)
+            .filter(type -> !type.isEmpty())
+            .distinct()
+            .toArray(String[]::new);
     }
 
     private boolean resetWebViewStorageIfNeeded() {
@@ -237,9 +310,15 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_REQUEST && fileCallback != null) {
-            Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            Uri[] result;
+            if (resultCode == RESULT_OK && cameraOutputUri != null && (data == null || data.getData() == null)) {
+                result = new Uri[] { cameraOutputUri };
+            } else {
+                result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            }
             fileCallback.onReceiveValue(result);
             fileCallback = null;
+            cameraOutputUri = null;
         }
     }
 

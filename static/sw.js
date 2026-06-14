@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v80-android-performance-20260615";
+const CACHE_NAME = "nexaline-pwa-v81-native-media-routing-20260615";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
