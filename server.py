@@ -8133,6 +8133,13 @@ def admin_delete_user(username):
     if not user:
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
 
+    target_username = user.username
+    user_email_normalized = user.email_normalized
+    user_phone_normalized = user.phone_normalized
+    owned_community_ids = [
+        row[0]
+        for row in db.session.query(Community.id).filter_by(owner=user.username).all()
+    ]
     owned_story_ids = [
         row[0]
         for row in db.session.query(Story.id).filter_by(username=user.username).all()
@@ -8141,6 +8148,7 @@ def admin_delete_user(username):
     if owned_story_ids:
         StoryView.query.filter(StoryView.story_id.in_(owned_story_ids)).delete(synchronize_session=False)
     Story.query.filter_by(username=user.username).delete(synchronize_session=False)
+    UpdatePost.query.filter_by(username=user.username).delete(synchronize_session=False)
     CallLog.query.filter_by(caller=user.username).delete(synchronize_session=False)
     Message.query.filter_by(sender=user.username).delete(synchronize_session=False)
     BlockedUser.query.filter(db.or_(BlockedUser.blocker == user.username, BlockedUser.blocked == user.username)).delete(synchronize_session=False)
@@ -8149,7 +8157,40 @@ def admin_delete_user(username):
     ScheduledMessage.query.filter_by(sender=user.username).delete(synchronize_session=False)
     HiddenChat.query.filter_by(username=user.username).delete(synchronize_session=False)
     ChatArchive.query.filter_by(username=user.username).delete(synchronize_session=False)
+    PointLedger.query.filter_by(username=user.username).delete(synchronize_session=False)
+    AiTask.query.filter_by(username=user.username).delete(synchronize_session=False)
+    AiMemory.query.filter_by(username=user.username).delete(synchronize_session=False)
+    VaultItem.query.filter_by(username=user.username).delete(synchronize_session=False)
+    PushSubscription.query.filter_by(username=user.username).delete(synchronize_session=False)
     DeviceSession.query.filter_by(username=user.username).delete(synchronize_session=False)
+    EmailVerification.query.filter(
+        db.or_(
+            EmailVerification.username == user.username,
+            EmailVerification.email_normalized == user_email_normalized,
+        )
+    ).delete(synchronize_session=False)
+    if user_phone_normalized:
+        PhoneVerification.query.filter(
+            db.or_(
+                PhoneVerification.username == user.username,
+                PhoneVerification.phone_normalized == user_phone_normalized,
+            )
+        ).delete(synchronize_session=False)
+    else:
+        PhoneVerification.query.filter_by(username=user.username).delete(synchronize_session=False)
+    SupportRequest.query.filter_by(username=user.username).delete(synchronize_session=False)
+    CommunityAnnouncement.query.filter_by(author=user.username).delete(synchronize_session=False)
+    CommunityMember.query.filter_by(username=user.username).delete(synchronize_session=False)
+    if owned_community_ids:
+        CommunityAnnouncement.query.filter(
+            CommunityAnnouncement.community_id.in_(owned_community_ids)
+        ).delete(synchronize_session=False)
+        CommunityMember.query.filter(
+            CommunityMember.community_id.in_(owned_community_ids)
+        ).delete(synchronize_session=False)
+        Community.query.filter(
+            Community.id.in_(owned_community_ids)
+        ).delete(synchronize_session=False)
     member_rows = ChatMember.query.filter_by(username=user.username).all()
     direct_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "direct"]
     group_chat_ids = [row.chat_id for row in member_rows if row.chat and row.chat.type == "group"]
@@ -8168,6 +8209,19 @@ def admin_delete_user(username):
     for chat_id in group_chat_ids:
         promote_fallback_group_admin(db.session.get(Chat, chat_id))
     db.session.commit()
+    for sid, connected_user in list(connections.items()):
+        if connected_user == target_username:
+            connections.pop(sid, None)
+            socketio.emit("account:deleted", {"username": target_username}, room=sid)
+    with voice_room_lock:
+        for room in voice_rooms.values():
+            room.get("participants", {}).pop(target_username, None)
+            room.get("requests", {}).pop(target_username, None)
+            room["comments"] = [
+                item
+                for item in room.get("comments", [])
+                if item.get("username") != target_username
+            ]
     broadcast_presence()
     emit_general_group_updates()
     broadcast_stories()

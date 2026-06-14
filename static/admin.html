@@ -1600,7 +1600,7 @@
 
         async function deleteUser(username) {
             if (!confirm(`${username} kullanıcısı silinsin mi?`)) return;
-            await api(`/admin/user/${username}`, { method: "DELETE" });
+            await api(`/admin/user/${encodeURIComponent(username)}`, { method: "DELETE" });
             await load();
         }
 
@@ -1625,7 +1625,7 @@
         async function resetPassword(username) {
             const password = prompt(`${username} için yeni güçlü şifre`);
             if (!password) return;
-            await api(`/admin/user/${username}/password`, { method: "POST", body: JSON.stringify({ password }) });
+            await api(`/admin/user/${encodeURIComponent(username)}/password`, { method: "POST", body: JSON.stringify({ password }) });
             alert("Şifre sıfırlandı.");
         }
 
