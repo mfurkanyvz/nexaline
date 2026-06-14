@@ -1634,12 +1634,76 @@
             }
         }
 
-        function showToast(message) {
+        function isWarningToast(message, kind = "auto") {
+            if (kind === "warning" || kind === "error") return true;
+            if (kind === "success" || kind === "info") return false;
+            const text = String(message || "").trim().toLocaleLowerCase("tr-TR");
+            if (!text) return false;
+            const successPattern = /(başarıyla|başarılı\b|kaydedildi|güncellendi|gönderildi|eklendi|uygulandı|oluşturuldu|kaldırıldı|temizlendi|açıldı|aktif edildi|tamamlandı|doğrulandı|tekrar açıldı|geri geldi|sessize alındı)/i;
+            const warningPattern = /(hata|hatalı|yanlış|başarısız|redded|ret |onaylanmadı|kabul edilmedi|alınamadı|erişilemedi|tamamlanamadı|gönderilemedi|eklenemedi|kaydedilemedi|silinemedi|değiştirilemedi|hazırlanamadı|açılamadı|bulunamadı|yapılamadı|olmadı|engellendi|koptu|çevrimdışı|çevrim dışı|izin|yetki|desteklemiyor|çok büyük|altında olmalı|zorunlu|gerekli|eksik|en az|en fazla|geçersiz|süresi doldu|kullanımda|uygun değil|kapalı|mevcut değil|aynı değil|yok\b|önce\b|seç\b|yaz\b|tekrar dene|bekle\b|iptal)/i;
+            return !successPattern.test(text) && warningPattern.test(text);
+        }
+
+        function dismissToast(item, immediate = false) {
+            if (!item?.isConnected || item.dataset.dismissing === "true") return;
+            item.dataset.dismissing = "true";
+            clearTimeout(Number(item.dataset.dismissTimer || 0));
+            if (immediate) {
+                item.remove();
+                return;
+            }
+            item.classList.add("toast-leaving");
+            item.addEventListener("animationend", () => item.remove(), { once: true });
+            setTimeout(() => item.remove(), 260);
+        }
+
+        function showToast(message, kind = "auto") {
+            if (!isWarningToast(message, kind)) return null;
+            const stack = $("toastStack");
+            stack.querySelectorAll(".toast").forEach(item => dismissToast(item, true));
             const item = document.createElement("div");
-            item.className = "toast";
-            item.textContent = message;
-            $("toastStack").appendChild(item);
-            setTimeout(() => item.remove(), 3600);
+            item.className = "toast toast-warning";
+            item.setAttribute("role", "alert");
+            item.setAttribute("aria-live", "assertive");
+            item.textContent = String(message || "").trim();
+            stack.appendChild(item);
+
+            let pointerId = null;
+            let startY = 0;
+            let offsetY = 0;
+            item.addEventListener("pointerdown", event => {
+                if (!event.isPrimary) return;
+                pointerId = event.pointerId;
+                startY = event.clientY;
+                offsetY = 0;
+                item.classList.add("toast-dragging");
+                item.setPointerCapture?.(pointerId);
+            });
+            item.addEventListener("pointermove", event => {
+                if (event.pointerId !== pointerId) return;
+                offsetY = Math.min(0, event.clientY - startY);
+                item.style.setProperty("--toast-drag-y", `${offsetY}px`);
+                item.style.opacity = String(Math.max(0.25, 1 - Math.abs(offsetY) / 100));
+            });
+            const finishDrag = event => {
+                if (event.pointerId !== pointerId) return;
+                item.releasePointerCapture?.(pointerId);
+                pointerId = null;
+                item.classList.remove("toast-dragging");
+                if (offsetY <= -34) {
+                    dismissToast(item);
+                    return;
+                }
+                offsetY = 0;
+                item.style.removeProperty("--toast-drag-y");
+                item.style.removeProperty("opacity");
+            };
+            item.addEventListener("pointerup", finishDrag);
+            item.addEventListener("pointercancel", finishDrag);
+
+            const dismissTimer = setTimeout(() => dismissToast(item), 4750);
+            item.dataset.dismissTimer = String(dismissTimer);
+            return item;
         }
 
         function requestRender() {

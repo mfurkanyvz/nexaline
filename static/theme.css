@@ -1094,7 +1094,8 @@ textarea {
 .toast-stack {
     position: fixed;
     left: 50%;
-    bottom: calc(96px + env(safe-area-inset-bottom));
+    top: calc(10px + env(safe-area-inset-top));
+    bottom: auto;
     z-index: 3000;
     display: grid;
     gap: 8px;
@@ -1104,11 +1105,78 @@ textarea {
 
 .toast {
     width: min(420px, calc(100vw - 32px));
+    min-height: 54px;
+    display: flex;
+    align-items: center;
     padding: 12px 16px;
-    border-radius: 999px;
-    background: rgba(20, 20, 25, .84);
-    border: var(--glass-border);
-    box-shadow: var(--shadow-deep);
+    box-sizing: border-box;
+    border: 1px solid rgba(239, 68, 68, 0.42);
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(34, 18, 26, 0.97), rgba(16, 20, 30, 0.98));
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: left;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.46), 0 0 24px rgba(239, 68, 68, 0.12);
+    backdrop-filter: blur(20px) saturate(135%);
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    pointer-events: auto;
+    touch-action: none;
+    transform: translate3d(0, var(--toast-drag-y, 0), 0);
+    animation: toast-notification-in 280ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
+    will-change: transform, opacity;
+}
+
+.toast::before {
+    content: "!";
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    margin-right: 10px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.18);
+    color: #ff7b7b;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.toast.toast-dragging {
+    animation: none;
+    transition: none;
+}
+
+.toast:not(.toast-dragging) {
+    transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.toast.toast-leaving {
+    pointer-events: none;
+    animation: toast-notification-out 220ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+}
+
+@keyframes toast-notification-in {
+    from {
+        opacity: 0;
+        transform: translate3d(0, calc(-100% - 24px), 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+@keyframes toast-notification-out {
+    from {
+        opacity: 1;
+        transform: translate3d(0, var(--toast-drag-y, 0), 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate3d(0, calc(-100% - 24px), 0);
+    }
 }
 
 .screen-transition,
