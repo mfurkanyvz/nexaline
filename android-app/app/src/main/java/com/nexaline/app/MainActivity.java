@@ -47,7 +47,7 @@ import java.util.List;
 public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 10;
     private static final int FILE_REQUEST = 11;
-    private static final String CHANNEL_ID = "nexaline_messages";
+    private static final String CHANNEL_ID = "nexaline_messages_v2";
     private static final String PREFS_NAME = "nexaline_app";
     private static final String WEBVIEW_RESET_KEY = "webview_reset_version";
     private static final String WEBVIEW_RESET_VERSION = "2026-06-04-login-cache-fix";
@@ -335,9 +335,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return;
         }
-        String[] permissions = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-            ? new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.POST_NOTIFICATIONS }
-            : new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION };
+        String[] permissions = new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION };
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST);
     }
 
@@ -348,6 +346,8 @@ public class MainActivity extends Activity {
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "NexaLine", NotificationManager.IMPORTANCE_HIGH);
         channel.setDescription("NexaLine mesaj ve arama bildirimleri");
         channel.enableVibration(true);
+        channel.setVibrationPattern(new long[] { 0, 180, 100, 220 });
+        channel.setSound(Settings.System.DEFAULT_NOTIFICATION_URI, null);
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(channel);
     }
@@ -378,6 +378,23 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean isNativeAndroid() {
             return true;
+        }
+
+        @JavascriptInterface
+        public boolean canNotify() {
+            return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                || ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
+        public void requestNotificationPermission() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !canNotify()) {
+                runOnUiThread(() -> ActivityCompat.requestPermissions(
+                    MainActivity.this,
+                    new String[] { Manifest.permission.POST_NOTIFICATIONS },
+                    PERMISSION_REQUEST
+                ));
+            }
         }
 
         @JavascriptInterface

@@ -2266,6 +2266,10 @@
                 state.notificationReady = true;
                 return true;
             }
+            if (window.NexaLineNative?.requestNotificationPermission) {
+                window.NexaLineNative.requestNotificationPermission();
+                return false;
+            }
             if (!("Notification" in window)) {
                 return false;
             }
@@ -2305,6 +2309,8 @@
                 tag: tag || "nexaline",
                 icon: "/static/icons/nexaline-icon-192-v2.png",
                 badge: "/static/icons/nexaline-icon-192-v2.png",
+                silent: false,
+                vibrate: [180, 100, 220],
                 data
             };
             const registration = await navigator.serviceWorker?.ready.catch(() => null);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v81-native-media-routing-20260615";
+const CACHE_NAME = "nexaline-pwa-v82-background-notifications-20260615";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
@@ -41,6 +41,8 @@ self.addEventListener("push", event => {
     tag: data.tag || `${type}-${data.chatId || Date.now()}`,
     renotify: type === "call.audio" || type === "call.video",
     requireInteraction: type === "call.audio" || type === "call.video",
+    silent: false,
+    vibrate: type === "call.audio" || type === "call.video" ? [300, 120, 300, 120, 500] : [180, 100, 220],
     data: {
       url: targetUrl,
       type,

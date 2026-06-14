@@ -542,6 +542,50 @@ class AppSetting(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
+def ensure_vapid_keys():
+    if VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY:
+        return VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY
+
+    setting_key = "system:web_push_vapid"
+    row = db.session.get(AppSetting, setting_key)
+    saved = dict(row.value or {}) if row else {}
+    public_key = str(saved.get("publicKey") or "").strip()
+    private_key = str(saved.get("privateKey") or "").strip()
+    if public_key and private_key:
+        return public_key, private_key
+
+    try:
+        import base64
+        from cryptography.hazmat.primitives import serialization
+        from py_vapid import Vapid
+
+        vapid = Vapid()
+        vapid.generate_keys()
+        private_der = vapid.private_key.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        public_raw = vapid.public_key.public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint,
+        )
+        private_key = base64.urlsafe_b64encode(private_der).rstrip(b"=").decode("ascii")
+        public_key = base64.urlsafe_b64encode(public_raw).rstrip(b"=").decode("ascii")
+        payload = {"publicKey": public_key, "privateKey": private_key}
+        if row:
+            row.value = payload
+            row.updated_at = datetime.now(timezone.utc)
+        else:
+            db.session.add(AppSetting(key=setting_key, value=payload))
+        db.session.commit()
+        return public_key, private_key
+    except Exception as error:
+        db.session.rollback()
+        app.logger.warning("VAPID anahtarlari hazirlanamadi: %s", error)
+        return "", ""
+
+
 NEXA_PLAY_GAMES = {"chess", "solitaire", "2048", "block-blast"}
 
 
@@ -2047,7 +2091,8 @@ def push_payload_for_chat(chat_id, title, message, notification_type="message", 
 
 
 def send_web_push_subscription(subscription_row, payload):
-    if not (VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY):
+    _public_key, private_key = ensure_vapid_keys()
+    if not private_key:
         return False
     try:
         from pywebpush import WebPushException, webpush
@@ -2058,7 +2103,7 @@ def send_web_push_subscription(subscription_row, payload):
         webpush(
             subscription_info=subscription_row.subscription,
             data=json.dumps(payload, ensure_ascii=False),
-            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_private_key=private_key,
             vapid_claims={"sub": VAPID_SUBJECT},
         )
         return True
@@ -5032,9 +5077,10 @@ def rtc_config():
 
 @app.route("/push/public-key")
 def push_public_key():
-    if not VAPID_PUBLIC_KEY:
+    public_key, _private_key = ensure_vapid_keys()
+    if not public_key:
         return jsonify({"ok": False, "message": "Web Push VAPID anahtarı henüz yapılandırılmadı.", "publicKey": ""})
-    return jsonify({"ok": True, "publicKey": VAPID_PUBLIC_KEY})
+    return jsonify({"ok": True, "publicKey": public_key})
 
 
 @app.route("/push/subscribe", methods=["POST"])
