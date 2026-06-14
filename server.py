@@ -24,12 +24,15 @@ from functools import wraps
 from uuid import uuid4
 
 import requests
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import joinedload, selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
+
+load_dotenv()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "nexaline-dev-secret")
@@ -381,6 +384,7 @@ class PhoneVerification(db.Model):
     password_hash = db.Column(db.String(255), nullable=True)
     code_hash = db.Column(db.String(255), nullable=False)
     attempts = db.Column(db.Integer, nullable=False, default=0)
+    provider = db.Column(db.String(32), nullable=False, default="local")
     provider_message_id = db.Column(db.String(120), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -2546,6 +2550,54 @@ def send_sms_via_iletimerkezi(phone_normalized, body):
     return True, str((provider_response.get("order") or {}).get("id") or "") or None
 
 
+def twilio_verify_config():
+    api_key_sid = os.environ.get("TWILIO_API_KEY_SID", "").strip()
+    api_key_secret = os.environ.get("TWILIO_API_KEY_SECRET", "").strip()
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+    service_sid = os.environ.get("TWILIO_VERIFY_SERVICE_SID", "").strip()
+    auth_username = api_key_sid or account_sid
+    auth_password = api_key_secret or auth_token
+    if not auth_username or not auth_password or not service_sid:
+        return None
+    return auth_username, auth_password, service_sid
+
+
+def start_twilio_verification(phone_normalized):
+    config = twilio_verify_config()
+    if not config:
+        return False, None
+    account_sid, auth_token, service_sid = config
+    response = requests.post(
+        f"https://verify.twilio.com/v2/Services/{service_sid}/Verifications",
+        auth=(account_sid, auth_token),
+        data={"To": phone_normalized, "Channel": "sms"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("status") not in {"pending", "approved"}:
+        raise RuntimeError(payload.get("message") or "Twilio dogrulama SMS'ini baslatamadi.")
+    return True, str(payload.get("sid") or "") or None
+
+
+def check_twilio_verification(phone_normalized, code):
+    config = twilio_verify_config()
+    if not config:
+        raise RuntimeError("Twilio Verify ayarlari eksik.")
+    account_sid, auth_token, service_sid = config
+    response = requests.post(
+        f"https://verify.twilio.com/v2/Services/{service_sid}/VerificationCheck",
+        auth=(account_sid, auth_token),
+        data={"To": phone_normalized, "Code": code},
+        timeout=15,
+    )
+    if response.status_code == 404:
+        return False
+    response.raise_for_status()
+    return response.json().get("status") == "approved"
+
+
 def send_phone_code(phone_normalized, code, purpose):
     purpose_labels = {
         "register": "kayıt",
@@ -2556,10 +2608,14 @@ def send_phone_code(phone_normalized, code, purpose):
     label = purpose_labels.get(purpose, "doğrulama")
     body = f"NexaLine {label} kodun: {code}. Kod 10 dakika geçerlidir."
     try:
-        return send_sms_via_iletimerkezi(phone_normalized, body)
+        if twilio_verify_config():
+            sent, provider_message_id = start_twilio_verification(phone_normalized)
+            return sent, provider_message_id, "twilio"
+        sent, provider_message_id = send_sms_via_iletimerkezi(phone_normalized, body)
+        return sent, provider_message_id, "iletimerkezi" if sent else "local"
     except Exception:
         app.logger.exception("Doğrulama SMS'i gönderilemedi")
-        return False, None
+        return False, None, "local"
 
 
 def create_phone_verification(purpose, phone, phone_normalized, username=None, password_hash=None):
@@ -2590,10 +2646,11 @@ def create_phone_verification(purpose, phone, phone_normalized, username=None, p
     )
     db.session.add(verification)
     db.session.commit()
-    sent, provider_message_id = send_phone_code(phone_normalized, code, purpose)
+    sent, provider_message_id, provider = send_phone_code(phone_normalized, code, purpose)
+    verification.provider = provider
     if provider_message_id:
         verification.provider_message_id = provider_message_id
-        db.session.commit()
+    db.session.commit()
     return verification, code, sent, 0
 
 
@@ -6390,7 +6447,16 @@ def register_verify():
         if verification.attempts >= 5:
             return jsonify({"ok": False, "message": "Çok fazla yanlış deneme yaptın. Yeni kod iste."}), 429
 
-        if not check_password_hash(verification.code_hash, code):
+        if contact_kind == "phone" and verification.provider == "twilio":
+            try:
+                code_is_valid = check_twilio_verification(phone_normalized, code)
+            except Exception:
+                app.logger.exception("Twilio doğrulama kodu kontrol edilemedi")
+                return jsonify({"ok": False, "message": "SMS doğrulama servisine ulaşılamadı. Lütfen yeniden dene."}), 502
+        else:
+            code_is_valid = check_password_hash(verification.code_hash, code)
+
+        if not code_is_valid:
             verification.attempts += 1
             db.session.commit()
             return jsonify({"ok": False, "message": "Doğrulama kodu hatalı."}), 400
@@ -9876,6 +9942,14 @@ with app.app_context():
         if column_name not in user_columns:
             db.session.execute(text(statement))
             db.session.commit()
+    phone_verification_columns = (
+        {column["name"] for column in inspector.get_columns("phone_verification")}
+        if inspector.has_table("phone_verification")
+        else set()
+    )
+    if "provider" not in phone_verification_columns:
+        db.session.execute(text("ALTER TABLE phone_verification ADD COLUMN provider VARCHAR(32) DEFAULT 'local' NOT NULL"))
+        db.session.commit()
     db.session.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ix_user_phone_normalized_unique ON "user" (phone_normalized)'))
     db.session.commit()
     reset_user_data_once()
