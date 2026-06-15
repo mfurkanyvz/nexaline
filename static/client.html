@@ -627,7 +627,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-14-stage23-phone-registration-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-15-video-call-60fps-v1";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -675,6 +675,7 @@
             timeout: 8000
         });
         let rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+        let pendingNativeCallAction = "";
         const INITIAL_MESSAGE_RENDER_LIMIT = 70;
         const MESSAGE_RENDER_STEP = 70;
         const MAX_CLIENT_ATTACHMENT_BYTES = 4_000_000;
@@ -1235,7 +1236,9 @@
                 speakerOn: false,
                 aiTaskCall: null,
                 audio: null,
-                stopSpeech: null
+                stopSpeech: null,
+                statsTimer: null,
+                disconnectedTimer: null
             }
         };
 
@@ -2583,6 +2586,14 @@
         function maybeNotifyCall(data) {
             requestNotificationPermission();
             addNotificationLog({ kind: "call", title: "NexaLine arama", body: `${data.fromName || data.from} arıyor`, chatId: data.chatId });
+            if (window.NexaLineNative?.showIncomingCall) {
+                window.NexaLineNative.showIncomingCall(JSON.stringify({
+                    chatId: data.chatId,
+                    callerName: data.fromName || data.from || "NexaLine",
+                    audioOnly: Boolean(data.audioOnly)
+                }));
+                return;
+            }
             showSystemNotification("NexaLine arama", `${data.fromName || data.from} arıyor`, `call-${data.chatId}`, { chatId: data.chatId, call: true });
         }
 
@@ -14323,6 +14334,9 @@
 
         function startCallRingtone() {
             stopCallRingtone();
+            if (window.NexaLineNative?.isNativeAndroid?.()) {
+                return;
+            }
             playCallSound();
             state.call.ringtoneTimer = setInterval(playCallSound, 1400);
         }
@@ -14332,6 +14346,7 @@
                 clearInterval(state.call.ringtoneTimer);
                 state.call.ringtoneTimer = null;
             }
+            window.NexaLineNative?.dismissIncomingCall?.();
         }
 
         function readImageFile(file, onLoad) {
@@ -14717,10 +14732,121 @@
             if (!navigator.mediaDevices?.getUserMedia) {
                 throw new Error("Tarayıcı kamera/mikrofonu sadece HTTPS, localhost veya izin verilmiş güvenli adreslerde açar.");
             }
-            return navigator.mediaDevices.getUserMedia({
-                audio: true,
-                video: audioOnly ? false : { facingMode: state.call.cameraFacing || "user" }
-            });
+            const audio = {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                channelCount: 1
+            };
+            if (audioOnly) {
+                return navigator.mediaDevices.getUserMedia({ audio, video: false });
+            }
+
+            const profiles = [
+                { width: 1920, height: 1080, frameRate: 60 },
+                { width: 1280, height: 720, frameRate: 60 },
+                { width: 1280, height: 720, frameRate: 30 }
+            ];
+            let lastError = null;
+            for (const profile of profiles) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio,
+                        video: {
+                            facingMode: { ideal: state.call.cameraFacing || "user" },
+                            width: { ideal: profile.width, min: 640 },
+                            height: { ideal: profile.height, min: 360 },
+                            frameRate: { ideal: profile.frameRate, min: Math.min(24, profile.frameRate) },
+                            aspectRatio: { ideal: 16 / 9 }
+                        }
+                    });
+                    const videoTrack = stream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.contentHint = "motion";
+                    }
+                    return stream;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+            throw lastError || new Error("Kamera açılamadı.");
+        }
+
+        async function tuneVideoSender(sender, maxBitrate = 4_000_000) {
+            if (!sender?.track || sender.track.kind !== "video" || !sender.getParameters || !sender.setParameters) return;
+            try {
+                const parameters = sender.getParameters();
+                if (!parameters.encodings?.length) parameters.encodings = [{}];
+                parameters.degradationPreference = "maintain-framerate";
+                parameters.encodings[0].maxBitrate = maxBitrate;
+                parameters.encodings[0].maxFramerate = maxBitrate >= 1_500_000 ? 60 : 30;
+                parameters.encodings[0].scaleResolutionDownBy = maxBitrate < 800_000 ? 1.5 : 1;
+                await sender.setParameters(parameters);
+            } catch (error) {
+                console.warn("Görüntülü arama kalite ayarı uygulanamadı", error);
+            }
+        }
+
+        function stopCallStatsMonitor() {
+            if (state.call.statsTimer) clearInterval(state.call.statsTimer);
+            state.call.statsTimer = null;
+        }
+
+        function startCallStatsMonitor() {
+            stopCallStatsMonitor();
+            const snapshots = new Map();
+            state.call.statsTimer = setInterval(async () => {
+                for (const [peerUsername, pc] of Object.entries(state.call.peers)) {
+                    if (pc.connectionState !== "connected") continue;
+                    try {
+                        const stats = await pc.getStats();
+                        let availableBitrate = 0;
+                        let packetsLost = 0;
+                        let packetsReceived = 0;
+                        stats.forEach(report => {
+                            if (report.type === "candidate-pair" && report.state === "succeeded" && report.availableOutgoingBitrate) {
+                                availableBitrate = Math.max(availableBitrate, report.availableOutgoingBitrate);
+                            }
+                            if (report.type === "inbound-rtp" && report.kind === "video") {
+                                packetsLost += Number(report.packetsLost || 0);
+                                packetsReceived += Number(report.packetsReceived || 0);
+                            }
+                        });
+                        const previous = snapshots.get(peerUsername) || { packetsLost, packetsReceived };
+                        const lostDelta = Math.max(0, packetsLost - previous.packetsLost);
+                        const receivedDelta = Math.max(0, packetsReceived - previous.packetsReceived);
+                        const lossRatio = lostDelta / Math.max(1, lostDelta + receivedDelta);
+                        snapshots.set(peerUsername, { packetsLost, packetsReceived });
+                        const target = lossRatio > 0.08
+                            ? 700_000
+                            : availableBitrate > 5_000_000 ? 4_000_000
+                                : availableBitrate > 2_500_000 ? 2_200_000 : 1_200_000;
+                        await tuneVideoSender(pc.getSenders().find(item => item.track?.kind === "video"), target);
+                    } catch (error) {
+                        console.warn("Arama bağlantı kalitesi ölçülemedi", error);
+                    }
+                }
+            }, 4000);
+        }
+
+        async function restartPeerIce(peerUsername, pc) {
+            if (!pc || pc.signalingState === "closed" || !state.call.chatId) return;
+            try {
+                pc.restartIce?.();
+                const offer = await pc.createOffer({ iceRestart: true });
+                await pc.setLocalDescription(offer);
+                socket.emit("call:offer", {
+                    chatId: state.call.chatId,
+                    to: peerUsername,
+                    offer,
+                    audioOnly: state.call.audioOnly,
+                    retry: true,
+                    iceRestart: true
+                });
+                setCallStatus("bağlantı yenileniyor...");
+            } catch (error) {
+                console.warn("Arama bağlantısı yenilenemedi", error);
+            }
         }
 
         function stopCallWaveform() {
@@ -14778,6 +14904,7 @@
                 state.call.remoteStream = new MediaStream();
                 $("remoteVideo").srcObject = state.call.remoteStream;
             }
+            await $("localVideo").play().catch(() => {});
             return state.call.localStream;
         }
 
@@ -14788,7 +14915,10 @@
             const pc = new RTCPeerConnection(rtcConfig);
             const localStream = await ensureLocalCallStream(audioOnly);
 
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            localStream.getTracks().forEach(track => {
+                const sender = pc.addTrack(track, localStream);
+                if (track.kind === "video") tuneVideoSender(sender);
+            });
             pc.onicecandidate = event => {
                 if (event.candidate) {
                     socket.emit("call:ice", { chatId, to: peerUsername, candidate: event.candidate });
@@ -14804,6 +14934,7 @@
                     });
                 }
                 $("remoteVideo").srcObject = state.call.remoteStream;
+                $("remoteVideo").play().catch(() => {});
                 if (!state.call.audioOnly && state.call.remoteStream.getVideoTracks().length) {
                     document.querySelector(".video-stage").classList.add("remote-live");
                     $("remoteVideo").classList.remove("hidden");
@@ -14811,8 +14942,19 @@
             };
             pc.onconnectionstatechange = () => {
                 if (pc.connectionState === "connected") {
+                    if (state.call.disconnectedTimer) clearTimeout(state.call.disconnectedTimer);
+                    state.call.disconnectedTimer = null;
                     markCallConnected();
+                    if (!state.call.audioOnly) startCallStatsMonitor();
+                } else if (pc.connectionState === "disconnected") {
+                    if (state.call.disconnectedTimer) clearTimeout(state.call.disconnectedTimer);
+                    state.call.disconnectedTimer = setTimeout(() => restartPeerIce(peerUsername, pc), 1800);
+                } else if (pc.connectionState === "failed") {
+                    restartPeerIce(peerUsername, pc);
                 }
+            };
+            pc.oniceconnectionstatechange = () => {
+                if (pc.iceConnectionState === "failed") restartPeerIce(peerUsername, pc);
             };
 
             state.call.peers[peerUsername] = pc;
@@ -15010,6 +15152,7 @@
         function endCall(notify = true) {
             stopCallRingtone();
             stopCallWaveform();
+            stopCallStatsMonitor();
             state.call.stopSpeech?.();
             state.call.audio?.pause?.();
             if (state.call.timer) {
@@ -15017,6 +15160,9 @@
             }
             if (state.call.retryTimer) {
                 clearInterval(state.call.retryTimer);
+            }
+            if (state.call.disconnectedTimer) {
+                clearTimeout(state.call.disconnectedTimer);
             }
             const durationSeconds = state.call.startedAt ? Math.max(1, Math.round((Date.now() - state.call.startedAt) / 1000)) : 0;
             const incoming = state.call.incomingOffer;
@@ -15039,7 +15185,7 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, retryTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user", incoming: false, connected: false, speakerOn: false, aiTaskCall: null, audio: null, stopSpeech: null };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, retryTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user", incoming: false, connected: false, speakerOn: false, aiTaskCall: null, audio: null, stopSpeech: null, statsTimer: null, disconnectedTimer: null };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callTimer").textContent = "00:00";
@@ -15123,6 +15269,7 @@
                 Object.values(state.call.peers).forEach(pc => {
                     const sender = pc.getSenders().find(item => item.track?.kind === "video");
                     sender?.replaceTrack(nextVideoTrack);
+                    tuneVideoSender(sender);
                 });
                 nextStream.getAudioTracks().forEach(track => track.stop());
             } catch (error) {
@@ -15953,7 +16100,21 @@
         socket.on("design:update", data => {
             applyAdminDesign(data.design || {});
         });
-        socket.on("call:offer", data => {
+        socket.on("call:offer", async data => {
+            const restartPeer = data.iceRestart ? state.call.peers[data.from] : null;
+            if (restartPeer && data.offer) {
+                try {
+                    await restartPeer.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    await flushPendingIce(data.from);
+                    const answer = await restartPeer.createAnswer();
+                    await restartPeer.setLocalDescription(answer);
+                    socket.emit("call:answer", { chatId: data.chatId, to: data.from, answer, iceRestart: true });
+                    setCallStatus("bağlandı");
+                } catch (error) {
+                    console.warn("Yenilenen arama bağlantısı kabul edilemedi", error);
+                }
+                return;
+            }
             if (Object.keys(state.call.peers).length || state.call.incomingOffer) {
                 if (
                     data.retry
@@ -15981,6 +16142,13 @@
                 chat,
                 peer
             );
+            if (pendingNativeCallAction === "accept") {
+                pendingNativeCallAction = "";
+                acceptCall();
+            } else if (pendingNativeCallAction === "reject") {
+                pendingNativeCallAction = "";
+                endCall(true);
+            }
         });
         socket.on("ai:task-call", data => openAiTaskCall(data));
         socket.on("call:ringing", data => {
@@ -15995,6 +16163,21 @@
         socket.on("call:answer", handleRemoteAnswer);
         socket.on("call:ice", handleRemoteIce);
         socket.on("call:end", () => endCall(false));
+
+        window.addEventListener("nexaline:native-call-accept", () => {
+            if (state.call.incomingOffer) {
+                acceptCall();
+            } else {
+                pendingNativeCallAction = "accept";
+            }
+        });
+        window.addEventListener("nexaline:native-call-reject", () => {
+            if (state.call.incomingOffer) {
+                endCall(true);
+            } else {
+                pendingNativeCallAction = "reject";
+            }
+        });
 
         window.addEventListener("popstate", event => {
             if (!state.me) {

@@ -42,6 +42,7 @@ import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.Person;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
@@ -57,10 +58,13 @@ public class MainActivity extends Activity {
     private static final int FILE_REQUEST = 11;
     private static final int GEOLOCATION_PERMISSION_REQUEST = 12;
     private static final String CHANNEL_ID = "nexaline_messages_v2";
-    private static final String CALL_CHANNEL_ID = "nexaline_calls_v1";
+    private static final String CALL_CHANNEL_ID = "nexaline_calls_v2";
     private static final String PREFS_NAME = "nexaline_app";
     private static final String WEBVIEW_RESET_KEY = "webview_reset_version";
     private static final String WEBVIEW_RESET_VERSION = "2026-06-04-login-cache-fix";
+    private static final String EXTRA_CALL_ACTION = "nexaline_call_action";
+    private static final String CALL_ACTION_ACCEPT = "accept";
+    private static final String CALL_ACTION_REJECT = "reject";
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraOutputUri;
@@ -68,11 +72,16 @@ public class MainActivity extends Activity {
     private GeolocationPermissions.Callback pendingGeolocationCallback;
     private TextToSpeech textToSpeech;
     private volatile boolean textToSpeechReady = false;
+    private String pendingCallAction;
+    private static MainActivity activeInstance;
+    private int activeCallNotificationId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        activeInstance = this;
         configureIncomingCallWindow(getIntent());
+        pendingCallAction = getIntent() == null ? null : getIntent().getStringExtra(EXTRA_CALL_ACTION);
         createNotificationChannel();
         requestAppPermissions();
         initializeTextToSpeech();
@@ -140,6 +149,7 @@ public class MainActivity extends Activity {
                         + "document.documentElement.style.webkitTapHighlightColor='transparent';",
                     null
                 );
+                dispatchPendingCallAction();
             }
 
             @Override
@@ -216,8 +226,10 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         configureIncomingCallWindow(intent);
+        pendingCallAction = intent == null ? null : intent.getStringExtra(EXTRA_CALL_ACTION);
         if (webView != null && intent != null && intent.getBooleanExtra("nexaline_call", false)) {
             webView.evaluateJavascript("window.dispatchEvent(new Event('nexaline:incoming-call-open'));", null);
+            dispatchPendingCallAction();
         }
     }
 
@@ -235,6 +247,26 @@ public class MainActivity extends Activity {
                     | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             );
         }
+    }
+
+    private void dispatchPendingCallAction() {
+        if (webView == null || pendingCallAction == null || pendingCallAction.isEmpty()) return;
+        String action = pendingCallAction;
+        pendingCallAction = null;
+        dismissIncomingCall();
+        String eventName = CALL_ACTION_ACCEPT.equals(action)
+            ? "nexaline:native-call-accept"
+            : "nexaline:native-call-reject";
+        webView.evaluateJavascript("window.dispatchEvent(new Event('" + eventName + "'));", null);
+    }
+
+    static void dispatchNativeCallAction(String action) {
+        MainActivity activity = activeInstance;
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            activity.pendingCallAction = action;
+            activity.dispatchPendingCallAction();
+        });
     }
 
     private Intent createGalleryIntent(WebChromeClient.FileChooserParams params) {
@@ -365,6 +397,7 @@ public class MainActivity extends Activity {
             textToSpeech.shutdown();
             textToSpeech = null;
         }
+        if (activeInstance == this) activeInstance = null;
         super.onDestroy();
     }
 
@@ -484,6 +517,83 @@ public class MainActivity extends Activity {
         manager.createNotificationChannel(callChannel);
     }
 
+    private int callNotificationId(String chatId) {
+        return Math.abs(("call-" + (chatId == null ? "nexaline" : chatId)).hashCode());
+    }
+
+    private void dismissIncomingCall() {
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (activeCallNotificationId != 0) {
+            manager.cancel(activeCallNotificationId);
+            activeCallNotificationId = 0;
+        }
+    }
+
+    private void showIncomingCall(String payloadJson) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        try {
+            JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
+            String chatId = payload.optString("chatId", "nexaline");
+            String callerName = payload.optString("callerName", "NexaLine");
+            boolean audioOnly = payload.optBoolean("audioOnly", true);
+            activeCallNotificationId = callNotificationId(chatId);
+
+            Intent openIntent = new Intent(this, MainActivity.class)
+                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra("nexaline_call", true);
+            PendingIntent openPendingIntent = PendingIntent.getActivity(
+                this,
+                activeCallNotificationId,
+                openIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+            );
+
+            Intent acceptIntent = new Intent(this, MainActivity.class)
+                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra("nexaline_call", true)
+                .putExtra(EXTRA_CALL_ACTION, CALL_ACTION_ACCEPT);
+            PendingIntent acceptPendingIntent = PendingIntent.getActivity(
+                this,
+                callNotificationId(chatId) + 1,
+                acceptIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+            );
+
+            Intent rejectIntent = new Intent(this, CallActionReceiver.class)
+                .setAction(CallActionReceiver.ACTION_REJECT)
+                .putExtra(CallActionReceiver.EXTRA_NOTIFICATION_ID, callNotificationId(chatId));
+            PendingIntent rejectPendingIntent = PendingIntent.getBroadcast(
+                this,
+                callNotificationId(chatId) + 2,
+                rejectIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+            );
+
+            Person caller = new Person.Builder().setName(callerName).setImportant(true).build();
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CALL_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.sym_call_incoming)
+                .setContentTitle(callerName)
+                .setContentText(audioOnly ? "NexaLine sesli araması" : "NexaLine görüntülü araması")
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(60_000)
+                .setFullScreenIntent(openPendingIntent, true)
+                .setContentIntent(openPendingIntent)
+                .setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, rejectPendingIntent, acceptPendingIntent));
+
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            manager.notify(activeCallNotificationId, builder.build());
+        } catch (Exception error) {
+            showNotification("NexaLine arama", "Gelen arama", "call-nexaline");
+        }
+    }
+
     private void showNotification(String title, String body, String tag) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
             && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -546,6 +656,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void notify(String title, String body, String tag) {
             runOnUiThread(() -> showNotification(title, body, tag));
+        }
+
+        @JavascriptInterface
+        public void showIncomingCall(String payloadJson) {
+            runOnUiThread(() -> MainActivity.this.showIncomingCall(payloadJson));
+        }
+
+        @JavascriptInterface
+        public void dismissIncomingCall() {
+            runOnUiThread(MainActivity.this::dismissIncomingCall);
         }
 
         @JavascriptInterface

@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v84-location-permissions-20260615";
+const CACHE_NAME = "nexaline-pwa-v85-video-call-20260615";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",

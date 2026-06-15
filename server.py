@@ -2981,16 +2981,26 @@ def qr_session_error(session_id, secret):
 
 
 def rtc_servers():
-    servers = [{"urls": "stun:stun.l.google.com:19302"}]
+    servers = [{
+        "urls": [
+            "stun:stun.l.google.com:19302",
+            "stun:stun1.l.google.com:19302",
+            "stun:stun2.l.google.com:19302",
+        ]
+    }]
     extra_urls = [url.strip() for url in os.environ.get("RTC_ICE_URLS", "").split(",") if url.strip()]
     if extra_urls:
         servers = [{"urls": extra_urls}]
 
-    turn_url = os.environ.get("TURN_URL")
+    turn_urls = [
+        url.strip()
+        for url in (os.environ.get("TURN_URLS") or os.environ.get("TURN_URL") or "").split(",")
+        if url.strip()
+    ]
     turn_username = os.environ.get("TURN_USERNAME")
     turn_credential = os.environ.get("TURN_CREDENTIAL")
-    if turn_url and turn_username and turn_credential:
-        servers.append({"urls": turn_url, "username": turn_username, "credential": turn_credential})
+    if turn_urls and turn_username and turn_credential:
+        servers.append({"urls": turn_urls, "username": turn_username, "credential": turn_credential})
 
     return servers
 
