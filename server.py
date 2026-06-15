@@ -5770,12 +5770,17 @@ class ProcessAI:
         return translated, provider
 
     def generate_image(self, prompt):
-        model = os.environ.get("OPENAI_IMAGE_MODEL", "dall-e-3")
-        payload = {"model": model, "prompt": prompt[:1000], "n": 1, "size": "1024x1024"}
+        model = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2")
+        payload = {
+            "model": model,
+            "prompt": prompt[:1000],
+            "n": 1,
+            "size": os.environ.get("OPENAI_IMAGE_SIZE", "1024x1024"),
+        }
         if model.startswith("dall-e"):
             payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "standard"), "response_format": "b64_json"})
         else:
-            payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "medium"), "output_format": "png"})
+            payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "high"), "output_format": "png"})
         response = requests.post(
             f"{self.openai_base_url}/images/generations",
             headers=self._openai_headers(),
@@ -6061,7 +6066,7 @@ def ai_image():
     note = "Ücretsiz yerel görsel üretildi."
     try:
         data_url, note = call_openai_image(provider_prompt)
-        provider = {"provider": "openai-image", "model": os.environ.get("OPENAI_IMAGE_MODEL", "dall-e-3"), "ready": True}
+        provider = {"provider": "openai-image", "model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2"), "ready": True}
     except Exception as error:
         app.logger.info("AI image OpenAI fallback: %s", error)
         try:

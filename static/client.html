@@ -4056,6 +4056,42 @@
             }
         }
 
+            imagePromptFromAiRequest(prompt) {
+            const value = String(prompt || "").trim();
+            if (!value) return "";
+            const patterns = [
+                /^(?:bana\s+)?(?:bir\s+)?(?:görsel|resim|fotoğraf|illüstrasyon)\s+(?:oluştur|üret|çiz|yap)\s*[:,-]?\s*(.+)$/i,
+                /^(?:görsel|resim|fotoğraf|illüstrasyon)\s*[:,-]\s*(.+)$/i,
+                /^(.+?)\s+(?:görselini|resmini|fotoğrafını|illüstrasyonunu)\s+(?:oluştur|üret|çiz|yap)$/i,
+                /^(?:oluştur|üret|çiz)\s*[:,-]?\s*(.+?)\s+(?:görseli|resmi|fotoğrafı)$/i
+            ];
+            for (const pattern of patterns) {
+                const candidate = value.match(pattern)?.[1]?.trim();
+                if (candidate && candidate.length >= 3) return candidate;
+            }
+            return "";
+        }
+
+            async createAiImageInChat(prompt) {
+            const response = await fetch("/ai/image", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    username: state.me.username,
+                    prompt,
+                    variant: Date.now() % 100000
+                })
+            });
+            const data = await response.json();
+            if (!data.ok || !data.image?.dataUrl) {
+                addAiMessage("assistant", data.message || "Görsel oluşturulamadı.");
+                return data;
+            }
+            state.aiStatus = data.provider || state.aiStatus;
+            addAiMessage("assistant", data.note || "İstediğin görseli oluşturdum.", [], data.image);
+            return { ...data, reply: data.note || "İstediğin görseli oluşturdum." };
+        }
+
                 async sendAiPrompt(promptOverride = null, attachment = null) {
             if (promptOverride && typeof promptOverride !== "string") {
                 promptOverride = null;
@@ -4084,6 +4120,11 @@
             addAiMessage("user", prompt || "Bu eki incele.", [], attachment);
             renderAiPanel();
             try {
+                const requestedImagePrompt = !modelAttachment ? this.imagePromptFromAiRequest(prompt) : "";
+                if (requestedImagePrompt) {
+                    state.aiActivity = "Görsel oluşturuyor...";
+                    return await this.createAiImageInChat(requestedImagePrompt);
+                }
                 const promptForModel = promptTargetsAiName(prompt)
                     ? `Kullanıcı sana verdiği isim olan "${prompt}" diye seslendi. Türkçe, sıcak ve kısa karşılık ver.`
                     : prompt;
