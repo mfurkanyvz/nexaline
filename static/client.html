@@ -7662,8 +7662,8 @@
 
         function binaryModePalette(variant) {
             return variant === "contacts"
-                ? { left: [0, 140, 255], right: [255, 112, 0] }
-                : { left: [0, 244, 85], right: [255, 24, 52] };
+                ? { left: [0, 112, 214], right: [224, 88, 0] }
+                : { left: [0, 190, 68], right: [214, 30, 48] };
         }
 
         function updateBinaryModeProgress(switcher, progress) {
@@ -7679,8 +7679,7 @@
             switcher.style.setProperty("--mode-left-text", "#fff");
             switcher.style.setProperty("--mode-right-text", "#fff");
             switcher.style.setProperty("--mode-color", `rgb(${color.join(", ")})`);
-            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .94)`);
-            switcher.style.setProperty("--mode-color-glow", `rgba(${color.join(", ")}, .82)`);
+            switcher.style.setProperty("--mode-color-soft", `rgba(${color.join(", ")}, .96)`);
             switcher.style.setProperty("--mode-lens", lens.toFixed(4));
             switcher.style.setProperty("--mode-left-scale", (1 + (1 - nextProgress) * 0.075).toFixed(4));
             switcher.style.setProperty("--mode-right-scale", (1 + nextProgress * 0.075).toFixed(4));

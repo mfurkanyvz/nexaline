@@ -9777,13 +9777,12 @@ button {
 @media (max-width: 860px) {
     .chat-mode-switch {
         --mode-progress: 0;
-        --mode-color: rgb(0, 244, 85);
-        --mode-left-color: rgb(0, 244, 85);
-        --mode-right-color: rgb(255, 24, 52);
+        --mode-color: rgb(0, 190, 68);
+        --mode-left-color: rgb(0, 190, 68);
+        --mode-right-color: rgb(214, 30, 48);
         --mode-left-text: #fff;
         --mode-right-text: #fff;
-        --mode-color-soft: rgba(0, 244, 85, 0.94);
-        --mode-color-glow: rgba(0, 244, 85, 0.82);
+        --mode-color-soft: rgba(0, 190, 68, 0.96);
         --mode-lens: 0;
         --mode-left-scale: 1.075;
         --mode-right-scale: 1;
@@ -9819,7 +9818,6 @@ button {
             linear-gradient(145deg, color-mix(in srgb, var(--mode-color) 78%, white), var(--mode-color-soft));
         box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.13),
-            0 0 28px var(--mode-color-glow),
             0 8px 18px rgba(0, 0, 0, 0.2);
         backdrop-filter: blur(18px) saturate(140%);
         -webkit-backdrop-filter: blur(18px) saturate(140%);
