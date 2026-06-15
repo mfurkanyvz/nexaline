@@ -3506,6 +3506,52 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
+            aiSpeechText(text) {
+            return String(text || "")
+                .split(/\n\s*(?:Kaynaklar|Sources)\s*:/i)[0]
+                .replace(/\[([^\]]+)\]\((?:https?:\/\/)?[^)]+\)/g, "$1")
+                .replace(/https?:\/\/\S+/g, "")
+                .replace(/^\s*[-*•]\s+/gm, "")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+            speakWithNativeAndroid(text, session = null) {
+            return new Promise(resolve => {
+                const bridge = window.NexaLineNative;
+                if (!bridge?.speak || !text) {
+                    resolve(false);
+                    return;
+                }
+                const utteranceId = `nexa-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                let settled = false;
+                let timeoutId = 0;
+                const finish = result => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
+                    window.removeEventListener("nexaline:native-tts", handleResult);
+                    if (session) session.stopSpeech = null;
+                    resolve(result);
+                };
+                const handleResult = event => {
+                    if (event.detail?.id !== utteranceId) return;
+                    finish(event.detail?.status === "done");
+                };
+                timeoutId = setTimeout(() => finish(false), Math.max(8000, text.length * 115));
+                window.addEventListener("nexaline:native-tts", handleResult);
+                if (session) session.stopSpeech = () => {
+                    try { bridge.stopSpeaking?.(); } catch (_error) {}
+                    finish(false);
+                };
+                try {
+                    if (bridge.speak(text, utteranceId, state.aiSettings.voice || "warm") === false) finish(false);
+                } catch (_error) {
+                    finish(false);
+                }
+            });
+        }
+
             speakAiText(text, session = null) {
             return new Promise(resolve => {
                 if (!("speechSynthesis" in window) || !text) {
@@ -3516,11 +3562,27 @@
                 utterance.lang = "tr-TR";
                 utterance.rate = state.aiSettings.voice === "male" ? 0.96 : 1.02;
                 utterance.pitch = state.aiSettings.voice === "male" ? 0.92 : 1;
+                const voices = speechSynthesis.getVoices();
+                utterance.voice = voices.find(voice => /^tr(?:-|_)/i.test(voice.lang || "")) || null;
+                let settled = false;
+                const timeoutId = setTimeout(() => {
+                    if (settled) return;
+                    settled = true;
+                    speechSynthesis.cancel();
+                    if (session) session.stopSpeech = null;
+                    resolve(false);
+                }, Math.max(9000, text.length * 120));
                 utterance.onend = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
                     if (session) session.stopSpeech = null;
                     resolve(true);
                 };
                 utterance.onerror = () => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timeoutId);
                     if (session) session.stopSpeech = null;
                     resolve(false);
                 };
@@ -3544,8 +3606,11 @@
         }
 
                 async playAiAssistantVoice(text, session = null) {
-            if (!text) return false;
-            const data = await runAiTts(text);
+            const spokenText = this.aiSpeechText(text);
+            if (!spokenText) return false;
+            let nativeAndroid = false;
+            try { nativeAndroid = Boolean(window.NexaLineNative?.isNativeAndroid?.()); } catch (_error) {}
+            const data = await runAiTts(spokenText);
             if (data.ok && data.audioDataUrl) {
                 const audio = new Audio(data.audioDataUrl);
                 if (session) {
@@ -3571,7 +3636,8 @@
                     audio.play().catch(() => finish(false));
                 });
             }
-            return speakAiText(text, session);
+            if (nativeAndroid && await this.speakWithNativeAndroid(spokenText, session)) return true;
+            return this.speakAiText(spokenText, session);
         }
 
             openAiVoiceCreatorPanel() {
@@ -3755,9 +3821,10 @@
                     $("nexalVoiceOrb")?.classList.remove("ai-thinking");
                     $("nexalVoiceOrb")?.classList.add("ai-speaking");
                     $("nexalVoiceStatus").textContent = "Konuşuyorum...";
-                    await playAiAssistantVoice(reply, session);
+                    const spoke = await playAiAssistantVoice(reply, session);
                     $("nexalVoiceOrb")?.classList.remove("ai-speaking");
-                    return true;
+                    if (!spoke) $("nexalVoiceStatus").textContent = "Ses açılamadı, yeniden dinliyorum...";
+                    return spoke;
                 };
                 const browserSpeechFallback = () => new Promise((resolve, reject) => {
                     if (!SpeechRecognition) {
@@ -4565,6 +4632,7 @@
         function openAiImageGenerator(...args) { return nexaAiEngine.openAiImageGenerator(...args); }
         function openAiSettingsPanel(...args) { return nexaAiEngine.openAiSettingsPanel(...args); }
         function speakAiText(...args) { return nexaAiEngine.speakAiText(...args); }
+        function aiSpeechText(...args) { return nexaAiEngine.aiSpeechText(...args); }
         async function runAiTts(...args) { return nexaAiEngine.runAiTts(...args); }
         async function playAiAssistantVoice(...args) { return nexaAiEngine.playAiAssistantVoice(...args); }
         async function runAiStt(...args) { return nexaAiEngine.runAiStt(...args); }

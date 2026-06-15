@@ -19,6 +19,8 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.provider.MediaStore;
 import android.media.AudioAttributes;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
@@ -46,6 +48,9 @@ import androidx.core.content.FileProvider;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
+
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 10;
@@ -61,6 +66,8 @@ public class MainActivity extends Activity {
     private Uri cameraOutputUri;
     private String pendingGeolocationOrigin;
     private GeolocationPermissions.Callback pendingGeolocationCallback;
+    private TextToSpeech textToSpeech;
+    private volatile boolean textToSpeechReady = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +75,7 @@ public class MainActivity extends Activity {
         configureIncomingCallWindow(getIntent());
         createNotificationChannel();
         requestAppPermissions();
+        initializeTextToSpeech();
 
         webView = new WebView(this);
         webView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -351,6 +359,57 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+        }
+        super.onDestroy();
+    }
+
+    private void initializeTextToSpeech() {
+        textToSpeech = new TextToSpeech(this, status -> {
+            if (status != TextToSpeech.SUCCESS || textToSpeech == null) {
+                textToSpeechReady = false;
+                return;
+            }
+            int languageResult = textToSpeech.setLanguage(new Locale("tr", "TR"));
+            textToSpeechReady = languageResult != TextToSpeech.LANG_MISSING_DATA
+                && languageResult != TextToSpeech.LANG_NOT_SUPPORTED;
+            textToSpeech.setAudioAttributes(new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build());
+            textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override
+                public void onStart(String utteranceId) {
+                    dispatchNativeTtsResult(utteranceId, "start");
+                }
+
+                @Override
+                public void onDone(String utteranceId) {
+                    dispatchNativeTtsResult(utteranceId, "done");
+                }
+
+                @Override
+                public void onError(String utteranceId) {
+                    dispatchNativeTtsResult(utteranceId, "error");
+                }
+            });
+        });
+    }
+
+    private void dispatchNativeTtsResult(String utteranceId, String status) {
+        if (webView == null) return;
+        String script = "window.dispatchEvent(new CustomEvent('nexaline:native-tts',{detail:{id:"
+            + JSONObject.quote(utteranceId) + ",status:" + JSONObject.quote(status) + "}}));";
+        runOnUiThread(() -> {
+            if (webView != null) webView.evaluateJavascript(script, null);
+        });
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_REQUEST && fileCallback != null) {
@@ -487,6 +546,29 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void notify(String title, String body, String tag) {
             runOnUiThread(() -> showNotification(title, body, tag));
+        }
+
+        @JavascriptInterface
+        public boolean speak(String text, String utteranceId, String voice) {
+            if (!textToSpeechReady || textToSpeech == null || text == null || text.trim().isEmpty()) {
+                return false;
+            }
+            float rate = "male".equalsIgnoreCase(voice) ? 0.94f : 0.98f;
+            float pitch = "male".equalsIgnoreCase(voice) ? 0.92f : 1.02f;
+            runOnUiThread(() -> {
+                textToSpeech.setSpeechRate(rate);
+                textToSpeech.setPitch(pitch);
+                int result = textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+                if (result == TextToSpeech.ERROR) dispatchNativeTtsResult(utteranceId, "error");
+            });
+            return true;
+        }
+
+        @JavascriptInterface
+        public void stopSpeaking() {
+            runOnUiThread(() -> {
+                if (textToSpeech != null) textToSpeech.stop();
+            });
         }
 
         @JavascriptInterface
