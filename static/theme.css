@@ -3086,6 +3086,171 @@ button {
     gap: 10px;
 }
 
+.ai-voice-panel .modal-body {
+    overflow: hidden;
+}
+
+.nexal-voice-stage {
+    min-height: min(520px, 62dvh);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px 10px 12px;
+    text-align: center;
+}
+
+.nexal-voice-stage > strong {
+    font-size: 19px;
+    letter-spacing: -0.02em;
+}
+
+.nexal-voice-stage > small {
+    max-width: 290px;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.nexal-voice-orb {
+    position: relative;
+    width: 154px;
+    height: 154px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 12px;
+    border: 1px solid rgba(90, 200, 255, 0.34);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 36% 28%, rgba(117, 230, 255, 0.88), transparent 24%),
+        radial-gradient(circle at 65% 70%, rgba(52, 114, 255, 0.75), transparent 42%),
+        linear-gradient(145deg, rgba(26, 211, 255, 0.8), rgba(38, 91, 255, 0.8));
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.55),
+        inset 0 -18px 34px rgba(15, 46, 145, 0.38),
+        0 18px 50px rgba(28, 136, 255, 0.28);
+    isolation: isolate;
+    transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 320ms ease, filter 320ms ease;
+}
+
+.nexal-voice-orb::before,
+.nexal-voice-orb::after,
+.nexal-voice-orb > i {
+    position: absolute;
+    content: "";
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.nexal-voice-orb::before {
+    inset: -13px;
+    z-index: -2;
+    border: 1px solid rgba(84, 201, 255, 0.18);
+    background: rgba(42, 149, 255, 0.05);
+}
+
+.nexal-voice-orb::after {
+    inset: -29px;
+    z-index: -3;
+    border: 1px solid rgba(84, 201, 255, 0.1);
+}
+
+.nexal-voice-orb > i {
+    inset: 12%;
+    z-index: -1;
+    opacity: 0.52;
+    background: linear-gradient(120deg, rgba(143, 241, 255, 0.65), rgba(59, 88, 246, 0.18));
+    filter: blur(12px);
+}
+
+.nexal-voice-orb > i:nth-child(2) {
+    inset: 24% 9% 16% 29%;
+    animation-delay: -0.7s;
+}
+
+.nexal-voice-orb > i:nth-child(3) {
+    inset: 11% 28% 27% 8%;
+    animation-delay: -1.4s;
+}
+
+.nexal-voice-orb .mic {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    filter: drop-shadow(0 4px 12px rgba(3, 25, 80, 0.5));
+}
+
+.nexal-voice-orb .mic svg {
+    width: 34px;
+    height: 34px;
+}
+
+.nexal-voice-orb.user-speaking {
+    animation: nexa-voice-listening 1.2s ease-in-out infinite;
+}
+
+.nexal-voice-orb.user-speaking > i {
+    animation: nexa-voice-flow 1.35s ease-in-out infinite alternate;
+}
+
+.nexal-voice-orb.ai-thinking {
+    animation: nexa-voice-thinking 1.4s linear infinite;
+    filter: hue-rotate(22deg);
+}
+
+.nexal-voice-orb.ai-speaking {
+    animation: nexa-voice-speaking 0.78s ease-in-out infinite alternate;
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.62),
+        inset 0 -18px 34px rgba(15, 46, 145, 0.3),
+        0 18px 62px rgba(55, 174, 255, 0.55);
+}
+
+.nexal-voice-actions {
+    width: min(100%, 310px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+}
+
+.nexal-voice-actions .nexal-pill-button:not(.primary) {
+    border: 1px solid rgba(103, 196, 255, 0.22);
+    background: rgba(13, 25, 42, 0.88);
+    color: rgba(235, 247, 255, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+@keyframes nexa-voice-listening {
+    0%, 100% { transform: scale(0.97); }
+    50% { transform: scale(1.045); }
+}
+
+@keyframes nexa-voice-flow {
+    from { transform: translate3d(-8px, 5px, 0) scale(0.9); opacity: 0.35; }
+    to { transform: translate3d(8px, -6px, 0) scale(1.12); opacity: 0.8; }
+}
+
+@keyframes nexa-voice-thinking {
+    from { transform: rotate(0deg) scale(0.98); }
+    to { transform: rotate(360deg) scale(0.98); }
+}
+
+@keyframes nexa-voice-speaking {
+    from { transform: scale(0.98); }
+    to { transform: scale(1.075); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nexal-voice-orb,
+    .nexal-voice-orb > i {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
 .ai-home-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

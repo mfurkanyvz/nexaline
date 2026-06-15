@@ -5425,18 +5425,18 @@ def elevenlabs_voice_id(voice_key):
 def openai_tts_voice(voice_key):
     voice = (voice_key or "warm").strip().casefold()
     mapping = {
-        "warm": os.environ.get("OPENAI_TTS_VOICE_WARM", "alloy"),
+        "warm": os.environ.get("OPENAI_TTS_VOICE_WARM", "marin"),
         "alloy": "alloy",
         "fable": "fable",
-        "female": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "alloy"),
-        "kadin": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "alloy"),
-        "kadın": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "nova"),
-        "male": os.environ.get("OPENAI_TTS_VOICE_MALE", "fable"),
-        "erkek": os.environ.get("OPENAI_TTS_VOICE_MALE", "fable"),
-        "calm": os.environ.get("OPENAI_TTS_VOICE_CALM", "alloy"),
-        "energetic": os.environ.get("OPENAI_TTS_VOICE_ENERGETIC", "fable"),
+        "female": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "coral"),
+        "kadin": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "coral"),
+        "kadın": os.environ.get("OPENAI_TTS_VOICE_FEMALE", "coral"),
+        "male": os.environ.get("OPENAI_TTS_VOICE_MALE", "cedar"),
+        "erkek": os.environ.get("OPENAI_TTS_VOICE_MALE", "cedar"),
+        "calm": os.environ.get("OPENAI_TTS_VOICE_CALM", "marin"),
+        "energetic": os.environ.get("OPENAI_TTS_VOICE_ENERGETIC", "coral"),
     }
-    return mapping.get(voice, os.environ.get("OPENAI_TTS_VOICE", "alloy"))
+    return mapping.get(voice, os.environ.get("OPENAI_TTS_VOICE", "marin"))
 
 
 def call_openai_tts(text_value, voice_key="warm"):
@@ -5453,8 +5453,11 @@ def call_openai_tts(text_value, voice_key="warm"):
     }
     if model.startswith("gpt-4o"):
         payload["instructions"] = (
-            "Duygulu, dogal, sicak ve konusma diline yakin Turkce ses kullan. "
-            "Cumleleri acele etmeden, arkadasca ve net oku."
+            "Dogal ve akici Istanbul Turkcesiyle konus. Bir metni okur gibi degil, karsindaki "
+            "kisiyle gercek zamanli sohbet ediyormus gibi sicak, sakin ve kendinden emin ol. "
+            "Noktalama ve anlama gore durakla; duyguya uygun tonlama kullan, fakat abartma. "
+            "Kisa cumleleri canli, uzun aciklamalari rahat bir tempoda soyle. Robotik, tekduze, "
+            "spiker veya reklam tonundan kacin. NexaLine adini 'Neksa Layn' olarak telaffuz et."
         )
     response = requests.post(
         f"{base_url}/audio/speech",
