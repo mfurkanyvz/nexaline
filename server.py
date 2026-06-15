@@ -1,6 +1,7 @@
 import os
 import ipaddress
 import base64
+import calendar
 import gzip
 import hashlib
 import html
@@ -1816,12 +1817,16 @@ def visible_chats(username):
 
 
 def ai_task_to_dict(row):
+    remind_at = to_iso(row.remind_at) if row.remind_at else None
     return {
         "id": row.id,
         "title": row.title,
         "description": row.description or "",
         "repeat": row.repeat or "none",
-        "remindAt": to_iso(row.remind_at) if row.remind_at else None,
+        "remindAt": remind_at,
+        "nextAt": remind_at,
+        "active": row.completed_at is None,
+        "hint": row.description or "",
         "completedAt": to_iso(row.completed_at) if row.completed_at else None,
         "createdAt": to_iso(row.created_at),
         "updatedAt": to_iso(row.updated_at),
@@ -2117,6 +2122,22 @@ def send_web_push_subscription(subscription_row, payload):
     except Exception as error:
         app.logger.warning("Web Push bildirimi hazirlanamadi: %s", error)
         return False
+
+
+def send_direct_user_push(username, payload, socket_event=None):
+    username = str(username or "").strip().lower()
+    if not username:
+        return {"sent": 0, "socket": 0}
+    web_push_sent = 0
+    socket_sent = 0
+    for subscription in PushSubscription.query.filter_by(username=username).all():
+        if send_web_push_subscription(subscription, payload):
+            web_push_sent += 1
+    if socket_event:
+        for sid in connected_sids_for(username):
+            socketio.emit(socket_event, payload, room=sid)
+            socket_sent += 1
+    return {"sent": web_push_sent, "socket": socket_sent}
 
 
 def send_push_notification(
@@ -4913,6 +4934,13 @@ def client_deeplink(chat_id):
     return response
 
 
+@app.route("/ai-task/<path:task_id>")
+def ai_task_client_deeplink(task_id):
+    response = send_from_directory("static", "client.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
+
 @app.route("/robots.txt")
 def robots_txt():
     body = "\n".join(
@@ -6318,13 +6346,15 @@ def ai_tasks(username):
     return jsonify({"ok": True, "message": "AI görevi eklendi.", "tasks": ai_tasks_for(username)})
 
 
-@app.route("/ai/tasks/<username>/<task_id>", methods=["PATCH", "DELETE"])
+@app.route("/ai/tasks/<username>/<task_id>", methods=["GET", "PATCH", "DELETE"])
 @ai_error_boundary
 def ai_task_update(username, task_id):
     username = username.strip().lower()
     row = db.session.get(AiTask, task_id)
     if not row or row.username != username:
         return jsonify({"ok": False, "message": "Görev bulunamadı."}), 404
+    if request.method == "GET":
+        return jsonify({"ok": True, "task": ai_task_to_dict(row), "call": ai_task_call_payload(row)})
     if request.method == "DELETE":
         db.session.delete(row)
         db.session.commit()
@@ -6338,11 +6368,114 @@ def ai_task_update(username, task_id):
         row.description = (data.get("description") or "").strip()[:1000]
     if "repeat" in data and data.get("repeat") in {"none", "daily", "weekly", "monthly"}:
         row.repeat = data.get("repeat")
+    if "remindAt" in data:
+        try:
+            row.remind_at = datetime.fromisoformat(str(data.get("remindAt")).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "message": "Hatırlatma tarihi okunamadı."}), 400
     if "completed" in data:
         row.completed_at = datetime.now(timezone.utc) if data.get("completed") else None
     row.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     return jsonify({"ok": True, "message": "Görev güncellendi.", "tasks": ai_tasks_for(username)})
+
+
+def local_ai_task_spoken_text(task, user=None):
+    title = re.sub(r"\s+", " ", task.title or "Hatırlatma").strip()
+    folded = fold_tr_ascii(title)
+    name = (user.display_name or user.username).split()[0] if user else ""
+    greeting = f"{name}, " if name else ""
+    if any(word in folded for word in ("spor", "egzersiz", "yuruyus", "antrenman")):
+        return f"{greeting}{title.lower()} zamanı. Kısa bir başlangıç bile bugünün enerjisini değiştirir; hadi başlayalım."
+    if any(word in folded for word in ("su", "ilac", "vitamin")):
+        return f"{greeting}küçük bir hatırlatma: {title.lower()}. Şimdi yaparsan aklında kalmayacak."
+    if any(word in folded for word in ("toplanti", "gorusme", "randevu", "ders")):
+        return f"{greeting}{title} için zaman geldi. Hazırlıklarını kontrol edip sakin bir başlangıç yapabilirsin."
+    if any(word in folded for word in ("uyu", "uyku", "dinlen")):
+        return f"{greeting}{title.lower()} zamanı. Günü yavaşlatıp kendine dinlenmek için alan aç."
+    return f"{greeting}NexaLine hatırlatmanı söylüyorum: {title}. Müsaitsen şimdi başlayabilirsin."
+
+
+def generate_ai_task_spoken_text(task, user=None):
+    fallback = local_ai_task_spoken_text(task, user)
+    try:
+        prompt = (
+            "Aşağıdaki hatırlatma başlığını anlayıp kullanıcıyı telefonla arayan doğal bir Türkçe "
+            "asistan gibi 1-2 kısa cümle söyle. Samimi, motive edici ve konuya uygun ton kullan. "
+            "Markdown, liste, emoji, tırnak veya açıklama ekleme. "
+            f"Hatırlatma: {task.title}. Ayrıntı: {task.description or 'yok'}."
+        )
+        context = {
+            "user": {"displayName": user.display_name if user else ""},
+            "task": ai_task_to_dict(task),
+            "preferences": {"responseLength": "short", "persona": "doğal sesli asistan"},
+        }
+        reply, provider, _research = generate_ai_reply(prompt, context, [])
+        reply = re.sub(r"\s+", " ", str(reply or "")).strip().strip('"')
+        if provider.get("provider") != "local" and 12 <= len(reply) <= 420:
+            return reply
+    except Exception as error:
+        app.logger.info("AI task speech fallback: %s", error)
+    return fallback
+
+
+def next_ai_task_remind_at(task, current_due=None):
+    current = current_due or task.remind_at or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    if task.repeat == "daily":
+        return current + timedelta(days=1)
+    if task.repeat == "weekly":
+        return current + timedelta(days=7)
+    if task.repeat == "monthly":
+        year = current.year + (1 if current.month == 12 else 0)
+        month = 1 if current.month == 12 else current.month + 1
+        day = min(current.day, calendar.monthrange(year, month)[1])
+        return current.replace(year=year, month=month, day=day)
+    return None
+
+
+def ai_task_call_payload(task, spoken_text=None):
+    spoken_text = spoken_text or local_ai_task_spoken_text(task, task.user)
+    return {
+        "title": "Nexa AI arıyor",
+        "message": task.title,
+        "spokenText": spoken_text,
+        "type": "ai.task.call",
+        "taskId": task.id,
+        "callKind": "ai",
+        "url": f"/ai-task/{task.id}",
+        "tag": f"ai-task-call-{task.id}",
+        "icon": "/static/icons/nexaline-icon-192-v2.png",
+        "badge": "/static/icons/nexaline-icon-192-v2.png",
+    }
+
+
+def deliver_due_ai_task_calls(now=None):
+    current = now or datetime.now(timezone.utc)
+    due_rows = AiTask.query.filter(
+        AiTask.completed_at.is_(None),
+        AiTask.remind_at.isnot(None),
+        AiTask.remind_at <= current,
+    ).all()
+    delivered = []
+    for task in due_rows:
+        user = db.session.get(User, task.username)
+        if not user:
+            continue
+        spoken_text = generate_ai_task_spoken_text(task, user)
+        payload = ai_task_call_payload(task, spoken_text)
+        result = send_direct_user_push(task.username, payload, socket_event="ai:task-call")
+        next_due = next_ai_task_remind_at(task, task.remind_at)
+        if next_due:
+            task.remind_at = next_due
+        else:
+            task.completed_at = current
+        task.updated_at = current
+        delivered.append({"taskId": task.id, **result})
+    if delivered:
+        db.session.commit()
+    return delivered
 
 
 @app.route("/qr-login/start", methods=["POST"])
@@ -10126,6 +10259,7 @@ def background_scheduler():
             try:
                 expire_due_messages(notify=True)
                 deliver_due_scheduled_messages()
+                deliver_due_ai_task_calls()
             except Exception:
                 db.session.rollback()
                 app.logger.exception("Background scheduler failed")

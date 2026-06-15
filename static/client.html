@@ -1232,7 +1232,10 @@
                 cameraFacing: "user",
                 incoming: false,
                 connected: false,
-                speakerOn: false
+                speakerOn: false,
+                aiTaskCall: null,
+                audio: null,
+                stopSpeech: null
             }
         };
 
@@ -3007,6 +3010,12 @@
             return next.toISOString();
         }
 
+            defaultAiTaskDateTime() {
+            const next = new Date(Date.now() + 60 * 60 * 1000);
+            next.setMinutes(0, 0, 0);
+            return new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        }
+
             defaultAiPlanTasks() {
             const seeds = [
                 ["morning-sport", "Sabah sporu yap", "Her gün 07:00", "07:00", "daily", true],
@@ -3022,6 +3031,7 @@
                 time,
                 repeat,
                 active,
+                localOnly: true,
                 attempts: 0,
                 completedAt: "",
                 failedAt: "",
@@ -3219,8 +3229,8 @@
                     </div>
                     <div class="nexal-form-grid" style="margin-top:12px">
                         <input id="nexalTaskTitleInput" maxlength="120" placeholder="Yeni görev ekle">
-                        <input id="nexalTaskTimeInput" type="time" value="09:00">
-                        <select id="nexalTaskRepeatInput"><option value="daily">Her gün</option><option value="hourly">Her saat</option><option value="none">Tek sefer</option></select>
+                        <input id="nexalTaskDateTimeInput" type="datetime-local" value="${this.defaultAiTaskDateTime()}">
+                        <select id="nexalTaskRepeatInput"><option value="none">Tek sefer</option><option value="daily">Her gün</option><option value="weekly">Her hafta</option><option value="monthly">Her ay</option></select>
                         <button id="nexalAddTaskButton" class="nexal-pill-button primary" type="button">Yeni Görev Ekle</button>
                     </div>
                 `;
@@ -3247,10 +3257,15 @@
                 });
                 $("nexalAddTaskButton").onclick = () => {
                     const title = $("nexalTaskTitleInput").value.trim();
-                    const time = $("nexalTaskTimeInput").value || "09:00";
+                    const dateTime = $("nexalTaskDateTimeInput").value;
                     const repeat = $("nexalTaskRepeatInput").value;
                     if (title.length < 2) {
                         showToast("Görev adını yaz.");
+                        return;
+                    }
+                    const remindAt = dateTime ? new Date(dateTime) : null;
+                    if (!remindAt || Number.isNaN(remindAt.getTime()) || remindAt.getTime() <= Date.now()) {
+                        showToast("Görev için ileri bir tarih ve saat seç.");
                         return;
                     }
                     fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}`, {
@@ -3258,9 +3273,9 @@
                         headers: authHeaders(),
                         body: JSON.stringify({
                             title,
-                            description: repeat === "hourly" ? "Her saat" : repeat === "daily" ? `Her g?n ${time}` : time,
-                            remindAt: repeat === "none" ? new Date().toISOString() : "",
-                            repeat: repeat === "hourly" ? "daily" : repeat
+                            description: `${remindAt.toLocaleString("tr-TR")} • ${repeat === "daily" ? "Her gün" : repeat === "weekly" ? "Her hafta" : repeat === "monthly" ? "Her ay" : "Tek sefer"}`,
+                            remindAt: remindAt.toISOString(),
+                            repeat
                         })
                     }).then(response => response.json()).then(async data => {
                         if (!data.ok) {
@@ -3998,7 +4013,7 @@
                 if (!state.me || state.aiReminderOpen) return;
                 const tasks = loadAiPlanTasks();
                 const now = Date.now();
-                const due = tasks.find(task => task.active && !task.completedAt && !task.failedAt && task.nextAt && new Date(task.nextAt).getTime() <= now);
+                const due = tasks.find(task => task.localOnly && task.active && !task.completedAt && !task.failedAt && task.nextAt && new Date(task.nextAt).getTime() <= now);
                 if (due) showAiTaskReminder(due);
             };
             state.aiPlanTimer = setInterval(tick, 30000);
@@ -5597,6 +5612,7 @@
                 render();
                 hideScreenTransition();
                 maybePromptGeneralGroup();
+                openPendingAiTaskCall();
             } else if (response.status === 401 || response.status === 404) {
                 resetToAuth(data.message || "Oturum bulunamadı. Yeniden giriş yap.");
             } else if (!state.bootReady) {
@@ -5647,6 +5663,28 @@
         function openProfileSettings() {
             openSettings();
             setSettingsView("profile");
+        }
+
+        function pendingAiTaskDeepLinkId() {
+            const match = window.location.pathname.match(/^\/ai-task\/(.+)$/);
+            if (!match) return "";
+            try {
+                return decodeURIComponent(match[1]);
+            } catch (_error) {
+                return match[1];
+            }
+        }
+
+        async function openPendingAiTaskCall() {
+            const taskId = pendingAiTaskDeepLinkId();
+            if (!taskId || !state.me?.username) return;
+            try {
+                const response = await fetch(`/ai/tasks/${encodeURIComponent(state.me.username)}/${encodeURIComponent(taskId)}`, { headers: authHeaders() });
+                const data = await response.json();
+                if (data.ok && data.call) openAiTaskCall(data.call);
+            } catch (error) {
+                console.warn("Nexa AI görev araması açılamadı", error);
+            }
         }
 
         function profileAnalysisEvidenceCards(evidence = {}) {
@@ -14706,7 +14744,44 @@
             pushAppHistory("call");
         }
 
+        function openAiTaskCall(payload) {
+            if (!payload?.taskId || !$('callPanel').classList.contains('hidden')) return;
+            state.call.aiTaskCall = payload;
+            state.call.chatId = null;
+            state.call.audioOnly = true;
+            state.call.incomingOffer = null;
+            startCallRingtone();
+            openCallPanel(
+                "Nexa AI Araması",
+                "hatırlatma için arıyor...",
+                true,
+                true,
+                null,
+                { displayName: "Nexa AI", profileImage: brandLogo(), avatar: "AI" }
+            );
+        }
+
+        async function acceptAiTaskCall() {
+            const taskCall = state.call.aiTaskCall;
+            if (!taskCall) return;
+            stopCallRingtone();
+            state.call.incoming = false;
+            state.call.startedAt = Date.now();
+            setCallStatus("bağlandı");
+            updateCallControls(true);
+            startCallTimer();
+            const spokenText = String(taskCall.spokenText || taskCall.message || "Hatırlatma zamanın geldi.");
+            await playAiAssistantVoice(spokenText, state.call);
+            if (state.call.aiTaskCall?.taskId === taskCall.taskId) {
+                setCallStatus("hatırlatma tamamlandı");
+            }
+        }
+
         async function acceptCall() {
+            if (state.call.aiTaskCall) {
+                await acceptAiTaskCall();
+                return;
+            }
             const incoming = state.call.incomingOffer;
             if (!incoming) {
                 return;
@@ -14767,6 +14842,8 @@
         function endCall(notify = true) {
             stopCallRingtone();
             stopCallWaveform();
+            state.call.stopSpeech?.();
+            state.call.audio?.pause?.();
             if (state.call.timer) {
                 clearInterval(state.call.timer);
             }
@@ -14794,7 +14871,7 @@
                 state.call.localStream.getTracks().forEach(track => track.stop());
             }
 
-            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, retryTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user", incoming: false, connected: false, speakerOn: false };
+            state.call = { peers: {}, pendingIce: {}, localStream: null, remoteStream: null, chatId: null, audioOnly: false, incomingOffer: null, startedAt: null, ringtoneTimer: null, retryTimer: null, timer: null, audioContext: null, analyser: null, waveformFrame: 0, peerName: "", peerImage: "", cameraFacing: "user", incoming: false, connected: false, speakerOn: false, aiTaskCall: null, audio: null, stopSpeech: null };
             $("localVideo").srcObject = null;
             $("remoteVideo").srcObject = null;
             $("callTimer").textContent = "00:00";
@@ -15384,9 +15461,10 @@
             state.bootReady = true;
             state.startupShellRevealed = true;
             clearStartupGuard();
-            render();
-            hideScreenTransition();
-            maybePromptGeneralGroup();
+                render();
+                hideScreenTransition();
+                maybePromptGeneralGroup();
+                openPendingAiTaskCall();
             nexaAiEngine.registerPushNotifications();
         });
 
@@ -15736,6 +15814,7 @@
                 peer
             );
         });
+        socket.on("ai:task-call", data => openAiTaskCall(data));
         socket.on("call:ringing", data => {
             if (!state.call.chatId || data?.chatId !== state.call.chatId || state.call.connected) return;
             if (state.call.retryTimer) {

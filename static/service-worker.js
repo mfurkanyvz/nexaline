@@ -16,15 +16,15 @@ self.addEventListener("push", event => {
     icon: data.icon || DEFAULT_NOTIFICATION_ICON,
     badge: data.badge || DEFAULT_NOTIFICATION_BADGE,
     tag: data.tag || `${type}-${data.chatId || Date.now()}`,
-    renotify: type === "call.audio" || type === "call.video",
-    requireInteraction: type === "call.audio" || type === "call.video",
+    renotify: type === "call.audio" || type === "call.video" || type === "ai.task.call",
+    requireInteraction: type === "call.audio" || type === "call.video" || type === "ai.task.call",
     data: {
       url: targetUrl,
       type,
       chatId: data.chatId || null,
       callKind: data.callKind || null
     },
-    actions: [{ action: "open", title: "Görüntüle" }]
+    actions: [{ action: "open", title: type === "ai.task.call" ? "Yanıtla" : "Görüntüle" }]
   };
 
   event.waitUntil(self.registration.showNotification(data.title || "NexaLine", options));
