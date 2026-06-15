@@ -3950,6 +3950,22 @@ def local_should_research(prompt):
     return any(word in lowered for word in research_words) and not any(word in lowered for word in app_words)
 
 
+def ai_reply_needs_research(reply):
+    folded = unicodedata.normalize("NFKD", str(reply or "")).encode("ascii", "ignore").decode("ascii").casefold()
+    markers = (
+        "bilmiyorum", "emin degilim", "emin de?ilim", "bilgim yok", "dogrulayamiyorum", "dogrulayamam",
+        "guncel bilgiye erisemiyorum", "internete erisemiyorum", "web erisimim yok",
+        "kesin bir sey soyleyemem", "bu konuda yeterli bilgim yok", "kaynak bulamadim",
+        "i don't know", "i am not sure", "cannot verify", "no current information",
+    )
+    return any(marker in folded for marker in markers)
+
+
+def research_query_kind(prompt):
+    folded = fold_tr_ascii(prompt or "")
+    return "news" if any(word in folded for word in ("bugun", "haber", "son dakika", "son durum", "guncel", "2026")) else "general"
+
+
 def wikipedia_research(query):
     title = re.sub(r"\s+", " ", query or "").strip()
     title = re.sub(r"\b(kimdir|nedir|ne demek|araştır|arastir|internette|webde|google|güncel|guncel)\b", " ", title, flags=re.IGNORECASE).strip()
@@ -4098,14 +4114,24 @@ def google_news_research(query):
 def dedupe_research_results(items, limit=5):
     results = []
     seen = set()
+    blocked_hosts = {
+        "answers.microsoft.com", "forum.lowyat.net", "pinterest.com", "www.pinterest.com",
+        "facebook.com", "www.facebook.com", "instagram.com", "www.instagram.com",
+    }
     for item in items:
         url = normalize_search_url(item.get("url") or "")
         title = re.sub(r"\s+", " ", item.get("title") or "").strip()
+        snippet = re.sub(r"\s+", " ", item.get("snippet") or "").strip()
+        host = (urllib.parse.urlparse(url).hostname or "").casefold()
+        if host in blocked_hosts or not url.startswith(("http://", "https://")):
+            continue
+        if len(title) < 4 or (not snippet and "wikipedia.org" not in host):
+            continue
         key = url.casefold() or title.casefold()
         if not key or key in seen:
             continue
         seen.add(key)
-        results.append({**item, "title": title, "url": url})
+        results.append({**item, "title": title, "snippet": snippet, "url": url})
         if len(results) >= limit:
             break
     return results
@@ -4282,14 +4308,15 @@ def web_research_if_requested(prompt, force=False):
                 }
             )
 
-    current_query = any(word in fold_tr_ascii(prompt) for word in ["haber", "guncel", "bugun", "son durum", "son dakika"])
+    current_query = research_query_kind(prompt) == "news"
     if current_query:
         results.extend(google_news_research(query))
-    results.extend(bing_rss_research(query))
-    if len(results) < 3:
-        results.extend(duckduckgo_html_research(query))
-    if len(results) < 2:
+        results.extend(bing_rss_research(query))
+    else:
         results.extend(wikipedia_research(query))
+        results.extend(duckduckgo_html_research(query))
+        if len(results) < 3:
+            results.extend(bing_rss_research(query))
     return dedupe_research_results(results, limit=5)
 
 
@@ -4680,6 +4707,30 @@ def generate_ai_reply(prompt, context, actions, attachment=None):
                 break
         except Exception as error:
             app.logger.warning("AI provider %s failed: %s", provider_name, error)
+    if reply and not research and not has_live_weather and ai_reply_needs_research(reply):
+        research = web_research_if_requested(prompt, force=True)
+        if research:
+            retry_reply = ""
+            for provider_name in ai_provider_attempts(needs_vision=needs_vision):
+                try:
+                    if provider_name == "gemini" and (os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")):
+                        retry_reply = call_gemini_ai(prompt, context_text, research, attachment)
+                    elif provider_name == "groq" and os.environ.get("GROQ_API_KEY") and not needs_vision:
+                        retry_reply = call_groq_ai(prompt, context_text, research)
+                    elif provider_name == "deepinfra" and os.environ.get("DEEPINFRA_API_KEY") and not needs_vision:
+                        retry_reply = call_deepinfra_ai(prompt, context_text, research)
+                    elif provider_name == "openrouter" and os.environ.get("OPENROUTER_API_KEY"):
+                        retry_reply = call_openrouter_ai(prompt, context_text, research, attachment)
+                    elif provider_name == "openai" and os.environ.get("OPENAI_API_KEY"):
+                        retry_reply = call_openai_ai(prompt, context_text, research, attachment)
+                    elif provider_name == "ollama" and os.environ.get("OLLAMA_BASE_URL") and not needs_vision:
+                        retry_reply = call_ollama_ai(prompt, context_text, research)
+                    if retry_reply:
+                        reply = retry_reply
+                        provider = {**provider, "webRetry": True}
+                        break
+                except Exception as error:
+                    app.logger.info("AI web retry provider %s failed: %s", provider_name, error)
     if not reply:
         provider = {"provider": "local", "model": "nexaline-free-ai", "ready": True, "free": True}
         reply = local_memory_answer(prompt, context)
