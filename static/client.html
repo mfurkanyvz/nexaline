@@ -3516,6 +3516,56 @@
                 .trim();
         }
 
+            unlockAiAudioSession(session) {
+            if (!session || session.audioContext) return;
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return;
+            try {
+                const context = new AudioContextClass();
+                const gain = context.createGain();
+                const oscillator = context.createOscillator();
+                gain.gain.value = 0;
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                oscillator.start();
+                oscillator.stop(context.currentTime + 0.02);
+                context.resume().catch(() => {});
+                session.audioContext = context;
+            } catch (_error) {}
+        }
+
+            async playAiAudioDataUrl(audioDataUrl, session = null) {
+            const context = session?.audioContext;
+            if (!context) return null;
+            try {
+                await context.resume();
+                const response = await fetch(audioDataUrl);
+                const buffer = await response.arrayBuffer();
+                const decoded = await context.decodeAudioData(buffer.slice(0));
+                const source = context.createBufferSource();
+                source.buffer = decoded;
+                source.connect(context.destination);
+                session.audioSource = source;
+                session.stopSpeech = () => {
+                    try { source.stop(); } catch (_error) {}
+                };
+                return await new Promise(resolve => {
+                    let settled = false;
+                    const finish = result => {
+                        if (settled) return;
+                        settled = true;
+                        if (session.audioSource === source) session.audioSource = null;
+                        if (session.stopSpeech) session.stopSpeech = null;
+                        resolve(result);
+                    };
+                    source.onended = () => finish(true);
+                    source.start(0);
+                });
+            } catch (_error) {
+                return null;
+            }
+        }
+
             speakWithNativeAndroid(text, session = null) {
             return new Promise(resolve => {
                 const bridge = window.NexaLineNative;
@@ -3612,6 +3662,8 @@
             try { nativeAndroid = Boolean(window.NexaLineNative?.isNativeAndroid?.()); } catch (_error) {}
             const data = await runAiTts(spokenText);
             if (data.ok && data.audioDataUrl) {
+                const webAudioResult = await this.playAiAudioDataUrl(data.audioDataUrl, session);
+                if (webAudioResult !== null) return webAudioResult;
                 const audio = new Audio(data.audioDataUrl);
                 if (session) {
                     session.audio = audio;
@@ -3776,6 +3828,8 @@
                 busy: false,
                 recognition: null,
                 audio: null,
+                audioContext: null,
+                audioSource: null,
                 stopCapture: null,
                 stopSpeech: null
             };
@@ -3786,8 +3840,12 @@
                 session.stopCapture?.();
                 session.stopSpeech?.();
                 session.audio?.pause();
+                try { session.audioSource?.stop(); } catch (_error) {}
+                session.audioContext?.close().catch(() => {});
                 session.recognition = null;
                 session.audio = null;
+                session.audioContext = null;
+                session.audioSource = null;
                 session.stopCapture = null;
                 session.stopSpeech = null;
                 state.aiVoiceListening = false;
@@ -3922,6 +3980,7 @@
                         return;
                     }
                     session.active = true;
+                    this.unlockAiAudioSession(session);
                     state.aiVoiceListening = true;
                     startButton.textContent = "Görüşmeyi Bitir";
                     $("nexalVoiceStatus").textContent = "Dinliyorum...";

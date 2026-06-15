@@ -5572,6 +5572,43 @@ def call_elevenlabs_tts(text_value, voice_key="warm"):
     return bytes_to_data_url(response.content, response.headers.get("Content-Type", "audio/mpeg").split(";")[0])
 
 
+def split_tts_text(text_value, limit=180):
+    words = re.sub(r"\s+", " ", text_value or "").strip().split(" ")
+    chunks = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if current and len(candidate) > limit:
+            chunks.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def call_google_translate_tts(text_value):
+    audio_parts = []
+    for chunk in split_tts_text(text_value[:1200]):
+        response = requests.get(
+            "https://translate.google.com/translate_tts",
+            params={"ie": "UTF-8", "client": "tw-ob", "tl": "tr", "q": chunk},
+            headers={
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15",
+                "Accept": "audio/mpeg,audio/*;q=0.9,*/*;q=0.5",
+            },
+            timeout=max(AI_TIMEOUT_SECONDS, 15),
+        )
+        response.raise_for_status()
+        if not response.content:
+            raise RuntimeError("Google Translate TTS returned empty audio")
+        audio_parts.append(response.content)
+    if not audio_parts:
+        raise RuntimeError("Google Translate TTS received empty text")
+    return bytes_to_data_url(b"".join(audio_parts), "audio/mpeg")
+
+
 def call_human_tts(text_value, voice_key="warm"):
     errors = []
     if os.environ.get("OPENAI_API_KEY"):
@@ -5594,6 +5631,15 @@ def call_human_tts(text_value, voice_key="warm"):
         except Exception as error:
             errors.append(f"ElevenLabs TTS: {error}")
             app.logger.warning("ElevenLabs TTS failed: %s", error)
+    try:
+        return call_google_translate_tts(text_value), {
+            "provider": "google-translate-tts",
+            "model": "translate-tts",
+            "voice": "tr-TR",
+        }
+    except Exception as error:
+        errors.append(f"Google Translate TTS: {error}")
+        app.logger.warning("Google Translate TTS failed: %s", error)
     raise RuntimeError("; ".join(errors) or "TTS provider missing")
 
 
@@ -5886,7 +5932,7 @@ def ai_tts():
         return jsonify({"ok": True, "audioDataUrl": audio_data_url, "provider": provider})
     except Exception as error:
         app.logger.warning("AI TTS failed: %s", error)
-        return jsonify({"ok": False, "message": "Ses uretimi icin OPENAI_API_KEY veya ELEVENLABS_API_KEY gerekli; servis su an yanit vermiyor."}), 503
+        return jsonify({"ok": False, "message": "Ses üretim servisleri şu an yanıt vermiyor. Lütfen tekrar dene."}), 503
 
 
 def local_text_summary(text_value, limit=5):
