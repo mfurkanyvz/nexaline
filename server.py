@@ -7877,7 +7877,7 @@ def admin_state():
         return admin_error
 
     users = [
-        public_user(user.username) | {
+        private_user(user.username) | {
             "createdAt": to_iso(user.created_at),
             "email": user.email,
             "emailVerified": user.email_verified,
@@ -8247,6 +8247,85 @@ def admin_reset_password(username):
     user.password_hash = generate_password_hash(new_password)
     db.session.commit()
     return jsonify({"ok": True, "message": "Şifre sıfırlandı."})
+
+
+@app.route("/admin/user/<username>/data", methods=["POST"])
+def admin_update_user_data(username):
+    admin_error = require_admin()
+    if admin_error:
+        return admin_error
+
+    user = db.session.get(User, username.strip().lower())
+    if not user:
+        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+
+    data = request.get_json() or {}
+    display_name, display_name_problem = normalize_display_name({"displayName": data.get("displayName") or user.display_name})
+    if display_name_problem:
+        return jsonify({"ok": False, "message": display_name_problem}), 400
+
+    email, email_normalized = normalize_email(data.get("email") or "")
+    if not email_normalized:
+        return jsonify({"ok": False, "message": "Geçerli bir e-posta adresi yaz."}), 400
+    if email_exists(email_normalized, except_username=user.username):
+        return jsonify({"ok": False, "message": "Bu e-posta başka bir hesapta kullanılıyor."}), 409
+
+    phone = str(data.get("phone") or "").strip()
+    phone_display = None
+    phone_normalized = None
+    if phone:
+        phone_display, phone_normalized = normalize_phone(phone)
+        if not phone_normalized:
+            return jsonify({"ok": False, "message": "Geçerli bir Türkiye cep telefonu numarası yaz."}), 400
+        if phone_exists(phone_normalized, except_username=user.username):
+            return jsonify({"ok": False, "message": "Bu telefon numarası başka bir hesapta kullanılıyor."}), 409
+
+    try:
+        points = max(0, min(10_000_000, int(data.get("points", user.points or 0))))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "message": "Puan bakiyesi tam sayı olmalı."}), 400
+
+    theme = str(data.get("theme") or user.theme_preference or "dark").strip().lower()
+    font_size = str(data.get("fontSize") or user.font_size_preference or "medium").strip().lower()
+    sound = str(data.get("notificationSound") or user.notification_sound or "classic").strip().lower()
+    if theme not in {"dark", "light"}:
+        return jsonify({"ok": False, "message": "Tema dark veya light olmalı."}), 400
+    if font_size not in {"small", "medium", "large"}:
+        return jsonify({"ok": False, "message": "Yazı boyutu small, medium veya large olmalı."}), 400
+    allowed_sounds = {"classic", "notify", "glass", "ripple", "neon", "soft", "bright", "deep", "calm", "pulse", "silent", "nexaline", "crystal", "alert", "ding", "pop", "arcade"}
+    if sound not in allowed_sounds:
+        return jsonify({"ok": False, "message": "Bildirim sesi desteklenmiyor."}), 400
+
+    old_points = int(user.points or 0)
+    user.display_name = display_name
+    user.email = email
+    user.email_normalized = email_normalized
+    user.email_verified = bool(data.get("emailVerified"))
+    user.phone = phone_display
+    user.phone_normalized = phone_normalized
+    user.phone_verified = bool(phone_normalized and data.get("phoneVerified"))
+    user.about = str(data.get("about") or "").strip()[:255] or "NexaLine kullanıyorum."
+    user.points = points
+    user.theme_preference = theme
+    user.font_size_preference = font_size
+    user.notification_sound = sound
+    user.two_factor_enabled = bool(data.get("twoFactorEnabled"))
+    user.nearby_enabled = bool(data.get("nearbyEnabled"))
+    user.hide_last_seen = bool(data.get("lastSeenHidden"))
+    user.hide_online = bool(data.get("onlineHidden"))
+    user.disable_read_receipts = bool(data.get("readReceiptsOff"))
+    user.hide_email = bool(data.get("emailHidden"))
+    if points != old_points:
+        db.session.add(PointLedger(
+            id=uuid4().hex,
+            username=user.username,
+            amount=points - old_points,
+            reason="admin_set_balance",
+            meta={"note": "Admin paneli kullanıcı verileri"},
+        ))
+    db.session.commit()
+    broadcast_presence()
+    return jsonify({"ok": True, "message": "Kullanıcı verileri güncellendi.", "user": private_user(user.username)})
 
 
 @app.route("/admin/user/<username>/privacy", methods=["POST"])

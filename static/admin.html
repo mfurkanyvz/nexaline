@@ -711,6 +711,7 @@
             if (state.view === "create") renderCreateUsers();
             if (state.view === "userChats") renderUserChats(state.selectedUser);
             if (state.view === "conversation") renderConversation(state.selectedChat, state.selectedUser);
+            if (state.view === "editUser") renderUserEditor(state.selectedUser);
         }
 
         function renderSummary() {
@@ -766,6 +767,7 @@
                     </div>
                     <div class="card-row">
                         <button data-user-chats="${user.username}" type="button">Sohbetleri</button>
+                        <button class="primary" data-edit-user="${user.username}" type="button">Verileri Düzenle</button>
                         <button data-privacy="${user.username}" type="button">Gizlilik</button>
                         <button data-points="${user.username}" type="button">Puan Ayarla</button>
                         <button data-ai-clear="${user.username}" type="button">AI Hafızasını Sil</button>
@@ -780,11 +782,88 @@
                 state.view = "userChats";
                 render();
             });
+            grid.querySelectorAll("[data-edit-user]").forEach(button => button.onclick = () => {
+                state.selectedUser = button.dataset.editUser;
+                state.view = "editUser";
+                render();
+            });
             grid.querySelectorAll("[data-privacy]").forEach(button => button.onclick = () => editUserPrivacy(button.dataset.privacy));
             grid.querySelectorAll("[data-delete]").forEach(button => button.onclick = () => deleteUser(button.dataset.delete));
             grid.querySelectorAll("[data-reset]").forEach(button => button.onclick = () => resetPassword(button.dataset.reset));
             grid.querySelectorAll("[data-points]").forEach(button => button.onclick = () => adjustPoints(button.dataset.points));
             grid.querySelectorAll("[data-ai-clear]").forEach(button => button.onclick = () => clearAiMemory(button.dataset.aiClear));
+        }
+
+        function renderUserEditor(username) {
+            const user = state.data.users.find(item => item.username === username);
+            if (!user) {
+                state.view = "users";
+                render();
+                return;
+            }
+            const preferences = user.preferences || {};
+            const privacy = user.privacy || {};
+            $("view").innerHTML = `
+                <div class="card-row" style="margin:0 0 12px">
+                    <h2 style="margin:0">Kullanıcı Verileri: @${escapeHtml(user.username)}</h2>
+                    <button id="backFromUserEditor" type="button">Kullanıcılara Dön</button>
+                </div>
+                <article class="card">
+                    <div class="form-grid">
+                        <label>Ad soyad<input id="editUserDisplayName" value="${escapeAttr(user.displayName || "")}"></label>
+                        <label>E-posta<input id="editUserEmail" type="email" value="${escapeAttr(user.email || "")}"></label>
+                        <label>Telefon<input id="editUserPhone" inputmode="tel" value="${escapeAttr(user.phone || "")}" placeholder="+90 5xx xxx xx xx"></label>
+                        <label>Puan bakiyesi<input id="editUserPoints" type="number" min="0" max="10000000" value="${Number(user.points || 0)}"></label>
+                        <label>Tema<select id="editUserTheme"><option value="dark">Koyu</option><option value="light">Açık</option></select></label>
+                        <label>Yazı boyutu<select id="editUserFontSize"><option value="small">Küçük</option><option value="medium">Orta</option><option value="large">Büyük</option></select></label>
+                        <label>Bildirim sesi<select id="editUserSound">${["classic","notify","glass","ripple","neon","soft","bright","deep","calm","pulse","silent","nexaline","crystal","alert","ding","pop","arcade"].map(sound => `<option value="${sound}">${sound}</option>`).join("")}</select></label>
+                    </div>
+                    <label>Hakkında<textarea id="editUserAbout" maxlength="255">${escapeHtml(user.about || "")}</textarea></label>
+                    <div class="chip-row" style="margin-top:12px">
+                        <label class="chip"><input id="editUserEmailVerified" type="checkbox" ${user.emailVerified ? "checked" : ""}> E-posta doğrulandı</label>
+                        <label class="chip"><input id="editUserPhoneVerified" type="checkbox" ${user.phoneVerified ? "checked" : ""}> Telefon doğrulandı</label>
+                        <label class="chip"><input id="editUserTwoFactor" type="checkbox" ${user.twoFactorEnabled ? "checked" : ""}> İki faktör</label>
+                        <label class="chip"><input id="editUserNearby" type="checkbox" ${user.nearbyEnabled ? "checked" : ""}> Yakındakiler</label>
+                        <label class="chip"><input id="editUserLastSeenHidden" type="checkbox" ${privacy.lastSeenHidden ? "checked" : ""}> Son görülme gizli</label>
+                        <label class="chip"><input id="editUserOnlineHidden" type="checkbox" ${privacy.onlineHidden ? "checked" : ""}> Çevrim içi gizli</label>
+                        <label class="chip"><input id="editUserReadReceiptsOff" type="checkbox" ${privacy.readReceiptsOff ? "checked" : ""}> Okundu kapalı</label>
+                        <label class="chip"><input id="editUserEmailHidden" type="checkbox" ${privacy.emailHidden ? "checked" : ""}> E-posta gizli</label>
+                    </div>
+                    <div class="card-row">
+                        <button id="saveUserDataButton" class="primary" type="button">Tüm Verileri Kaydet</button>
+                    </div>
+                </article>
+            `;
+            $("editUserTheme").value = preferences.theme || "dark";
+            $("editUserFontSize").value = preferences.fontSize || "medium";
+            $("editUserSound").value = preferences.notificationSound || "classic";
+            $("backFromUserEditor").onclick = () => { state.view = "users"; render(); };
+            $("saveUserDataButton").onclick = async () => {
+                const payload = {
+                    displayName: $("editUserDisplayName").value.trim(),
+                    email: $("editUserEmail").value.trim(),
+                    phone: $("editUserPhone").value.trim(),
+                    points: Number($("editUserPoints").value),
+                    theme: $("editUserTheme").value,
+                    fontSize: $("editUserFontSize").value,
+                    notificationSound: $("editUserSound").value,
+                    about: $("editUserAbout").value.trim(),
+                    emailVerified: $("editUserEmailVerified").checked,
+                    phoneVerified: $("editUserPhoneVerified").checked,
+                    twoFactorEnabled: $("editUserTwoFactor").checked,
+                    nearbyEnabled: $("editUserNearby").checked,
+                    lastSeenHidden: $("editUserLastSeenHidden").checked,
+                    onlineHidden: $("editUserOnlineHidden").checked,
+                    readReceiptsOff: $("editUserReadReceiptsOff").checked,
+                    emailHidden: $("editUserEmailHidden").checked
+                };
+                const data = await api(`/admin/user/${encodeURIComponent(username)}/data`, { method: "POST", body: JSON.stringify(payload) });
+                await load();
+                state.selectedUser = username;
+                state.view = "editUser";
+                render();
+                setStatus(data.message || "Kullanıcı verileri güncellendi.", "ok");
+            };
         }
 
         function renderChats() {
