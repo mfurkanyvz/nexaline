@@ -1453,7 +1453,7 @@
                 contacts: "Kişiler"
             };
             Object.entries(labels).forEach(([key, fallback]) => {
-                const value = key === "stories" ? "Akış" : (text[key] || fallback);
+                const value = key === "stories" ? "Akış" : key === "explore" ? "Araçlar" : (text[key] || fallback);
                 const tab = document.querySelector(`.nav-tab[data-section="${key}"]`);
                 if (tab) {
                     tab.title = value;
