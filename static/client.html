@@ -172,7 +172,7 @@
             <nav class="nav-tabs">
                 <button class="nav-tab" id="flowButton" data-section="stories" type="button" title="Akış"><span class="nav-icon">◉</span><span class="nav-label">Akış</span></button>
                 <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
-                <button class="nav-tab" data-section="explore" type="button" title="Keşfet"><span class="nav-icon">✦</span><span class="nav-label">Keşfet</span></button>
+                <button class="nav-tab" data-section="explore" type="button" title="Araçlar"><span class="nav-icon">✦</span><span class="nav-label">Araçlar</span></button>
                 <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
             </nav>
@@ -1140,9 +1140,7 @@
             paneTransitionHideTimer: null,
             activeSection: "chats",
             chatListMode: "chats",
-            contactListMode: "friends",
             contactSearch: "",
-            contactTransition: "forward",
             chatSearch: "",
             activeChatId: null,
             activeProfileUsername: null,
@@ -1449,7 +1447,7 @@
                 chats: "Sohbetler",
                 groups: "Gruplar",
                 stories: "Akış",
-                explore: "Keşfet",
+                explore: "Araçlar",
                 calls: "Aramalar",
                 friends: "Arkadaşlarım",
                 contacts: "Kişiler"
@@ -6393,7 +6391,7 @@
             setNavBadge("friends", incomingRequests);
             setNavBadge("calls", missedCalls);
             setNavBadge("stories", activeStories);
-            setNavBadge("explore", activeStories + state.groupInvites.filter(invite => invite.status === "pending").length);
+            setNavBadge("explore", 0);
             setNavBadge("contacts", incomingRequests);
         }
 
@@ -6614,7 +6612,7 @@
                 chats: designText("chats", "Sohbetler"),
                 groups: designText("groups", "Gruplar"),
                 stories: "Akış",
-                explore: "Keşfet",
+                explore: "Araçlar",
                 calls: designText("calls", "Aramalar"),
                 friends: designText("friends", "Arkadaşlarım"),
                 contacts: designText("contacts", "Kişiler")
@@ -9000,17 +8998,7 @@
                 if (filter) {
                     empty.innerHTML = emptyStateMarkup("⌕", "Arkadaş bulunamadı", "Aramana uyan bir arkadaş görünmüyor.");
                 } else {
-                    empty.innerHTML = emptyStateMarkup("＋", "Henüz arkadaşın yok", "Kullanıcılar sekmesinden bir profil seçerek arkadaşlık isteği gönderebilirsin.");
-                    const action = document.createElement("button");
-                    action.className = "mini-btn primary";
-                    action.type = "button";
-                    action.textContent = "Kullanıcıları Gör";
-                    action.onclick = () => {
-                        state.contactTransition = "forward";
-                        state.contactListMode = "users";
-                        renderContacts();
-                    };
-                    empty.appendChild(action);
+                    empty.innerHTML = emptyStateMarkup("＋", "Henüz arkadaşın yok", "Yeni arkadaş istekleri geldiğinde burada görünecek.");
                 }
                 friendList.appendChild(empty);
                 return;
@@ -9067,55 +9055,25 @@
                 body.appendChild(list);
             }, [
                 { label: "Kapat", onClick: closeModal },
-                { label: "Kişiler", primary: !friends.length, onClick: () => { closeModal(); state.activeSection = "contacts"; renderSections(); renderContacts(); } }
+                { label: "Arkadaşlarım", primary: !friends.length, onClick: () => { closeModal(); state.activeSection = "contacts"; renderSections(); renderContacts(); } }
             ]);
-        }
-
-        function appendContactModeSwitcher(container) {
-            const switcher = document.createElement("div");
-            switcher.className = `chat-mode-switch contact-mode-switch ${state.contactListMode === "users" ? "groups-active" : ""}`;
-            switcher.setAttribute("role", "tablist");
-            [
-                ["friends", "Arkadaşlarım"],
-                ["users", "Kişiler"]
-            ].forEach(([mode, label]) => {
-                const button = document.createElement("button");
-                button.type = "button";
-                button.setAttribute("role", "tab");
-                button.setAttribute("aria-selected", String(state.contactListMode === mode));
-                button.className = state.contactListMode === mode ? "active" : "";
-                button.textContent = label;
-                switcher.appendChild(button);
-            });
-            setupBinaryModeSwitcher(switcher, {
-                variant: "contacts",
-                current: state.contactListMode,
-                modes: ["friends", "users"],
-                onChange: mode => {
-                    state.contactTransition = mode === "users" ? "forward" : "backward";
-                    state.contactListMode = mode;
-                    renderContacts();
-                }
-            });
-            container.appendChild(switcher);
         }
 
         function renderContacts() {
             const contactList = $("contactList");
             contactList.innerHTML = "";
-            appendContactModeSwitcher(contactList);
             const header = document.createElement("div");
             header.className = "contacts-inline-header";
             header.innerHTML = `
                 <div class="section-inline-heading">
                     <span>
-                        <strong>Kişiler</strong>
-                        <small>Arkadaşlarını ve NexaLine kullanıcılarını keşfet</small>
+                        <strong>Arkadaşlarım</strong>
+                        <small>Gelen istekler ve arkadaşların burada</small>
                     </span>
                 </div>
                 <label class="chat-search-shell contact-search-shell">
                     ${svgIcon("search")}
-                    <input id="contactSearchInput" type="search" autocomplete="off" placeholder="Arkadaşlarda ve kullanıcılarda ara">
+                    <input id="contactSearchInput" type="search" autocomplete="off" placeholder="Arkadaşlarda ara">
                 </label>
             `;
             contactList.appendChild(header);
@@ -9134,47 +9092,10 @@
             };
 
             const results = document.createElement("div");
-            results.className = `contact-results-frame mode-${state.contactTransition || "forward"}`;
+            results.className = "contact-results-frame mode-forward";
             contactList.appendChild(results);
             const filter = state.contactSearch.trim();
-
-            if (filter) {
-                const matches = state.users
-                    .filter(user => user.username !== state.me.username && contactMatches(user, filter))
-                    .sort((a, b) => {
-                        const friendDelta = Number(contactStatus(b.username) === "accepted") - Number(contactStatus(a.username) === "accepted");
-                        return friendDelta || new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-                    });
-                const allHeader = document.createElement("div");
-                allHeader.className = "section-mini-title";
-                allHeader.textContent = "Arama sonuçları";
-                results.appendChild(allHeader);
-                if (!matches.length) {
-                    const empty = document.createElement("div");
-                    empty.className = "contact-empty-state";
-                    empty.innerHTML = emptyStateMarkup("⌕", "Kullanıcı bulunamadı", "İsim veya kullanıcı adını değiştirerek tekrar ara.");
-                    results.appendChild(empty);
-                } else {
-                    matches.forEach(user => results.appendChild(createContactListRow(user)));
-                }
-                return;
-            }
-
-            if (state.contactListMode === "friends") {
-                appendFriendRows(results);
-                return;
-            }
-            const allHeader = document.createElement("div");
-            allHeader.className = "section-mini-title";
-            allHeader.textContent = "Tüm kullanıcılar";
-            results.appendChild(allHeader);
-
-            state.users
-                .filter(user => user.username !== state.me.username)
-                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-                .forEach(user => {
-                    results.appendChild(createContactListRow(user));
-                });
+            appendFriendRows(results, filter);
         }
 
         function contactLine(user) {
@@ -9201,7 +9122,7 @@
         function openBlockMenu(user) {
             openModal("Kişiyi engelle", body => {
                 const text = document.createElement("p");
-                text.textContent = `${user.displayName} engellendiğinde sana mesaj veya arama gönderemez. Eski sohbeti 3 gün arşive alabilir veya kalıcı silebilirsin.`;
+                text.textContent = `${user.displayName} engellendiğinde sana mesaj veya arama gönderemez. Eski sohbeti kalıcı olarak listenden kaldırabilirsin.`;
                 body.appendChild(text);
             }, [
                 { label: "Vazgeç", onClick: closeModal },
@@ -14030,9 +13951,7 @@
             } else if (section === "explore") {
                 renderExplore();
             } else if (section === "contacts") {
-                state.contactListMode = "friends";
                 state.contactSearch = "";
-                state.contactTransition = "backward";
                 renderContacts();
             } else if (section === "stories") {
                 renderStories();

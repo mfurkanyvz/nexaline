@@ -639,7 +639,7 @@ DEFAULT_DESIGN_SETTINGS = {
         "chats": "Sohbetler",
         "groups": "Gruplar",
         "stories": "Akış",
-        "explore": "Keşfet",
+        "explore": "Araçlar",
         "calls": "Aramalar",
         "friends": "Arkadaşlarım",
         "contacts": "Kişiler",
@@ -3662,7 +3662,7 @@ def local_app_help(prompt):
         (["grup"], "Grup oluşturabilir, davet gönderebilir, yönetici olarak üye çıkarabilir ve grup bilgisini düzenleyebilirsin."),
         (["durum", "story", "hikaye"], "Akış bölümünden 24 saatlik durum paylaşabilir, gelen durumlara cevap verebilirsin."),
         (["arama", "sesli", "görüntülü"], "Sohbet içindeki telefon ve kamera düğmeleriyle sesli ya da görüntülü arama başlatabilirsin."),
-        (["arşiv", "arsiv", "sil"], "Sohbet silerken arşive alma veya kalıcı gizleme seçenekleri var; arşivler 3 gün içinde temizlenir."),
+        (["sil", "kaldır"], "Sohbet silerken kalıcı kaldırma seçeneği var."),
     ]
     for words, answer in help_items:
         if any(word in lowered for word in words):
@@ -6035,7 +6035,7 @@ AI_COMMANDS = [
     {"id": "start_voice_call", "title": "Sesli arama başlat", "prompt": "Bu kişiyi sesli ara: "},
     {"id": "start_video_call", "title": "Görüntülü arama başlat", "prompt": "Bu kişiyi görüntülü ara: "},
     {"id": "open_chat", "title": "Sohbet kutusu aç", "prompt": "Bu kişiyle sohbeti aç: "},
-    {"id": "delete_chat", "title": "Sohbeti sil", "prompt": "Bu sohbeti arşive alarak sil."},
+    {"id": "delete_chat", "title": "Sohbeti sil", "prompt": "Bu sohbeti kalıcı olarak listemden kaldır."},
     {"id": "react_message", "title": "Mesaja tepki bırak", "prompt": "Son mesaja kalp ifadesi bırak."},
     {"id": "reply_message", "title": "Yanıtlayarak cevap ver", "prompt": "Son mesaja yanıtla: "},
     {"id": "create_group", "title": "Grup oluştur", "prompt": "Yeni grup oluştur. Grup adı: "},
