@@ -53,7 +53,7 @@
         "Sesli arama",
         "Görüntülü arama",
         "Grup sohbeti",
-        "Topluluklar",
+        "Ara?lar",
         "Durum paylaşımı",
         "Nexa AI asistan"
       ]
@@ -178,10 +178,9 @@
             </nav>
 
             <div class="section-head">
-                <button id="archiveBackButton" class="archive-shortcut hidden" type="button" title="Sohbetlere dön">← Sohbetler</button>
                 <div id="sectionTitle" class="section-label">Sohbetler</div>
                 <button id="newCallHeaderButton" class="section-action-button hidden" type="button">Yeni arama ekle</button>
-                <button id="archiveShortcutButton" class="archive-shortcut" type="button" title="Arşiv">Arşiv</button>
+                <button id="newRequestsButton" class="new-requests-chip" type="button" title="Yeni istekler" tabindex="-1" aria-disabled="true">Yeni istekler</button>
             </div>
             <nav id="storyList" class="story-list hidden"></nav>
             <nav id="chatList" class="chat-list"></nav>
@@ -190,7 +189,6 @@
             <nav id="exploreList" class="contact-list scroll-area hidden"></nav>
             <nav id="friendList" class="contact-list scroll-area hidden"></nav>
             <nav id="contactList" class="contact-list scroll-area hidden"></nav>
-            <nav id="archiveList" class="chat-list hidden"></nav>
         </aside>
 
         <section class="chat-pane">
@@ -683,7 +681,6 @@
         const MAX_PROFILE_SOURCE_BYTES = 12_000_000;
         const THEME_KEY = "nexalineTheme";
         const SECRET_PIN_KEY = "nexalineSecretPin";
-        const ARCHIVE_PIN_KEY_PREFIX = "nexalineArchivePin";
         const NOTIFICATION_LOG_KEY = "nexalineNotificationLog";
         const NOTIFICATION_MUTE_KEY = "nexalineNotificationMuteUntil";
         const SYSTEM_SOUND_KEY = "nexalineSystemSound";
@@ -1047,10 +1044,6 @@
             return `${AI_CACHE_KEY_PREFIX}:${state.me?.username || "guest"}`;
         }
 
-        function archivePinKey() {
-            return `${ARCHIVE_PIN_KEY_PREFIX}:${state.me?.username || "guest"}`;
-        }
-
         function loadAiSettings() {
             const cached = readStoredJson(aiCacheKey(), {});
             state.aiSettings = {
@@ -1108,7 +1101,6 @@
             updatesDraft: "",
             updatesMedia: [],
             callLogs: [],
-            archives: [],
             scheduledMessages: [],
             contactRequests: [],
             groupInvites: [],
@@ -1116,13 +1108,9 @@
             blockedProfiles: [],
             devices: [],
             pointLedger: [],
-            voiceRooms: [],
             voiceJoinAnimationRoomId: "",
-            communities: [],
             aiTasks: [],
             nearbyUsers: [],
-            nexaPlay: { scores: {}, sessions: {}, updatedAt: null },
-            nexaPlayRuntime: null,
             deferredInstallPrompt: null,
             notificationReady: false,
             offlineMode: !navigator.onLine,
@@ -1165,15 +1153,12 @@
             pendingUpdateReply: null,
             pendingCallAfterChat: null,
             pendingViewOnce: false,
-            archiveUnlocked: false,
-            archiveItems: [],
             vaultUnlocked: false,
             vaultItems: [],
             vaultPin: "",
             vaultPinDraft: "",
             pendingVaultMessage: null,
             vaultSenderFilter: "",
-            archivePinDraft: "",
             activeVoiceRoomId: "",
             voiceAudio: {
                 stream: null,
@@ -1467,8 +1452,7 @@
                 explore: "Keşfet",
                 calls: "Aramalar",
                 friends: "Arkadaşlarım",
-                contacts: "Kişiler",
-                archives: "Arşiv"
+                contacts: "Kişiler"
             };
             Object.entries(labels).forEach(([key, fallback]) => {
                 const value = key === "stories" ? "Akış" : (text[key] || fallback);
@@ -4537,7 +4521,7 @@
                 const chat = state.chats.find(item => item.id === action.chatId);
                 if (!chat) return;
                 runAiActionWithPermission("AI sohbeti silsin mi?", `${chat.title} sohbeti listenden kaldırılsın mı?`, autoApproved, () => {
-                    socket.emit("chat:delete", { chatId: chat.id, mode: action.mode || "archive" });
+                    socket.emit("chat:delete", { chatId: chat.id, mode: "permanent" });
                     showToast("Sohbet silme isteği gönderildi.");
                 });
                 return;
@@ -4908,14 +4892,10 @@
             state.blockedUsers = data.blockedUsers || state.blockedUsers || [];
             state.blockedProfiles = data.blockedProfiles || state.blockedProfiles || [];
             state.devices = data.devices || state.devices || [];
-            state.archives = data.archives || state.archives || [];
             state.scheduledMessages = data.scheduledMessages || state.scheduledMessages || [];
             state.pointLedger = data.pointLedger || data.user?.pointLedger || state.pointLedger || [];
-            state.voiceRooms = data.voiceRooms || state.voiceRooms || [];
-            state.communities = data.communities || state.communities || [];
             state.aiTasks = data.aiTasks || state.aiTasks || [];
             state.nearbyUsers = data.nearbyUsers || state.nearbyUsers || [];
-            state.nexaPlay = data.nexaPlay || state.nexaPlay || { scores: {}, sessions: {}, updatedAt: null };
             if (Array.isArray(data.updatesFeed)) {
                 state.updatesFeed = data.updatesFeed;
                 saveUpdatesFeed();
@@ -4988,7 +4968,6 @@
         }
 
         function resetToAuth(message = "") {
-            resetVoiceRoomAudio();
             clearStartupGuard();
             localStorage.removeItem("nexalineUser");
             state.me = null;
@@ -4996,7 +4975,6 @@
             state.chats = [];
             state.stories = [];
             state.callLogs = [];
-            state.archives = [];
             state.scheduledMessages = [];
             state.contactRequests = [];
             state.groupInvites = [];
@@ -5004,8 +4982,6 @@
             state.blockedProfiles = [];
             state.devices = [];
             state.pointLedger = [];
-            state.voiceRooms = [];
-            state.communities = [];
             state.aiTasks = [];
             state.nearbyUsers = [];
             state.aiSettings = defaultAiSettings();
@@ -5810,7 +5786,6 @@
             renderExplore();
             renderFriends();
             renderContacts();
-            renderArchives();
             renderActiveChat();
             updateAiAssistantVisibility();
             applyAdminDesign(window.nexalineDesign || {});
@@ -6109,7 +6084,6 @@
                         <div class="profile-stat"><span>Mesaj</span><strong>+${rules.message}</strong><small>Gönderilen/alınan</small></div>
                         <div class="profile-stat"><span>Arkadaş kabul</span><strong>+${rules.friend_accept}</strong><small>Takipleşme</small></div>
                         <div class="profile-stat"><span>Grup</span><strong>+${rules.group_join}</strong><small>Katılım</small></div>
-                        <div class="profile-stat"><span>Sesli oda</span><strong>+${rules.voice_room_join}</strong><small>İlk katılım</small></div>
                         <div class="profile-stat"><span>Durum</span><strong>+${rules.story}</strong><small>Paylaşım</small></div>
                     </div>
                     <h3>Görevler</h3>
@@ -6188,7 +6162,7 @@
             ["2-1", "#meAvatar, #meName, #accountSwitcherButton, #accountSwitcherMenu"],
             ["2-2", "#searchInput"],
             ["2-3", "#flowButton, #topSettingsButton"],
-            ["2-4", "#archiveShortcutButton, #archiveBackButton, #archiveList"],
+            ["2-4", "#newRequestsButton"],
             ["3", "#chatList"],
             ["3-1", ".filter-chip"],
             ["3-2", "#chatList .chat-item, #groupList .chat-item"],
@@ -6269,10 +6243,6 @@
             ["7-6", ".nearby-panel"],
             ["7-7", "#mobileQrButton, .qr-scanner"],
             ["7-8", "#settingsDeviceSection, #settingsAccountSection"],
-            ["8", "#archiveList, .archive-view"],
-            ["8-1", ".archive-lock"],
-            ["8-2", "#archiveList"],
-            ["8-3", ".archive-message"]
         ];
 
         function setUiIndexMetadata(element, index) {
@@ -6313,11 +6283,8 @@
             ".chat-item",
             ".contact-row",
             ".call-row",
-            ".community-card",
             ".profile-card",
-            ".voice-room-card",
             ".vault-card",
-            ".archive-card",
             ".file-pill",
             ".install-grid",
             ".composer",
@@ -6650,23 +6617,21 @@
                 explore: "Keşfet",
                 calls: designText("calls", "Aramalar"),
                 friends: designText("friends", "Arkadaşlarım"),
-                contacts: designText("contacts", "Kişiler"),
-                archives: designText("archives", "Arşiv")
+                contacts: designText("contacts", "Kişiler")
             };
             document.querySelectorAll(".nav-tab").forEach(tab => {
                 tab.classList.toggle("active", tab.dataset.section === state.activeSection);
             });
             document.querySelector(".sidebar")?.setAttribute("data-active-section", state.activeSection);
             $("sectionTitle").textContent = labels[state.activeSection];
-            ["chatList", "groupList", "storyList", "callList", "exploreList", "friendList", "contactList", "archiveList"].forEach(id => $(id).classList.add("hidden"));
-            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
+            ["chatList", "groupList", "storyList", "callList", "exploreList", "friendList", "contactList"].forEach(id => $(id).classList.add("hidden"));
+            const map = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList" };
             const activeList = $(map[state.activeSection] || "chatList");
             markMissedCallsSeen();
             activeList.classList.remove("hidden");
             activeList.classList.remove("section-frame-enter");
             requestAnimationFrame(() => activeList.classList.add("section-frame-enter"));
-            $("archiveShortcutButton").classList.toggle("hidden", state.activeSection !== "chats");
-            $("archiveBackButton").classList.toggle("hidden", state.activeSection !== "archives");
+            $("newRequestsButton").classList.toggle("hidden", state.activeSection !== "chats");
             $("newCallHeaderButton").classList.toggle("hidden", state.activeSection !== "calls");
             updateNavBadges();
             updateNavIndicator();
@@ -6708,7 +6673,7 @@
             let navPointerMode = false;
             let lastNavDragSection = null;
 
-            const sectionListMap = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList", archives: "archiveList" };
+            const sectionListMap = { chats: "chatList", groups: "groupList", stories: "storyList", calls: "callList", explore: "exploreList", friends: "friendList", contacts: "contactList" };
 
             const listForSection = section => $(sectionListMap[section] || "chatList");
 
@@ -8294,15 +8259,14 @@
             heading.className = "section-inline-heading explore-inline-heading";
             heading.innerHTML = `
                 <span>
-                    <strong>Keşfet</strong>
-                    <small>NexaLine araçları tek dokunuş uzağında</small>
+                    <strong>Araçlar</strong>
+                    <small>Günlük araçlar tek dokunuş uzağında</small>
                 </span>
             `;
             const grid = document.createElement("div");
             grid.className = "explore-grid";
             const cards = [
-                ["ai", "Nexa AI", "Sohbet, araştırma ve uygulama asistanı", "ai", openAiPanel],
-                ["play", "Nexa Play", "Satranç, Solitaire, 2048 ve Block Blast", "star", openNexaPlay],
+                ["ai", "Asistan", "Sohbet, araştırma ve uygulama asistanı", "ai", openAiPanel],
                 ["nearby", "Yakındakiler", "Konum izniyle yakınındaki kullanıcıları keşfet", "radar", openNearbyPanel],
                 ["vault", "Gizli Kasa", "PIN korumalı özel not ve medya alanı", "lock", openVaultPanel]
             ];
@@ -8341,1118 +8305,12 @@
             }
         }
 
-        const NEXA_PLAY_CATALOG = {
-            chess: { title: "Satranç", subtitle: "Strateji ve taş geliştirme", icon: "♞" },
-            solitaire: { title: "Solitaire", subtitle: "Klasik tek kişilik kart oyunu", icon: "♠" },
-            "2048": { title: "2048", subtitle: "Aynı sayıları birleştir", icon: "2048" },
-            "block-blast": { title: "Block Blast", subtitle: "Satır ve sütunları temizle", icon: "▦" }
-        };
-        const NEXA_PLAY_ORDER = ["chess", "solitaire", "2048", "block-blast"];
-
-        function cloneGameData(value) {
-            return JSON.parse(JSON.stringify(value));
-        }
-
-        function gameScore(gameId) {
-            return Number(state.nexaPlay?.scores?.[gameId] || 0);
-        }
-
-        async function saveNexaPlayProgress(gameId, score, session) {
-            if (!state.me?.username) return;
-            try {
-                const response = await fetch(`/games/${encodeURIComponent(state.me.username)}/state`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ game: gameId, score, session })
-                });
-                const data = await response.json();
-                if (data.ok) state.nexaPlay = data.state;
-            } catch (error) {
-                console.warn("Nexa Play ilerlemesi kaydedilemedi", error);
-            }
-        }
-
-        async function requestNexaPlayHint(gameId) {
-            const output = $("nexaPlayHint");
-            if (output) output.textContent = "Nexa AI hamleyi inceliyor...";
-            try {
-                const response = await fetch(`/games/${encodeURIComponent(state.me.username)}/hint`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ game: gameId, state: state.nexaPlayRuntime })
-                });
-                const data = await response.json();
-                if (!data.ok) throw new Error(data.message);
-                if (output) output.textContent = data.hint;
-            } catch (error) {
-                if (output) output.textContent = "İpucu şu anda alınamadı. Tahtadaki en güvenli alanı korumaya çalış.";
-            }
-        }
-
-        function openNexaPlay() {
-            openModal("Nexa Play", body => {
-                body.classList.add("nexa-play-body");
-                const hero = document.createElement("div");
-                hero.className = "nexa-play-hero";
-                hero.innerHTML = `
-                    <span class="nexa-play-orbit">${svgIcon("star")}</span>
-                    <div><strong>Nexa Play</strong><small>Dört klasik oyun, tek modern oyun merkezi</small></div>
-                `;
-                const grid = document.createElement("div");
-                grid.className = "nexa-play-grid";
-                NEXA_PLAY_ORDER.forEach(gameId => {
-                    const game = NEXA_PLAY_CATALOG[gameId];
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.className = `nexa-game-card game-${gameId}`;
-                    button.innerHTML = `
-                        <span class="nexa-game-icon">${game.icon}</span>
-                        <span><strong>${game.title}</strong><small>${game.subtitle}</small></span>
-                        <b>${gameScore(gameId).toLocaleString("tr-TR")}</b>
-                    `;
-                    button.onclick = () => openNexaGame(gameId);
-                    grid.appendChild(button);
-                });
-                body.append(hero, grid);
-            }, [{ label: "Kapat", onClick: closeModal }], "nexa-play-panel");
-        }
-
-        function openNexaGame(gameId, reset = false) {
-            const game = NEXA_PLAY_CATALOG[gameId];
-            if (!game) return;
-            $("modalTitle").textContent = game.title;
-            const body = $("modalBody");
-            body.innerHTML = "";
-            body.className = "modal-body nexa-game-body";
-            const toolbar = document.createElement("div");
-            toolbar.className = "nexa-game-toolbar";
-            toolbar.innerHTML = `
-                <button id="nexaGameBack" type="button" aria-label="Oyunlar" title="Oyunlara dön">${svgIcon("back")}<span>Oyunlar</span></button>
-                <div><small>En iyi</small><strong id="nexaGameScore">${gameScore(gameId).toLocaleString("tr-TR")}</strong></div>
-                <button id="nexaGameHintButton" type="button" aria-label="AI İpucu" title="Nexa AI ipucu">${svgIcon("zap")}<span>AI İpucu</span></button>
-            `;
-            const stage = document.createElement("div");
-            stage.id = "nexaGameStage";
-            stage.className = `nexa-game-stage game-stage-${gameId}`;
-            const hint = document.createElement("div");
-            hint.id = "nexaPlayHint";
-            hint.className = "nexa-play-hint";
-            hint.textContent = "İpucu istediğinde Nexa AI mevcut oyunu inceler.";
-            body.append(toolbar, stage, hint);
-            $("nexaGameBack").onclick = openNexaPlay;
-            $("nexaGameHintButton").onclick = () => requestNexaPlayHint(gameId);
-            if (gameId === "chess") initNexaChess(stage, reset);
-            if (gameId === "solitaire") initNexaSolitaire(stage, reset);
-            if (gameId === "2048") initNexa2048(stage, reset);
-            if (gameId === "block-blast") initNexaBlockBlast(stage, reset);
-        }
-
-        function updateNexaGameScore(gameId, score) {
-            const scoreNode = $("nexaGameScore");
-            if (scoreNode) scoreNode.textContent = Math.max(score, gameScore(gameId)).toLocaleString("tr-TR");
-        }
-
-        function gameResetButton(gameId) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "nexa-game-reset";
-            button.innerHTML = `${svgIcon("arrowDown")}<span>Yeni Oyun</span>`;
-            button.onclick = () => openNexaGame(gameId, true);
-            return button;
-        }
-
-        const CHESS_PIECES = {
-            wp: "♙", wr: "♖", wn: "♘", wb: "♗", wq: "♕", wk: "♔",
-            bp: "♟", br: "♜", bn: "♞", bb: "♝", bq: "♛", bk: "♚"
-        };
-
-        function freshChessState() {
-            return {
-                board: [
-                    ["br","bn","bb","bq","bk","bb","bn","br"],
-                    ["bp","bp","bp","bp","bp","bp","bp","bp"],
-                    [null,null,null,null,null,null,null,null],
-                    [null,null,null,null,null,null,null,null],
-                    [null,null,null,null,null,null,null,null],
-                    [null,null,null,null,null,null,null,null],
-                    ["wp","wp","wp","wp","wp","wp","wp","wp"],
-                    ["wr","wn","wb","wq","wk","wb","wn","wr"]
-                ],
-                turn: "w",
-                selected: null,
-                moves: [],
-                score: 0,
-                status: "Beyaz başlar"
-            };
-        }
-
-        function chessMoves(runtime, row, col) {
-            const piece = runtime.board[row]?.[col];
-            if (!piece) return [];
-            const color = piece[0];
-            const type = piece[1];
-            const moves = [];
-            const add = (nextRow, nextCol, repeat = false) => {
-                if (nextRow < 0 || nextRow > 7 || nextCol < 0 || nextCol > 7) return false;
-                const target = runtime.board[nextRow][nextCol];
-                if (!target) {
-                    moves.push([nextRow, nextCol]);
-                    return repeat;
-                }
-                if (target[0] !== color) moves.push([nextRow, nextCol]);
-                return false;
-            };
-            if (type === "p") {
-                const direction = color === "w" ? -1 : 1;
-                const startRow = color === "w" ? 6 : 1;
-                if (!runtime.board[row + direction]?.[col]) {
-                    moves.push([row + direction, col]);
-                    if (row === startRow && !runtime.board[row + direction * 2]?.[col]) moves.push([row + direction * 2, col]);
-                }
-                [-1, 1].forEach(delta => {
-                    const target = runtime.board[row + direction]?.[col + delta];
-                    if (target && target[0] !== color) moves.push([row + direction, col + delta]);
-                });
-            }
-            if (type === "n") {
-                [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([dr, dc]) => add(row + dr, col + dc));
-            }
-            if (type === "k") {
-                for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) if (dr || dc) add(row + dr, col + dc);
-            }
-            const rays = [];
-            if (["r","q"].includes(type)) rays.push([-1,0],[1,0],[0,-1],[0,1]);
-            if (["b","q"].includes(type)) rays.push([-1,-1],[-1,1],[1,-1],[1,1]);
-            rays.forEach(([dr, dc]) => {
-                let step = 1;
-                while (add(row + dr * step, col + dc * step, true)) step += 1;
-            });
-            return moves.filter(([moveRow, moveCol]) => moveRow >= 0 && moveRow < 8 && moveCol >= 0 && moveCol < 8);
-        }
-
-        function initNexaChess(stage, reset) {
-            const saved = state.nexaPlay?.sessions?.chess;
-            const runtime = !reset && saved?.board ? cloneGameData(saved) : freshChessState();
-            state.nexaPlayRuntime = runtime;
-            const renderBoard = () => {
-                stage.innerHTML = "";
-                const status = document.createElement("div");
-                status.className = "nexa-game-status";
-                status.innerHTML = `<strong>${runtime.status}</strong><small>${runtime.turn === "w" ? "Beyaz" : "Siyah"} oynuyor</small>`;
-                const board = document.createElement("div");
-                board.className = "nexa-chess-board";
-                runtime.board.forEach((rank, row) => rank.forEach((piece, col) => {
-                    const cell = document.createElement("button");
-                    cell.type = "button";
-                    cell.className = `chess-cell ${(row + col) % 2 ? "dark" : "light"}`;
-                    if (runtime.selected?.[0] === row && runtime.selected?.[1] === col) cell.classList.add("selected");
-                    if (runtime.moves.some(move => move[0] === row && move[1] === col)) cell.classList.add("legal");
-                    cell.textContent = CHESS_PIECES[piece] || "";
-                    cell.onclick = () => {
-                        const legal = runtime.moves.some(move => move[0] === row && move[1] === col);
-                        if (runtime.selected && legal) {
-                            const [fromRow, fromCol] = runtime.selected;
-                            const moving = runtime.board[fromRow][fromCol];
-                            const captured = runtime.board[row][col];
-                            runtime.board[row][col] = moving;
-                            runtime.board[fromRow][fromCol] = null;
-                            if (moving[1] === "p" && [0, 7].includes(row)) runtime.board[row][col] = `${moving[0]}q`;
-                            runtime.score += captured ? ({p:10,n:30,b:30,r:50,q:90,k:500}[captured[1]] || 0) : 1;
-                            runtime.status = captured?.[1] === "k" ? `${moving[0] === "w" ? "Beyaz" : "Siyah"} kazandı` : `${CHESS_PIECES[moving]} oynandı`;
-                            runtime.turn = runtime.turn === "w" ? "b" : "w";
-                            runtime.selected = null;
-                            runtime.moves = [];
-                            updateNexaGameScore("chess", runtime.score);
-                            saveNexaPlayProgress("chess", runtime.score, runtime);
-                            renderBoard();
-                            return;
-                        }
-                        if (piece?.[0] === runtime.turn) {
-                            runtime.selected = [row, col];
-                            runtime.moves = chessMoves(runtime, row, col);
-                        } else {
-                            runtime.selected = null;
-                            runtime.moves = [];
-                        }
-                        renderBoard();
-                    };
-                    board.appendChild(cell);
-                }));
-                stage.append(status, board, gameResetButton("chess"));
-            };
-            renderBoard();
-        }
-
-        const CARD_SUITS = ["♠", "♥", "♦", "♣"];
-
-        function freshSolitaireState() {
-            const deck = [];
-            CARD_SUITS.forEach(suit => {
-                for (let rank = 1; rank <= 13; rank += 1) deck.push({ suit, rank, face: false });
-            });
-            for (let index = deck.length - 1; index > 0; index -= 1) {
-                const random = Math.floor(Math.random() * (index + 1));
-                [deck[index], deck[random]] = [deck[random], deck[index]];
-            }
-            const tableau = Array.from({ length: 7 }, () => []);
-            for (let col = 0; col < 7; col += 1) {
-                for (let row = 0; row <= col; row += 1) {
-                    const card = deck.pop();
-                    card.face = row === col;
-                    tableau[col].push(card);
-                }
-            }
-            return { stock: deck, waste: [], foundations: [[],[],[],[]], tableau, selected: null, score: 0 };
-        }
-
-        function cardColor(card) {
-            return ["♥", "♦"].includes(card?.suit) ? "red" : "black";
-        }
-
-        function cardRankLabel(rank) {
-            return ({1:"A",11:"J",12:"Q",13:"K"})[rank] || String(rank);
-        }
-
-        function canStackSolitaire(card, target) {
-            return !target ? card.rank === 13 : cardColor(card) !== cardColor(target) && card.rank === target.rank - 1;
-        }
-
-        function initNexaSolitaire(stage, reset) {
-            const saved = state.nexaPlay?.sessions?.solitaire;
-            const runtime = !reset && saved?.tableau ? cloneGameData(saved) : freshSolitaireState();
-            runtime.selected = null;
-            state.nexaPlayRuntime = runtime;
-            const selectedCards = () => {
-                if (!runtime.selected) return [];
-                if (runtime.selected.zone === "waste") return runtime.waste.slice(-1);
-                if (runtime.selected.zone === "tableau") return runtime.tableau[runtime.selected.col].slice(runtime.selected.index);
-                return [];
-            };
-            const commit = () => {
-                updateNexaGameScore("solitaire", runtime.score);
-                saveNexaPlayProgress("solitaire", runtime.score, runtime);
-                renderGame();
-            };
-            const moveToTableau = col => {
-                const cards = selectedCards();
-                if (!cards.length || !canStackSolitaire(cards[0], runtime.tableau[col].at(-1))) return;
-                if (runtime.selected.zone === "waste") runtime.waste.pop();
-                else runtime.tableau[runtime.selected.col].splice(runtime.selected.index);
-                runtime.tableau[col].push(...cards);
-                const source = runtime.selected.zone === "tableau" ? runtime.tableau[runtime.selected.col] : null;
-                if (source?.length && !source.at(-1).face) {
-                    source.at(-1).face = true;
-                    runtime.score += 5;
-                }
-                runtime.score += 2;
-                runtime.selected = null;
-                commit();
-            };
-            const moveToFoundation = foundationIndex => {
-                const cards = selectedCards();
-                if (cards.length !== 1) return;
-                const card = cards[0];
-                const pile = runtime.foundations[foundationIndex];
-                if ((pile.length === 0 && card.rank !== 1) || (pile.length && (pile.at(-1).suit !== card.suit || card.rank !== pile.at(-1).rank + 1))) return;
-                if (runtime.selected.zone === "waste") runtime.waste.pop();
-                else runtime.tableau[runtime.selected.col].splice(runtime.selected.index, 1);
-                pile.push(card);
-                runtime.score += 10;
-                runtime.selected = null;
-                commit();
-            };
-            const cardHtml = card => card ? `<span class="${cardColor(card)}">${cardRankLabel(card.rank)}<i>${card.suit}</i></span>` : "";
-            const renderGame = () => {
-                stage.innerHTML = "";
-                const top = document.createElement("div");
-                top.className = "solitaire-top";
-                const stock = document.createElement("button");
-                stock.type = "button";
-                stock.className = "playing-card card-back";
-                stock.textContent = runtime.stock.length ? "N" : "↻";
-                stock.onclick = () => {
-                    if (runtime.stock.length) {
-                        const card = runtime.stock.pop();
-                        card.face = true;
-                        runtime.waste.push(card);
-                    } else {
-                        runtime.stock = runtime.waste.reverse().map(card => ({ ...card, face: false }));
-                        runtime.waste = [];
-                    }
-                    runtime.selected = null;
-                    commit();
-                };
-                const waste = document.createElement("button");
-                waste.type = "button";
-                waste.className = `playing-card ${runtime.selected?.zone === "waste" ? "selected" : ""}`;
-                waste.innerHTML = cardHtml(runtime.waste.at(-1));
-                waste.onclick = () => {
-                    if (!runtime.waste.length) return;
-                    runtime.selected = { zone: "waste" };
-                    renderGame();
-                };
-                top.append(stock, waste);
-                runtime.foundations.forEach((pile, index) => {
-                    const cell = document.createElement("button");
-                    cell.type = "button";
-                    cell.className = "playing-card foundation";
-                    cell.innerHTML = cardHtml(pile.at(-1)) || `<span>${CARD_SUITS[index]}</span>`;
-                    cell.onclick = () => moveToFoundation(index);
-                    top.appendChild(cell);
-                });
-                const tableau = document.createElement("div");
-                tableau.className = "solitaire-tableau";
-                runtime.tableau.forEach((pile, col) => {
-                    const column = document.createElement("div");
-                    column.className = "solitaire-column";
-                    column.onclick = event => {
-                        if (event.target === column) moveToTableau(col);
-                    };
-                    pile.forEach((card, index) => {
-                        const cell = document.createElement("button");
-                        cell.type = "button";
-                        cell.className = `playing-card ${card.face ? "" : "card-back"} ${runtime.selected?.zone === "tableau" && runtime.selected.col === col && index >= runtime.selected.index ? "selected" : ""}`;
-                        cell.style.setProperty("--card-index", index);
-                        cell.innerHTML = card.face ? cardHtml(card) : "N";
-                        cell.onclick = event => {
-                            event.stopPropagation();
-                            if (!card.face && index === pile.length - 1) {
-                                card.face = true;
-                                runtime.score += 5;
-                                commit();
-                                return;
-                            }
-                            if (runtime.selected) moveToTableau(col);
-                            else if (card.face) {
-                                runtime.selected = { zone: "tableau", col, index };
-                                renderGame();
-                            }
-                        };
-                        column.appendChild(cell);
-                    });
-                    tableau.appendChild(column);
-                });
-                const note = document.createElement("div");
-                note.className = "nexa-game-status";
-                note.innerHTML = `<strong>${runtime.foundations.reduce((total, pile) => total + pile.length, 0)}/52 kart toplandı</strong><small>Kartı seç, ardından hedef sütuna veya temele dokun</small>`;
-                stage.append(top, tableau, note, gameResetButton("solitaire"));
-            };
-            renderGame();
-        }
-
-        function fresh2048State() {
-            const runtime = { board: Array(16).fill(0), score: 0, won: false };
-            add2048Tile(runtime);
-            add2048Tile(runtime);
-            return runtime;
-        }
-
-        function add2048Tile(runtime) {
-            const empty = runtime.board.map((value, index) => value ? -1 : index).filter(index => index >= 0);
-            if (!empty.length) return;
-            runtime.board[empty[Math.floor(Math.random() * empty.length)]] = Math.random() < 0.9 ? 2 : 4;
-        }
-
-        function slide2048Line(line) {
-            const values = line.filter(Boolean);
-            let gained = 0;
-            for (let index = 0; index < values.length - 1; index += 1) {
-                if (values[index] === values[index + 1]) {
-                    values[index] *= 2;
-                    gained += values[index];
-                    values.splice(index + 1, 1);
-                }
-            }
-            while (values.length < 4) values.push(0);
-            return { values, gained };
-        }
-
-        function move2048(runtime, direction) {
-            const before = runtime.board.join(",");
-            let gained = 0;
-            const next = Array(16).fill(0);
-            for (let index = 0; index < 4; index += 1) {
-                let line = [];
-                for (let step = 0; step < 4; step += 1) {
-                    const row = ["left","right"].includes(direction) ? index : step;
-                    const col = ["left","right"].includes(direction) ? step : index;
-                    line.push(runtime.board[row * 4 + col]);
-                }
-                if (["right","down"].includes(direction)) line.reverse();
-                const result = slide2048Line(line);
-                gained += result.gained;
-                if (["right","down"].includes(direction)) result.values.reverse();
-                result.values.forEach((value, step) => {
-                    const row = ["left","right"].includes(direction) ? index : step;
-                    const col = ["left","right"].includes(direction) ? step : index;
-                    next[row * 4 + col] = value;
-                });
-            }
-            runtime.board = next;
-            if (before === next.join(",")) return false;
-            runtime.score += gained;
-            runtime.won = runtime.won || next.some(value => value >= 2048);
-            add2048Tile(runtime);
-            return true;
-        }
-
-        function initNexa2048(stage, reset) {
-            const saved = state.nexaPlay?.sessions?.["2048"];
-            const runtime = !reset && Array.isArray(saved?.board) && saved.board.some(Boolean) ? cloneGameData(saved) : fresh2048State();
-            state.nexaPlayRuntime = runtime;
-            let touchStart = null;
-            const play = direction => {
-                if (!move2048(runtime, direction)) return;
-                updateNexaGameScore("2048", runtime.score);
-                saveNexaPlayProgress("2048", runtime.score, runtime);
-                renderGame();
-            };
-            const renderGame = () => {
-                stage.innerHTML = "";
-                const status = document.createElement("div");
-                status.className = "nexa-game-status";
-                status.innerHTML = `<strong>${runtime.won ? "2048'e ulaştın!" : `${runtime.score.toLocaleString("tr-TR")} puan`}</strong><small>Kaydır veya yön düğmelerini kullan</small>`;
-                const board = document.createElement("div");
-                board.className = "nexa-2048-board";
-                runtime.board.forEach(value => {
-                    const tile = document.createElement("div");
-                    tile.className = `tile tile-${Math.min(value, 2048)}`;
-                    tile.textContent = value || "";
-                    board.appendChild(tile);
-                });
-                board.ontouchstart = event => {
-                    const touch = event.touches[0];
-                    touchStart = [touch.clientX, touch.clientY];
-                };
-                board.ontouchend = event => {
-                    if (!touchStart) return;
-                    const touch = event.changedTouches[0];
-                    const dx = touch.clientX - touchStart[0];
-                    const dy = touch.clientY - touchStart[1];
-                    if (Math.max(Math.abs(dx), Math.abs(dy)) > 22) play(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
-                    touchStart = null;
-                };
-                const controls = document.createElement("div");
-                controls.className = "nexa-2048-controls";
-                [["↑","up"],["←","left"],["↓","down"],["→","right"]].forEach(([label, direction]) => {
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.textContent = label;
-                    button.onclick = () => play(direction);
-                    controls.appendChild(button);
-                });
-                stage.append(status, board, controls, gameResetButton("2048"));
-            };
-            renderGame();
-        }
-
-        const BLOCK_SHAPES = [
-            [[0,0]], [[0,0],[0,1]], [[0,0],[1,0]], [[0,0],[0,1],[0,2]],
-            [[0,0],[1,0],[2,0]], [[0,0],[0,1],[1,0]], [[0,0],[0,1],[1,1]],
-            [[0,0],[1,0],[1,1]], [[0,1],[1,0],[1,1]], [[0,0],[0,1],[1,0],[1,1]]
-        ];
-
-        function freshBlockBlastState() {
-            return { board: Array(64).fill(0), score: 0, shapes: [], selected: 0, colorSeed: 1 };
-        }
-
-        function nextBlockShapes(runtime) {
-            runtime.shapes = Array.from({ length: 3 }, (_, index) => ({
-                cells: cloneGameData(BLOCK_SHAPES[Math.floor(Math.random() * BLOCK_SHAPES.length)]),
-                used: false,
-                color: (runtime.colorSeed + index) % 5
-            }));
-            runtime.colorSeed = (runtime.colorSeed + 3) % 5;
-            runtime.selected = 0;
-        }
-
-        function canPlaceBlock(runtime, shape, row, col) {
-            return shape.cells.every(([dr, dc]) => row + dr < 8 && col + dc < 8 && !runtime.board[(row + dr) * 8 + col + dc]);
-        }
-
-        function blockBlastHasMove(runtime) {
-            return runtime.shapes.filter(shape => !shape.used).some(shape => {
-                for (let row = 0; row < 8; row += 1) for (let col = 0; col < 8; col += 1) if (canPlaceBlock(runtime, shape, row, col)) return true;
-                return false;
-            });
-        }
-
-        function initNexaBlockBlast(stage, reset) {
-            const saved = state.nexaPlay?.sessions?.["block-blast"];
-            const runtime = !reset && Array.isArray(saved?.board) ? cloneGameData(saved) : freshBlockBlastState();
-            if (!runtime.shapes?.length || runtime.shapes.every(shape => shape.used)) nextBlockShapes(runtime);
-            state.nexaPlayRuntime = runtime;
-            const place = (row, col) => {
-                const shape = runtime.shapes[runtime.selected];
-                if (!shape || shape.used || !canPlaceBlock(runtime, shape, row, col)) return;
-                shape.cells.forEach(([dr, dc]) => {
-                    runtime.board[(row + dr) * 8 + col + dc] = shape.color + 1;
-                    runtime.score += 1;
-                });
-                const fullRows = [];
-                const fullCols = [];
-                for (let index = 0; index < 8; index += 1) {
-                    if (runtime.board.slice(index * 8, index * 8 + 8).every(Boolean)) fullRows.push(index);
-                    if (Array.from({ length: 8 }, (_, rowIndex) => runtime.board[rowIndex * 8 + index]).every(Boolean)) fullCols.push(index);
-                }
-                fullRows.forEach(rowIndex => runtime.board.fill(0, rowIndex * 8, rowIndex * 8 + 8));
-                fullCols.forEach(colIndex => {
-                    for (let rowIndex = 0; rowIndex < 8; rowIndex += 1) runtime.board[rowIndex * 8 + colIndex] = 0;
-                });
-                runtime.score += (fullRows.length + fullCols.length) * 80;
-                shape.used = true;
-                const nextAvailable = runtime.shapes.findIndex(item => !item.used);
-                if (nextAvailable >= 0) runtime.selected = nextAvailable;
-                else nextBlockShapes(runtime);
-                updateNexaGameScore("block-blast", runtime.score);
-                saveNexaPlayProgress("block-blast", runtime.score, runtime);
-                renderGame();
-            };
-            const renderGame = () => {
-                stage.innerHTML = "";
-                const status = document.createElement("div");
-                status.className = "nexa-game-status";
-                status.innerHTML = `<strong>${runtime.score.toLocaleString("tr-TR")} puan</strong><small>${blockBlastHasMove(runtime) ? "Bir parçayı seçip tahtaya yerleştir" : "Hamle kalmadı, yeni oyun başlat"}</small>`;
-                const board = document.createElement("div");
-                board.className = "block-blast-board";
-                runtime.board.forEach((value, index) => {
-                    const cell = document.createElement("button");
-                    cell.type = "button";
-                    cell.className = `block-cell color-${value}`;
-                    cell.onclick = () => place(Math.floor(index / 8), index % 8);
-                    board.appendChild(cell);
-                });
-                const tray = document.createElement("div");
-                tray.className = "block-shape-tray";
-                runtime.shapes.forEach((shape, index) => {
-                    const button = document.createElement("button");
-                    button.type = "button";
-                    button.disabled = shape.used;
-                    button.className = `block-shape ${runtime.selected === index ? "selected" : ""}`;
-                    const height = Math.max(...shape.cells.map(cell => cell[0])) + 1;
-                    const width = Math.max(...shape.cells.map(cell => cell[1])) + 1;
-                    button.style.setProperty("--shape-cols", width);
-                    button.style.setProperty("--shape-rows", height);
-                    const used = new Set(shape.cells.map(cell => cell.join("-")));
-                    for (let row = 0; row < height; row += 1) for (let col = 0; col < width; col += 1) {
-                        const dot = document.createElement("i");
-                        if (used.has(`${row}-${col}`)) dot.className = `filled color-${shape.color + 1}`;
-                        button.appendChild(dot);
-                    }
-                    button.onclick = () => {
-                        runtime.selected = index;
-                        renderGame();
-                    };
-                    tray.appendChild(button);
-                });
-                stage.append(status, board, tray, gameResetButton("block-blast"));
-            };
-            renderGame();
-        }
-
-        function renderVoiceRoomCard(room) {
-            const card = document.createElement("div");
-            card.className = "voice-room-card";
-            card.dataset.voiceRoomId = room.id;
-            card.classList.toggle("voice-room-joining", state.voiceJoinAnimationRoomId === room.id);
-            const joined = state.activeVoiceRoomId === room.id || room.participants?.some(user => user.username === state.me?.username);
-            const participants = (room.participants || []).slice(0, 7).map(user => {
-                const displayName = user.displayName || user.username || "NexaLine";
-                const avatar = user.profileImage
-                    ? `<img src="${escapeHtml(user.profileImage)}" alt="">`
-                    : `<span>${escapeHtml(initials(displayName))}</span>`;
-                return `
-                    <span class="voice-room-avatar ${user.speaking ? "speaking" : ""} ${user.muted ? "muted" : ""}" title="${escapeHtml(displayName)}${user.muted ? " - sessiz" : ""}">
-                        ${avatar}
-                        <i>${user.muted ? "×" : ""}</i>
-                    </span>
-                `;
-            }).join("");
-            card.innerHTML = `
-                <div class="voice-room-copy">
-                    <strong>${escapeHtml(room.title)}</strong>
-                    <small>${escapeHtml(room.category || "Genel")} • ${escapeHtml(room.privacy || "public")} • ${escapeHtml(room.topic || "")}</small>
-                </div>
-                <div class="voice-room-avatars">${participants || '<span class="voice-room-empty">Henüz kimse yok</span>'}</div>
-                <div class="voice-room-actions">
-                    <button class="mini-btn ${joined ? "danger" : ""}" type="button" data-voice-action="${joined ? "leave" : "join"}">${joined ? "Ayrıl" : "Katıl"}</button>
-                    <button class="mini-btn" type="button" data-voice-action="mute">${joined ? "Sessiz/Sesli" : "Bilgi"}</button>
-                    <button class="mini-btn" type="button" data-voice-action="detail">Detay</button>
-                </div>
-            `;
-            card.querySelector('[data-voice-action="join"], [data-voice-action="leave"]').onclick = () => {
-                if (joined) {
-                    leaveVoiceRoom(room.id);
-                } else {
-                    state.voiceJoinAnimationRoomId = room.id;
-                    card.classList.add("voice-room-joining");
-                    joinVoiceRoom(room.id);
-                    setTimeout(() => {
-                        if (state.voiceJoinAnimationRoomId === room.id) {
-                            state.voiceJoinAnimationRoomId = "";
-                        }
-                        card.classList.remove("voice-room-joining");
-                    }, 720);
-                }
-            };
-            card.querySelector('[data-voice-action="mute"]').onclick = () => {
-                if (!joined) {
-                    showToast("Önce odaya katıl.");
-                    return;
-                }
-                const mine = (room.participants || []).find(user => user.username === state.me?.username);
-                setVoiceRoomMuted(room.id, !mine?.muted).catch(() => showToast("Mikrofon güncellenemedi."));
-            };
-            card.querySelector('[data-voice-action="detail"]').onclick = () => openVoiceRoomDetail(room.id);
-            return card;
-        }
-
-        function currentVoiceRoom(roomId = state.activeVoiceRoomId) {
-            return state.voiceRooms.find(room => room.id === roomId) || null;
-        }
-
-        async function ensureVoiceRoomStream() {
-            if (state.voiceAudio.stream?.active) {
-                return state.voiceAudio.stream;
-            }
-            if (!navigator.mediaDevices?.getUserMedia) {
-                throw new Error("Bu tarayıcı canlı ses aktarımını desteklemiyor.");
-            }
-            state.voiceAudio.stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                },
-                video: false
-            });
-            return state.voiceAudio.stream;
-        }
-
-        function removeVoicePeer(peerUsername) {
-            const pc = state.voiceAudio.peers[peerUsername];
-            if (pc) {
-                pc.ontrack = null;
-                pc.onicecandidate = null;
-                pc.close();
-                delete state.voiceAudio.peers[peerUsername];
-            }
-            delete state.voiceAudio.pendingIce[peerUsername];
-            document.querySelector(`[data-voice-audio-peer="${CSS.escape(peerUsername)}"]`)?.remove();
-        }
-
-        function resetVoiceRoomAudio(stopStream = true) {
-            Object.keys(state.voiceAudio.peers).forEach(removeVoicePeer);
-            if (stopStream && state.voiceAudio.stream) {
-                state.voiceAudio.stream.getTracks().forEach(track => track.stop());
-                state.voiceAudio.stream = null;
-            }
-            state.voiceAudio.pendingIce = {};
-            state.voiceAudio.roomId = "";
-        }
-
-        async function flushVoiceRoomIce(peerUsername) {
-            const pc = state.voiceAudio.peers[peerUsername];
-            if (!pc?.remoteDescription) return;
-            const pending = state.voiceAudio.pendingIce[peerUsername] || [];
-            for (const candidate of pending) {
-                try {
-                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                } catch (error) {
-                    console.warn("Sesli oda ICE adayı eklenemedi", error);
-                }
-            }
-            state.voiceAudio.pendingIce[peerUsername] = [];
-        }
-
-        async function createVoiceRoomPeer(peerUsername, initiator = false) {
-            if (!peerUsername || peerUsername === state.me?.username) return null;
-            let pc = state.voiceAudio.peers[peerUsername];
-            if (!pc) {
-                pc = new RTCPeerConnection(rtcConfig);
-                const stream = await ensureVoiceRoomStream();
-                stream.getAudioTracks().forEach(track => pc.addTrack(track, stream));
-                pc.onicecandidate = event => {
-                    if (event.candidate && state.voiceAudio.roomId) {
-                        socket.emit("voice:signal", {
-                            roomId: state.voiceAudio.roomId,
-                            to: peerUsername,
-                            signal: { type: "ice", candidate: event.candidate.toJSON() }
-                        });
-                    }
-                };
-                pc.ontrack = event => {
-                    let audio = document.querySelector(`[data-voice-audio-peer="${CSS.escape(peerUsername)}"]`);
-                    if (!audio) {
-                        audio = document.createElement("audio");
-                        audio.autoplay = true;
-                        audio.playsInline = true;
-                        audio.dataset.voiceAudioPeer = peerUsername;
-                        audio.className = "voice-room-remote-audio";
-                        document.body.appendChild(audio);
-                    }
-                    audio.srcObject = event.streams[0] || new MediaStream([event.track]);
-                    audio.play().catch(() => {});
-                };
-                pc.onconnectionstatechange = () => {
-                    if (["failed", "closed"].includes(pc.connectionState)) {
-                        removeVoicePeer(peerUsername);
-                    }
-                };
-                state.voiceAudio.peers[peerUsername] = pc;
-            }
-            if (initiator && pc.signalingState === "stable") {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                socket.emit("voice:signal", {
-                    roomId: state.voiceAudio.roomId,
-                    to: peerUsername,
-                    signal: { type: "offer", description: pc.localDescription }
-                });
-            }
-            return pc;
-        }
-
-        async function activateVoiceRoom(roomId, peers = []) {
-            state.activeVoiceRoomId = roomId;
-            state.voiceAudio.roomId = roomId;
-            for (const peerUsername of peers) {
-                await createVoiceRoomPeer(peerUsername, true);
-            }
-        }
-
-        async function joinVoiceRoom(roomId) {
-            try {
-                await ensureVoiceRoomStream();
-            } catch (error) {
-                showToast(error.message || "Mikrofon izni alınamadı.");
-                return;
-            }
-            socket.emit("voice:join", { roomId }, async result => {
-                if (!result?.ok) {
-                    resetVoiceRoomAudio();
-                    showToast(result?.message || "Sesli odaya katılınamadı.");
-                    return;
-                }
-                try {
-                    await activateVoiceRoom(result.roomId || roomId, result.peers || []);
-                    showToast("Sesli odaya katıldın.");
-                } catch (error) {
-                    resetVoiceRoomAudio();
-                    socket.emit("voice:leave", { roomId });
-                    showToast("Canlı ses bağlantısı kurulamadı.");
-                }
-            });
-        }
-
-        function leaveVoiceRoom(roomId = state.activeVoiceRoomId) {
-            socket.emit("voice:leave", { roomId }, result => {
-                if (result && !result.ok) {
-                    showToast(result.message || "Odadan çıkılamadı.");
-                }
-            });
-            resetVoiceRoomAudio();
-            state.activeVoiceRoomId = "";
-        }
-
-        async function setVoiceRoomMuted(roomId, muted) {
-            const stream = await ensureVoiceRoomStream();
-            stream.getAudioTracks().forEach(track => {
-                track.enabled = !muted;
-            });
-            socket.emit("voice:mute", { roomId, muted }, result => {
-                if (result && !result.ok) {
-                    showToast(result.message || "Mikrofon durumu güncellenemedi.");
-                }
-            });
-        }
-
-        function openVoiceRoomsHub() {
-            openModal("Sesli Odalar", body => {
-                body.classList.add("voice-rooms-body");
-                const rooms = state.voiceRooms || [];
-                body.innerHTML = `
-                    <div class="ai-home-grid">
-                        <button class="ai-home-card" type="button" id="voiceCreateButton"><strong>Oda Oluştur</strong><small>Kategori, gizlilik ve katılımcı limitiyle yeni oda aç</small></button>
-                        <button class="ai-home-card" type="button" id="voiceJoinedButton"><strong>Katıldıklarım</strong><small>${state.activeVoiceRoomId ? "Aktif odana dön" : "Henüz aktif oda yok"}</small></button>
-                    </div>
-                    <input id="voiceRoomSearchInput" placeholder="Oda ara">
-                    <div id="voiceRoomRows" class="voice-stage"></div>
-                `;
-                const renderRows = () => {
-                    const q = $("voiceRoomSearchInput").value.toLocaleLowerCase("tr-TR");
-                    const list = $("voiceRoomRows");
-                    list.innerHTML = rooms
-                        .filter(room => !q || `${room.title} ${room.category} ${room.topic}`.toLocaleLowerCase("tr-TR").includes(q))
-                        .map(room => `<button class="voice-live-card" type="button" data-voice-room="${escapeHtml(room.id)}"><strong>${escapeHtml(room.title)}</strong><small>${escapeHtml(room.category || "Genel")} • ${room.count || 0}/${room.limit || 50} kişi • ${escapeHtml(room.owner?.displayName || "NexaLine")}</small></button>`)
-                        .join("") || '<div class="voice-live-card"><strong>Oda yok</strong><small>İlk canlı odayı sen oluşturabilirsin.</small></div>';
-                    list.querySelectorAll("[data-voice-room]").forEach(button => button.onclick = () => openVoiceRoomDetail(button.dataset.voiceRoom));
-                };
-                $("voiceCreateButton").onclick = openVoiceRoomCreator;
-                $("voiceJoinedButton").onclick = () => {
-                    if (state.activeVoiceRoomId) openVoiceRoomDetail(state.activeVoiceRoomId);
-                };
-                $("voiceRoomSearchInput").oninput = renderRows;
-                renderRows();
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
-        }
-
-        function openVoiceRoomCreator() {
-            openModal("Oda Oluştur", body => {
-                body.innerHTML = `
-                    <input id="voiceTitleInput" maxlength="120" placeholder="Oda adı">
-                    <input id="voiceCategoryInput" maxlength="60" placeholder="Kategori">
-                    <select id="voicePrivacyInput"><option value="public">Herkese açık</option><option value="friends">Arkadaşlar</option><option value="invite">Davetli</option></select>
-                    <input id="voiceLimitInput" type="number" min="2" max="200" value="50" placeholder="Katılımcı limiti">
-                    <select id="voiceJoinModeInput"><option value="open">Onaysız katılım</option><option value="approval">Onaylı katılım</option></select>
-                    <select id="voiceTalkModeInput"><option value="everyone">Herkes konuşabilir</option><option value="request">İstek gerekir</option><option value="admin">Sadece admin</option></select>
-                    <label class="toggle-row"><span>Yorumlar açık</span><input id="voiceCommentsInput" type="checkbox" checked></label>
-                    <label class="toggle-row"><span>AI sansür açık</span><input id="voiceAiModerationInput" type="checkbox" checked></label>
-                    <label class="toggle-row"><span>Kayıt al</span><input id="voiceRecordingInput" type="checkbox"></label>
-                `;
-            }, [
-                { label: "Vazgeç", onClick: closeModal },
-                { label: "Oda Oluştur", primary: true, onClick: async () => {
-                    try {
-                        await ensureVoiceRoomStream();
-                    } catch (error) {
-                        showToast(error.message || "Mikrofon izni alınamadı.");
-                        return;
-                    }
-                    socket.emit("voice:create", {
-                        title: $("voiceTitleInput").value,
-                        category: $("voiceCategoryInput").value || "Genel",
-                        privacy: $("voicePrivacyInput").value,
-                        limit: Number($("voiceLimitInput").value || 50),
-                        joinMode: $("voiceJoinModeInput").value,
-                        talkMode: $("voiceTalkModeInput").value,
-                        commentsEnabled: $("voiceCommentsInput").checked,
-                        aiModeration: $("voiceAiModerationInput").checked,
-                        recording: $("voiceRecordingInput").checked
-                    }, async result => {
-                        if (!result?.ok) {
-                            resetVoiceRoomAudio();
-                            showToast(result?.message || "Sesli oda oluşturulamadı.");
-                            return;
-                        }
-                        await activateVoiceRoom(result.roomId, result.peers || []);
-                        closeModal();
-                        showToast("Sesli oda oluşturuldu.");
-                    });
-                } }
-            ], "sheet");
-        }
-
-        function openVoiceRoomDetail(roomId) {
-            const room = currentVoiceRoom(roomId);
-            if (!room) {
-                showToast("Oda bulunamadı.");
-                return;
-            }
-            const joined = room.participants?.some(user => user.username === state.me?.username);
-            const mine = room.participants?.find(user => user.username === state.me?.username);
-            const canManage = room.owner?.username === state.me?.username || ["founder", "admin", "moderator"].includes(mine?.role);
-            openModal(room.title, body => {
-                body.innerHTML = `
-                    <div class="voice-stage">
-                        <div class="voice-live-card">
-                            <strong>${escapeHtml(room.title)}</strong>
-                            <small>${escapeHtml(room.category || "Genel")} • ${room.count || 0}/${room.limit || 50} kişi • ${escapeHtml(room.privacy || "public")}</small>
-                            <div class="points-progress" style="--points-progress:${Math.min(100, ((room.count || 0) / (room.limit || 50)) * 100)}%"><span></span></div>
-                        </div>
-                        <div class="voice-participant-grid">
-                            ${(room.participants || []).map(user => `<div class="voice-participant"><span class="avatar">${escapeHtml(initials(user.displayName))}</span><span>${escapeHtml(user.displayName)}</span><small>${escapeHtml(user.role || "dinleyici")}${user.muted ? " • sessiz" : ""}</small></div>`).join("") || '<div class="last-message">Katılımcı yok.</div>'}
-                        </div>
-                        <div class="chip-row">
-                            <button class="mini-btn ${joined ? "danger" : "primary"}" id="voiceJoinLeaveButton" type="button">${joined ? "Ayrıl" : "Katıl"}</button>
-                            <button class="mini-btn" id="voiceMuteButton" type="button">${mine?.muted ? "Mikrofon Aç" : "Mikrofon Kapat"}</button>
-                            <button class="mini-btn" id="voiceRaiseHandButton" type="button">El Kaldır / İstek Gönder</button>
-                            ${canManage ? '<button class="mini-btn" id="voiceSettingsButton" type="button">Oda Ayarları</button>' : ""}
-                        </div>
-                        <textarea id="voiceCommentInput" placeholder="Odaya yorum yaz"></textarea>
-                        <button id="voiceCommentButton" class="primary" type="button">Yorum Gönder</button>
-                        <div class="point-ledger-list">
-                            ${(room.comments || []).slice(-8).map(comment => `<div class="voice-comment ${comment.hidden ? "hidden-comment" : ""}"><strong>${escapeHtml(comment.displayName || comment.username)}</strong><small>${escapeHtml(comment.hidden ? "AI sansür uyarısı: " : "")}${escapeHtml(comment.body)}</small></div>`).join("") || '<div class="last-message">Yorum yok.</div>'}
-                        </div>
-                    </div>
-                `;
-                $("voiceJoinLeaveButton").onclick = () => {
-                    if (joined) {
-                        leaveVoiceRoom(room.id);
-                    } else {
-                        joinVoiceRoom(room.id);
-                    }
-                    closeModal();
-                };
-                $("voiceMuteButton").onclick = () => setVoiceRoomMuted(room.id, !mine?.muted)
-                    .catch(() => showToast("Mikrofon güncellenemedi."));
-                $("voiceRaiseHandButton").onclick = () => socket.emit("voice:request_speak", { roomId: room.id });
-                $("voiceCommentButton").onclick = () => {
-                    socket.emit("voice:comment", { roomId: room.id, body: $("voiceCommentInput").value });
-                    $("voiceCommentInput").value = "";
-                };
-                $("voiceSettingsButton")?.addEventListener("click", () => openVoiceSettings(room));
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
-        }
-
-        function openVoiceSettings(room) {
-            openModal("Oda Ayarları", body => {
-                body.innerHTML = `
-                    <select id="voiceSettingsPrivacy"><option value="public">Herkese açık</option><option value="friends">Arkadaşlar</option><option value="invite">Davetli</option></select>
-                    <input id="voiceSettingsLimit" type="number" min="2" max="200" value="${Number(room.limit || 50)}">
-                    <select id="voiceSettingsTalk"><option value="everyone">Herkes</option><option value="request">İstek gerekir</option><option value="admin">Sadece admin</option></select>
-                    <label class="toggle-row"><span>Yorumlar</span><input id="voiceSettingsComments" type="checkbox" ${room.commentsEnabled ? "checked" : ""}></label>
-                    <label class="toggle-row"><span>AI sansür</span><input id="voiceSettingsAi" type="checkbox" ${room.aiModeration ? "checked" : ""}></label>
-                    <label class="toggle-row"><span>Kayıt al</span><input id="voiceSettingsRecording" type="checkbox" ${room.recording ? "checked" : ""}></label>
-                    <div class="last-message">Ban listesi: ${(room.bans || []).join(", ") || "Boş"}</div>
-                `;
-                $("voiceSettingsPrivacy").value = room.privacy || "public";
-                $("voiceSettingsTalk").value = room.talkMode || "request";
-            }, [
-                { label: "Kaydet", primary: true, onClick: () => {
-                    socket.emit("voice:settings", {
-                        roomId: room.id,
-                        privacy: $("voiceSettingsPrivacy").value,
-                        limit: Number($("voiceSettingsLimit").value || 50),
-                        talkMode: $("voiceSettingsTalk").value,
-                        commentsEnabled: $("voiceSettingsComments").checked,
-                        aiModeration: $("voiceSettingsAi").checked,
-                        recording: $("voiceSettingsRecording").checked
-                    });
-                    closeModal();
-                } },
-                { label: "Kapat", onClick: closeModal }
-            ], "sheet");
-        }
-
         function switchSection(section) {
             state.activeSection = section;
             state.activeChatId = null;
             state.activeProfileUsername = null;
             renderSections();
             render();
-        }
-
-        function openChannelStarter() {
-            openModal("Kanallar", body => {
-                body.innerHTML = `<p>Kanallar şimdilik grup altyapısıyla çalışır. Yeni duyuru kanalı için grup oluşturup yalnızca yöneticilerin yazmasını tercih edebilirsin.</p>`;
-            }, [
-                { label: "Grup/kanal oluştur", primary: true, onClick: () => { closeModal(); createGroup(); } },
-                { label: "Kapat", onClick: closeModal }
-            ]);
-        }
-
-        async function loadCommunities() {
-            try {
-                const response = await fetch(`/communities?username=${encodeURIComponent(state.me.username)}`);
-                const data = await response.json();
-                if (data.ok) state.communities = data.communities || [];
-            } catch (_error) {
-                showToast("Topluluklar alınamadı.");
-            }
-        }
-
-        async function openCommunitiesHub() {
-            await loadCommunities();
-            openModal("Topluluklar", body => {
-                body.innerHTML = `
-                    <button id="communityCreateButton" class="primary" type="button">Topluluk Oluştur</button>
-                    <div class="community-grid">
-                        ${(state.communities || []).map(community => `
-                            <button class="community-card" type="button" data-community="${escapeHtml(community.id)}">
-                                <strong>${escapeHtml(community.title)}</strong>
-                                <small>${escapeHtml(community.category || "Genel")} • ${community.memberCount || 0} üye • ${community.onlineCount || 0} çevrimiçi</small>
-                                <div class="last-message">${escapeHtml(community.description || "NexaLine topluluğu")}</div>
-                            </button>
-                        `).join("") || '<div class="community-card"><strong>Topluluk yok</strong><small>İlk topluluğu sen oluşturabilirsin.</small></div>'}
-                    </div>
-                `;
-                $("communityCreateButton").onclick = openCommunityCreator;
-                body.querySelectorAll("[data-community]").forEach(button => button.onclick = () => openCommunityDetail(button.dataset.community));
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
-        }
-
-        function openCommunityCreator() {
-            openModal("Topluluk Oluştur", body => {
-                body.innerHTML = `
-                    <input id="communityTitleInput" maxlength="160" placeholder="Topluluk adı">
-                    <input id="communityCategoryInput" maxlength="80" placeholder="Kategori">
-                    <textarea id="communityDescriptionInput" maxlength="800" placeholder="Topluluk açıklaması"></textarea>
-                    <select id="communityPrivacyInput"><option value="public">Herkese açık</option><option value="friends">Arkadaşlar</option><option value="private">Özel</option></select>
-                `;
-            }, [
-                { label: "Vazgeç", onClick: closeModal },
-                { label: "Oluştur", primary: true, onClick: async () => {
-                    const response = await fetch("/communities", {
-                        method: "POST",
-                        headers: authHeaders(),
-                        body: JSON.stringify({
-                            username: state.me.username,
-                            title: $("communityTitleInput").value,
-                            category: $("communityCategoryInput").value || "Genel",
-                            description: $("communityDescriptionInput").value,
-                            privacy: $("communityPrivacyInput").value
-                        })
-                    });
-                    const data = await response.json();
-                    showToast(data.message || "Topluluk güncellendi.");
-                    if (data.ok) {
-                        state.communities = data.communities || [];
-                        closeModal();
-                        openCommunitiesHub();
-                    }
-                } }
-            ], "sheet");
-        }
-
-        function openCommunityDetail(communityId) {
-            const community = state.communities.find(item => item.id === communityId);
-            if (!community) return;
-            const canAnnounce = community.role && ["owner", "admin", "moderator"].includes(community.role);
-            openModal(community.title, body => {
-                body.innerHTML = `
-                    <div class="community-card">
-                        <strong>${escapeHtml(community.title)}</strong>
-                        <small>${escapeHtml(community.category || "Genel")} • ${community.memberCount || 0} üye • ${community.onlineCount || 0} çevrimiçi</small>
-                        <div class="last-message">${escapeHtml(community.description || "")}</div>
-                    </div>
-                    <button id="communityJoinButton" class="primary" type="button">${community.joined ? "Katıldın" : "Topluluğa Katıl"}</button>
-                    ${canAnnounce ? '<textarea id="communityAnnouncementInput" placeholder="Duyuru yaz"></textarea><button id="communityAnnouncementButton" class="primary" type="button">Duyuru Yayınla</button>' : ""}
-                    <h3>Duyurular</h3>
-                    <div class="point-ledger-list">
-                        ${(community.announcements || []).map(item => `<div class="point-ledger-row"><strong>${escapeHtml(item.author?.displayName || "NexaLine")}</strong><small>${escapeHtml(item.body)}</small></div>`).join("") || '<div class="last-message">Duyuru yok.</div>'}
-                    </div>
-                `;
-                $("communityJoinButton").disabled = community.joined;
-                $("communityJoinButton").onclick = async () => {
-                    const response = await fetch(`/communities/${encodeURIComponent(community.id)}/join`, {
-                        method: "POST",
-                        headers: authHeaders(),
-                        body: JSON.stringify({ username: state.me.username })
-                    });
-                    const data = await response.json();
-                    showToast(data.message || "Topluluk güncellendi.");
-                    if (data.ok) {
-                        state.communities = data.communities || [];
-                        closeModal();
-                        openCommunitiesHub();
-                    }
-                };
-                $("communityAnnouncementButton")?.addEventListener("click", async () => {
-                    const response = await fetch(`/communities/${encodeURIComponent(community.id)}/announcements`, {
-                        method: "POST",
-                        headers: authHeaders(),
-                        body: JSON.stringify({ username: state.me.username, body: $("communityAnnouncementInput").value })
-                    });
-                    const data = await response.json();
-                    showToast(data.message || "Duyuru güncellendi.");
-                    if (data.ok) {
-                        state.communities = data.communities || [];
-                        closeModal();
-                        openCommunitiesHub();
-                    }
-                });
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
 
         function openNearbyPanel() {
@@ -9965,222 +8823,6 @@
             renderVaultItems();
         }
 
-        function renderArchives() {
-            const filter = $("searchInput").value.trim().toLowerCase();
-            const archiveList = $("archiveList");
-            archiveList.innerHTML = "";
-
-            if (!state.archiveUnlocked) {
-                const hasPin = Boolean(localStorage.getItem(archivePinKey()));
-                state.archivePinDraft = "";
-                const lock = document.createElement("div");
-                lock.className = "archive-lock";
-                lock.innerHTML = `
-                    <strong>${hasPin ? "Arşivi açmak için PIN gir" : "Arşiv için 4 haneli PIN oluştur"}</strong>
-                    <div class="last-message">Hesap şifresi yerine bu cihazda saklanan 4 haneli arşiv PIN'i kullanılır.</div>
-                    <input id="archiveUnlockPin" class="hidden" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code">
-                    <div id="archivePinDots" class="pin-dots" aria-label="Arşiv PIN uzunluğu"></div>
-                    <div class="pin-keypad archive-pin-keypad" aria-label="Arşiv PIN tuş takımı">
-                        ${["1","2","3","4","5","6","7","8","9"].map(value => `<button type="button" data-archive-key="${value}">${value}</button>`).join("")}
-                        <button type="button" data-archive-clear aria-label="Son rakamı sil">⌫</button>
-                        <button type="button" data-archive-key="0">0</button>
-                        <button id="archiveUnlockButton" type="button" data-archive-submit aria-label="${hasPin ? "Arşivi aç" : "PIN oluştur ve aç"}">✓</button>
-                    </div>
-                `;
-                archiveList.appendChild(lock);
-                bindArchiveKeypad();
-                return;
-            }
-
-            const header = document.createElement("div");
-            header.className = "archive-lock";
-            header.innerHTML = `
-                <div class="last-message">Arşiv açık. Sohbeti seçince mesajları görebilir veya arşivden çıkarabilirsin.</div>
-                <button id="archiveLockButton" type="button">Arşivi Kilitle</button>
-            `;
-            archiveList.appendChild(header);
-            $("archiveLockButton").onclick = () => {
-                state.archiveUnlocked = false;
-                state.archiveItems = [];
-                renderArchives();
-            };
-
-            const items = (state.archiveItems.length ? state.archiveItems : state.archives)
-                .filter(item => item.chatTitle.toLowerCase().includes(filter));
-
-            if (!items.length) {
-                archiveList.insertAdjacentHTML("beforeend", `<button class="chat-item"><div class="avatar">A</div><div><strong class="chat-title">Arşiv boş</strong><div class="last-message">Silinen veya engellemede saklanan sohbetler 3 gün burada kalır</div></div><span class="chat-time"></span></button>`);
-                return;
-            }
-
-            items
-                .forEach(item => {
-                    const button = document.createElement("button");
-                    button.className = "chat-item";
-                    button.onclick = () => loadArchive(item);
-                    const avatar = document.createElement("div");
-                    avatar.className = "avatar";
-                    avatar.textContent = item.reason === "blocked" ? "!" : "A";
-                    const body = document.createElement("div");
-                    const title = document.createElement("strong");
-                    title.className = "chat-title";
-                    title.textContent = item.chatTitle;
-                    const meta = document.createElement("div");
-                    meta.className = "last-message";
-                    meta.textContent = `${item.reason === "blocked" ? "Engellenen sohbet" : "Silinen sohbet"} • ${item.messageCount} mesaj • ${relativeTime(item.expiresAt)} silinir`;
-                    body.append(title, meta);
-                    const time = document.createElement("span");
-                    time.className = "chat-time";
-                    time.textContent = relativeTime(item.createdAt);
-                    button.append(avatar, body, time);
-                    archiveList.appendChild(button);
-                });
-        }
-
-        async function unlockArchives() {
-            const pin = (state.archivePinDraft || $("archiveUnlockPin")?.value || "").trim();
-            if (!/^\d{4}$/.test(pin)) {
-                showToast("Arşiv PIN'i 4 rakam olmalı.");
-                return;
-            }
-            const savedPin = localStorage.getItem(archivePinKey());
-            if (savedPin && pin !== savedPin) {
-                showToast("PIN hatalı.");
-                state.archivePinDraft = "";
-                renderArchivePinDots();
-                return;
-            }
-            if (!savedPin) {
-                localStorage.setItem(archivePinKey(), pin);
-            }
-            const response = await fetch(`/account/${state.me.username}/archives/unlock`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({})
-            });
-            const data = await response.json();
-            if (!data.ok) {
-                showToast(data.message || "Arşiv açılamadı.");
-                return;
-            }
-            state.archiveUnlocked = true;
-            state.archivePinDraft = "";
-            state.archiveItems = data.archives || [];
-            renderArchives();
-        }
-
-        function renderArchivePinDots() {
-            const dots = $("archivePinDots");
-            if (!dots) return;
-            dots.innerHTML = [0, 1, 2, 3]
-                .map(index => `<span class="${index < state.archivePinDraft.length ? "filled" : ""}"></span>`)
-                .join("");
-            const input = $("archiveUnlockPin");
-            if (input) input.value = state.archivePinDraft;
-        }
-
-        function bindArchiveKeypad() {
-            renderArchivePinDots();
-            document.querySelectorAll("[data-archive-key]").forEach(button => {
-                button.onclick = () => {
-                    if (state.archivePinDraft.length >= 4) return;
-                    state.archivePinDraft += button.dataset.archiveKey;
-                    renderArchivePinDots();
-                    if (state.archivePinDraft.length === 4) unlockArchives();
-                };
-            });
-            document.querySelector("[data-archive-clear]")?.addEventListener("click", () => {
-                state.archivePinDraft = state.archivePinDraft.slice(0, -1);
-                renderArchivePinDots();
-            });
-            document.querySelector("[data-archive-submit]")?.addEventListener("click", unlockArchives);
-        }
-
-        async function loadArchive(item) {
-            const response = await fetch(`/account/${state.me.username}/archives/${item.id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({})
-            });
-            const data = await response.json();
-            if (!data.ok) {
-                showToast(data.message || "Arşiv açılamadı.");
-                return;
-            }
-            renderArchiveModal(data.archive);
-        }
-
-        function renderArchiveModal(archive) {
-            openModal(archive.chatTitle, body => {
-                const info = document.createElement("div");
-                info.className = "last-message";
-                info.textContent = `${archive.reason === "blocked" ? "Engellenen sohbet" : "Silinen sohbet"} • ${archive.messageCount} mesaj • ${relativeTime(archive.expiresAt)} kalıcı silinir`;
-                const list = document.createElement("div");
-                list.className = "archive-view";
-                (archive.messages || []).forEach(message => {
-                    const row = document.createElement("div");
-                    row.className = "archive-message";
-                    const sender = document.createElement("strong");
-                    sender.textContent = message.senderName || message.sender;
-                    const text = document.createElement("div");
-                    text.textContent = message.deletedAt ? "Bu mesaj silindi" : (message.body || message.attachment?.name || "Medya");
-                    const time = document.createElement("div");
-                    time.className = "last-message";
-                    time.textContent = formatTime(message.createdAt);
-                    row.append(sender, text);
-                    if (message.attachment) {
-                        row.appendChild(renderAttachment(message.attachment));
-                    }
-                    row.appendChild(time);
-                    list.appendChild(row);
-                });
-                body.append(info, list);
-            }, [
-                { label: "Kapat", onClick: closeModal },
-                { label: "Arşivden çıkar", onClick: () => restoreArchive(archive.id) },
-                { label: "Kalıcı sil", primary: true, onClick: () => deleteArchive(archive.id) }
-            ]);
-        }
-
-        async function restoreArchive(archiveId) {
-            const response = await fetch(`/account/${state.me.username}/archives/${archiveId}/restore`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({})
-            });
-            const data = await response.json();
-            if (!data.ok) {
-                showToast(data.message || "Arşivden çıkarılamadı.");
-                return;
-            }
-            if (data.chat) {
-                upsertChat(data.chat);
-            }
-            state.archives = data.archives || [];
-            state.archiveItems = state.archiveItems.filter(item => item.id !== archiveId);
-            closeModal();
-            render();
-            showToast(data.message || "Sohbet arşivden çıkarıldı.");
-        }
-
-        async function deleteArchive(archiveId) {
-            const response = await fetch(`/account/${state.me.username}/archives/${archiveId}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({})
-            });
-            const data = await response.json();
-            if (!data.ok) {
-                showToast(data.message || "Arşiv silinemedi.");
-                return;
-            }
-            state.archives = data.archives || [];
-            state.archiveItems = state.archiveItems.filter(item => item.id !== archiveId);
-            closeModal();
-            renderArchives();
-            showToast("Arşiv kalıcı olarak silindi.");
-        }
-
         function acceptedFriends() {
             return state.users
                 .filter(user => user.username !== state.me.username)
@@ -10238,13 +8880,6 @@
                     onClick: () => {
                         closeModal();
                         socket.emit("contact:remove", { username: user.username, mode: "keep" });
-                    }
-                },
-                {
-                    label: "Arşive Al",
-                    onClick: () => {
-                        closeModal();
-                        socket.emit("contact:remove", { username: user.username, mode: "archive" });
                     }
                 },
                 {
@@ -10571,18 +9206,11 @@
             }, [
                 { label: "Vazgeç", onClick: closeModal },
                 {
-                    label: "Arşive al",
-                    onClick: () => {
-                        closeModal();
-                        socket.emit("user:block", { username: user.username, blocked: true, archiveMode: "archive" });
-                    }
-                },
-                {
                     label: "Kalıcı sil",
                     primary: true,
                     onClick: () => {
                         closeModal();
-                        socket.emit("user:block", { username: user.username, blocked: true, archiveMode: "permanent" });
+                        socket.emit("user:block", { username: user.username, blocked: true, removeMode: "permanent" });
                     }
                 }
             ]);
@@ -11498,17 +10126,10 @@
             }
             openModal("Sohbeti sil", body => {
                 const text = document.createElement("p");
-                text.textContent = "Bu sohbeti listenden kaldırabilirsin. Arşive alırsan mesajlar 3 gün şifreli arşivde kalır; kalıcı silersen arşive eklenmez.";
+                text.textContent = "Bu sohbeti listenden kal?c? olarak kald?rabilirsin.";
                 body.appendChild(text);
             }, [
                 { label: "Vazgeç", onClick: closeModal },
-                {
-                    label: "Arşive al",
-                    onClick: () => {
-                        closeModal();
-                        socket.emit("chat:delete", { chatId: chat.id, mode: "archive" });
-                    }
-                },
                 {
                     label: "Kalıcı sil",
                     primary: true,
@@ -12300,7 +10921,7 @@
                 const menu = document.createElement("div");
                 menu.className = "attachment-menu compact-share-menu";
                 const items = [
-                    ["4-2-2", "attachmentMedia", "media", "Fotoğraf ve video", () => openMediaArchiveDirectly()],
+                    ["4-2-2", "attachmentMedia", "media", "Fotoğraf ve video", () => openMediaLibraryDirectly()],
                     ["4-2-9", "attachmentLocation", "location", "Konum", sendCurrentLocation],
                     ["4-2-1", "attachmentFile", "file", "Belge", () => $("fileInput").click()],
                     ["4-2-10", "attachmentOnce", "once", "Tek mesaj", openViewOnceTextComposer],
@@ -12325,7 +10946,7 @@
             }, [{ label: "Kapat", onClick: closeModal }], "sheet share-menu-sheet");
         }
 
-        function openMediaArchiveDirectly() {
+        function openMediaLibraryDirectly() {
             const input = $("mediaInput");
             if (!input) return;
             input.value = "";
@@ -14127,7 +12748,6 @@
 
         function logout() {
             confirmModal("Çıkış yap", "Hesaptan çıkmak istiyor musun?", () => {
-                resetVoiceRoomAudio();
                 localStorage.removeItem("nexalineUser");
                 location.reload();
             });
@@ -15302,7 +13922,6 @@
             renderExplore();
             renderFriends();
             renderContacts();
-            renderArchives();
         };
         let sectionResetAnimationFrame = 0;
         let sectionResetResolve = null;
@@ -15519,19 +14138,7 @@
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("topSettingsButton").onclick = openSettings;
         $("accountSwitcherButton").onclick = toggleAccountSwitcher;
-        $("archiveShortcutButton").onclick = () => {
-            state.activeSection = "archives";
-            state.activeChatId = null;
-            renderSections();
-            renderActiveChat();
-            renderArchives();
-        };
         $("newCallHeaderButton").onclick = openNewCallModal;
-        $("archiveBackButton").onclick = () => {
-            state.activeSection = "chats";
-            renderSections();
-            renderChats();
-        };
         $("pointsRailButton").onclick = openPointsPanel;
         $("mobileQrButton").onclick = openQrScanner;
         $("closeSettingsButton").onclick = closeSettings;
@@ -15898,65 +14505,8 @@
             renderActiveChat();
         });
 
-        socket.on("archive:update", archives => {
-            state.archives = archives || [];
-            if (state.archiveUnlocked) {
-                state.archiveItems = state.archiveItems.filter(item => state.archives.some(summary => summary.id === item.id));
-            }
-            renderArchives();
-        });
-
         socket.on("scheduled:update", items => {
             state.scheduledMessages = items || [];
-        });
-
-        socket.on("voice:rooms", rooms => {
-            state.voiceRooms = rooms || [];
-            const mineRoom = state.voiceRooms.find(room => room.participants?.some(user => user.username === state.me?.username));
-            if (state.activeVoiceRoomId && !mineRoom) {
-                resetVoiceRoomAudio();
-            }
-            state.activeVoiceRoomId = mineRoom?.id || "";
-            renderExplore();
-            renderContacts();
-        });
-
-        socket.on("voice:peer-left", data => {
-            if (data?.roomId === state.activeVoiceRoomId && data?.username) {
-                removeVoicePeer(data.username);
-            }
-        });
-
-        socket.on("voice:signal", async data => {
-            if (!data?.from || !data?.signal || data.roomId !== state.activeVoiceRoomId) return;
-            try {
-                const pc = await createVoiceRoomPeer(data.from, false);
-                if (!pc) return;
-                if (data.signal.type === "offer") {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.signal.description));
-                    await flushVoiceRoomIce(data.from);
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-                    socket.emit("voice:signal", {
-                        roomId: data.roomId,
-                        to: data.from,
-                        signal: { type: "answer", description: pc.localDescription }
-                    });
-                } else if (data.signal.type === "answer") {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.signal.description));
-                    await flushVoiceRoomIce(data.from);
-                } else if (data.signal.type === "ice" && data.signal.candidate) {
-                    if (pc.remoteDescription) {
-                        await pc.addIceCandidate(new RTCIceCandidate(data.signal.candidate));
-                    } else {
-                        state.voiceAudio.pendingIce[data.from] ||= [];
-                        state.voiceAudio.pendingIce[data.from].push(data.signal.candidate);
-                    }
-                }
-            } catch (error) {
-                console.warn("Sesli oda bağlantısı kurulamadı", error);
-                removeVoicePeer(data.from);
-            }
         });
 
         socket.on("account:deleted", () => {

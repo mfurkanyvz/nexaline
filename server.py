@@ -136,9 +136,6 @@ POINT_RULES = {
     "friend_accept": 10,
     "group_join": 20,
     "story": 5,
-    "voice_room_join": 50,
-    "voice_room_10min": 5,
-    "community_join": 20,
     "ai_chat": 10,
     "quest_daily": 50,
     "quest_weekly": 120,
@@ -161,14 +158,6 @@ POINT_MILESTONES = [
 scheduled_delivery_lock = threading.Lock()
 qr_login_lock = threading.Lock()
 qr_login_sessions = {}
-voice_room_lock = threading.Lock()
-voice_rooms = {
-    "general": {"id": "general", "title": "Nexa Meydan", "topic": "Herkese açık sohbet odası", "participants": {}},
-    "study": {"id": "study", "title": "Odak Odası", "topic": "Sessiz çalışma ve kısa molalar", "participants": {}},
-    "music": {"id": "music", "title": "Müzik Köşesi", "topic": "Şarkı, sohbet ve keşif", "participants": {}},
-}
-
-
 class IPv4SMTP(smtplib.SMTP):
     def _get_socket(self, host, port, timeout):
         addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
@@ -654,7 +643,6 @@ DEFAULT_DESIGN_SETTINGS = {
         "calls": "Aramalar",
         "friends": "Arkadaşlarım",
         "contacts": "Kişiler",
-        "archives": "Arşiv",
         "searchPlaceholder": "Aratın veya yeni sohbet başlatın",
         "messagePlaceholder": "Bir mesaj yazın",
         "newChat": "Yeni sohbet",
@@ -863,8 +851,7 @@ def historical_points(username):
         .count()
         * POINT_RULES["group_join"]
     )
-    community_points = CommunityMember.query.filter_by(username=username).count() * POINT_RULES["community_join"]
-    return message_points + received_points + story_points + friend_points + group_points + community_points
+    return message_points + received_points + story_points + friend_points + group_points
 
 
 def point_level(points):
@@ -997,86 +984,6 @@ def nearby_users_for(username, limit=30):
     return sorted(result, key=lambda item: item["distanceKm"])[:limit]
 
 
-VOICE_ROOM_DEFAULTS = {
-    "category": "Genel",
-    "privacy": "public",
-    "limit": 50,
-    "joinMode": "open",
-    "talkMode": "request",
-    "commentsEnabled": True,
-    "aiModeration": True,
-    "recording": False,
-    "owner": "",
-    "createdAt": None,
-    "participants": {},
-    "requests": {},
-    "comments": [],
-    "bans": [],
-}
-
-
-def normalize_voice_room(room):
-    for key, value in VOICE_ROOM_DEFAULTS.items():
-        if key not in room:
-            room[key] = value.copy() if isinstance(value, (dict, list)) else value
-    if not room.get("createdAt"):
-        room["createdAt"] = now_iso()
-    return room
-
-
-def clamp_voice_room_limit(value, default=50):
-    try:
-        limit = int(value)
-    except (TypeError, ValueError):
-        limit = default
-    return max(2, min(200, limit))
-
-
-def can_manage_voice_room(room, username):
-    if not room or not username:
-        return False
-    participant = (room.get("participants") or {}).get(username) or {}
-    return room.get("owner") == username or participant.get("role") in {"founder", "admin", "moderator"}
-
-
-def voice_room_public(room, viewer=None):
-    normalize_voice_room(room)
-    participants = []
-    for username, data in room["participants"].items():
-        participant = public_user(username, viewer)
-        participant.update({
-            "muted": bool(data.get("muted")),
-            "speaking": bool(data.get("speaking")),
-            "role": data.get("role") or ("founder" if room.get("owner") == username else "listener"),
-            "joinedAt": data.get("joinedAt"),
-            "handRaised": bool(data.get("handRaised")),
-        })
-        participants.append(participant)
-    return {
-        "id": room["id"],
-        "title": room["title"],
-        "topic": room.get("topic") or "",
-        "category": room.get("category") or "Genel",
-        "privacy": room.get("privacy") or "public",
-        "limit": int(room.get("limit") or 50),
-        "joinMode": room.get("joinMode") or "open",
-        "talkMode": room.get("talkMode") or "request",
-        "commentsEnabled": bool(room.get("commentsEnabled", True)),
-        "aiModeration": bool(room.get("aiModeration", True)),
-        "recording": bool(room.get("recording")),
-        "owner": public_user(room.get("owner"), viewer) if room.get("owner") else None,
-        "participants": participants,
-        "requests": [public_user(name, viewer) for name in (room.get("requests") or {})],
-        "comments": (room.get("comments") or [])[-80:],
-        "bans": list(room.get("bans") or []),
-        "createdAt": room.get("createdAt"),
-        "count": len(participants),
-    }
-
-
-def voice_rooms_state(viewer=None):
-    with voice_room_lock:
-        return [voice_room_public(room, viewer) for room in voice_rooms.values()]
 
 
 PRIVACY_SCOPE_VALUES = {"everyone", "friends", "contacts", "nobody"}
@@ -1916,46 +1823,6 @@ def ai_full_state_for(username):
     }
 
 
-def community_to_dict(row, viewer=None):
-    member_rows = CommunityMember.query.filter_by(community_id=row.id).all()
-    members = [public_user(member.username, viewer) for member in member_rows[:24]]
-    joined = any(member.username == viewer for member in member_rows) if viewer else False
-    announcements = (
-        CommunityAnnouncement.query.filter_by(community_id=row.id)
-        .order_by(CommunityAnnouncement.created_at.desc())
-        .limit(8)
-        .all()
-    )
-    return {
-        "id": row.id,
-        "title": row.title,
-        "description": row.description or "",
-        "category": row.category or "Genel",
-        "image": row.image,
-        "owner": public_user(row.owner, viewer),
-        "privacy": row.privacy or "public",
-        "createdAt": to_iso(row.created_at),
-        "memberCount": len(member_rows),
-        "onlineCount": sum(1 for member in member_rows if any(name == member.username for name in connections.values())),
-        "joined": joined,
-        "role": next((member.role for member in member_rows if member.username == viewer), None),
-        "members": members,
-        "announcements": [
-            {
-                "id": item.id,
-                "body": item.body,
-                "author": public_user(item.author, viewer),
-                "createdAt": to_iso(item.created_at),
-            }
-            for item in announcements
-        ],
-    }
-
-
-def communities_for(username):
-    rows = Community.query.order_by(Community.created_at.desc()).limit(80).all()
-    return [community_to_dict(row, username) for row in rows]
-
 
 def app_state_for_user(username):
     return {
@@ -1971,14 +1838,10 @@ def app_state_for_user(username):
         "blockedUsers": blocked_users_for(username),
         "blockedProfiles": [public_user(item, username) for item in blocked_users_for(username)],
         "devices": active_device_sessions(username),
-        "archives": visible_archives(username),
         "scheduledMessages": visible_scheduled_messages(username),
         "pointLedger": point_ledger_for(username),
-        "voiceRooms": voice_rooms_state(username),
-        "communities": communities_for(username),
         "aiTasks": ai_tasks_for(username),
         "nearbyUsers": nearby_users_for(username),
-        "nexaPlay": nexa_play_state(username),
     }
 
 
@@ -2278,10 +2141,8 @@ def emit_social_updates(*usernames):
                     "blockedUsers": blocked_users_for(username),
                     "blockedProfiles": [public_user(item, username) for item in blocked_users_for(username)],
                     "devices": active_device_sessions(username),
-                    "archives": visible_archives(username),
                     "scheduledMessages": visible_scheduled_messages(username),
                     "pointLedger": point_ledger_for(username),
-                    "voiceRooms": voice_rooms_state(username),
                     "nearbyUsers": nearby_users_for(username),
                 },
                 room=sid,
@@ -2373,12 +2234,6 @@ def reset_all_user_data():
     connections.clear()
     typing_users.clear()
     qr_login_sessions.clear()
-    with voice_room_lock:
-        for room in voice_rooms.values():
-            room["participants"] = {}
-            room["requests"] = {}
-            room["comments"] = []
-            room["bans"] = []
 
 
 def reset_user_data_once(reset_key=FULL_USER_DATA_RESET_KEY):
@@ -3257,7 +3112,7 @@ def ai_normalize_tool_action(tool_call, context=None):
         return action if len(action) > 3 else None
 
     if name == "delete_chat" and chat_id:
-        return {"type": "delete_chat", "chatId": chat_id, "mode": params.get("mode") or "archive", "label": label or "Sohbeti sil"}
+        return {"type": "delete_chat", "chatId": chat_id, "mode": "permanent", "label": label or "Sohbeti sil"}
 
     if name in {"start_call", "schedule_call"} and chat_id:
         action = {
@@ -6332,17 +6187,12 @@ def execute_ai_server_action(user, action):
         chat = ai_action_chat_for_user(action, username)
         if not chat:
             return {"error": "Sohbet bulunamadı veya yetkin yok.", "status": 404}
-        if (action.get("mode") or "archive") == "archive":
-            archive_chat_for_user(chat, username, "deleted")
-            message = "Sohbet arşive alındı."
-        else:
-            hide_chat_messages_for_user(chat, username)
-            message = "Sohbet kalıcı olarak gizlendi."
+        hide_chat_messages_for_user(chat, username)
+        message = "Sohbet kalıcı olarak gizlendi."
         ScheduledMessage.query.filter_by(sender=username, chat_id=chat.id).delete(synchronize_session=False)
         db.session.commit()
         for sid in connected_sids_for(username):
             socketio.emit("chat:remove", {"chatId": chat.id}, room=sid)
-            socketio.emit("archive:update", visible_archives(username), room=sid)
         return {"message": message, "state": ai_full_state_for(username)}
 
     if action_type == "send_message":
@@ -7339,8 +7189,6 @@ BADGE_DEFINITIONS = [
     {"id": "helpful", "title": "Yardımsever", "description": "5 arkadaşlık kabul puanı kazan.", "reward": "Profil rozeti", "target": 5, "reason": "friend_accept"},
     {"id": "loyal", "title": "Sadık Üye", "description": "10 günlük giriş serisi oluştur.", "reward": "Sadakat rozeti", "target": 10, "reason": "daily_streak"},
     {"id": "explorer", "title": "Keşifçi", "description": "3 farklı özelliği kullan.", "reward": "Keşif teması", "target": 3, "reason": "feature_mix"},
-    {"id": "voice_master", "title": "Sesli Oda Ustası", "description": "3 sesli odaya katıl.", "reward": "Sesli oda rozeti", "target": 3, "reason": "voice_room_join"},
-    {"id": "community_leader", "title": "Topluluk Lideri", "description": "Bir topluluk oluştur veya 3 topluluğa katıl.", "reward": "Lider rozeti", "target": 3, "reason": "community_join"},
     {"id": "ai_friend", "title": "AI Dostu", "description": "Nexa AI ile 5 gün konuş.", "reward": "+100", "target": 5, "reason": "ai_chat"},
     *[
         {
@@ -7359,8 +7207,6 @@ BADGE_DEFINITIONS = [
 QUEST_DEFINITIONS = [
     {"id": "daily_messages", "type": "daily", "title": "3 kişiye mesaj gönder", "description": "Bugün en az 3 mesaj gönder.", "reward": POINT_RULES["quest_daily"], "reason": "message", "target": 3},
     {"id": "daily_ai", "type": "daily", "title": "AI ile sohbet et", "description": "Bugün Nexa AI'ya bir komut ver.", "reward": POINT_RULES["quest_daily"], "reason": "ai_chat", "target": 1},
-    {"id": "weekly_voice", "type": "weekly", "title": "Bir sesli odaya katıl", "description": "Bu hafta canlı bir odaya gir.", "reward": POINT_RULES["quest_weekly"], "reason": "voice_room_join", "target": 1},
-    {"id": "weekly_community", "type": "weekly", "title": "Bir topluluğa katıl", "description": "Bu hafta bir topluluğa katıl veya oluştur.", "reward": POINT_RULES["quest_weekly"], "reason": "community_join", "target": 1},
     {"id": "special_story", "type": "special", "title": "Durum paylaş", "description": "Bir güncelleme paylaş.", "reward": POINT_RULES["quest_special"], "reason": "story", "target": 1},
 ]
 
@@ -7395,7 +7241,7 @@ def badge_progress(username, points):
         elif reason == "daily_streak":
             value = streak
         elif reason == "feature_mix":
-            value = len(feature_reasons.intersection({"message", "story", "voice_room_join", "community_join", "ai_chat"}))
+            value = len(feature_reasons.intersection({"message", "story", "ai_chat"}))
         elif reason == "any":
             value = PointLedger.query.filter_by(username=username).count()
         else:
@@ -7456,62 +7302,6 @@ def leaderboard_for(username):
     return {"global": global_rows, "country": global_rows, "friends": friend_rows}
 
 
-@app.route("/games/<username>/state", methods=["GET", "POST"])
-def nexa_play_state_route(username):
-    username = username.strip().lower()
-    if not db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
-    if request.method == "GET":
-        return jsonify({"ok": True, "state": nexa_play_state(username)})
-    try:
-        state_data = save_nexa_play_state(username, request.get_json() or {})
-    except (TypeError, ValueError) as error:
-        db.session.rollback()
-        return jsonify({"ok": False, "message": str(error)}), 400
-    return jsonify({"ok": True, "state": state_data})
-
-
-@app.route("/games/<username>/hint", methods=["POST"])
-def nexa_play_hint_route(username):
-    username = username.strip().lower()
-    user = db.session.get(User, username)
-    if not user:
-        return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
-    data = request.get_json() or {}
-    game_id = str(data.get("game") or "").strip().lower()
-    if game_id not in NEXA_PLAY_GAMES:
-        return jsonify({"ok": False, "message": "Oyun bulunamadı."}), 404
-    fallbacks = {
-        "chess": "Taşlarını geliştir, şahını güvende tut ve rakibin savunmasız taşlarını kontrol et.",
-        "solitaire": "Önce kapalı kart açan hamleleri, sonra boş sütun oluşturan hamleleri tercih et.",
-        "2048": "En büyük taşı bir köşede tut; mümkün olduğunca iki ana yönü kullan.",
-        "block-blast": "Büyük parçalar için alan bırak ve aynı anda satır ile sütun temizleyen yerleşimleri ara.",
-    }
-    hint_keywords = {
-        "chess": {"taş", "şah", "piyon", "satranç", "hamle", "rakip"},
-        "solitaire": {"kart", "sütun", "temel", "kapalı", "solitaire"},
-        "2048": {"sayı", "köşe", "birleştir", "yön", "2048"},
-        "block-blast": {"block", "parça", "satır", "sütun", "alan", "tahta"},
-    }
-    state_summary = json.dumps(data.get("state") or {}, ensure_ascii=False)[:2400]
-    prompt = (
-        f"Nexa Play içindeki {game_id} oyunu için tek cümlelik, uygulanabilir Türkçe bir hamle ipucu ver. "
-        f"Oyun durumu: {state_summary}"
-    )
-    context = ai_context_for_user(username, chat_id=f"game:{game_id}", prompt=prompt)
-    try:
-        reply, provider, _research = generate_ai_reply(prompt, context, [])
-        hint = re.sub(r"\s+", " ", (reply or "").strip())[:360]
-        normalized_hint = hint.casefold()
-        if not hint or not any(keyword in normalized_hint for keyword in hint_keywords[game_id]):
-            raise ValueError("Boş AI yanıtı")
-    except Exception:
-        app.logger.exception("Nexa Play hint provider failed")
-        hint = fallbacks[game_id]
-        provider = "local"
-    return jsonify({"ok": True, "hint": hint, "provider": provider})
-
-
 @app.route("/points/<username>")
 def points_state(username):
     username = username.strip().lower()
@@ -7570,68 +7360,6 @@ def nearby_state(username):
             user.last_lng = None
         db.session.commit()
     return jsonify({"ok": True, "enabled": bool(user.nearby_enabled), "users": nearby_users_for(username)})
-
-
-@app.route("/communities", methods=["GET", "POST"])
-def communities_route():
-    if request.method == "GET":
-        username = (request.args.get("username") or "").strip().lower()
-        return jsonify({"ok": True, "communities": communities_for(username or None)})
-    data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
-    user = db.session.get(User, username)
-    if not user:
-        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
-    title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:160]
-    if len(title) < 2:
-        return jsonify({"ok": False, "message": "Topluluk adı gerekli."}), 400
-    community = Community(
-        id=uuid4().hex,
-        title=title,
-        description=(data.get("description") or "").strip()[:800],
-        category=(data.get("category") or "Genel").strip()[:80],
-        privacy=(data.get("privacy") or "public").strip().lower()[:30],
-        owner=username,
-    )
-    db.session.add(community)
-    db.session.flush()
-    db.session.add(CommunityMember(community_id=community.id, username=username, role="owner"))
-    add_points_once(username, POINT_RULES["community_join"], "community_join", f"community:{community.id}", {"communityId": community.id, "role": "owner"})
-    db.session.commit()
-    return jsonify({"ok": True, "message": "Topluluk oluşturuldu.", "community": community_to_dict(community, username), "communities": communities_for(username)})
-
-
-@app.route("/communities/<community_id>/join", methods=["POST"])
-def community_join(community_id):
-    data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
-    community = db.session.get(Community, community_id)
-    if not db.session.get(User, username) or not community:
-        return jsonify({"ok": False, "message": "Topluluk veya kullanıcı bulunamadı."}), 404
-    row = CommunityMember.query.filter_by(community_id=community_id, username=username).first()
-    if not row:
-        db.session.add(CommunityMember(community_id=community_id, username=username, role="member"))
-        add_points_once(username, POINT_RULES["community_join"], "community_join", f"community:{community_id}", {"communityId": community_id})
-        db.session.commit()
-    return jsonify({"ok": True, "message": "Topluluğa katıldın.", "community": community_to_dict(community, username), "communities": communities_for(username)})
-
-
-@app.route("/communities/<community_id>/announcements", methods=["POST"])
-def community_announcement_create(community_id):
-    data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
-    body = re.sub(r"\s+", " ", (data.get("body") or "").strip())[:1200]
-    community = db.session.get(Community, community_id)
-    member = CommunityMember.query.filter_by(community_id=community_id, username=username).first()
-    if not community or not member:
-        return jsonify({"ok": False, "message": "Topluluk üyeliği gerekli."}), 403
-    if member.role not in {"owner", "admin", "moderator"}:
-        return jsonify({"ok": False, "message": "Duyuru için yönetici yetkisi gerekli."}), 403
-    if len(body) < 2:
-        return jsonify({"ok": False, "message": "Duyuru metni gerekli."}), 400
-    db.session.add(CommunityAnnouncement(id=uuid4().hex, community_id=community_id, author=username, body=body))
-    db.session.commit()
-    return jsonify({"ok": True, "message": "Duyuru yayınlandı.", "community": community_to_dict(community, username), "communities": communities_for(username)})
 
 
 def vault_items_for(username):
@@ -7932,69 +7660,16 @@ def unblock_user(username, target):
 
 @app.route("/account/<username>/archives/<archive_id>", methods=["POST"])
 def read_archive(username, archive_id):
-    username = username.strip().lower()
-
-    purge_expired_archives()
-    archive = db.session.get(ChatArchive, archive_id)
-    if not archive or archive.username != username:
-        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
-
-    return jsonify(
-        {
-            "ok": True,
-            "archive": {
-                **archive_to_summary(archive),
-                "messages": archive.messages or [],
-            },
-        }
-    )
-
-
+    return jsonify({"ok": False, "message": "Ar?iv kald?r?ld?."}), 410
 @app.route("/account/<username>/archives/unlock", methods=["POST"])
 def unlock_archives(username):
-    username = username.strip().lower()
-
-    return jsonify({"ok": True, "archives": archives_with_messages(username)})
-
-
+    return jsonify({"ok": False, "message": "Ar?iv kald?r?ld?."}), 410
 @app.route("/account/<username>/archives/<archive_id>/restore", methods=["POST"])
 def restore_archive(username, archive_id):
-    username = username.strip().lower()
-
-    purge_expired_archives()
-    archive = db.session.get(ChatArchive, archive_id)
-    if not archive or archive.username != username:
-        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
-
-    chat = restore_archive_for_user(archive)
-    if not chat:
-        return jsonify({"ok": False, "message": "Sohbet artik geri yuklenemiyor."}), 404
-
-    db.session.commit()
-    return jsonify(
-        {
-            "ok": True,
-            "message": "Sohbet arşivden çıkarıldı.",
-            "chat": chat_for_user(chat, username),
-            "archives": visible_archives(username),
-            "scheduledMessages": visible_scheduled_messages(username),
-        }
-    )
-
-
+    return jsonify({"ok": False, "message": "Ar?iv kald?r?ld?."}), 410
 @app.route("/account/<username>/archives/<archive_id>", methods=["DELETE"])
 def delete_archive(username, archive_id):
-    username = username.strip().lower()
-
-    archive = db.session.get(ChatArchive, archive_id)
-    if not archive or archive.username != username:
-        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
-
-    db.session.delete(archive)
-    db.session.commit()
-    return jsonify({"ok": True, "archives": visible_archives(username)})
-
-
+    return jsonify({"ok": False, "message": "Ar?iv kald?r?ld?."}), 410
 @app.route("/account/<username>", methods=["DELETE"])
 def delete_account(username):
     try:
@@ -8080,15 +7755,6 @@ def delete_account(username):
             if connected_user == username:
                 connections.pop(sid, None)
                 socketio.emit("account:deleted", {"username": username}, room=sid)
-        with voice_room_lock:
-            for room in voice_rooms.values():
-                room.get("participants", {}).pop(username, None)
-                room.get("requests", {}).pop(username, None)
-                room["comments"] = [
-                    item
-                    for item in room.get("comments", [])
-                    if item.get("username") != username
-                ]
 
         broadcast_presence()
         emit_general_group_updates()
@@ -8147,14 +7813,6 @@ def admin_state():
             }
         )
 
-    archives = [
-        {
-            **archive_to_summary(archive),
-            "username": archive.username,
-            "messages": compact_archive_messages_for_admin(archive.messages),
-        }
-        for archive in ChatArchive.query.order_by(ChatArchive.created_at.desc()).all()
-    ]
     blocks = [
         {
             "id": row.id,
@@ -8180,7 +7838,6 @@ def admin_state():
             "chats": chats,
             "stories": [admin_story_to_dict(story) for story in Story.query.filter(Story.expires_at > datetime.now(timezone.utc)).order_by(Story.created_at.desc()).all()],
             "calls": [call_log_to_dict(log, log.caller) for log in CallLog.query.order_by(CallLog.started_at.desc()).all()],
-            "archives": archives,
             "blocks": blocks,
             "contactRequests": contact_requests,
             "groupInvites": group_invites,
@@ -8190,9 +7847,6 @@ def admin_state():
             "pointLedger": [point_ledger_to_dict(row) for row in PointLedger.query.order_by(PointLedger.created_at.desc()).limit(300).all()],
             "aiMemories": [admin_ai_memory_to_dict(row) for row in AiMemory.query.order_by(AiMemory.created_at.desc()).limit(300).all()],
             "aiTasks": [ai_task_to_dict(row) for row in AiTask.query.order_by(AiTask.created_at.desc()).limit(240).all()],
-            "voiceRooms": voice_rooms_state(),
-            "communities": [community_to_dict(row) for row in Community.query.order_by(Community.created_at.desc()).limit(160).all()],
-            "nexaPlay": admin_nexa_play_states(),
             "devices": [device_session_to_dict(row) for row in DeviceSession.query.order_by(DeviceSession.last_seen.desc()).limit(240).all()],
             "mobilePlatform": {
                 "androidVersion": "1.0.11",
@@ -8264,37 +7918,6 @@ def admin_clear_ai_memory(username):
     AiTask.query.filter_by(username=username).delete(synchronize_session=False)
     db.session.commit()
     return jsonify({"ok": True, "deleted": deleted})
-
-
-@app.route("/admin/user/<username>/games", methods=["DELETE"])
-def admin_reset_games(username):
-    admin_error = require_admin()
-    if admin_error:
-        return admin_error
-    row = db.session.get(AppSetting, nexa_play_setting_key(username))
-    if row:
-        db.session.delete(row)
-        db.session.commit()
-    return jsonify({"ok": True})
-
-
-@app.route("/admin/voice-room/<room_id>", methods=["DELETE"])
-def admin_close_voice_room(room_id):
-    admin_error = require_admin()
-    if admin_error:
-        return admin_error
-    with voice_room_lock:
-        room = voice_rooms.get(room_id)
-        if not room:
-            return jsonify({"ok": False, "message": "Sesli oda bulunamadı."}), 404
-        if room_id == "lounge":
-            room["participants"] = {}
-            room["comments"] = []
-            room["requests"] = {}
-        else:
-            voice_rooms.pop(room_id, None)
-    emit_voice_rooms()
-    return jsonify({"ok": True})
 
 
 @app.route("/admin/update/<post_id>", methods=["DELETE"])
@@ -8461,15 +8084,6 @@ def admin_delete_user(username):
         if connected_user == target_username:
             connections.pop(sid, None)
             socketio.emit("account:deleted", {"username": target_username}, room=sid)
-    with voice_room_lock:
-        for room in voice_rooms.values():
-            room.get("participants", {}).pop(target_username, None)
-            room.get("requests", {}).pop(target_username, None)
-            room["comments"] = [
-                item
-                for item in room.get("comments", [])
-                if item.get("username") != target_username
-            ]
     broadcast_presence()
     emit_general_group_updates()
     broadcast_stories()
@@ -8601,38 +8215,13 @@ def admin_delete_archive(archive_id):
     admin_error = require_admin()
     if admin_error:
         return admin_error
-
-    archive = db.session.get(ChatArchive, archive_id)
-    if not archive:
-        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
-
-    db.session.delete(archive)
-    db.session.commit()
-    return jsonify({"ok": True, "message": "Arşiv silindi."})
-
-
+    return jsonify({"ok": False, "message": "Ar?iv kald?r?ld?."}), 410
 @app.route("/admin/archive/<archive_id>/restore", methods=["POST"])
 def admin_restore_archive(archive_id):
     admin_error = require_admin()
     if admin_error:
         return admin_error
-
-    archive = db.session.get(ChatArchive, archive_id)
-    if not archive:
-        return jsonify({"ok": False, "message": "Arşiv bulunamadı."}), 404
-
-    username = archive.username
-    chat = restore_archive_for_user(archive)
-    if not chat:
-        return jsonify({"ok": False, "message": "Sohbet geri yuklenemiyor."}), 404
-
-    db.session.commit()
-    for sid in connected_sids_for(username):
-        socketio.emit("chat:upsert", chat_for_user(chat, username), room=sid)
-        socketio.emit("archive:update", visible_archives(username), room=sid)
-    return jsonify({"ok": True, "message": "Arşivden çıkarıldı."})
-
-
+    return jsonify({"ok": False, "message": "Ar?iv kald?r?ld?."}), 410
 @app.route("/admin/message/<message_id>", methods=["DELETE"])
 def admin_delete_message(message_id):
     admin_error = require_admin()
@@ -8863,17 +8452,13 @@ def handle_contact_remove(data):
         emit("notice", {"message": "Bu kişi zaten arkadaş listende değil."})
         return
 
-    if mode not in {"keep", "archive", "permanent"}:
+    if mode not in {"keep", "permanent"}:
         mode = "keep"
 
     request_row.status = "declined"
     request_row.responded_at = datetime.now(timezone.utc)
     chat = find_direct_chat(username, target)
-    if chat and mode == "archive":
-        archive_chat_for_user(chat, username, "deleted")
-        emit("chat:remove", {"chatId": chat.id}, room=request.sid)
-        emit("archive:update", visible_archives(username), room=request.sid)
-    elif chat and mode == "permanent":
+    if chat and mode == "permanent":
         hide_chat_messages_for_user(chat, username)
         emit("chat:remove", {"chatId": chat.id}, room=request.sid)
 
@@ -8887,7 +8472,7 @@ def handle_user_block(data):
     username = connections.get(request.sid)
     target = (data or {}).get("username", "").strip().lower()
     blocked = bool((data or {}).get("blocked", True))
-    archive_mode = (data or {}).get("archiveMode") or "keep"
+    remove_mode = (data or {}).get("removeMode") or "keep"
 
     if not username or target == username or not db.session.get(User, target):
         emit("notice", {"message": "Kullanıcı bulunamadı."})
@@ -8896,11 +8481,8 @@ def handle_user_block(data):
     row = BlockedUser.query.filter_by(blocker=username, blocked=target).first()
     if blocked and not row:
         chat = find_direct_chat(username, target)
-        if chat and archive_mode in {"archive", "permanent"}:
-            if archive_mode == "archive":
-                archive_chat_for_user(chat, username, "blocked")
-            else:
-                hide_chat_messages_for_user(chat, username)
+        if chat and remove_mode == "permanent":
+            hide_chat_messages_for_user(chat, username)
         db.session.add(BlockedUser(blocker=username, blocked=target))
     elif not blocked and row:
         db.session.delete(row)
@@ -9193,25 +8775,20 @@ def handle_chat_delete(data):
     username = connections.get(request.sid)
     data = data or {}
     chat = db.session.get(Chat, data.get("chatId"))
-    mode = data.get("mode") or "archive"
+    mode = data.get("mode") or "permanent"
 
     if not username or not chat or not user_can_see_chat(chat, username):
         return
 
-    if mode not in {"archive", "permanent"}:
-        mode = "archive"
+    if mode != "permanent":
+        mode = "permanent"
 
-    if mode == "archive":
-        archive_chat_for_user(chat, username, "deleted")
-        message = "Sohbet 3 gunluk arsive alindi."
-    else:
-        hide_chat_messages_for_user(chat, username)
-        message = "Sohbet kalici olarak silindi."
+    hide_chat_messages_for_user(chat, username)
+    message = "Sohbet kalici olarak silindi."
 
     ScheduledMessage.query.filter_by(sender=username, chat_id=chat.id).delete(synchronize_session=False)
     db.session.commit()
     emit("chat:remove", {"chatId": chat.id}, room=request.sid)
-    emit("archive:update", visible_archives(username), room=request.sid)
     emit("notice", {"message": message})
 
 
@@ -10063,294 +9640,11 @@ def handle_call_end(data):
     forward_call_event("call:end", data)
 
 
-def emit_voice_rooms():
-    for sid, username in connections.items():
-        socketio.emit("voice:rooms", voice_rooms_state(username), room=sid)
-
-
-@socketio.on("voice:join")
-def handle_voice_join(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "general").strip()
-    if not username or room_id not in voice_rooms:
-        return {"ok": False, "message": "Sesli oda bulunamadı."}
-    previous_rooms = []
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if username in (room.get("bans") or []):
-            emit("notice", {"message": "Bu odadan engellendin."})
-            return {"ok": False, "message": "Bu odadan engellendin."}
-        if len(room["participants"]) >= int(room.get("limit") or 50) and username not in room["participants"]:
-            emit("notice", {"message": "Oda katılımcı limiti dolu."})
-            return {"ok": False, "message": "Oda katılımcı limiti dolu."}
-        for existing_room_id, existing_room in voice_rooms.items():
-            if existing_room_id != room_id and username in existing_room["participants"]:
-                existing_room["participants"].pop(username, None)
-                previous_rooms.append(existing_room_id)
-        room = normalize_voice_room(voice_rooms[room_id])
-        peers = [name for name in room["participants"] if name != username]
-        role = "founder" if room.get("owner") == username else ("speaker" if room.get("talkMode") == "everyone" else "listener")
-        room["participants"][username] = {
-            "muted": False,
-            "speaking": False,
-            "role": role,
-            "handRaised": False,
-            "joinedAt": now_iso(),
-        }
-    for previous_room_id in previous_rooms:
-        leave_room(f"voice:{previous_room_id}")
-        socketio.emit(
-            "voice:peer-left",
-            {"roomId": previous_room_id, "username": username},
-            room=f"voice:{previous_room_id}",
-        )
-    join_room(f"voice:{room_id}")
-    add_points_once(username, POINT_RULES["voice_room_join"], "voice_room_join", f"{datetime.now(timezone.utc).date()}:{room_id}", {"roomId": room_id})
-    db.session.commit()
-    socketio.emit(
-        "voice:peer-joined",
-        {"roomId": room_id, "username": username},
-        room=f"voice:{room_id}",
-        skip_sid=request.sid,
-    )
-    emit_voice_rooms()
-    return {"ok": True, "roomId": room_id, "peers": peers}
-
-
-@socketio.on("voice:leave")
-def handle_voice_leave(data=None):
-    username = connections.get(request.sid)
-    if not username:
-        return {"ok": False, "message": "Oturum bulunamadı."}
-    left_rooms = []
-    with voice_room_lock:
-        for room_id, room in voice_rooms.items():
-            if username in room["participants"]:
-                participant = room["participants"].pop(username, None) or {}
-                joined_at = participant.get("joinedAt")
-                if joined_at:
-                    try:
-                        joined_dt = datetime.fromisoformat(str(joined_at).replace("Z", "+00:00"))
-                        if (datetime.now(timezone.utc) - joined_dt).total_seconds() >= 600:
-                            add_points(username, POINT_RULES["voice_room_10min"], "voice_room_10min", {"roomId": room_id})
-                    except ValueError:
-                        pass
-                leave_room(f"voice:{room_id}")
-                left_rooms.append(room_id)
-    db.session.commit()
-    for room_id in left_rooms:
-        socketio.emit(
-            "voice:peer-left",
-            {"roomId": room_id, "username": username},
-            room=f"voice:{room_id}",
-        )
-    emit_voice_rooms()
-    return {"ok": True, "rooms": left_rooms}
-
-
-@socketio.on("voice:mute")
-def handle_voice_mute(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    if not username or room_id not in voice_rooms:
-        return {"ok": False, "message": "Sesli oda bulunamadı."}
-    muted = bool((data or {}).get("muted"))
-    with voice_room_lock:
-        participant = voice_rooms[room_id]["participants"].get(username)
-        if participant is not None:
-            participant["muted"] = muted
-    emit_voice_rooms()
-    return {"ok": True, "muted": muted}
-
-
-@socketio.on("voice:speaking")
-def handle_voice_speaking(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    if not username or room_id not in voice_rooms:
-        return
-    with voice_room_lock:
-        participant = voice_rooms[room_id]["participants"].get(username)
-        if participant is not None:
-            participant["speaking"] = bool((data or {}).get("speaking"))
-    emit_voice_rooms()
-
-
-@socketio.on("voice:create")
-def handle_voice_create(data):
-    username = connections.get(request.sid)
-    data = data or {}
-    if not username:
-        return {"ok": False, "message": "Oturum bulunamadı."}
-    title = re.sub(r"\s+", " ", (data.get("title") or "").strip())[:120]
-    if len(title) < 2:
-        emit("notice", {"message": "Oda adı gerekli."})
-        return {"ok": False, "message": "Oda adı gerekli."}
-    room_id = uuid4().hex[:12]
-    with voice_room_lock:
-        voice_rooms[room_id] = normalize_voice_room({
-            "id": room_id,
-            "title": title,
-            "topic": (data.get("topic") or data.get("category") or "Canlı sohbet").strip()[:180],
-            "category": (data.get("category") or "Genel").strip()[:60],
-            "privacy": (data.get("privacy") or "public").strip().lower(),
-            "limit": clamp_voice_room_limit(data.get("limit")),
-            "joinMode": (data.get("joinMode") or "open").strip().lower(),
-            "talkMode": (data.get("talkMode") or "request").strip().lower(),
-            "commentsEnabled": data.get("commentsEnabled") is not False,
-            "aiModeration": data.get("aiModeration") is not False,
-            "recording": bool(data.get("recording")),
-            "owner": username,
-            "participants": {},
-        })
-    result = handle_voice_join({"roomId": room_id}) or {"ok": True, "roomId": room_id, "peers": []}
-    return {**result, "created": True}
-
-
-@socketio.on("voice:signal")
-def handle_voice_signal(data):
-    username = connections.get(request.sid)
-    payload = data or {}
-    room_id = (payload.get("roomId") or "").strip()
-    target = (payload.get("to") or "").strip().lower()
-    signal = payload.get("signal")
-    if not username or room_id not in voice_rooms or not target or not isinstance(signal, dict):
-        return {"ok": False, "message": "Ses bağlantısı bilgisi eksik."}
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if username not in room["participants"] or target not in room["participants"]:
-            return {"ok": False, "message": "Kullanıcı sesli odada değil."}
-    for sid in connected_sids_for(target):
-        socketio.emit(
-            "voice:signal",
-            {"roomId": room_id, "from": username, "signal": signal},
-            room=sid,
-        )
-    return {"ok": True}
-
-
-@socketio.on("voice:request_speak")
-def handle_voice_request_speak(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    if not username or room_id not in voice_rooms:
-        return
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if username in room["participants"]:
-            room["participants"][username]["handRaised"] = True
-            room["requests"][username] = now_iso()
-    emit_voice_rooms()
-
-
-@socketio.on("voice:approve_speaker")
-def handle_voice_approve_speaker(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    target = ((data or {}).get("username") or "").strip().lower()
-    accept = (data or {}).get("accept") is not False
-    if not username or room_id not in voice_rooms:
-        return
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if not can_manage_voice_room(room, username):
-            emit("notice", {"message": "Oda yönetimi için yetkin yok."})
-            return
-        room["requests"].pop(target, None)
-        if target in room["participants"]:
-            room["participants"][target]["handRaised"] = False
-            if accept:
-                room["participants"][target]["role"] = "speaker"
-                room["participants"][target]["muted"] = False
-    emit_voice_rooms()
-
-
-@socketio.on("voice:comment")
-def handle_voice_comment(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    body = re.sub(r"\s+", " ", ((data or {}).get("body") or "").strip())[:500]
-    if not username or room_id not in voice_rooms or not body:
-        return
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if not room.get("commentsEnabled", True):
-            emit("notice", {"message": "Bu odada yorumlar kapalı."})
-            return
-        labels = ai_moderation_labels(body) if room.get("aiModeration", True) else []
-        comment = {
-            "id": uuid4().hex,
-            "username": username,
-            "displayName": db.session.get(User, username).display_name if db.session.get(User, username) else username,
-            "body": body,
-            "labels": labels,
-            "hidden": bool(labels),
-            "pinned": False,
-            "createdAt": now_iso(),
-        }
-        room["comments"].append(comment)
-        room["comments"] = room["comments"][-100:]
-    emit_voice_rooms()
-
-
-@socketio.on("voice:settings")
-def handle_voice_settings(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    if not username or room_id not in voice_rooms:
-        return
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if not can_manage_voice_room(room, username):
-            emit("notice", {"message": "Oda ayarları için yetkin yok."})
-            return
-        for key in ["privacy", "joinMode", "talkMode", "commentsEnabled", "aiModeration", "recording"]:
-            if key in data:
-                room[key] = data[key]
-        if "limit" in data:
-            room["limit"] = clamp_voice_room_limit(data.get("limit"), room.get("limit") or 50)
-    emit_voice_rooms()
-
-
-@socketio.on("voice:ban")
-def handle_voice_ban(data):
-    username = connections.get(request.sid)
-    room_id = ((data or {}).get("roomId") or "").strip()
-    target = ((data or {}).get("username") or "").strip().lower()
-    banned = (data or {}).get("banned") is not False
-    if not username or room_id not in voice_rooms or not target:
-        return
-    with voice_room_lock:
-        room = normalize_voice_room(voice_rooms[room_id])
-        if not can_manage_voice_room(room, username):
-            emit("notice", {"message": "Ban işlemi için yetkin yok."})
-            return
-        bans = set(room.get("bans") or [])
-        if banned:
-            bans.add(target)
-            room["participants"].pop(target, None)
-        else:
-            bans.discard(target)
-        room["bans"] = sorted(bans)
-    emit_voice_rooms()
-
-
 @socketio.on("disconnect")
 def handle_disconnect():
     username = connections.pop(request.sid, None)
 
     if username:
-        departed_voice_rooms = []
-        with voice_room_lock:
-            for room_id, room in voice_rooms.items():
-                if room["participants"].pop(username, None) is not None:
-                    departed_voice_rooms.append(room_id)
-        for room_id in departed_voice_rooms:
-            socketio.emit(
-                "voice:peer-left",
-                {"roomId": room_id, "username": username},
-                room=f"voice:{room_id}",
-            )
         user = db.session.get(User, username)
         if user:
             user.last_seen = datetime.now(timezone.utc)
@@ -10362,7 +9656,6 @@ def handle_disconnect():
                 emit("typing:update", {"chatId": chat_id, "users": sorted(users_typing)}, room=chat_id)
 
     broadcast_presence()
-    emit_voice_rooms()
 
 
 def background_scheduler():

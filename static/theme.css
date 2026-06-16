@@ -37,11 +37,8 @@ body {
 .chat-item,
 .contact-row,
 .call-row,
-.community-card,
 .profile-card,
-.voice-room-card,
 .vault-card,
-.archive-card,
 .ai-card {
     background: var(--glass-bg);
     backdrop-filter: blur(20px) saturate(130%);
@@ -456,7 +453,7 @@ small {
 .icon-btn,
 .text-btn,
 .nav-tab,
-.archive-shortcut,
+.new-requests-chip,
 .new-chat-fab,
 .file-pill,
 .points-chip,
@@ -637,7 +634,7 @@ textarea {
     padding: 0 15px 10px;
 }
 
-.archive-shortcut {
+.new-requests-chip {
     min-height: 32px;
     padding: 6px 11px;
     border-color: rgba(255, 255, 255, 0.08);
@@ -664,11 +661,8 @@ textarea {
 .chat-item,
 .contact-row,
 .call-row,
-.community-card,
 .profile-card,
-.voice-room-card,
 .vault-card,
-.archive-card,
 .ai-card,
 .file-pill {
     display: flex;
@@ -1678,10 +1672,7 @@ button {
 .call-row,
 .story-item,
 .explore-card,
-.voice-room-card,
-.community-card,
 .profile-card,
-.archive-card,
 .settings-box,
 .modal-panel,
 .bottom-sheet,
@@ -3257,8 +3248,7 @@ button {
     gap: 9px;
 }
 
-.ai-home-card,
-.voice-live-card {
+.ai-home-card {
     min-width: 0;
     display: grid;
     gap: 4px;
@@ -3273,73 +3263,29 @@ button {
 }
 
 .ai-home-card:hover,
-.ai-home-card:focus-visible,
-.voice-live-card:hover,
-.voice-live-card:focus-visible {
+.ai-home-card:focus-visible {
     border-color: rgba(0, 242, 255, 0.3);
     box-shadow: 0 0 18px rgba(0, 242, 255, 0.09);
 }
 
-.ai-home-card strong,
-.voice-live-card strong {
+.ai-home-card strong {
     overflow: hidden;
     font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.ai-home-card small,
-.voice-live-card small {
+.ai-home-card small {
     color: var(--text-muted);
     font-size: 10px;
     line-height: 1.35;
 }
 
-.voice-rooms-body > input {
-    width: 100%;
-    min-height: 42px;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 14px;
-    background: rgba(7, 13, 22, 0.78);
-    color: var(--text-main);
-}
 
-.voice-participant-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-}
 
-.voice-participant {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    align-items: center;
-    gap: 3px 8px;
-    padding: 9px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 15px;
-    background: rgba(255, 255, 255, 0.04);
-}
 
-.voice-participant .avatar {
-    width: 34px;
-    height: 34px;
-    grid-row: 1 / 3;
-    font-size: 10px;
-}
 
-.voice-participant > span:not(.avatar),
-.voice-participant > small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
 
-.voice-participant > small {
-    color: var(--text-muted);
-    font-size: 9px;
-}
 
 .points-panel-body {
     display: grid;
@@ -5971,569 +5917,6 @@ button {
     }
 }
 
-/* Nexa Play */
-.nexa-play-panel .modal-box {
-    width: min(920px, calc(100vw - 24px));
-    max-height: min(860px, calc(var(--app-height, 100dvh) - 28px));
-}
-
-.nexa-play-panel:not(.hidden) .modal-box {
-    animation: nexaPlayEnter 320ms cubic-bezier(.2, .78, .2, 1);
-}
-
-@keyframes nexaPlayEnter {
-    from {
-        opacity: 0;
-        transform: translateX(36px) scale(.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0) scale(1);
-    }
-}
-
-.nexa-play-body,
-.nexa-game-body {
-    display: grid;
-    gap: 14px;
-    overflow-x: hidden;
-}
-
-.nexa-play-hero {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-height: 104px;
-    padding: 18px;
-    overflow: hidden;
-    border: 1px solid rgba(112, 76, 255, .26);
-    border-radius: 22px;
-    background:
-        radial-gradient(circle at 10% 20%, rgba(0, 242, 255, .18), transparent 38%),
-        radial-gradient(circle at 90% 75%, rgba(255, 0, 184, .18), transparent 42%),
-        rgba(12, 18, 31, .82);
-}
-
-.nexa-play-hero::after {
-    content: "";
-    position: absolute;
-    inset: auto -24% -75% 28%;
-    height: 130px;
-    border-radius: 50%;
-    background: rgba(112, 76, 255, .18);
-    filter: blur(30px);
-}
-
-.nexa-play-hero strong,
-.nexa-play-hero small {
-    position: relative;
-    z-index: 1;
-    display: block;
-}
-
-.nexa-play-hero strong {
-    font-size: 22px;
-}
-
-.nexa-play-hero small {
-    margin-top: 4px;
-    color: var(--muted);
-}
-
-.nexa-play-orbit {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    place-items: center;
-    width: 62px;
-    height: 62px;
-    flex: 0 0 62px;
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, .18);
-    border-radius: 20px;
-    background: linear-gradient(145deg, rgba(0, 242, 255, .48), rgba(112, 76, 255, .72) 55%, rgba(255, 0, 184, .68));
-    box-shadow: 0 0 30px rgba(112, 76, 255, .28);
-    animation: nexaPlayFloat 3s ease-in-out infinite;
-}
-
-.nexa-play-orbit .nexa-svg {
-    width: 30px;
-    height: 30px;
-}
-
-@keyframes nexaPlayFloat {
-    50% { transform: translateY(-4px) rotate(4deg); }
-}
-
-.nexa-play-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.nexa-game-card {
-    position: relative;
-    display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 12px;
-    min-height: 88px;
-    padding: 14px;
-    overflow: hidden;
-    text-align: left;
-    color: var(--text-main);
-    border: 1px solid rgba(255, 255, 255, .09);
-    border-radius: 19px;
-    background: linear-gradient(145deg, rgba(23, 31, 49, .9), rgba(10, 15, 27, .88));
-    box-shadow: 0 14px 30px rgba(0, 0, 0, .22);
-}
-
-.nexa-game-card::after {
-    content: "";
-    position: absolute;
-    right: -22px;
-    bottom: -28px;
-    width: 82px;
-    height: 82px;
-    border-radius: 50%;
-    background: rgba(112, 76, 255, .22);
-    filter: blur(18px);
-}
-
-.nexa-game-card:active {
-    transform: scale(.97);
-}
-
-.nexa-game-card strong,
-.nexa-game-card small {
-    display: block;
-}
-
-.nexa-game-card small {
-    margin-top: 4px;
-    color: var(--muted);
-    font-size: 11px;
-}
-
-.nexa-game-card b {
-    position: relative;
-    z-index: 1;
-    color: #a8f9ff;
-    font-size: 11px;
-    font-variant-numeric: tabular-nums;
-}
-
-.nexa-game-icon {
-    display: grid;
-    place-items: center;
-    width: 50px;
-    height: 50px;
-    color: #fff;
-    border-radius: 16px;
-    background: linear-gradient(145deg, #00b9e8, #704cff 58%, #ff00b8);
-    box-shadow: 0 0 22px rgba(112, 76, 255, .22);
-    font-size: 27px;
-    font-weight: 800;
-}
-
-.game-2048 .nexa-game-icon {
-    font-size: 12px;
-    letter-spacing: -.04em;
-}
-
-.nexa-game-toolbar {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 10px;
-    padding: 9px;
-    border: 1px solid rgba(255, 255, 255, .08);
-    border-radius: 18px;
-    background: rgba(15, 22, 37, .76);
-}
-
-.nexa-game-toolbar button,
-.nexa-game-reset {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    min-height: 38px;
-    padding: 8px 11px;
-    color: var(--text-main);
-    border: 1px solid rgba(255, 255, 255, .08);
-    border-radius: 13px;
-    background: rgba(255, 255, 255, .045);
-}
-
-.nexa-game-toolbar button .nexa-svg,
-.nexa-game-reset .nexa-svg {
-    width: 17px;
-    height: 17px;
-}
-
-.nexa-game-toolbar > div {
-    text-align: center;
-}
-
-.nexa-game-toolbar small,
-.nexa-game-toolbar strong {
-    display: block;
-}
-
-.nexa-game-toolbar small {
-    color: var(--muted);
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-}
-
-.nexa-game-toolbar strong {
-    margin-top: 2px;
-    color: #a8f9ff;
-    font-variant-numeric: tabular-nums;
-}
-
-.nexa-game-stage {
-    display: grid;
-    justify-items: center;
-    gap: 13px;
-    width: 100%;
-    min-height: 420px;
-    padding: 14px;
-    border: 1px solid rgba(255, 255, 255, .07);
-    border-radius: 22px;
-    background:
-        radial-gradient(circle at 50% 15%, rgba(112, 76, 255, .14), transparent 36%),
-        rgba(7, 11, 20, .78);
-}
-
-.nexa-game-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    width: min(100%, 510px);
-    min-height: 42px;
-    padding: 9px 12px;
-    border: 1px solid rgba(255, 255, 255, .07);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, .035);
-}
-
-.nexa-game-status small {
-    color: var(--muted);
-    text-align: right;
-}
-
-.nexa-play-hint {
-    min-height: 46px;
-    padding: 11px 13px;
-    color: #dfe6f5;
-    border: 1px solid rgba(0, 242, 255, .13);
-    border-radius: 15px;
-    background: rgba(0, 242, 255, .045);
-    line-height: 1.45;
-}
-
-.nexa-chess-board,
-.nexa-2048-board,
-.block-blast-board {
-    width: min(100%, 510px);
-    aspect-ratio: 1;
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, .12);
-    border-radius: 18px;
-    box-shadow: 0 18px 34px rgba(0, 0, 0, .3);
-}
-
-.nexa-chess-board {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-}
-
-.chess-cell {
-    position: relative;
-    display: grid;
-    place-items: center;
-    min-width: 0;
-    padding: 0;
-    color: #f7f8ff;
-    border: 0;
-    border-radius: 0;
-    background: rgba(220, 229, 255, .12);
-    font-family: "Segoe UI Symbol", sans-serif;
-    font-size: clamp(23px, 7vw, 47px);
-    line-height: 1;
-    text-shadow: 0 2px 3px rgba(0, 0, 0, .5);
-}
-
-.chess-cell.dark {
-    background: rgba(75, 61, 132, .72);
-}
-
-.chess-cell.selected {
-    box-shadow: inset 0 0 0 3px #00e7ff;
-}
-
-.chess-cell.legal::after {
-    content: "";
-    position: absolute;
-    width: 22%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: rgba(0, 255, 199, .78);
-    box-shadow: 0 0 12px rgba(0, 255, 199, .6);
-}
-
-.solitaire-top {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(38px, 1fr));
-    gap: 7px;
-    width: min(100%, 560px);
-}
-
-.solitaire-tableau {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(35px, 1fr));
-    gap: 6px;
-    width: min(100%, 560px);
-    min-height: 300px;
-}
-
-.solitaire-column {
-    position: relative;
-    min-width: 0;
-    min-height: 280px;
-}
-
-.playing-card {
-    display: grid;
-    place-items: start;
-    width: 100%;
-    aspect-ratio: .72;
-    padding: 6px;
-    color: #121725;
-    border: 1px solid rgba(255, 255, 255, .2);
-    border-radius: 9px;
-    background: linear-gradient(145deg, #f8f9ff, #dfe5ef);
-    font-size: clamp(11px, 3vw, 18px);
-    font-weight: 800;
-}
-
-.playing-card span {
-    display: grid;
-    gap: 1px;
-}
-
-.playing-card i {
-    font-style: normal;
-}
-
-.playing-card .red {
-    color: #d72552;
-}
-
-.playing-card.card-back {
-    place-items: center;
-    color: #fff;
-    background:
-        linear-gradient(135deg, rgba(0, 242, 255, .25), transparent 50%),
-        linear-gradient(145deg, #302078, #9c24d6);
-}
-
-.solitaire-column .playing-card {
-    position: absolute;
-    top: calc(var(--card-index) * 28px);
-    left: 0;
-}
-
-.playing-card.selected {
-    transform: translateY(-5px);
-    box-shadow: 0 0 0 2px #00e7ff, 0 7px 16px rgba(0, 231, 255, .22);
-}
-
-.playing-card.foundation {
-    color: rgba(255, 255, 255, .35);
-    background: rgba(255, 255, 255, .035);
-}
-
-.nexa-2048-board {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    padding: 8px;
-    background: rgba(19, 25, 41, .94);
-    touch-action: none;
-}
-
-.tile {
-    display: grid;
-    place-items: center;
-    min-width: 0;
-    color: #eef5ff;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, .055);
-    font-size: clamp(20px, 7vw, 46px);
-    font-weight: 800;
-}
-
-.tile-2 { background: rgba(0, 216, 255, .17); }
-.tile-4 { background: rgba(0, 216, 255, .28); }
-.tile-8 { background: rgba(112, 76, 255, .42); }
-.tile-16 { background: rgba(141, 78, 255, .55); }
-.tile-32 { background: rgba(191, 36, 214, .58); }
-.tile-64 { background: rgba(255, 0, 184, .62); }
-.tile-128 { background: linear-gradient(145deg, #7c4dff, #ff00b8); font-size: clamp(17px, 6vw, 39px); }
-.tile-256 { background: linear-gradient(145deg, #00b8ff, #704cff); font-size: clamp(17px, 6vw, 39px); }
-.tile-512 { background: linear-gradient(145deg, #00e4c6, #704cff); font-size: clamp(17px, 6vw, 39px); }
-.tile-1024,
-.tile-2048 { background: linear-gradient(145deg, #00f2ff, #704cff 52%, #ff00b8); font-size: clamp(14px, 5vw, 34px); box-shadow: 0 0 22px rgba(0, 242, 255, .28); }
-
-.nexa-2048-controls {
-    display: grid;
-    grid-template-columns: repeat(4, 48px);
-    gap: 8px;
-}
-
-.nexa-2048-controls button {
-    width: 48px;
-    height: 42px;
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, .08);
-    border-radius: 13px;
-    background: rgba(255, 255, 255, .055);
-    font-size: 20px;
-}
-
-.block-blast-board {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 4px;
-    padding: 7px;
-    background: rgba(14, 20, 34, .92);
-}
-
-.block-cell {
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, .055);
-}
-
-.block-cell.color-1,
-.block-shape i.color-1 { background: #00d8ff; box-shadow: inset 0 0 8px rgba(255, 255, 255, .24); }
-.block-cell.color-2,
-.block-shape i.color-2 { background: #704cff; box-shadow: inset 0 0 8px rgba(255, 255, 255, .2); }
-.block-cell.color-3,
-.block-shape i.color-3 { background: #ff00b8; box-shadow: inset 0 0 8px rgba(255, 255, 255, .2); }
-.block-cell.color-4,
-.block-shape i.color-4 { background: #00d96f; box-shadow: inset 0 0 8px rgba(255, 255, 255, .2); }
-.block-cell.color-5,
-.block-shape i.color-5 { background: #ffb800; box-shadow: inset 0 0 8px rgba(255, 255, 255, .2); }
-
-.block-shape-tray {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    width: min(100%, 510px);
-}
-
-.block-shape {
-    display: grid;
-    grid-template-columns: repeat(var(--shape-cols), 19px);
-    grid-template-rows: repeat(var(--shape-rows), 19px);
-    place-content: center;
-    gap: 3px;
-    min-height: 76px;
-    padding: 8px;
-    border: 1px solid rgba(255, 255, 255, .07);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, .035);
-}
-
-.block-shape i {
-    width: 19px;
-    height: 19px;
-    border-radius: 4px;
-}
-
-.block-shape.selected {
-    border-color: rgba(0, 242, 255, .48);
-    box-shadow: 0 0 18px rgba(0, 242, 255, .14);
-}
-
-.block-shape:disabled {
-    opacity: .22;
-}
-
-@media (max-width: 760px) {
-    .nexa-play-panel .modal-box {
-        width: 100%;
-        height: var(--app-height, 100dvh);
-        max-height: var(--app-height, 100dvh);
-        border-radius: 0;
-    }
-
-    .nexa-play-panel .modal-body {
-        padding-bottom: max(16px, var(--safe-bottom));
-    }
-
-    .nexa-play-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .nexa-game-card {
-        min-height: 78px;
-    }
-
-    .nexa-game-stage {
-        min-height: 0;
-        padding: 10px;
-    }
-
-    .nexa-game-toolbar button span {
-        display: none;
-    }
-
-    .nexa-game-toolbar button {
-        width: 40px;
-        padding: 7px;
-    }
-
-    .nexa-chess-board,
-    .nexa-2048-board,
-    .block-blast-board {
-        width: min(100%, calc(var(--viewport-width, 100vw) - 40px));
-    }
-
-    .solitaire-tableau {
-        min-height: 270px;
-    }
-
-    .solitaire-column {
-        min-height: 260px;
-    }
-
-    .solitaire-column .playing-card {
-        top: calc(var(--card-index) * 23px);
-        padding: 3px;
-        border-radius: 7px;
-    }
-
-    .nexa-game-status {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    .nexa-game-status small {
-        text-align: left;
-    }
-}
-
 /* Stage 5: mobile navigation, stories, PIN and nearby controls */
 .story-panel {
     position: fixed;
@@ -7427,11 +6810,8 @@ button {
     .chat-item,
     .contact-row,
     .call-row,
-    .community-card,
     .profile-card,
-    .voice-room-card,
     .vault-card,
-    .archive-card,
     .ai-card,
     .file-pill {
         border: 1px solid var(--border-soft);
@@ -7443,11 +6823,8 @@ button {
     .chat-item:active,
     .contact-row:active,
     .call-row:active,
-    .community-card:active,
     .profile-card:active,
-    .voice-room-card:active,
     .vault-card:active,
-    .archive-card:active,
     .ai-card:active {
         transform: scale(0.98);
     }
