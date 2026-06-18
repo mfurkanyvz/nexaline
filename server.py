@@ -122,7 +122,7 @@ AI_RELEVANT_CHAT_LIMIT = max(3, int(os.environ.get("AI_RELEVANT_CHAT_LIMIT", "8"
 AI_RELEVANT_CHAT_MESSAGES = max(8, int(os.environ.get("AI_RELEVANT_CHAT_MESSAGES", "32")))
 QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "60")))
 TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECONDS", "45")))
-PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz")).rstrip("/")
+PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", os.environ.get("APP_PUBLIC_URL", "https://nidar.com.tr")).rstrip("/")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
 DEFAULT_SMTP_HOST = "smtp.gmail.com"
@@ -3790,7 +3790,7 @@ def wikipedia_research(query):
         search = requests.get(
             "https://tr.wikipedia.org/w/rest.php/v1/search/page",
             params={"q": title[:120], "limit": 1},
-            headers={"User-Agent": "Nidar/1.0 (https://nexalineapp.xyz)"},
+            headers={"User-Agent": "Nidar/1.0 (https://nidar.com.tr)"},
             timeout=6,
         )
         search.raise_for_status()
@@ -3802,7 +3802,7 @@ def wikipedia_research(query):
             return []
         summary = requests.get(
             f"https://tr.wikipedia.org/api/rest_v1/page/summary/{key}",
-            headers={"User-Agent": "Nidar/1.0 (https://nexalineapp.xyz)"},
+            headers={"User-Agent": "Nidar/1.0 (https://nidar.com.tr)"},
             timeout=6,
         )
         summary.raise_for_status()
@@ -3847,7 +3847,7 @@ def duckduckgo_html_research(query):
             "https://duckduckgo.com/html/",
             params={"q": query[:180]},
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; NidarBot/1.0; +https://nexalineapp.xyz)",
+                "User-Agent": "Mozilla/5.0 (compatible; NidarBot/1.0; +https://nidar.com.tr)",
                 "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.6",
             },
             timeout=8,
@@ -3880,7 +3880,7 @@ def rss_search_research(url, query, source, extra_params=None):
             url,
             params=params,
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; NidarBot/1.0; +https://nexalineapp.xyz)",
+                "User-Agent": "Mozilla/5.0 (compatible; NidarBot/1.0; +https://nidar.com.tr)",
                 "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.6",
             },
             timeout=8,
@@ -4095,7 +4095,7 @@ def web_research_if_requested(prompt, force=False):
         response = requests.get(
             "https://api.duckduckgo.com/",
             params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"},
-            headers={"User-Agent": "Nidar/1.0 (https://nexalineapp.xyz)"},
+            headers={"User-Agent": "Nidar/1.0 (https://nidar.com.tr)"},
             timeout=6,
         )
         response.raise_for_status()
@@ -4344,7 +4344,7 @@ def call_openrouter_ai(prompt, context_text, research, attachment=None):
         headers={
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz"),
+            "HTTP-Referer": os.environ.get("APP_PUBLIC_URL", "https://nidar.com.tr"),
             "X-Title": "Nidar",
         },
         json={

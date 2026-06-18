@@ -8,7 +8,7 @@ $Port = if ($env:PORT) { $env:PORT } else { "5055" }
 $LocalIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
     Where-Object { $_.IPAddress -notlike "127.*" -and $_.PrefixOrigin -ne "WellKnown" } |
     Select-Object -First 1 -ExpandProperty IPAddress)
-$DefaultUrl = if ($LocalIp) { "http://$LocalIp`:$Port" } else { "https://nexalineapp.xyz" }
+$DefaultUrl = if ($LocalIp) { "http://$LocalIp`:$Port" } else { "https://nidar.com.tr" }
 $NexaLineUrl = if ($env:NEXALINE_URL) { $env:NEXALINE_URL } else { $DefaultUrl }
 $Assets = Join-Path $Desktop "assets"
 

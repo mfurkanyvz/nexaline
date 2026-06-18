@@ -18,6 +18,7 @@ function readPackagedUrl() {
 const FALLBACK_URLS = [
   process.env.NEXALINE_URL,
   readPackagedUrl(),
+  "https://nidar.com.tr",
   "https://nexalineapp.xyz",
   "http://127.0.0.1:5055"
 ].filter(Boolean).filter((url, index, urls) => urls.indexOf(url) === index);
@@ -54,7 +55,7 @@ function createWindow() {
   });
 
   win.webContents.on("render-process-gone", () => {
-    win.loadURL(FALLBACK_URLS[urlIndex] || "https://nexalineapp.xyz");
+    win.loadURL(FALLBACK_URLS[urlIndex] || "https://nidar.com.tr");
   });
 
   win.on("focus", () => {
@@ -72,7 +73,7 @@ function createWindow() {
     win.loadURL(FALLBACK_URLS[urlIndex]);
   });
 
-  win.loadURL(FALLBACK_URLS[urlIndex] || "https://nexalineapp.xyz");
+  win.loadURL(FALLBACK_URLS[urlIndex] || "https://nidar.com.tr");
 }
 
 app.whenReady().then(createWindow);

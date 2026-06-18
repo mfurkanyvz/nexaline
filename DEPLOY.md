@@ -14,17 +14,19 @@
 
 Render servisinde `Settings` > `Custom Domains` bolumune gir ve sunlari ekle:
 
-- `nexalineapp.xyz`
-- `www.nexalineapp.xyz`
+- `nidar.com.tr`
+- `www.nidar.com.tr`
+
+Eski adreslerin de calismasi isteniyorsa `nexalineapp.xyz` ve `www.nexalineapp.xyz` kayitlari silinmez.
 
 Render her domain icin eklemen gereken DNS kayitlarini gosterir. Domaini aldigin panelde bu kayitlari ekle.
 
 Genelde sunlar gerekir:
 
 - `www` icin `CNAME`
-- ana domain (`nexalineapp.xyz`) icin Render'in gosterdigi `A`, `ALIAS` veya `CNAME flattening` kaydi
+- ana domain (`nidar.com.tr`) icin Render'in gosterdigi `A`, `ALIAS` veya `CNAME flattening` kaydi
 
-DNS yayilmasi birkac dakika ile birkac saat surebilir. Sonra site `https://nexalineapp.xyz` uzerinden acilir.
+DNS yayilmasi birkac dakika ile birkac saat surebilir. Sonra site `https://nidar.com.tr` uzerinden acilir.
 
 ## Kalici veritabani
 
