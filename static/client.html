@@ -1423,9 +1423,10 @@
                     root.style.setProperty(variable, colors[key]);
                 }
             });
-            if (design.brandName) {
-                document.title = design.brandName;
-            }
+            const brandName = /^(nexaline|nexa)$/i.test(String(design.brandName || "").trim())
+                ? "Nidar"
+                : (String(design.brandName || "").trim() || "Nidar");
+            document.title = brandName;
             applyDesignText(design.text || {});
             applyDesignLogo(design.logoUrl || DEFAULT_BRAND_LOGO);
             applyDesignOrder(desktop.navOrder, mobile.navOrder, desktop.composerOrder, mobile.composerOrder);
@@ -6040,13 +6041,13 @@
         }
 
         async function openPointsPanel() {
-            openModal("Nidar Puan? Merkezi", body => {
+            openModal("Nidar Puanı Merkezi", body => {
                 body.classList.add("points-panel-body");
                 body.scrollTop = 0;
                 body.innerHTML = `
                     <div class="points-panel-loading">
                         <span class="points-star">★</span>
-                        <strong>Nidar Puan? bilgilerin hazırlanıyor</strong>
+                        <strong>Nidar Puanı bilgilerin hazırlanıyor</strong>
                         <small>Seviye, görev ve son hareketler yükleniyor.</small>
                     </div>
                 `;

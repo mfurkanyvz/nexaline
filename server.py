@@ -1322,7 +1322,7 @@ def admin_activity_feed(limit=240):
     for row in AiMemory.query.filter_by(role="user").order_by(AiMemory.created_at.desc()).limit(100).all():
         add("ai", row.username, "Asistan kullandı", row.content[:240], row.created_at, row.id)
     for row in PointLedger.query.order_by(PointLedger.created_at.desc()).limit(100).all():
-        add("points", row.username, f"{row.amount:+d} Nidar Puan?", row.reason, row.created_at, row.id)
+        add("points", row.username, f"{row.amount:+d} Nidar Puanı", row.reason, row.created_at, row.id)
     for row in AiTask.query.order_by(AiTask.created_at.desc()).limit(80).all():
         add("task", row.username, "AI görevi oluşturdu", row.title, row.created_at, row.id)
 
