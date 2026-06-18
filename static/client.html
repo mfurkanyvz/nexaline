@@ -2062,7 +2062,8 @@
         }
 
         function aiDisplayName() {
-            return (state.aiSettings?.name || DEFAULT_AI_NAME).trim() || DEFAULT_AI_NAME;
+            const savedName = (state.aiSettings?.name || DEFAULT_AI_NAME).trim() || DEFAULT_AI_NAME;
+            return /^(nexa ai|nexa al)$/i.test(savedName) ? DEFAULT_AI_NAME : savedName;
         }
 
         function aiAvatarData() {
@@ -5804,11 +5805,11 @@
             $("meName").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
             $("meStatus").textContent = "";
             $("meStatus").classList.add("hidden");
-            $("pointsRailButton").title = `${Number(state.me.points || 0)} Nidar puan?`;
+            $("pointsRailButton").title = `${Number(state.me.points || 0)} Nidar puanı`;
             if ($("pointsTopLabel")) {
                 const points = Number(state.me.points || 0);
                 $("pointsTopLabel").textContent = window.matchMedia("(max-width: 860px)").matches ? String(points) : `${points} Puan`;
-                $("pointsRailButton").setAttribute("aria-label", `${points} Nidar puan?`);
+                $("pointsRailButton").setAttribute("aria-label", `${points} Nidar puanı`);
             }
             updateAiAssistantVisibility();
             updateNotificationButton();
