@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#10131b">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="NexaLine Admin">
+    <meta name="apple-mobile-web-app-title" content="Nidar Admin">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>NexaLine Admin</title>
+    <title>Nidar Admin</title>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/static/icons/nexaline-icon-192-v2.png">
     <link rel="apple-touch-icon" href="/static/icons/nexaline-apple-touch-v2.png">
@@ -569,9 +569,9 @@
     <main class="shell">
         <aside class="side">
             <div class="brand">
-                <img src="/static/nexaline-logo.png" alt="NexaLine">
+                <img src="/static/nexaline-logo.png" alt="Nidar">
                 <div>
-                    <h1>NexaLine Admin</h1>
+                    <h1>Nidar Admin</h1>
                     <small id="ipInfo">IP bilgisi yükleniyor</small>
                 </div>
             </div>
@@ -756,7 +756,7 @@
                         <span class="chip">${user.privacy?.onlineHidden ? "Çevrim içi gizli" : "Çevrim içi açık"}</span>
                         <span class="chip">${user.privacy?.readReceiptsOff ? "Okundu kapalı" : "Okundu açık"}</span>
                         <span class="chip">${user.privacy?.emailHidden ? "Gmail gizli" : "Gmail görünür"}</span>
-                        <span class="chip">${Number(user.points || 0).toLocaleString("tr-TR")} Nexa Puan</span>
+                        <span class="chip">${Number(user.points || 0).toLocaleString("tr-TR")} Nidar Puan?</span>
                     </div>
                     <div class="card-row">
                         <button data-user-chats="${user.username}" type="button">Sohbetleri</button>
@@ -1047,7 +1047,7 @@
             const tasks = (state.data.aiTasks || []).filter(item => matchesSearch(item.username, item.title, item.description, item.repeat));
             const ledger = (state.data.pointLedger || []).filter(item => matchesSearch(item.username, item.reason, JSON.stringify(item.meta || {})));
             $("view").innerHTML = `
-                <h2>Nexa AI ve Puan Yönetimi</h2>
+                <h2>Asistan ve Puan Yönetimi</h2>
                 <div class="grid">
                     <article class="card"><h3>AI Hafızası (${memories.length})</h3><div id="adminAiMemories" class="list"></div></article>
                     <article class="card"><h3>AI Görevleri (${tasks.length})</h3><div id="adminAiTasks" class="list"></div></article>
@@ -1217,7 +1217,7 @@
                 <article class="card">
                     <h3>Genel görünüm</h3>
                     <div class="form-grid">
-                        <label>Site adı<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
+                        <label>Site adı<input id="designBrandName" value="${escapeAttr(design.brandName || "Nidar")}"></label>
                         <label>Genel yazı boyutu<input id="designFontSize" type="number" min="12" max="22" value="${Number(design.fontSize || 16)}"></label>
                         <label>Mesaj yazı boyutu<input id="designMessageFontSize" type="number" min="12" max="22" value="${Number(design.messageFontSize || 15)}"></label>
                         <label>Sohbet listesi genişliği<input id="designSidebarWidth" type="number" min="300" max="520" value="${Number(design.sidebarWidth || 380)}"></label>
@@ -1236,7 +1236,7 @@
             `;
             $("saveDesignButton").onclick = saveDesign;
             $("resetDesignButton").onclick = () => {
-                $("designBrandName").value = "NexaLine";
+                $("designBrandName").value = "Nidar";
                 $("designFontSize").value = 16;
                 $("designMessageFontSize").value = 15;
                 $("designSidebarWidth").value = 380;
@@ -1259,7 +1259,7 @@
                 <article class="card">
                     <h3>Marka, renk ve logo</h3>
                     <div class="form-grid">
-                        <label>Site adi<input id="designBrandName" value="${escapeAttr(design.brandName || "NexaLine")}"></label>
+                        <label>Site adi<input id="designBrandName" value="${escapeAttr(design.brandName || "Nidar")}"></label>
                         <label>Logo URL veya data<input id="designLogoUrl" value="${escapeAttr(design.logoUrl || "/static/nexaline-logo.png")}"></label>
                         <label>Ana arka plan<input id="designBackground" type="color" value="${escapeAttr(colors.background || "#070a0f")}"></label>
                         <label>Panel rengi<input id="designPanel" type="color" value="${escapeAttr(colors.panel || "#0f141f")}"></label>
@@ -1487,7 +1487,7 @@
         }
 
         function resetDesignForm() {
-            $("designBrandName").value = "NexaLine";
+            $("designBrandName").value = "Nidar";
             $("designLogoUrl").value = "/static/nexaline-logo.png";
             $("designBackground").value = "#10131b";
             $("designPanel").value = "#171b25";
@@ -1550,7 +1550,7 @@
         }
 
         async function clearAiMemory(username) {
-            if (!confirm(`${username} kullanıcısının Nexa AI hafızası ve AI görevleri silinsin mi?`)) return;
+            if (!confirm(`${username} kullanıcısının Asistan hafızası ve AI görevleri silinsin mi?`)) return;
             await api(`/admin/user/${encodeURIComponent(username)}/ai-memory`, { method: "DELETE" });
             await load();
         }
@@ -1640,7 +1640,7 @@
             if (!attachment) return "";
             const name = escapeAttr(attachment.name || "Dosya");
             if (attachment.type === "contact") {
-                return `<div class="empty">Kişi: ${escapeHtml(attachment.contact?.displayName || attachment.contact?.username || attachment.name || "NexaLine")}</div>`;
+                return `<div class="empty">Kişi: ${escapeHtml(attachment.contact?.displayName || attachment.contact?.username || attachment.name || "Nidar")}</div>`;
             }
             if (attachment.type === "poll") {
                 const poll = attachment.poll || {};

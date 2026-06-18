@@ -103,7 +103,7 @@ def gzip_text_responses(response):
 
 connections = {}
 typing_users = {}
-DEV_ADMIN_TOKEN = "NexaLineAdmin2026!"
+DEV_ADMIN_TOKEN = "NidarAdmin2026!"
 FULL_USER_DATA_RESET_KEY = "full_user_data_reset_2026_06_04"
 MAX_BOOTSTRAP_MESSAGES = max(20, int(os.environ.get("MAX_BOOTSTRAP_MESSAGES", "35")))
 ADMIN_MESSAGE_LIMIT_PER_CHAT = max(20, int(os.environ.get("ADMIN_MESSAGE_LIMIT_PER_CHAT", "40")))
@@ -150,10 +150,10 @@ AVATAR_GRADIENTS = {
 }
 POINT_MILESTONES = [
     {"id": "first_light", "threshold": 2500, "title": "İlk Işık", "reward": "Başlangıç rozeti"},
-    {"id": "nexa_explorer", "threshold": 5000, "title": "Nexa Kaşifi", "reward": "Kaşif rozeti"},
+    {"id": "nexa_explorer", "threshold": 5000, "title": "Nidar Kaşifi", "reward": "Kaşif rozeti"},
     {"id": "chat_master_level", "threshold": 15000, "title": "Sohbet Ustası", "reward": "Usta rozeti"},
-    {"id": "nexa_elite", "threshold": 50000, "title": "Nexa Eliti", "reward": "Elit profil çerçevesi"},
-    {"id": "nexa_legend", "threshold": 150000, "title": "Nexa Efsanesi", "reward": "Efsane profil çerçevesi"},
+    {"id": "nexa_elite", "threshold": 50000, "title": "Nidar Eliti", "reward": "Elit profil çerçevesi"},
+    {"id": "nexa_legend", "threshold": 150000, "title": "Nidar Efsanesi", "reward": "Efsane profil çerçevesi"},
 ]
 scheduled_delivery_lock = threading.Lock()
 qr_login_lock = threading.Lock()
@@ -204,7 +204,7 @@ class User(db.Model):
     font_size_preference = db.Column(db.String(20), nullable=False, default="medium")
     notification_sound = db.Column(db.String(40), nullable=False, default="classic")
     ai_settings = db.Column(db.JSON, nullable=True)
-    about = db.Column(db.String(255), nullable=False, default="NexaLine kullanıyorum.")
+    about = db.Column(db.String(255), nullable=False, default="Nidar kullanıyorum.")
     nearby_enabled = db.Column(db.Boolean, nullable=False, default=False)
     last_lat = db.Column(db.Float, nullable=True)
     last_lng = db.Column(db.Float, nullable=True)
@@ -220,7 +220,7 @@ class User(db.Model):
 class DeviceSession(db.Model):
     id = db.Column(db.String(80), primary_key=True)
     username = db.Column(db.String(80), db.ForeignKey("user.username"), nullable=False, index=True)
-    label = db.Column(db.String(120), nullable=False, default="NexaLine cihazi")
+    label = db.Column(db.String(120), nullable=False, default="Nidar cihazi")
     user_agent = db.Column(db.Text, nullable=True)
     ip_address = db.Column(db.String(80), nullable=True)
     last_seen = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -576,49 +576,11 @@ def ensure_vapid_keys():
         return "", ""
 
 
-NEXA_PLAY_GAMES = {"chess", "solitaire", "2048", "block-blast"}
-
-
-def nexa_play_setting_key(username):
-    return f"games:{(username or '').strip().lower()}"[:80]
-
-
-def nexa_play_state(username):
-    row = db.session.get(AppSetting, nexa_play_setting_key(username))
-    saved = dict(row.value or {}) if row else {}
-    return {
-        "scores": dict(saved.get("scores") or {}),
-        "sessions": dict(saved.get("sessions") or {}),
-        "updatedAt": saved.get("updatedAt"),
-    }
-
-
-def save_nexa_play_state(username, payload):
-    key = nexa_play_setting_key(username)
-    row = db.session.get(AppSetting, key)
-    current = nexa_play_state(username)
-    game_id = str(payload.get("game") or "").strip().lower()
-    if game_id not in NEXA_PLAY_GAMES:
-        raise ValueError("Desteklenmeyen oyun.")
-
-    score = max(0, min(10_000_000, int(payload.get("score") or 0)))
-    session = payload.get("session")
-    if not isinstance(session, dict):
-        session = {}
-    current["scores"][game_id] = max(score, int(current["scores"].get(game_id) or 0))
-    current["sessions"][game_id] = session
-    current["updatedAt"] = datetime.now(timezone.utc).isoformat()
-    if row:
-        row.value = current
-        row.updated_at = datetime.now(timezone.utc)
-    else:
-        db.session.add(AppSetting(key=key, value=current))
-    db.session.commit()
     return current
 
 
 DEFAULT_DESIGN_SETTINGS = {
-    "brandName": "NexaLine",
+    "brandName": "Nidar",
     "logoUrl": "/static/nexaline-logo.png",
     "colors": {
         "background": "#070a0f",
@@ -1323,18 +1285,6 @@ def admin_ai_memory_to_dict(row):
     }
 
 
-def admin_nexa_play_states():
-    rows = AppSetting.query.filter(AppSetting.key.like("games:%")).order_by(AppSetting.updated_at.desc()).all()
-    return [
-        {
-            "username": row.key.split(":", 1)[1],
-            "scores": dict((row.value or {}).get("scores") or {}),
-            "sessions": dict((row.value or {}).get("sessions") or {}),
-            "updatedAt": (row.value or {}).get("updatedAt") or to_iso(row.updated_at),
-        }
-        for row in rows
-    ]
-
 
 def admin_activity_feed(limit=240):
     events = []
@@ -1370,9 +1320,9 @@ def admin_activity_feed(limit=240):
     for row in CallLog.query.order_by(CallLog.started_at.desc()).limit(80).all():
         add("call", row.caller, f"{'Görüntülü' if row.kind == 'video' else 'Sesli'} arama", row.status, row.started_at, row.id)
     for row in AiMemory.query.filter_by(role="user").order_by(AiMemory.created_at.desc()).limit(100).all():
-        add("ai", row.username, "Nexa AI kullandı", row.content[:240], row.created_at, row.id)
+        add("ai", row.username, "Asistan kullandı", row.content[:240], row.created_at, row.id)
     for row in PointLedger.query.order_by(PointLedger.created_at.desc()).limit(100).all():
-        add("points", row.username, f"{row.amount:+d} Nexa Puan", row.reason, row.created_at, row.id)
+        add("points", row.username, f"{row.amount:+d} Nidar Puan?", row.reason, row.created_at, row.id)
     for row in AiTask.query.order_by(AiTask.created_at.desc()).limit(80).all():
         add("task", row.username, "AI görevi oluşturdu", row.title, row.created_at, row.id)
 
@@ -1748,7 +1698,7 @@ def ai_tasks_for(username):
 def default_ai_settings():
     return {
         "enabled": True,
-        "name": "Nexa AI",
+        "name": "Asistan",
         "image": "",
         "autoApprove": False,
         "voice": "warm",
@@ -1763,7 +1713,7 @@ def default_ai_settings():
 def ai_settings_for_user(user):
     stored = user.ai_settings if isinstance(user.ai_settings, dict) else {}
     settings = {**default_ai_settings(), **stored}
-    settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Nexa AI")).strip()[:40] or "Nexa AI"
+    settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Asistan")).strip()[:40] or "Asistan"
     settings["theme"] = user.theme_preference or "dark"
     settings["fontSize"] = user.font_size_preference or "medium"
     settings["notificationSound"] = user.notification_sound or "classic"
@@ -1946,7 +1896,7 @@ def connected_sids_for(username):
 def push_payload_for_chat(chat_id, title, message, notification_type="message", url=None, call_kind=None):
     target_url = url or f"/chat/{chat_id}"
     return {
-        "title": title or "NexaLine",
+        "title": title or "Nidar",
         "message": message or "Yeni bildirim",
         "type": notification_type or "message",
         "chatId": chat_id,
@@ -2052,7 +2002,7 @@ def device_label(user_agent):
         return "Mac Web"
     if "linux" in value:
         return "Linux Web"
-    return "NexaLine Web"
+    return "Nidar Web"
 
 
 def normalize_device_id(value):
@@ -2251,7 +2201,7 @@ def reset_user_data_once(reset_key=FULL_USER_DATA_RESET_KEY):
         )
     )
     db.session.commit()
-    app.logger.warning("One-time NexaLine user data reset completed: %s", reset_key)
+    app.logger.warning("One-time Nidar user data reset completed: %s", reset_key)
     return True
 
 
@@ -2568,7 +2518,7 @@ def send_phone_code(phone_normalized, code, purpose):
         "phone_change": "telefon değiştirme",
     }
     label = purpose_labels.get(purpose, "doğrulama")
-    body = f"NexaLine {label} kodun: {code}. Kod 10 dakika geçerlidir."
+    body = f"Nidar {label} kodun: {code}. Kod 10 dakika geçerlidir."
     try:
         if twilio_verify_config():
             sent, provider_message_id = start_twilio_verification(phone_normalized)
@@ -2639,17 +2589,17 @@ def phone_verification_response(message, code=None, sent=True, retry_after=0):
 
 def email_subject(purpose):
     labels = {
-        "register": "NexaLine kayıt doğrulama kodun",
-        "forgot": "NexaLine şifre sıfırlama kodun",
-        "email_change": "NexaLine Gmail değiştirme kodun",
-        "login_2fa": "NexaLine giriş doğrulama kodun",
+        "register": "Nidar kayıt doğrulama kodun",
+        "forgot": "Nidar şifre sıfırlama kodun",
+        "email_change": "Nidar Gmail değiştirme kodun",
+        "login_2fa": "Nidar giriş doğrulama kodun",
     }
-    return labels.get(purpose, "NexaLine doğrulama kodun")
+    return labels.get(purpose, "Nidar doğrulama kodun")
 
 
 def email_body(code):
     return (
-        f"NexaLine doğrulama kodun: {code}\n\n"
+        f"Nidar doğrulama kodun: {code}\n\n"
         "Bu kod 10 dakika geçerlidir. Bu işlemi sen yapmadıysan bu mesajı yok sayabilirsin."
     )
 
@@ -2860,7 +2810,7 @@ def rtc_servers():
     return servers
 
 
-AI_SYSTEM_PROMPT = """Sen NexaLine içinde çalışan kişiselleştirilebilir Nexa AI asistansın.
+AI_SYSTEM_PROMPT = """Sen Nidar içinde çalışan kişiselleştirilebilir Asistan asistansın.
 Kullanıcı sana hangi ismi verdiyse o isimle davran; yeri geldiğinde sıcak bir arkadaş, yeri geldiğinde net bir asistan ol.
 Türkçe, doğal, kısa ve güvenli cevap ver. Sohbetleri özetleyebilir, cevap taslağı hazırlayabilir, uygulama ayarlarını
 açıklayabilir ve izinli uygulama eylemleri önerebilirsin. Mesaj gönderme, sohbet silme, arama başlatma, kilitleme,
@@ -2868,7 +2818,7 @@ tema/gizlilik/AI ayarı değiştirme ve zamanlama gibi işlemler uygulama taraf�
 Bilmediğin veya internette doğrulanması gereken konuda eminmiş gibi davranma."""
 
 AI_SYSTEM_PROMPT += """
-Uygulama bağlamındaki memory, clientHistory ve relevantChats alanlarını Nexa AI'nin ortak hafızası gibi kullan.
+Uygulama bağlamındaki memory, clientHistory ve relevantChats alanlarını Asistan?n ortak hafızası gibi kullan.
 Sağlayıcı değişse bile üslubunu, kullanıcının sana verdiği ismi ve önceki konuşma bilgisini bu hafızadan koru.
 Kullanıcı internetten araştırma isterse web araştırma notlarını kullan, kaynakları kısa ve okunur şekilde belirt; sonuç yoksa bunu açık söyle.
 Kullanıcı önceki konuşmasına gönderme yapıyorsa yalnızca geçmişi listeleme; geçmişteki ilgili bilgiyi mevcut soruyla birleştirip doğrudan cevap ver.
@@ -2876,7 +2826,7 @@ Bir görsel veya dosya verildiyse gerçekten görebildiğin içeriği açıkla. 
 """
 
 def ai_get_system_tools():
-    """Nexa AI'nin uygulama aksiyonu gerektiğinde JSON olarak seçeceği araçlar."""
+    """Asistan?n uygulama aksiyonu gerektiğinde JSON olarak seçeceği araçlar."""
     base_schema = {"type": "object", "properties": {}}
     return [
         {
@@ -2915,9 +2865,9 @@ def ai_get_system_tools():
         },
         {"name": "set_theme", "description": "Temayı dark/light olarak değiştirir.", "parameters": base_schema},
         {"name": "set_censor_filter", "description": "AI sansür filtresini açar veya kapatır.", "parameters": base_schema},
-        {"name": "set_ai_enabled", "description": "Nexa AI'yi açar veya kapatır.", "parameters": base_schema},
-        {"name": "set_ai_auto_approve", "description": "Nexa AI tam yetki/onay modunu değiştirir.", "parameters": base_schema},
-        {"name": "set_ai_name", "description": "Nexa AI özel adını değiştirir.", "parameters": base_schema},
+        {"name": "set_ai_enabled", "description": "Asistan'yi açar veya kapatır.", "parameters": base_schema},
+        {"name": "set_ai_auto_approve", "description": "Asistan tam yetki/onay modunu değiştirir.", "parameters": base_schema},
+        {"name": "set_ai_name", "description": "Asistan özel adını değiştirir.", "parameters": base_schema},
         {"name": "open_settings", "description": "Ayarlar ekranını veya bir ayar sekmesini açar.", "parameters": base_schema},
         {"name": "set_chat_preference", "description": "Sohbet sabitleme, sessize alma veya kilit ayarını değiştirir.", "parameters": base_schema},
         {"name": "delete_chat", "description": "Sohbet silme/arşivleme aksiyonu hazırlar.", "parameters": base_schema},
@@ -3095,11 +3045,11 @@ def ai_normalize_tool_action(tool_call, context=None):
         return {"type": "set_censor", "enabled": ai_parse_bool(params.get("enabled", params.get("value", True)), True), "label": label or "AI sansür filtresini güncelle"}
 
     if name in {"set_ai_enabled", "set_ai_auto_approve"}:
-        return {"type": name, "enabled": ai_parse_bool(params.get("enabled", params.get("value", True)), True), "label": label or "Nexa AI ayarını güncelle"}
+        return {"type": name, "enabled": ai_parse_bool(params.get("enabled", params.get("value", True)), True), "label": label or "Asistan ayarını güncelle"}
 
     if name == "set_ai_name":
         ai_name = str(params.get("name") or params.get("assistantName") or "").strip()[:40]
-        return {"type": "set_ai_name", "name": ai_name, "label": label or f"Nexa AI adını {ai_name} yap"} if ai_name else None
+        return {"type": "set_ai_name", "name": ai_name, "label": label or f"Asistan adını {ai_name} yap"} if ai_name else None
 
     if name == "open_settings":
         return {"type": "open_settings", "section": str(params.get("section") or "menu"), "label": label or "Ayarları aç"}
@@ -3353,7 +3303,7 @@ def ai_memory_for_user(username, chat_id=None, prompt="", client_history=None):
     return {
         "serverMemory": merged[-60:],
         "clientHistory": sanitize_client_ai_history(client_history),
-        "memoryRule": "Tum AI saglayicilari cevap vermeden once bu Nexa hafizasini dikkate alir. Sifreler ve gizli anahtarlar hafizaya eklenmez.",
+        "memoryRule": "Tum AI saglayicilari cevap vermeden once bu Asistan hafizasini dikkate alir. Sifreler ve gizli anahtarlar hafizaya eklenmez.",
     }
 
 
@@ -3474,7 +3424,7 @@ def ai_context_for_user(username, chat_id=None, prompt="", client_history=None):
             "tema değiştirme",
             "sohbet sabitleme/sessize alma/gizleme",
             "AI sansur filtresini acma/kapatma",
-            "Nexa AI acma/kapatma, isim ve onay yetkisi ayarlama",
+            "Asistan acma/kapatma, isim ve onay yetkisi ayarlama",
             "gizlilik ayarlarını onaylı değiştirme",
             "sohbet açma, sohbet silme ve arama başlatma",
             "mesaj zamanlama",
@@ -3704,7 +3654,7 @@ def local_memory_answer(prompt, context):
         and any(word in ascii_prompt for word in ["hafiza", "favori"])
     )
     if save_requested:
-        return "Tamam, bunu Nexa AI hafızama aldım. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacağım."
+        return "Tamam, bunu Asistan hafızama aldım. Bundan sonraki sohbetlerde bu bilgiyi dikkate alacağım."
 
     memory_requested = any(
         phrase in ascii_prompt
@@ -3772,7 +3722,7 @@ def local_memory_answer(prompt, context):
             return answer
 
     lines = [
-        f"{'Sen' if item['role'] == 'user' else 'Nexa AI'}: {item['content'][:220]}"
+        f"{'Sen' if item['role'] == 'user' else 'Asistan'}: {item['content'][:220]}"
         for item in memory[-8:]
     ]
     for chat in (context.get("relevantChats") or [])[:3]:
@@ -3784,7 +3734,7 @@ def local_memory_answer(prompt, context):
                 if body:
                     lines.append(f"- {message.get('sender')}: {str(body)[:180]}")
     if not lines:
-        return "Hafızamda bu konuda yeterli kayıt bulamadım. Bundan sonraki Nexa AI konuşmalarını server hafızasına yazacağım."
+        return "Hafızamda bu konuda yeterli kayıt bulamadım. Bundan sonraki Asistan konuşmalarını server hafızasına yazacağım."
     return "Hafızamdan bulduğum yakın geçmiş:\n" + "\n".join(lines[-12:])
 
 
@@ -3840,7 +3790,7 @@ def wikipedia_research(query):
         search = requests.get(
             "https://tr.wikipedia.org/w/rest.php/v1/search/page",
             params={"q": title[:120], "limit": 1},
-            headers={"User-Agent": "NexaLine/1.0 (https://nexalineapp.xyz)"},
+            headers={"User-Agent": "Nidar/1.0 (https://nexalineapp.xyz)"},
             timeout=6,
         )
         search.raise_for_status()
@@ -3852,7 +3802,7 @@ def wikipedia_research(query):
             return []
         summary = requests.get(
             f"https://tr.wikipedia.org/api/rest_v1/page/summary/{key}",
-            headers={"User-Agent": "NexaLine/1.0 (https://nexalineapp.xyz)"},
+            headers={"User-Agent": "Nidar/1.0 (https://nexalineapp.xyz)"},
             timeout=6,
         )
         summary.raise_for_status()
@@ -3897,7 +3847,7 @@ def duckduckgo_html_research(query):
             "https://duckduckgo.com/html/",
             params={"q": query[:180]},
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; NexaLineBot/1.0; +https://nexalineapp.xyz)",
+                "User-Agent": "Mozilla/5.0 (compatible; NidarBot/1.0; +https://nexalineapp.xyz)",
                 "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.6",
             },
             timeout=8,
@@ -3930,7 +3880,7 @@ def rss_search_research(url, query, source, extra_params=None):
             url,
             params=params,
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; NexaLineBot/1.0; +https://nexalineapp.xyz)",
+                "User-Agent": "Mozilla/5.0 (compatible; NidarBot/1.0; +https://nexalineapp.xyz)",
                 "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.6",
             },
             timeout=8,
@@ -4070,7 +4020,7 @@ def live_info_for_prompt(prompt, timezone_offset_minutes=0):
 def local_ai_reply(prompt, context, actions, research=None):
     active = context.get("activeChat") or {}
     messages = active.get("messages") or []
-    assistant_name = (context.get("assistant") or {}).get("name") or "Nexa AI"
+    assistant_name = (context.get("assistant") or {}).get("name") or "Asistan"
     lowered = (prompt or "").casefold()
     tokens = set(re.findall(r"[\wçğıöşüÇĞİÖŞÜ]+", lowered))
     memory_answer = local_memory_answer(prompt, context)
@@ -4145,7 +4095,7 @@ def web_research_if_requested(prompt, force=False):
         response = requests.get(
             "https://api.duckduckgo.com/",
             params={"q": query[:160], "format": "json", "no_html": "1", "skip_disambig": "1"},
-            headers={"User-Agent": "NexaLine/1.0 (https://nexalineapp.xyz)"},
+            headers={"User-Agent": "Nidar/1.0 (https://nexalineapp.xyz)"},
             timeout=6,
         )
         response.raise_for_status()
@@ -4395,7 +4345,7 @@ def call_openrouter_ai(prompt, context_text, research, attachment=None):
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
             "HTTP-Referer": os.environ.get("APP_PUBLIC_URL", "https://nexalineapp.xyz"),
-            "X-Title": "NexaLine",
+            "X-Title": "Nidar",
         },
         json={
             "model": model,
@@ -4787,7 +4737,7 @@ def ai_profile_analysis_for(username):
     dominant = sorted(metrics[:6], key=lambda item: item["value"], reverse=True)[:2]
     dominant_text = " ve ".join(item["label"].lower() for item in dominant)
     summary = (
-        f"NexaLine içindeki {sample_size} kişisel etkinlik kaydı incelendi. "
+        f"Nidar içindeki {sample_size} kişisel etkinlik kaydı incelendi. "
         f"Ölçümlerde en belirgin iki alan {dominant_text}. "
         "Bu sonuçlar yalnızca uygulamadaki kelime, emoji, medya ve etkileşim "
         "sıklıklarından hesaplanır; kişilik testi veya psikolojik değerlendirme değildir."
@@ -4904,7 +4854,7 @@ def reset_client():
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#050911">
-  <title>NexaLine yenileniyor</title>
+  <title>Nidar yenileniyor</title>
   <style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050911;color:#fff;font-family:Arial,sans-serif}
     .box{width:min(340px,calc(100vw - 36px));padding:28px;border:1px solid rgba(255,255,255,.12);border-radius:24px;background:rgba(17,24,39,.88);box-shadow:0 24px 80px rgba(0,0,0,.45);text-align:center}
@@ -4915,7 +4865,7 @@ def reset_client():
 <body>
   <main class="box">
     <div class="mark"></div>
-    <h1>NexaLine yenileniyor</h1>
+    <h1>Nidar yenileniyor</h1>
     <p>Eski giriş önbelleği temizleniyor. Birazdan yeniden açılacak.</p>
   </main>
   <script>
@@ -4933,7 +4883,7 @@ def reset_client():
         localStorage.removeItem("nexalineClientBuild");
         sessionStorage.clear();
       } catch (error) {
-        console.warn("NexaLine reset tamamlanamadı", error);
+        console.warn("Nidar reset tamamlanamadı", error);
       }
       location.replace("/?fresh=" + Date.now());
     })();
@@ -5066,7 +5016,7 @@ def ai_chat():
     username = (data.get("username") or "").strip().lower()
     prompt = (data.get("prompt") or "").strip()
     chat_id = data.get("chatId")
-    assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Nexa AI").strip())[:40] or "Nexa AI"
+    assistant_name = re.sub(r"\s+", " ", (data.get("assistantName") or "Asistan").strip())[:40] or "Asistan"
     attachment = data.get("attachment") if isinstance(data.get("attachment"), dict) else None
     client_history = data.get("clientHistory") if isinstance(data.get("clientHistory"), list) else []
 
@@ -5125,7 +5075,7 @@ def local_generated_image_data_url(prompt, variant=0):
     hue_a = int(seed[:2], 16) % 360
     hue_b = (hue_a + 120 + int(seed[2:4], 16) % 80) % 360
     hue_c = (hue_a + 250) % 360
-    safe_prompt = html.escape(re.sub(r"\s+", " ", prompt or "NexaLine görseli").strip()[:120])
+    safe_prompt = html.escape(re.sub(r"\s+", " ", prompt or "Nidar görseli").strip()[:120])
     svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768">
 <defs>
 <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -5140,7 +5090,7 @@ def local_generated_image_data_url(prompt, variant=0):
 <circle cx="820" cy="560" r="260" fill="#ff00b8" opacity=".24" filter="url(#blur)"/>
 <path d="M145 595 C270 370 424 330 548 398 C693 478 768 322 889 178" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="16" stroke-linecap="round"/>
 <rect x="86" y="86" width="852" height="596" rx="48" fill="rgba(4,9,20,.38)" stroke="rgba(255,255,255,.28)"/>
-<text x="112" y="160" fill="#fff" font-size="34" font-family="Inter,Arial,sans-serif" font-weight="800">Nexa AI görsel taslağı</text>
+<text x="112" y="160" fill="#fff" font-size="34" font-family="Inter,Arial,sans-serif" font-weight="800">Asistan görsel taslağı</text>
 <foreignObject x="112" y="202" width="800" height="210">
 <div xmlns="http://www.w3.org/1999/xhtml" style="color:#edf6ff;font-family:Inter,Arial,sans-serif;font-size:44px;font-weight:900;line-height:1.08;text-shadow:0 8px 34px rgba(0,0,0,.38);">{safe_prompt}</div>
 </foreignObject>
@@ -5401,7 +5351,7 @@ def call_openai_tts(text_value, voice_key="warm"):
             "kisiyle gercek zamanli sohbet ediyormus gibi sicak, sakin ve kendinden emin ol. "
             "Noktalama ve anlama gore durakla; duyguya uygun tonlama kullan, fakat abartma. "
             "Kisa cumleleri canli, uzun aciklamalari rahat bir tempoda soyle. Robotik, tekduze, "
-            "spiker veya reklam tonundan kacin. NexaLine adini 'Neksa Layn' olarak telaffuz et."
+            "spiker veya reklam tonundan kacin. Nidar adini 'Neksa Layn' olarak telaffuz et."
         )
     response = requests.post(
         f"{base_url}/audio/speech",
@@ -5883,7 +5833,7 @@ def ai_text_tool():
             f"{text_value}"
         )
     context = ai_context_for_user(username, data.get("chatId"), prompt)
-    context["assistant"] = {"name": data.get("assistantName") or "Nexa AI"}
+    context["assistant"] = {"name": data.get("assistantName") or "Asistan"}
     research = []
     try:
         if tool == "translate":
@@ -5979,7 +5929,7 @@ def ai_chat_summary_route():
     prompt = f"{chat.title} sohbetini kisa, islevsel ve maddeli ozetle. Onemli karar, tarih, dosya ve bekleyen aksiyonlari ayir."
     context = ai_context_for_user(username, chat.id, prompt)
     context["activeChat"] = {"title": chat.title, "messages": messages}
-    context["assistant"] = {"name": "Nexa AI"}
+    context["assistant"] = {"name": "Asistan"}
     reply, provider, research = generate_ai_reply(prompt, context, [])
     return jsonify({"ok": True, "summary": reply or local_chat_summary(messages), "provider": provider, "research": research})
 
@@ -6015,7 +5965,7 @@ def ai_search_route():
     summary_prompt = f"Arama sorgusu: {query}\nSonuçları kullanıcıya kısa açıkla ve en yakın 5 sonucu seç."
     context = ai_context_for_user(username, chat_id, summary_prompt)
     context["matches"] = matches[:12]
-    context["assistant"] = {"name": "Nexa AI"}
+    context["assistant"] = {"name": "Asistan"}
     reply, provider, research = generate_ai_reply(summary_prompt, context, [])
     return jsonify({"ok": True, "answer": reply, "results": matches[:20], "provider": provider, "research": research})
 
@@ -6026,7 +5976,7 @@ AI_COMMANDS = [
     {"id": "translate", "title": "Çeviri yap", "prompt": "Aşağıdaki metni istediğim dile doğal şekilde çevir:"},
     {"id": "fix_text", "title": "Yazı düzelt", "prompt": "Bu yazıyı imla ve anlatım açısından düzelt:"},
     {"id": "image", "title": "Görsel oluştur", "prompt": "Şu tarife uygun görsel oluştur:"},
-    {"id": "ai_settings", "title": "AI ayarları", "prompt": "Nexa AI ayarlarını aç."},
+    {"id": "ai_settings", "title": "AI ayarları", "prompt": "Asistan ayarlarını aç."},
     {"id": "chat_summary", "title": "Sohbeti özetle", "prompt": "Aktif sohbeti özetle."},
     {"id": "call_person", "title": "Kişiyi ara", "prompt": "Bu kişiyi ara:"},
     {"id": "draft_message", "title": "Mesaj taslağı oluştur", "prompt": "Bu kişiye kısa ve doğal bir mesaj taslağı oluştur:"},
@@ -6067,7 +6017,7 @@ def ai_sync_all():
     except Exception as error:
         db.session.rollback()
         app.logger.exception("AI sync failed: %s", error)
-        return jsonify({"ok": False, "message": "Nexa AI hafıza birimi erişilemiyor."}), 500
+        return jsonify({"ok": False, "message": "Asistan hafıza birimi erişilemiyor."}), 500
 
 
 @app.route("/ai/settings/<username>", methods=["POST"])
@@ -6084,14 +6034,14 @@ def ai_settings_update(username):
         for key in allowed:
             if key in data:
                 settings[key] = data[key]
-        settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Nexa AI")).strip()[:40] or "Nexa AI"
+        settings["name"] = re.sub(r"\s+", " ", str(settings.get("name") or "Asistan")).strip()[:40] or "Asistan"
         user.ai_settings = {key: settings.get(key) for key in allowed}
         db.session.commit()
-        return jsonify({"ok": True, "message": "Nexa AI ayarları sunucuda güncellendi.", "settings": ai_settings_for_user(user)})
+        return jsonify({"ok": True, "message": "Asistan ayarları sunucuda güncellendi.", "settings": ai_settings_for_user(user)})
     except Exception as error:
         db.session.rollback()
         app.logger.exception("AI settings update failed: %s", error)
-        return jsonify({"ok": False, "message": "Nexa AI ayar birimi güncellenemedi."}), 500
+        return jsonify({"ok": False, "message": "Asistan ayar birimi güncellenemedi."}), 500
 
 
 AI_RISKY_ACTIONS = {
@@ -6178,10 +6128,10 @@ def execute_ai_server_action(user, action):
         elif action_type == "set_ai_auto_approve":
             settings["autoApprove"] = action.get("enabled") is not False
         elif action_type == "set_ai_name":
-            settings["name"] = re.sub(r"\s+", " ", str(action.get("name") or "Nexa AI").strip())[:40] or "Nexa AI"
+            settings["name"] = re.sub(r"\s+", " ", str(action.get("name") or "Asistan").strip())[:40] or "Asistan"
         user.ai_settings = {key: settings.get(key) for key in default_ai_settings().keys()}
         db.session.commit()
-        return {"message": "Nexa AI ayarı güncellendi.", "state": ai_full_state_for(username)}
+        return {"message": "Asistan ayarı güncellendi.", "state": ai_full_state_for(username)}
 
     if action_type == "delete_chat":
         chat = ai_action_chat_for_user(action, username)
@@ -6270,7 +6220,7 @@ def ai_action_execute():
     except Exception as error:
         db.session.rollback()
         app.logger.exception("AI action execute failed: %s", error)
-        return jsonify({"ok": False, "message": "Nexa AI aksiyon birimi işlemi tamamlayamadı."}), 500
+        return jsonify({"ok": False, "message": "Asistan aksiyon birimi işlemi tamamlayamadı."}), 500
 
 
 @app.route("/ai/tasks/<username>", methods=["GET", "POST"])
@@ -6355,7 +6305,7 @@ def local_ai_task_spoken_text(task, user=None):
         return f"{greeting}{title} için zaman geldi. Hazırlıklarını kontrol edip sakin bir başlangıç yapabilirsin."
     if any(word in folded for word in ("uyu", "uyku", "dinlen")):
         return f"{greeting}{title.lower()} zamanı. Günü yavaşlatıp kendine dinlenmek için alan aç."
-    return f"{greeting}NexaLine hatırlatmanı söylüyorum: {title}. Müsaitsen şimdi başlayabilirsin."
+    return f"{greeting}Nidar hatırlatmanı söylüyorum: {title}. Müsaitsen şimdi başlayabilirsin."
 
 
 def generate_ai_task_spoken_text(task, user=None):
@@ -6400,7 +6350,7 @@ def next_ai_task_remind_at(task, current_due=None):
 def ai_task_call_payload(task, spoken_text=None):
     spoken_text = spoken_text or local_ai_task_spoken_text(task, task.user)
     return {
-        "title": "Nexa AI arıyor",
+        "title": "Asistan arıyor",
         "message": task.title,
         "spokenText": spoken_text,
         "type": "ai.task.call",
@@ -6497,7 +6447,7 @@ def qr_login_confirm():
         session_id, secret = parse_qr_login_token(data.get("token") or data.get("payload"))
     username = (data.get("username") or "").strip().lower()
     if not username or not db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Telefonda açık bir NexaLine hesabı bulunamadı."}), 401
+        return jsonify({"ok": False, "message": "Telefonda açık bir Nidar hesabı bulunamadı."}), 401
     row, error = qr_session_error(session_id, secret)
     if error:
         return error
@@ -6692,7 +6642,7 @@ def register_verify():
             phone_normalized=verification.phone_normalized if contact_kind == "phone" else None,
             phone_verified=contact_kind == "phone",
             avatar=tr_upper((display_name or username)[:2]),
-            about="NexaLine kullanıyorum.",
+            about="Nidar kullanıyorum.",
         )
         db.session.add(user)
         db.session.delete(verification)
@@ -6988,7 +6938,7 @@ def update_profile(username):
     else:
         user.avatar = tr_upper(display_name[:2])
     user.avatar_gradient = avatar_gradient if avatar_gradient in AVATAR_GRADIENTS else None
-    user.about = about or "NexaLine kullanıyorum."
+    user.about = about or "Nidar kullanıyorum."
     if isinstance(profile_image, str):
         if profile_image and not profile_image.startswith("data:image/"):
             return jsonify({"ok": False, "message": "Profil fotoğrafı sadece resim olabilir."}), 400
@@ -7189,7 +7139,7 @@ BADGE_DEFINITIONS = [
     {"id": "helpful", "title": "Yardımsever", "description": "5 arkadaşlık kabul puanı kazan.", "reward": "Profil rozeti", "target": 5, "reason": "friend_accept"},
     {"id": "loyal", "title": "Sadık Üye", "description": "10 günlük giriş serisi oluştur.", "reward": "Sadakat rozeti", "target": 10, "reason": "daily_streak"},
     {"id": "explorer", "title": "Keşifçi", "description": "3 farklı özelliği kullan.", "reward": "Keşif teması", "target": 3, "reason": "feature_mix"},
-    {"id": "ai_friend", "title": "AI Dostu", "description": "Nexa AI ile 5 gün konuş.", "reward": "+100", "target": 5, "reason": "ai_chat"},
+    {"id": "ai_friend", "title": "AI Dostu", "description": "Asistan ile 5 gün konuş.", "reward": "+100", "target": 5, "reason": "ai_chat"},
     *[
         {
             "id": item["id"],
@@ -7206,7 +7156,7 @@ BADGE_DEFINITIONS = [
 
 QUEST_DEFINITIONS = [
     {"id": "daily_messages", "type": "daily", "title": "3 kişiye mesaj gönder", "description": "Bugün en az 3 mesaj gönder.", "reward": POINT_RULES["quest_daily"], "reason": "message", "target": 3},
-    {"id": "daily_ai", "type": "daily", "title": "AI ile sohbet et", "description": "Bugün Nexa AI'ya bir komut ver.", "reward": POINT_RULES["quest_daily"], "reason": "ai_chat", "target": 1},
+    {"id": "daily_ai", "type": "daily", "title": "AI ile sohbet et", "description": "Bugün Asistan'a bir komut ver.", "reward": POINT_RULES["quest_daily"], "reason": "ai_chat", "target": 1},
     {"id": "special_story", "type": "special", "title": "Durum paylaş", "description": "Bir güncelleme paylaş.", "reward": POINT_RULES["quest_special"], "reason": "story", "target": 1},
 ]
 
@@ -8166,7 +8116,7 @@ def admin_update_user_data(username):
     user.phone = phone_display
     user.phone_normalized = phone_normalized
     user.phone_verified = bool(phone_normalized and data.get("phoneVerified"))
-    user.about = str(data.get("about") or "").strip()[:255] or "NexaLine kullanıyorum."
+    user.about = str(data.get("about") or "").strip()[:255] or "Nidar kullanıyorum."
     user.points = points
     user.theme_preference = theme
     user.font_size_preference = font_size
@@ -9389,7 +9339,7 @@ def forward_call_event(event_name, data):
             call_kind = "audio" if data.get("audioOnly", True) else "video"
             send_push_notification(
                 chat.id,
-                "NexaLine arama",
+                "Nidar arama",
                 f"{payload['fromName']} arıyor",
                 notification_type=f"call.{call_kind}",
                 sender=username,
@@ -9405,7 +9355,7 @@ def forward_call_event(event_name, data):
         call_kind = "audio" if data.get("audioOnly", True) else "video"
         send_push_notification(
             chat.id,
-            "NexaLine arama",
+            "Nidar arama",
             f"{payload['fromName']} arıyor",
             notification_type=f"call.{call_kind}",
             sender=username,
@@ -9545,7 +9495,7 @@ def handle_background_sync(data=None):
         if not chat or not user_can_see_chat(chat, username):
             emit("background-sync:error", {"ok": False, "message": "Sohbet bulunamadi."})
             return
-        title = re.sub(r"\s+", " ", str(data.get("title") or chat.title or "NexaLine"))[:120]
+        title = re.sub(r"\s+", " ", str(data.get("title") or chat.title or "Nidar"))[:120]
         message = re.sub(r"\s+", " ", str(data.get("message") or "Yeni bildirim"))[:500]
         notification_type = str(data.get("type") or "message")[:40]
         result = send_push_notification(
