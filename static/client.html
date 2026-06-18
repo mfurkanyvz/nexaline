@@ -694,7 +694,12 @@
         const DEFAULT_BRAND_LOGO = "/static/nexaline-logo.png";
         const DEFAULT_AI_NAME = "Asistan";
         const DEFAULT_AI_AVATAR = DEFAULT_BRAND_LOGO;
-        const IS_NATIVE_ANDROID = Boolean(window.NidarNative?.isNativeAndroid?.());
+
+        function nativeBridge() {
+            return window.NidarNative || window.NexaLineNative || null;
+        }
+
+        const IS_NATIVE_ANDROID = Boolean(nativeBridge()?.isNativeAndroid?.());
         document.documentElement.classList.toggle("nexaline-native-android", IS_NATIVE_ANDROID);
         const MESSAGE_TONES = {
             classic: [[660, 70], [880, 80]],
@@ -2234,7 +2239,7 @@
         }
 
         async function checkPermission({ requestIfNeeded = false } = {}) {
-            if (window.NidarNative?.canNotify?.()) {
+            if (nativeBridge()?.canNotify?.()) {
                 state.notificationReady = true;
                 return true;
             }
@@ -2255,12 +2260,12 @@
         }
 
         async function requestNotificationPermission() {
-            if (window.NidarNative?.canNotify?.()) {
+            if (nativeBridge()?.canNotify?.()) {
                 state.notificationReady = true;
                 return true;
             }
-            if (window.NidarNative?.requestNotificationPermission) {
-                window.NidarNative.requestNotificationPermission();
+            if (nativeBridge()?.requestNotificationPermission) {
+                nativeBridge().requestNotificationPermission();
                 return false;
             }
             if (!("Notification" in window)) {
@@ -2290,8 +2295,8 @@
             if (isNotificationMuted()) {
                 return;
             }
-            if (window.NidarNative?.notify) {
-                window.NidarNative.notify(title, body, tag || "nexaline");
+            if (nativeBridge()?.notify) {
+                nativeBridge().notify(title, body, tag || "nexaline");
                 return;
             }
             if (!("Notification" in window) || Notification.permission !== "granted") {
@@ -2572,8 +2577,8 @@
         function maybeNotifyCall(data) {
             requestNotificationPermission();
             addNotificationLog({ kind: "call", title: "Nidar arama", body: `${data.fromName || data.from} arıyor`, chatId: data.chatId });
-            if (window.NidarNative?.showIncomingCall) {
-                window.NidarNative.showIncomingCall(JSON.stringify({
+            if (nativeBridge()?.showIncomingCall) {
+                nativeBridge().showIncomingCall(JSON.stringify({
                     chatId: data.chatId,
                     callerName: data.fromName || data.from || "Nidar",
                     audioOnly: Boolean(data.audioOnly)
@@ -3565,7 +3570,7 @@
 
             speakWithNativeAndroid(text, session = null) {
             return new Promise(resolve => {
-                const bridge = window.NidarNative;
+                const bridge = nativeBridge();
                 if (!bridge?.speak || !text) {
                     resolve(false);
                     return;
@@ -3656,7 +3661,7 @@
             const spokenText = this.aiSpeechText(text);
             if (!spokenText) return false;
             let nativeAndroid = false;
-            try { nativeAndroid = Boolean(window.NidarNative?.isNativeAndroid?.()); } catch (_error) {}
+            try { nativeAndroid = Boolean(nativeBridge()?.isNativeAndroid?.()); } catch (_error) {}
             const data = await runAiTts(spokenText);
             if (data.ok && data.audioDataUrl) {
                 const webAudioResult = await this.playAiAudioDataUrl(data.audioDataUrl, session);
@@ -12878,7 +12883,7 @@
 
         function startCallRingtone() {
             stopCallRingtone();
-            if (window.NidarNative?.isNativeAndroid?.()) {
+            if (nativeBridge()?.isNativeAndroid?.()) {
                 return;
             }
             playCallSound();
@@ -12890,7 +12895,7 @@
                 clearInterval(state.call.ringtoneTimer);
                 state.call.ringtoneTimer = null;
             }
-            window.NidarNative?.dismissIncomingCall?.();
+            nativeBridge()?.dismissIncomingCall?.();
         }
 
         function readImageFile(file, onLoad) {

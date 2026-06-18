@@ -6,7 +6,7 @@ self.addEventListener("push", event => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (error) {
-    data = { title: "NexaLine", message: event.data ? event.data.text() : "Yeni bildirim" };
+    data = { title: "Nidar", message: event.data ? event.data.text() : "Yeni bildirim" };
   }
 
   const type = data.type || "message";
@@ -27,7 +27,7 @@ self.addEventListener("push", event => {
     actions: [{ action: "open", title: type === "ai.task.call" ? "Yanıtla" : "Görüntüle" }]
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || "NexaLine", options));
+  event.waitUntil(self.registration.showNotification(data.title || "Nidar", options));
 });
 
 self.addEventListener("notificationclick", event => {

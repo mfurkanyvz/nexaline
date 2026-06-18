@@ -119,7 +119,9 @@ public class MainActivity extends Activity {
         }
         CookieManager.getInstance().setAcceptCookie(true);
 
-        webView.addJavascriptInterface(new NativeBridge(), "NexaLineNative");
+        NativeBridge nativeBridge = new NativeBridge();
+        webView.addJavascriptInterface(nativeBridge, "NidarNative");
+        webView.addJavascriptInterface(nativeBridge, "NexaLineNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -356,7 +358,7 @@ public class MainActivity extends Activity {
             + "<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070a10;color:#eef4ff;font-family:Arial,sans-serif;padding:22px;text-align:center}"
             + ".box{max-width:420px}.mark{width:58px;height:58px;margin:0 auto 18px;border-radius:16px;background:#202633;display:grid;place-items:center;font-weight:800}"
             + "p{color:#95a0b5;line-height:1.45}button{border:0;border-radius:8px;padding:12px 16px;background:#2f8cff;color:#fff;font:inherit}</style></head>"
-            + "<body><div class=\"box\"><div class=\"mark\">NL</div><h2>NexaLine açılamadı</h2>"
+            + "<body><div class=\"box\"><div class=\"mark\">NL</div><h2>Nidar açılamadı</h2>"
             + "<p>Telefonun ve sunucunun aynı ağa bağlı olduğundan emin ol. Sunucu adresi: "
             + BuildConfig.NEXALINE_URL
             + "</p><button onclick=\"location.href='"
@@ -496,8 +498,8 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             return;
         }
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "NexaLine", NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("NexaLine mesaj ve arama bildirimleri");
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Nidar", NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Nidar mesaj ve arama bildirimleri");
         channel.enableVibration(true);
         channel.setVibrationPattern(new long[] { 0, 180, 100, 220 });
         channel.setSound(Settings.System.DEFAULT_NOTIFICATION_URI, null);
@@ -508,8 +510,8 @@ public class MainActivity extends Activity {
             .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build();
-        NotificationChannel callChannel = new NotificationChannel(CALL_CHANNEL_ID, "NexaLine aramaları", NotificationManager.IMPORTANCE_HIGH);
-        callChannel.setDescription("Gelen NexaLine sesli ve görüntülü aramaları");
+        NotificationChannel callChannel = new NotificationChannel(CALL_CHANNEL_ID, "Nidar aramaları", NotificationManager.IMPORTANCE_HIGH);
+        callChannel.setDescription("Gelen Nidar sesli ve görüntülü aramaları");
         callChannel.enableVibration(true);
         callChannel.setVibrationPattern(new long[] { 0, 500, 250, 500, 250, 800 });
         callChannel.setSound(Settings.System.DEFAULT_RINGTONE_URI, callAudio);
@@ -537,7 +539,7 @@ public class MainActivity extends Activity {
         try {
             JSONObject payload = new JSONObject(payloadJson == null ? "{}" : payloadJson);
             String chatId = payload.optString("chatId", "nexaline");
-            String callerName = payload.optString("callerName", "NexaLine");
+            String callerName = payload.optString("callerName", "Nidar");
             boolean audioOnly = payload.optBoolean("audioOnly", true);
             activeCallNotificationId = callNotificationId(chatId);
 
@@ -576,7 +578,7 @@ public class MainActivity extends Activity {
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CALL_CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.sym_call_incoming)
                 .setContentTitle(callerName)
-                .setContentText(audioOnly ? "NexaLine sesli araması" : "NexaLine görüntülü araması")
+                .setContentText(audioOnly ? "Nidar sesli araması" : "Nidar görüntülü araması")
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -590,7 +592,7 @@ public class MainActivity extends Activity {
             NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             manager.notify(activeCallNotificationId, builder.build());
         } catch (Exception error) {
-            showNotification("NexaLine arama", "Gelen arama", "call-nexaline");
+            showNotification("Nidar arama", "Gelen arama", "call-nexaline");
         }
     }
 

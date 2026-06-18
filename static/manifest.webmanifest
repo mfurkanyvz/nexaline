@@ -1,29 +1,48 @@
 {
-  "name": "NexaLine",
-  "short_name": "NexaLine",
-  "description": "NexaLine; mesajlaşma, chat, sesli ve görüntülü arama, grup sohbeti, topluluk, durum paylaşımı ve Nexa AI asistan özellikleri sunan modern sosyal iletişim platformu.",
+  "name": "Nidar",
+  "short_name": "Nidar",
+  "description": "Nidar; mesajla?ma, chat, sesli ve g?r?nt?l? arama, grup sohbeti, durum payla??m? ve Asistan ?zellikleri sunan modern sosyal ileti?im platformu.",
   "lang": "tr",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait",
   "background_color": "#050911",
   "theme_color": "#050911",
-  "categories": ["social", "communication", "productivity"],
+  "categories": [
+    "social",
+    "communication",
+    "productivity"
+  ],
   "shortcuts": [
     {
       "name": "Sohbetler",
       "short_name": "Sohbet",
       "url": "/",
-      "icons": [{ "src": "/static/icons/nexaline-icon-192-v2.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "/static/icons/nexaline-icon-192-v2.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Yonetici",
       "short_name": "Admin",
       "url": "/admin",
-      "icons": [{ "src": "/static/icons/nexaline-icon-192-v2.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "/static/icons/nexaline-icon-192-v2.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "icons": [

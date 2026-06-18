@@ -29,7 +29,7 @@ function createWindow() {
     height: 760,
     minWidth: 360,
     minHeight: 620,
-    title: "NexaLine",
+    title: "Nidar",
     icon: path.join(__dirname, "assets", "icon.png"),
     backgroundColor: "#10141d",
     webPreferences: {
@@ -92,7 +92,7 @@ app.on("activate", () => {
 ipcMain.handle("notify", (event, { title, body, tag }) => {
   if (Notification.isSupported()) {
     const notification = new Notification({
-      title: title || "NexaLine",
+      title: title || "Nidar",
       body: body || "",
       tag: tag || "nexaline",
       silent: false,

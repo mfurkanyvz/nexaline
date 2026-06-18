@@ -1,7 +1,7 @@
 {
   "name": "nexaline-desktop",
   "version": "1.0.0",
-  "description": "NexaLine desktop app",
+  "description": "Nidar desktop app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -9,7 +9,7 @@
   },
   "build": {
     "appId": "com.nexaline.desktop",
-    "productName": "NexaLine",
+    "productName": "Nidar",
     "files": [
       "main.js",
       "preload.js",
