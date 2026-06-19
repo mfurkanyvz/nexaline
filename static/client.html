@@ -79,7 +79,7 @@
             <div class="brand">
                 <div class="brand-mark"><img src="/static/nexaline-logo.png" alt="Nidar"></div>
                 <div>
-                    <h1>Nidar</h1>
+                    <h1 class="nidar-wordmark" aria-label="Nidar"><span>N</span><span>I</span><span>D</span><span class="nidar-a">A</span><span>R</span></h1>
                     <div class="brand-subtitle">Mesajlaş • Bağlan • Kazan</div>
                 </div>
             </div>
@@ -150,7 +150,7 @@
                 </div>
                 <button id="accountSwitcherButton" class="account-switcher-button" type="button" title="Hesap değiştir">⌄</button>
                 <div id="accountSwitcherMenu" class="account-switcher-menu hidden"></div>
-                <div class="mobile-brand-title">Nidar</div>
+                <div class="mobile-brand-title nidar-wordmark" aria-label="Nidar"><span>N</span><span>I</span><span>D</span><span class="nidar-a">A</span><span>R</span></div>
                 <button id="assistantShortcutButton" class="icon-btn assistant-shortcut-button" type="button" title="Asistan">✦</button>
                 <button id="pointsRailButton" class="points-chip" type="button" title="Nidar puanları">
                     <span class="points-star">★</span>
@@ -4172,7 +4172,16 @@
         }
 
             openAiPanel() {
-            $("aiPanel").classList.remove("hidden");
+            const panel = $("aiPanel");
+            const anchor = $("assistantShortcutButton");
+            clearTimeout(state.aiCloseTimer);
+            if (anchor && panel) {
+                const rect = anchor.getBoundingClientRect();
+                panel.style.setProperty("--ai-panel-origin-x", `${Math.round(rect.left + rect.width / 2)}px`);
+                panel.style.setProperty("--ai-panel-origin-y", `${Math.round(rect.top + rect.height / 2)}px`);
+            }
+            panel.classList.remove("ai-closing");
+            panel.classList.remove("hidden");
             pushAppHistory("ai");
             if (!state.aiPlanTasks) state.aiPlanTasks = [];
             startAiPlanReminderEngine();
@@ -4185,7 +4194,14 @@
         }
 
             closeAiPanel() {
-            $("aiPanel").classList.add("hidden");
+            const panel = $("aiPanel");
+            if (panel.classList.contains("hidden") || panel.classList.contains("ai-closing")) return;
+            clearTimeout(state.aiCloseTimer);
+            panel.classList.add("ai-closing");
+            state.aiCloseTimer = setTimeout(() => {
+                panel.classList.add("hidden");
+                panel.classList.remove("ai-closing");
+            }, 280);
         }
 
             toggleAiPanel() {

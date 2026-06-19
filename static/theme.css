@@ -372,12 +372,43 @@ video {
 .brand h1 {
     margin: 0;
     font-size: clamp(26px, 6vw, 42px);
+}
+
+.nidar-wordmark {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.16em;
     color: #F3F4F6;
-    font-weight: 500;
-    letter-spacing: 0.24em;
+    font-family: "Inter", "Montserrat", "Avenir Next", "Segoe UI", Arial, sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.08em;
     line-height: 1;
     text-transform: uppercase;
-    text-shadow: 0 0 18px rgba(117, 92, 255, 0.16);
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.28),
+        0 0 18px rgba(117, 92, 255, 0.16);
+}
+
+.nidar-wordmark > span {
+    display: inline-block;
+}
+
+.nidar-wordmark .nidar-a {
+    position: relative;
+    padding-inline: 0.01em;
+}
+
+.nidar-wordmark .nidar-a::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0.08em;
+    width: 0.16em;
+    height: 0.16em;
+    border-radius: 50%;
+    background: #8A55F7;
+    box-shadow: 0 0 12px rgba(138, 85, 247, 0.62);
+    transform: translateX(-50%);
 }
 
 .brand-subtitle,
@@ -610,9 +641,7 @@ textarea {
 .mobile-brand-title {
     display: none;
     color: #F3F4F6;
-    font-weight: 500;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
+    font-size: 17px;
     text-shadow: 0 0 16px rgba(117, 92, 255, 0.18);
 }
 
@@ -4742,10 +4771,20 @@ button {
         radial-gradient(circle at 90% 88%, rgba(255, 0, 184, 0.1), transparent 32%),
         rgba(5, 7, 10, 0.97);
     box-shadow: none;
+    transform-origin: var(--ai-panel-origin-x, calc(100% - 92px)) var(--ai-panel-origin-y, calc(var(--safe-top) + 28px));
 }
 
 .ai-panel.hidden {
     display: none;
+}
+
+.ai-panel:not(.hidden) {
+    animation: settings-panel-grow-down 0.34s cubic-bezier(0.2, 0.82, 0.24, 1) both;
+}
+
+.ai-panel.ai-closing {
+    pointer-events: none;
+    animation: settings-panel-shrink-up 0.28s cubic-bezier(0.4, 0, 0.8, 0.2) both;
 }
 
 .ai-head {
