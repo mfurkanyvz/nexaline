@@ -687,6 +687,27 @@ textarea {
     font-weight: 720;
 }
 
+.new-requests-chip.has-requests {
+    border-color: rgba(168, 85, 247, 0.34);
+    background: rgba(139, 92, 246, 0.14);
+    color: #fff;
+    box-shadow: 0 0 18px rgba(139, 92, 246, 0.18);
+}
+
+.new-requests-chip span {
+    min-width: 20px;
+    height: 20px;
+    display: inline-grid;
+    place-items: center;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent-purple);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+}
+
 .section-label {
     font-size: 28px;
     font-weight: 850;
@@ -2318,6 +2339,96 @@ button {
     border-color: rgba(255, 184, 0, 0.22);
     background: rgba(255, 184, 0, 0.09);
     color: #ffd86e;
+}
+
+.new-requests-panel {
+    display: grid;
+    gap: 10px;
+}
+
+.new-request-card {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.14), transparent 34%),
+        var(--bg-card);
+    color: var(--text-main);
+    text-align: left;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.new-request-card:active {
+    transform: scale(0.98);
+}
+
+.new-request-info {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.new-request-info strong,
+.new-request-info small,
+.new-request-info em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.new-request-info small {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.new-request-info em {
+    color: var(--text-soft);
+    font-size: 11px;
+    font-style: normal;
+}
+
+.new-request-actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.new-request-actions .request-button {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--accent-purple);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.new-request-actions .request-button.pending {
+    max-width: none;
+    color: #cbd5e1;
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+@media (max-width: 430px) {
+    .new-request-card {
+        grid-template-columns: 46px minmax(0, 1fr);
+    }
+
+    .new-request-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
 }
 
 .contact-score {

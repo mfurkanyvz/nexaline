@@ -6369,6 +6369,24 @@
             setNavBadge("contacts", incomingRequests);
         }
 
+        function incomingContactRequests() {
+            return (state.contactRequests || [])
+                .filter(item => item.status === "pending" && item.to?.username === state.me?.username)
+                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        }
+
+        function updateNewRequestsButton() {
+            const button = $("newRequestsButton");
+            if (!button) return;
+            const count = incomingContactRequests().length;
+            button.disabled = false;
+            button.tabIndex = 0;
+            button.setAttribute("aria-disabled", "false");
+            button.classList.toggle("has-requests", count > 0);
+            button.innerHTML = `Yeni istekler${count ? ` <span>${count > 99 ? "99+" : count}</span>` : ""}`;
+            button.title = count ? `${count} yeni istek` : "Yeni istek yok";
+        }
+
         function markMissedCallsSeen() {
             if (state.activeSection !== "calls") return;
             const callIds = state.callLogs
@@ -6606,6 +6624,7 @@
             $("newRequestsButton").classList.toggle("hidden", state.activeSection !== "chats");
             $("newCallHeaderButton").classList.toggle("hidden", state.activeSection !== "calls");
             updateNavBadges();
+            updateNewRequestsButton();
             updateNavIndicator();
             requestAnimationFrame(updateNavIndicator);
             updateAiAssistantVisibility();
@@ -9173,6 +9192,67 @@
                 }
                 body.appendChild(list);
             }, [{ label: "Kapat", onClick: closeModal }]);
+        }
+
+        function openNewRequestsPanel() {
+            openModal("Yeni istekler", body => {
+                const requests = incomingContactRequests();
+                const wrap = document.createElement("div");
+                wrap.className = "new-requests-panel";
+                if (!requests.length) {
+                    wrap.innerHTML = emptyStateMarkup("＋", "Yeni istek yok", "Biri sana arkadaşlık isteği gönderdiğinde burada görünecek.");
+                    body.appendChild(wrap);
+                    return;
+                }
+                requests.forEach(requestRow => {
+                    const user = requestRow.from || {};
+                    const card = document.createElement("button");
+                    card.type = "button";
+                    card.className = "new-request-card";
+                    card.onclick = () => openUserDetail(user);
+
+                    const avatar = document.createElement("div");
+                    avatar.className = "avatar" + (user.online ? " online" : "");
+                    setAvatar(avatar, user, user.displayName || user.username);
+
+                    const sentAt = requestRow.createdAt ? new Date(requestRow.createdAt) : null;
+                    const hasDate = sentAt && !Number.isNaN(sentAt.getTime());
+                    const sentTime = hasDate ? sentAt.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : "";
+                    const sentDate = hasDate ? sentAt.toLocaleDateString("tr-TR", { day: "2-digit", month: "long" }) : "";
+                    const info = document.createElement("span");
+                    info.className = "new-request-info";
+                    info.innerHTML = `
+                        <strong>${escapeHtml(user.displayName || user.username || "Kullanıcı")}</strong>
+                        <small>@${escapeHtml(user.username || "")} sana arkadaşlık isteği gönderdi.</small>
+                        <em>${escapeHtml([sentDate, sentTime].filter(Boolean).join(" • ") || "Tarih yok")} · ${escapeHtml(relativeTime(requestRow.createdAt))}</em>
+                    `;
+
+                    const actions = document.createElement("span");
+                    actions.className = "new-request-actions";
+                    const accept = document.createElement("button");
+                    accept.type = "button";
+                    accept.className = "request-button";
+                    accept.textContent = "Kabul";
+                    accept.onclick = event => {
+                        event.stopPropagation();
+                        socket.emit("contact:respond", { requestId: requestRow.id, accept: true });
+                        closeModal();
+                    };
+                    const decline = document.createElement("button");
+                    decline.type = "button";
+                    decline.className = "request-button pending";
+                    decline.textContent = "Reddet";
+                    decline.onclick = event => {
+                        event.stopPropagation();
+                        socket.emit("contact:respond", { requestId: requestRow.id, accept: false });
+                        closeModal();
+                    };
+                    actions.append(accept, decline);
+                    card.append(avatar, info, actions);
+                    wrap.appendChild(card);
+                });
+                body.appendChild(wrap);
+            }, [{ label: "Kapat", onClick: closeModal }], "sheet new-requests-modal");
         }
 
         function openUserDetail(user) {
@@ -14033,6 +14113,7 @@
         $("assistantShortcutButton").onclick = openAiPanel;
         $("accountSwitcherButton").onclick = toggleAccountSwitcher;
         $("newCallHeaderButton").onclick = openNewCallModal;
+        $("newRequestsButton").onclick = openNewRequestsPanel;
         $("pointsRailButton").onclick = openPointsPanel;
         $("mobileQrButton").onclick = openQrScanner;
         $("closeSettingsButton").onclick = closeSettings;
