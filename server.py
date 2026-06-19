@@ -1526,16 +1526,21 @@ def call_log_to_dict(log, username):
     }
 
 
-def ensure_lobby():
+def remove_legacy_general_group():
     lobby = db.session.get(Chat, "lobby")
-    if lobby:
-        if lobby.title != "Genel Grup":
-            lobby.title = "Genel Grup"
-            db.session.commit()
-        return
+    if not lobby:
+        return False
 
-    db.session.add(Chat(id="lobby", type="group", title="Genel Grup"))
+    CallLog.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    ScheduledMessage.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    GroupInvite.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    HiddenChat.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    ChatArchive.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    Message.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    ChatMember.query.filter_by(chat_id="lobby").delete(synchronize_session=False)
+    db.session.delete(lobby)
     db.session.commit()
+    return True
 
 
 def direct_chat_id(first_username, second_username):
@@ -1598,7 +1603,7 @@ def is_group_admin(chat, username):
 
 
 def promote_fallback_group_admin(chat):
-    if not chat or chat.type != "group" or chat.id == "lobby":
+    if not chat or chat.type != "group":
         return
 
     if any(member.is_admin for member in chat.members):
@@ -1607,20 +1612,6 @@ def promote_fallback_group_admin(chat):
     first_member = next(iter(chat.members), None)
     if first_member:
         first_member.is_admin = True
-
-
-def general_group_state(username):
-    ensure_lobby()
-    lobby = db.session.get(Chat, "lobby")
-    members = [public_user(member, username) for member in chat_member_names(lobby)]
-    joined = any(member["username"] == username for member in members)
-
-    return {
-        "id": lobby.id,
-        "title": lobby.title,
-        "members": members,
-        "joined": joined,
-    }
 
 
 def chat_for_user(chat, username):
@@ -1655,7 +1646,6 @@ def chat_for_user(chat, username):
 
 
 def visible_chats(username):
-    ensure_lobby()
     expire_due_messages(notify=False)
     purge_expired_archives()
     result = []
@@ -1788,7 +1778,6 @@ def app_state_for_user(username):
         "user": private_user(username),
         "users": public_users_for(username),
         "chats": visible_chats(username),
-        "generalGroup": general_group_state(username),
         "stories": active_stories(username),
         "updatesFeed": active_update_posts(username),
         "callLogs": visible_call_logs(username),
@@ -2083,11 +2072,6 @@ def broadcast_update_posts():
         socketio.emit("updates:feed", active_update_posts(username), room=sid, namespace="/")
 
 
-def emit_general_group_updates():
-    for sid, username in connections.items():
-        socketio.emit("general:update", general_group_state(username), room=sid)
-
-
 def emit_social_updates(*usernames):
     for username in {name for name in usernames if name}:
         for sid in connected_sids_for(username):
@@ -2177,15 +2161,8 @@ def reset_all_user_data():
     SupportRequest.query.delete(synchronize_session=False)
     ChatMember.query.delete(synchronize_session=False)
 
-    for chat in Chat.query.filter(Chat.id != "lobby").all():
+    for chat in Chat.query.all():
         db.session.delete(chat)
-
-    lobby = db.session.get(Chat, "lobby")
-    if lobby:
-        lobby.title = "Genel Grup"
-        lobby.image = None
-    else:
-        db.session.add(Chat(id="lobby", type="group", title="Genel Grup"))
 
     User.query.delete(synchronize_session=False)
     db.session.commit()
@@ -4978,7 +4955,6 @@ def admin_design():
 @app.route("/health")
 def health():
     try:
-        ensure_lobby()
         return jsonify({"ok": True, "users": User.query.count(), "chats": Chat.query.count()})
     except Exception as error:
         app.logger.exception("Health check failed")
@@ -6608,7 +6584,6 @@ def register_verify():
         )
         db.session.add(user)
         db.session.delete(verification)
-        ensure_lobby()
         db.session.flush()
         return jsonify(login_success_payload(user, device_id, "Kayıt başarılı."))
     except Exception:
@@ -7676,7 +7651,6 @@ def delete_account(username):
                 socketio.emit("account:deleted", {"username": username}, room=sid)
 
         broadcast_presence()
-        emit_general_group_updates()
         return jsonify({"ok": True, "message": "Hesap silindi."})
     except Exception:
         db.session.rollback()
@@ -7694,7 +7668,6 @@ def delete_all_users():
         reset_all_user_data()
         socketio.emit("admin:reset", {"message": "Tüm kullanıcılar silindi."}, namespace="/")
         broadcast_presence()
-        emit_general_group_updates()
         broadcast_stories()
         return jsonify({"ok": True, "message": "Tüm kullanıcılar silindi."})
     except Exception:
@@ -8004,7 +7977,6 @@ def admin_delete_user(username):
             connections.pop(sid, None)
             socketio.emit("account:deleted", {"username": target_username}, room=sid)
     broadcast_presence()
-    emit_general_group_updates()
     broadcast_stories()
     return jsonify({"ok": True, "message": "Kullanıcı silindi."})
 
@@ -8178,9 +8150,6 @@ def admin_delete_chat(chat_id):
     if admin_error:
         return admin_error
 
-    if chat_id == "lobby":
-        return jsonify({"ok": False, "message": "Genel Grup silinemez."}), 400
-
     chat = db.session.get(Chat, chat_id)
     if not chat:
         return jsonify({"ok": False, "message": "Sohbet bulunamadı."}), 404
@@ -8251,11 +8220,6 @@ def chat_messages(chat_id):
     )
 
 
-@socketio.on("connect")
-def handle_connect():
-    ensure_lobby()
-
-
 @socketio.on("qr:watch")
 def handle_qr_watch(data):
     data = data or {}
@@ -8302,7 +8266,6 @@ def handle_user_join(data):
     if include_state:
         emit("app:state", app_state_for_user(username))
     broadcast_presence()
-    emit_general_group_updates()
     return {"ok": True, "username": username}
 
 
@@ -8542,10 +8505,6 @@ def handle_group_remove(data):
         emit("notice", {"message": "Sadece grup yöneticisi kişi çıkarabilir."})
         return
 
-    if chat.id == "lobby":
-        emit("notice", {"message": "Genel Grup üyelerini yönetmek için katıl/çık kullanılır."})
-        return
-
     if target == username:
         emit("notice", {"message": "Kendini çıkarmak için gruptan çık düğmesini kullan."})
         return
@@ -8605,7 +8564,7 @@ def handle_group_update(data):
     data = data or {}
     chat = db.session.get(Chat, data.get("chatId"))
 
-    if not username or not chat or chat.type != "group" or chat.id == "lobby" or not is_group_admin(chat, username):
+    if not username or not chat or chat.type != "group" or not is_group_admin(chat, username):
         emit("notice", {"message": "Sadece grup yöneticisi grup bilgisini değiştirebilir."})
         return
 
@@ -8644,24 +8603,6 @@ def handle_group_update(data):
     emit("notice", {"message": "Grup güncellendi."})
 
 
-@socketio.on("chat:lobby:join")
-def handle_lobby_join():
-    username = connections.get(request.sid)
-    lobby = db.session.get(Chat, "lobby")
-
-    if not username or not lobby:
-        return
-
-    already_member = ChatMember.query.filter_by(chat_id=lobby.id, username=username).first()
-    add_chat_member(lobby.id, username)
-    if not already_member:
-        add_points(username, POINT_RULES["group_join"], "group_join", {"chatId": lobby.id})
-    db.session.commit()
-    join_room(lobby.id)
-    emit("chat:upsert", chat_for_user(lobby, username), room=request.sid)
-    emit_general_group_updates()
-
-
 @socketio.on("chat:leave")
 def handle_chat_leave(data):
     username = connections.get(request.sid)
@@ -8684,10 +8625,6 @@ def handle_chat_leave(data):
     for sid, connected_user in connections.items():
         if user_can_see_chat(chat, connected_user):
             emit("chat:upsert", chat_for_user(chat, connected_user), room=sid)
-
-    if chat.id == "lobby":
-        emit_general_group_updates()
-
 
 @socketio.on("chat:delete")
 def handle_chat_delete(data):
@@ -9674,7 +9611,7 @@ with app.app_context():
         if not existing_user.points:
             existing_user.points = historical_points(existing_user.username)
     db.session.commit()
-    ensure_lobby()
+    remove_legacy_general_group()
     for group_chat in Chat.query.filter_by(type="group").all():
         promote_fallback_group_admin(group_chat)
     db.session.commit()

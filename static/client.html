@@ -197,7 +197,7 @@
                 <button id="backButton" class="icon-btn hidden" title="Sohbetler">←</button>
                 <div id="activeAvatar" class="avatar">NL</div>
                 <button id="activeIdentityButton" class="identity chat-identity-button" type="button">
-                    <strong id="activeTitle">Genel Grup</strong>
+                    <strong id="activeTitle">Nidar</strong>
                     <small id="activeStatus">hazır</small>
                 </button>
                 <div class="icon-row">
@@ -1193,8 +1193,6 @@
             updatesRecordedChunks: [],
             updatesAudioDraft: null,
             updatesAudioStartedAt: 0,
-            generalGroup: null,
-            generalPromptShown: false,
             recorder: null,
             recordedChunks: [],
             cancelRecording: false,
@@ -2220,7 +2218,6 @@
             state.me = cached.user;
             state.users = cached.users || [];
             state.chats = cached.chats || [];
-            state.generalGroup = cached.generalGroup || null;
             state.stories = cached.stories || [];
             state.callLogs = cached.callLogs || [];
             state.scheduledMessages = cached.scheduledMessages || [];
@@ -5843,7 +5840,6 @@
                 startAiPlanReminderEngine();
                 state.users = data.users;
                 state.chats = data.chats;
-                state.generalGroup = data.generalGroup;
                 state.stories = data.stories || [];
                 state.callLogs = data.callLogs || [];
                 state.scheduledMessages = data.scheduledMessages || [];
@@ -5854,7 +5850,6 @@
                 clearStartupGuard();
                 render();
                 hideScreenTransition();
-                maybePromptGeneralGroup();
                 openPendingAiTaskCall();
             } else if (response.status === 401 || response.status === 404) {
                 resetToAuth(data.message || "Oturum bulunamadı. Yeniden giriş yap.");
@@ -7937,32 +7932,6 @@
             }
 
             appendLockedChatsUnlock(content);
-
-            const generalGroupTitle = state.generalGroup?.title || "Genel Grup";
-            if (state.generalGroup && !state.generalGroup.joined && (!filter || generalGroupTitle.toLocaleLowerCase("tr-TR").includes(filter))) {
-                const button = document.createElement("button");
-                button.className = "chat-item";
-                button.onclick = () => joinGeneralGroup(true);
-
-                const avatar = document.createElement("div");
-                avatar.className = "avatar";
-                avatar.textContent = "GG";
-
-                const body = document.createElement("div");
-                const title = document.createElement("strong");
-                title.className = "chat-title";
-                title.textContent = generalGroupTitle;
-                const last = document.createElement("div");
-                last.className = "last-message";
-                last.textContent = "Katılmak için tıkla";
-                body.append(title, last);
-
-                const count = document.createElement("span");
-                count.className = "chat-time";
-                count.textContent = `${state.generalGroup.members.length} kişi`;
-                button.append(avatar, body, count);
-                content.appendChild(button);
-            }
 
             visibleChatItems(state.chats)
                 .filter(chat => chat.type !== "group")
@@ -11863,28 +11832,6 @@
             ]);
         }
 
-        function maybePromptGeneralGroup() {
-            if (!state.generalGroup || state.generalGroup.joined || state.generalPromptShown) {
-                return;
-            }
-
-            state.generalPromptShown = true;
-            setTimeout(() => joinGeneralGroup(true), 300);
-        }
-
-        function joinGeneralGroup(confirmFirst) {
-            if (confirmFirst) {
-                confirmModal("Genel Grup", "Genel Gruba katılmak ister misin?", () => {
-                    state.openNextChat = true;
-                    socket.emit("chat:lobby:join");
-                });
-                return;
-            }
-
-            state.openNextChat = true;
-            socket.emit("chat:lobby:join");
-        }
-
         function leaveCurrentGroup() {
             const chat = activeChat();
             if (!chat || chat.type !== "group") {
@@ -11905,7 +11852,7 @@
             const me = chat.members.find(member => member.username === state.me.username);
             let imageData = null;
             openModal("Grup bilgisi", body => {
-                if (me?.isAdmin && chat.id !== "lobby") {
+                if (me?.isAdmin) {
                     const title = document.createElement("input");
                     title.id = "editGroupTitle";
                     title.value = chat.title;
@@ -11927,7 +11874,7 @@
                     const meta = document.createElement("small");
                     meta.textContent = member.online ? "çevrimiçi" : `son görülme ${relativeTime(member.lastSeen)}`;
                     const actions = document.createElement("span");
-                    if (me?.isAdmin && chat.id !== "lobby" && member.username !== state.me.username) {
+                    if (me?.isAdmin && member.username !== state.me.username) {
                         const transfer = document.createElement("button");
                         transfer.className = "mini-btn";
                         transfer.type = "button";
@@ -11945,7 +11892,7 @@
                 });
                 body.appendChild(list);
 
-                if (me?.isAdmin && chat.id !== "lobby") {
+                if (me?.isAdmin) {
                     const inviteTitle = document.createElement("strong");
                     inviteTitle.textContent = "Davet edilecek kişiler";
                     const inviteList = document.createElement("div");
@@ -11959,7 +11906,7 @@
                     });
                     body.append(inviteTitle, inviteList);
                 }
-            }, me?.isAdmin && chat.id !== "lobby" ? [
+            }, me?.isAdmin ? [
                 { label: "Kapat", onClick: closeModal },
                 { label: "Kaydet / Davet Et", primary: true, onClick: () => {
                     socket.emit("chat:group:update", { chatId: chat.id, title: $("editGroupTitle").value.trim(), image: imageData });
@@ -14623,7 +14570,6 @@
             loadAiSettings();
             state.users = data.users;
             state.chats = data.chats;
-            state.generalGroup = data.generalGroup;
             state.stories = data.stories || [];
             state.callLogs = data.callLogs || [];
             state.scheduledMessages = data.scheduledMessages || [];
@@ -14634,7 +14580,6 @@
             clearStartupGuard();
                 render();
                 hideScreenTransition();
-                maybePromptGeneralGroup();
                 openPendingAiTaskCall();
             nexaAiEngine.registerPushNotifications();
         });
@@ -14678,16 +14623,6 @@
             state.activeChatId = null;
             requestRender();
             closeMobileChat();
-        });
-
-        socket.on("general:update", data => {
-            state.generalGroup = data;
-            const lobby = state.chats.find(chat => chat.id === data.id);
-            if (lobby) {
-                lobby.title = data.title;
-                lobby.members = data.members;
-            }
-            requestRender();
         });
 
         socket.on("stories:update", stories => {
