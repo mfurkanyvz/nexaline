@@ -9,13 +9,5 @@
   "orientation": "portrait-primary",
   "background_color": "#020c0c",
   "theme_color": "#020c0c",
-  "categories": ["utilities", "productivity"],
-  "icons": [
-    {
-      "src": "assets/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+  "categories": ["utilities", "productivity"]
 }

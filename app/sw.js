@@ -1,13 +1,12 @@
 "use strict";
 
-const CACHE_NAME = "nexaline-asistan-v1";
+const CACHE_NAME = "nexaline-asistan-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./assets/icon.svg",
   "./assets/fonts/Grift-Regular.ttf",
   "./assets/fonts/Grift-Bold.ttf",
   "./assets/fonts/Grift-ExtraBold.ttf",
