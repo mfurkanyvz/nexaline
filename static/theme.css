@@ -7341,9 +7341,9 @@ button {
         border-radius: 0 0 28px 28px;
     }
 
-    body:has(#app:not(.hidden)) .ai-panel,
-    body:has(#app:not(.hidden)) .ai-panel.hidden,
-    body:has(#app:not(.hidden)) .ai-panel.ai-closing {
+    body.nidar-app-ready .ai-panel,
+    body.nidar-app-ready .ai-panel.hidden,
+    body.nidar-app-ready .ai-panel.ai-closing {
         position: fixed;
         top: 12px;
         right: 12px;

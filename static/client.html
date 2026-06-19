@@ -623,7 +623,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-19-fullscreen-tools-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-19-web-shell-fix-v2";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -5075,6 +5075,7 @@
             state.activeProfileUsername = null;
             state.bootReady = false;
             state.startupShellRevealed = false;
+            document.body.classList.remove("nidar-app-ready");
             $("app").classList.add("hidden");
             $("app").classList.remove("chat-open", "keyboard-open");
             $("accountSwitcherMenu")?.classList.add("hidden");
@@ -5781,6 +5782,7 @@
             showScreenTransition("Nidar açılıyor", 0);
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
+            document.body.classList.add("nidar-app-ready");
             const restoredFromCache = restoreOfflineBootstrap({ silent: true });
             if (!restoredFromCache) {
                 state.startupGuardTimer = setTimeout(() => {
