@@ -5053,6 +5053,31 @@ button {
     color: var(--text-main);
 }
 
+.ai-forwarded-attachment {
+    width: min(100%, 340px);
+    margin-top: 8px;
+}
+
+.ai-forwarded-attachment .ai-forwarded-node,
+.ai-forwarded-attachment .location-card,
+.ai-forwarded-attachment .voice-card,
+.ai-forwarded-attachment .poll-card,
+.ai-forwarded-attachment .file-pill {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+}
+
+.ai-forwarded-attachment img.ai-forwarded-node,
+.ai-forwarded-attachment video.ai-forwarded-node,
+.ai-forwarded-attachment .story-media {
+    display: block;
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    border-radius: 18px;
+}
+
 .ai-composer {
     flex: 0 0 auto;
     display: grid;

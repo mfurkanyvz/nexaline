@@ -2828,6 +2828,12 @@ Asistan kullanıcının kişisel ve grup sohbetlerini analiz edebilir, mesaj ve 
 Asistan hiçbir koşulda kullanıcı adına mesaj göndermez, zamanlı mesaj oluşturmaz, mesaja yanıt veya tepki vermez, durum paylaşmaz ya da grup oluşturmaz.
 """
 
+AI_SYSTEM_PROMPT += """
+contentSearchResults alanı varsa bunlar kullanıcının görme yetkisi bulunan gerçek sohbet sonuçlarıdır.
+Bu sonuçlarda dosya adı, ham URL veya koordinat listeleme; medya kartları arayüzde ayrıca gösterilecek.
+Kısaca "ilgili içeriği aşağıya ekledim" de, gerekirse sohbet/gönderen bilgisini belirt ve görseli/konumu/sesi gösteremem deme.
+"""
+
 def ai_get_system_tools():
     """Asistan?n uygulama aksiyonu gerektiğinde JSON olarak seçeceği araçlar."""
     base_schema = {"type": "object", "properties": {}}
@@ -5069,6 +5075,10 @@ def ai_chat():
         context["inputAttachment"] = attachment_context_for_ai(attachment)
     actions = []
     reply, provider, research = generate_ai_reply(prompt or "Bu eki incele ve yardımcı ol.", context, actions, attachment)
+    if content_results:
+        reply_folded = fold_tr_ascii(reply or "")
+        if any(term in reply_folded for term in ("gosteremem", "goremiyorum", "ulasamiyorum", "icerigini gosteremem", "dosya adi")):
+            reply = "İlgili içeriği aşağıya ekledim."
     intent = process_ai_intent(reply, context)
     if intent.get("is_intent"):
         reply = intent.get("reply") or "İşlemi hazırladım. Onaylarsan uygulayacağım."
@@ -5737,7 +5747,18 @@ AI_CONTENT_SEARCH_TERMS = {
 def ai_attachment_kind(attachment):
     if not isinstance(attachment, dict):
         return "text"
-    attachment_type = fold_tr_ascii(str(attachment.get("type") or attachment.get("kind") or ""))
+    data_url = str(attachment.get("dataUrl") or "")
+    data_mime = ""
+    if data_url.startswith("data:"):
+        data_mime = data_url.split(";", 1)[0].replace("data:", "")
+    attachment_type = fold_tr_ascii(str(
+        attachment.get("type")
+        or attachment.get("kind")
+        or attachment.get("mimeType")
+        or attachment.get("mime")
+        or data_mime
+        or ""
+    ))
     if attachment_type == "bundle":
         return "bundle"
     if attachment_type == "location":
@@ -5794,8 +5815,27 @@ def ai_attachment_search_text(attachment):
     if attachment.get("type") == "bundle":
         return " ".join(ai_attachment_search_text(item) for item in attachment.get("items") or [])
     poll = attachment.get("poll") if isinstance(attachment.get("poll"), dict) else {}
-    poll_text = " ".join([str(poll.get("question") or ""), *[str(item) for item in (poll.get("options") or [])]])
-    return " ".join(str(attachment.get(key) or "") for key in ("name", "type", "transcript", "address", "label")) + " " + poll_text
+    poll_options = []
+    for item in poll.get("options") or []:
+        if isinstance(item, dict):
+            poll_options.append(str(item.get("text") or item.get("label") or item.get("name") or ""))
+        else:
+            poll_options.append(str(item))
+    poll_text = " ".join([str(poll.get("question") or ""), *poll_options])
+    searchable_values = []
+    for key in (
+        "name", "type", "kind", "mimeType", "mime", "transcript", "text", "body",
+        "caption", "description", "analysis", "summary", "ocr", "tags", "label",
+        "address", "placeName", "city", "district", "country", "lat", "lng", "url",
+    ):
+        value = attachment.get(key)
+        if isinstance(value, (list, tuple, set)):
+            searchable_values.extend(str(item) for item in value)
+        elif isinstance(value, dict):
+            searchable_values.extend(str(item) for item in value.values())
+        elif value is not None:
+            searchable_values.append(str(value))
+    return " ".join(searchable_values) + " " + poll_text
 
 
 def ai_search_visible_content(username, query, chat_id=None, limit=12):

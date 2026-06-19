@@ -3145,23 +3145,40 @@
             return `<div class="ai-attachment-preview"><span class="file-pill">Dosya: ${name}</span></div>`;
         }
 
+            aiSearchResultCaption(result, message) {
+            const sender = message.senderName || message.sender || "Kişi";
+            const when = message.createdAt ? new Date(message.createdAt).toLocaleString("tr-TR") : "";
+            const kindLabels = {
+                image: "görsel",
+                video: "video",
+                audio: "sesli mesaj",
+                location: "konum",
+                poll: "anket",
+                document: "belge",
+                bundle: "ek paketi",
+                text: "mesaj"
+            };
+            const kind = kindLabels[result?.kind] || "içerik";
+            return `${result.chatTitle || "Sohbet"} • ${sender}${when ? ` • ${when}` : ""} • ${kind}`;
+        }
+
             addAiSearchResults(results = []) {
             results.slice(0, 8).forEach(result => {
                 const message = result?.message || {};
-                const sender = message.senderName || message.sender || "Kişi";
-                const when = message.createdAt ? new Date(message.createdAt).toLocaleString("tr-TR") : "";
-                const caption = `${result.chatTitle || "Sohbet"} • ${sender}${when ? ` • ${when}` : ""}`;
-                addAiMessage("assistant", message.body || caption, [], message.attachment || null);
+                const resultCaption = this.aiSearchResultCaption(result, message);
+                const body = String(message.body || "").trim();
+                addAiMessage("assistant", body ? `${resultCaption}\n${body}` : resultCaption, [], message.attachment || null, message);
             });
         }
 
-            addAiMessage(role, text, actions = [], attachment = null) {
+            addAiMessage(role, text, actions = [], attachment = null, sourceMessage = null) {
             state.aiMessages.push({
                 id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
                 role,
                 text,
                 actions,
                 attachment,
+                sourceMessage,
                 createdAt: new Date().toISOString()
             });
             saveAiHistory();
@@ -3201,11 +3218,22 @@
                 list.innerHTML = state.aiMessages.map(message => `
                     <div class="ai-bubble ${message.role === "user" ? "user" : ""}">
                         ${renderAiTextHtml(message.text || "")}
-                        ${renderAiAttachmentHtml(message.attachment)}
+                        ${message.attachment ? `<div class="ai-forwarded-attachment" data-ai-attachment="${escapeHtml(message.id)}"></div>` : ""}
                         ${message.actions?.length ? `<div class="ai-actions">${message.actions.map((action, index) => `<button data-ai-action="${escapeHtml(message.id)}:${index}" type="button">${escapeHtml(action.label || action.type)}</button>`).join("")}</div>` : ""}
                     </div>
                 `).join("") + (state.aiBusy ? `<div class="ai-bubble"><span class="ai-typing-dots"><span></span><span></span><span></span></span></div>` : "");
             }
+            list.querySelectorAll("[data-ai-attachment]").forEach(slot => {
+                const message = state.aiMessages.find(item => item.id === slot.dataset.aiAttachment);
+                if (!message?.attachment) return;
+                try {
+                    const node = renderAttachment(message.attachment, message.sourceMessage || null);
+                    node.classList?.add("ai-forwarded-node");
+                    slot.replaceChildren(node);
+                } catch (error) {
+                    slot.innerHTML = renderAiAttachmentHtml(message.attachment);
+                }
+            });
             list.querySelectorAll("[data-ai-home]").forEach(button => {
                 button.onclick = () => {
                     const target = button.dataset.aiHome;
@@ -10379,6 +10407,16 @@
         }
 
         function renderAttachment(attachment, message = null) {
+            if (!attachment) {
+                const empty = document.createElement("span");
+                empty.className = "file-pill";
+                empty.textContent = "Ek bulunamadı";
+                return empty;
+            }
+            if (!attachment.type) {
+                const dataUrlType = String(attachment.dataUrl || "").match(/^data:([^;,]+)/)?.[1] || "";
+                attachment = { ...attachment, type: attachment.mimeType || attachment.mime || attachment.kind || dataUrlType };
+            }
             if (attachment.type === "call") {
                 const pill = document.createElement("div");
                 pill.className = "file-pill";
@@ -10500,7 +10538,9 @@
                 const link = document.createElement("a");
                 link.className = "location-card";
                 setUiIndexMetadata(link, "4-3-3");
-                link.href = attachment.url;
+                const lat = Number(attachment.lat);
+                const lng = Number(attachment.lng);
+                link.href = attachment.url || (Number.isFinite(lat) && Number.isFinite(lng) ? `https://maps.google.com/?q=${lat},${lng}` : "#");
                 link.target = "_blank";
                 link.rel = "noreferrer";
                 link.innerHTML = `
