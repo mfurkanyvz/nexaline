@@ -1,4 +1,4 @@
-const CACHE_NAME = "nexaline-pwa-v85-video-call-20260615";
+const CACHE_NAME = "nidar-pwa-v86-brand-20260619";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
@@ -29,7 +29,7 @@ self.addEventListener("push", event => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (error) {
-    data = { title: "NexaLine", message: event.data ? event.data.text() : "Yeni bildirim" };
+    data = { title: "Nidar", message: event.data ? event.data.text() : "Yeni bildirim" };
   }
 
   const type = data.type || "message";
@@ -52,7 +52,7 @@ self.addEventListener("push", event => {
     actions: [{ action: "open", title: "Goruntule" }]
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || "NexaLine", options));
+  event.waitUntil(self.registration.showNotification(data.title || "Nidar", options));
 });
 
 self.addEventListener("notificationclick", event => {

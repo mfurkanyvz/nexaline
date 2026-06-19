@@ -372,6 +372,12 @@ video {
 .brand h1 {
     margin: 0;
     font-size: clamp(26px, 6vw, 42px);
+    color: #F3F4F6;
+    font-weight: 500;
+    letter-spacing: 0.24em;
+    line-height: 1;
+    text-transform: uppercase;
+    text-shadow: 0 0 18px rgba(117, 92, 255, 0.16);
 }
 
 .brand-subtitle,
@@ -398,6 +404,11 @@ small {
     width: 72px;
     height: 72px;
     border-radius: 24px;
+    background: #05060B;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 14px 34px rgba(0, 0, 0, 0.38),
+        0 0 24px rgba(168, 85, 247, 0.16);
 }
 
 .brand-mark img,
@@ -598,7 +609,11 @@ textarea {
 
 .mobile-brand-title {
     display: none;
-    font-weight: 800;
+    color: #F3F4F6;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    text-shadow: 0 0 16px rgba(117, 92, 255, 0.18);
 }
 
 .search-box {
