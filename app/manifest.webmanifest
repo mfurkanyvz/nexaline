@@ -1,0 +1,21 @@
+{
+  "name": "NexaLine · ASİSTAN",
+  "short_name": "NexaLine",
+  "description": "Konum destekli kişisel yapay zekâ yardımcısı ASİSTAN",
+  "lang": "tr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020c0c",
+  "theme_color": "#020c0c",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

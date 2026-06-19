@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#020c0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NexaLine">
+  <meta name="description" content="NexaLine içindeki konum destekli mobil yapay zekâ yardımcısı ASİSTAN">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <title>NexaLine · ASİSTAN</title>
+</head>
+<body>
+  <canvas id="fxCanvas" aria-hidden="true"></canvas>
+  <div class="scanline" aria-hidden="true"></div>
+
+  <main class="app-shell" id="appShell">
+    <header class="topbar">
+      <div class="topbar-kicker">NEXALINE · MOBİL ÇEKİRDEK</div>
+      <div class="brand-lockup">
+        <h1>ASİSTAN</h1>
+        <p>Akıllı Sesli İşlem ve Sistem Takip Asistanı</p>
+      </div>
+      <button class="icon-button settings-trigger" id="settingsButton" aria-label="Sistem ayarları">
+        <span class="gear">⌾</span>
+      </button>
+    </header>
+
+    <section class="status-rail" aria-label="Sistem durumu">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusLabel">BAŞLATILIYOR</span>
+      <span class="rail-separator"></span>
+      <span id="networkLabel">AĞ KONTROL EDİLİYOR</span>
+      <span class="rail-spacer"></span>
+      <span id="clockMini">--:--</span>
+    </section>
+
+    <section class="orb-stage" aria-label="ASİSTAN ses çekirdeği">
+      <div class="orb-aura"></div>
+      <div class="pulse-ring pulse-one"></div>
+      <div class="pulse-ring pulse-two"></div>
+      <div class="orb" id="orb" role="button" tabindex="0" aria-label="Konuşmayı başlat veya durdur">
+        <div class="orbit orbit-a"><i></i><i></i><i></i><i></i></div>
+        <div class="orbit orbit-b"><i></i><i></i><i></i></div>
+        <div class="orbit orbit-c"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="orb-particles" id="orbParticles"></div>
+        <div class="core-void"></div>
+      </div>
+      <div class="orb-caption">
+        <strong>ASİSTAN</strong>
+        <span id="orbStatus">● Başlatılıyor</span>
+      </div>
+      <div class="waveform" id="waveform" aria-hidden="true"></div>
+    </section>
+
+    <section class="brief-grid" aria-label="Hızlı bilgiler">
+      <article class="hud-card time-card">
+        <div class="card-title"><span>SAAT</span><span class="card-code">YEREL</span></div>
+        <strong id="clockMain">--:--</strong>
+        <span id="clockSeconds">:--</span>
+        <small id="dateMain">TARİH ALINIYOR</small>
+      </article>
+      <article class="hud-card weather-card" id="weatherCard">
+        <div class="card-title"><span>HAVA DURUMU</span><span class="card-code" id="weatherLocationCode">KONUM</span></div>
+        <strong id="weatherTemp">--°</strong>
+        <span id="weatherText">VERİ BEKLENİYOR</span>
+        <button class="text-action" id="weatherRefresh">YENİLE</button>
+      </article>
+      <article class="hud-card device-card">
+        <div class="card-title"><span>CİHAZ</span><span class="card-code" id="pwaMode">TARAYICI</span></div>
+        <div class="metric"><span>AĞ</span><b id="deviceNetwork">--</b></div>
+        <div class="metric"><span>PİL</span><b id="deviceBattery">YOK</b></div>
+        <div class="metric"><span>HAFIZA</span><b id="memoryCount">0</b></div>
+        <div class="metric"><span>KONUM</span><b id="locationStatus">İZİN BEKLİYOR</b></div>
+        <button class="location-action" id="locationButton" type="button">KONUMU ETKİNLEŞTİR</button>
+      </article>
+    </section>
+
+    <section class="conversation hud-card" aria-label="Konuşma">
+      <div class="conversation-head">
+        <span>KONUŞMA</span>
+        <button class="text-action" id="clearConversation">TEMİZLE</button>
+      </div>
+      <div class="camera-preview hidden" id="cameraPreview">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <img id="capturedImage" alt="Yakalanan kamera görüntüsü">
+        <div class="camera-actions">
+          <button id="captureButton">KAREYİ YAKALA</button>
+          <button id="closeCameraButton">KAPAT</button>
+        </div>
+      </div>
+      <div class="messages" id="messages" aria-live="polite">
+        <div class="message system">
+          <span>SİSTEM</span>
+          <p>Mobil çekirdek hazır. Gemini anahtarını ayarlardan ekleyerek ASİSTAN bağlantısını başlat.</p>
+        </div>
+      </div>
+      <form class="composer" id="composer">
+        <button type="button" class="composer-tool" id="cameraButton" aria-label="Kamerayı aç">◉</button>
+        <textarea id="promptInput" rows="1" maxlength="4000" placeholder="ASİSTAN'a bir şey söyle…" aria-label="Mesaj"></textarea>
+        <button type="submit" class="send-button" id="sendButton" aria-label="Gönder">➤</button>
+      </form>
+    </section>
+
+    <nav class="control-deck" aria-label="Kontroller">
+      <button class="control-button" id="micButton">
+        <span class="control-icon">◍</span>
+        <span>MİKROFON</span>
+      </button>
+      <button class="control-button" id="pauseButton">
+        <span class="control-icon">Ⅱ</span>
+        <span>DURAKLAT</span>
+      </button>
+      <button class="control-button" id="sfxButton">
+        <span class="control-icon">◒</span>
+        <span>SES</span>
+      </button>
+      <button class="control-button" id="installButton">
+        <span class="control-icon">⇩</span>
+        <span>YÜKLE</span>
+      </button>
+    </nav>
+
+    <footer>
+      <span>NEXALINE · ASİSTAN v1.1</span>
+      <span id="footerState">BEKLEMEDE</span>
+    </footer>
+  </main>
+
+  <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
+  <section class="settings-sheet hidden" id="settingsSheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div>
+        <small>SİSTEM YAPILANDIRMASI</small>
+        <h2 id="settingsTitle">ASİSTAN AYARLARI</h2>
+      </div>
+      <button class="icon-button" id="closeSettings" aria-label="Ayarları kapat">×</button>
+    </div>
+
+    <label class="field-label" for="apiKeyInput">GEMINI API ANAHTARI</label>
+    <div class="secret-field">
+      <input id="apiKeyInput" type="password" autocomplete="off" placeholder="AIza…">
+      <button id="toggleKey" type="button">GÖSTER</button>
+    </div>
+    <p class="field-help">Anahtar yalnızca bu cihazın tarayıcısında tutulur. Site dosyalarına yazılmaz.</p>
+
+    <div class="setting-row">
+      <div><span>SES ÇIKIŞI</span><small>Safari sistem sesi</small></div>
+      <select id="voiceSelect" aria-label="Ses seçimi"></select>
+    </div>
+    <div class="setting-row">
+      <div><span>OTOMATİK SESLENDİRME</span><small>Yanıtları seslendir</small></div>
+      <button class="toggle active" id="autoSpeakToggle" role="switch" aria-checked="true"><i></i></button>
+    </div>
+    <div class="setting-row">
+      <div><span>ARAYÜZ EFEKTLERİ</span><small>Animasyon ve sistem sesleri</small></div>
+      <button class="toggle active" id="effectsToggle" role="switch" aria-checked="true"><i></i></button>
+    </div>
+
+    <div class="settings-actions">
+      <button class="secondary-action" id="clearMemoryButton">HAFIZAYI TEMİZLE</button>
+      <button class="primary-action" id="saveSettingsButton">KAYDET & BAĞLAN</button>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

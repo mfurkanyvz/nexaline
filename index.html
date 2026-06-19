@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#031110">
+  <meta name="description" content="NexaLine platformu ve kişisel yapay zekâ yardımcısı ASİSTAN">
+  <link rel="stylesheet" href="site.css">
+  <title>NexaLine · ASİSTAN</title>
+</head>
+<body>
+  <canvas id="field" aria-hidden="true"></canvas>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="NexaLine ana sayfa">NEXALINE</a>
+    <nav aria-label="Ana menü">
+      <a href="#downloads">İndir</a>
+      <a href="#capabilities">Yetenekler</a>
+      <a class="nav-app" href="app/">ASİSTAN'ı Aç</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">KİŞİSEL YAPAY ZEKÂ SİSTEMİ</p>
+        <h1>NexaLine</h1>
+        <p class="hero-lead">Cihazınıza uyum sağlayan, Türkçe konuşan ve bulunduğunuz yere göre çalışan kişisel yardımcınız: <strong>ASİSTAN</strong>.</p>
+        <div class="hero-actions">
+          <a class="primary" href="app/">Web'de Kullan</a>
+          <a class="secondary" href="#downloads">Uygulamayı İndir</a>
+        </div>
+        <div class="live-strip" aria-label="Sistem özellikleri">
+          <span><i></i> KONUM UYUMLU</span>
+          <span><i></i> SESLİ İLETİŞİM</span>
+          <span><i></i> TÜRKÇE ARAYÜZ</span>
+        </div>
+      </div>
+
+      <div class="system-visual" aria-label="ASİSTAN canlı çekirdek önizlemesi">
+        <div class="visual-head"><span>ASİSTAN</span><b>ÇEVRİM İÇİ</b></div>
+        <div class="core-wrap">
+          <div class="ring ring-one"></div>
+          <div class="ring ring-two"></div>
+          <div class="ring ring-three"></div>
+          <div class="core"></div>
+        </div>
+        <div class="visual-status">
+          <span>● DİNLİYOR</span>
+          <span id="heroClock">--:--</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="download-section" id="downloads">
+      <div class="section-copy">
+        <p class="eyebrow">TEK PLATFORM · TÜM CİHAZLAR</p>
+        <h2>Cihazınıza uygun NexaLine</h2>
+        <p>Uygulamayı indirin veya Safari ve Chrome üzerinden doğrudan kullanın.</p>
+      </div>
+      <div class="download-grid">
+        <article class="download-card" data-platform="windows">
+          <div class="platform-mark">WIN</div>
+          <div><h3>Windows</h3><p>ASİSTAN masaüstü çekirdeği, sesli komutlar ve bilgisayar araçları.</p></div>
+          <a href="downloads/windows/NexaLine-ASISTAN-Windows.zip" download>Windows için indir</a>
+          <small>Windows 10/11 · ZIP kurulum paketi</small>
+        </article>
+        <article class="download-card" data-platform="android">
+          <div class="platform-mark">AND</div>
+          <div><h3>Android</h3><p>Konum, kamera, mikrofon ve dosya izinlerini kullanan mobil uygulama.</p></div>
+          <a href="downloads/android/NexaLine-ASISTAN.apk" download>Android APK indir</a>
+          <small>Android 6+ · Doğrudan APK</small>
+        </article>
+        <article class="download-card" data-platform="macos">
+          <div class="platform-mark">MAC</div>
+          <div><h3>macOS</h3><p>Mac için sesli ASİSTAN kaynak paketi ve tek adımlı kurulum.</p></div>
+          <a href="downloads/macos/NexaLine-ASISTAN-macOS.zip" download>macOS için indir</a>
+          <small>macOS 13+ · ZIP kurulum paketi</small>
+        </article>
+      </div>
+      <p class="iphone-note"><strong>iPhone:</strong> <a href="app/">ASİSTAN'ı Safari'de açın</a>, ardından Paylaş → Ana Ekrana Ekle seçeneğini kullanın.</p>
+    </section>
+
+    <section class="capabilities" id="capabilities">
+      <div class="section-copy">
+        <p class="eyebrow">İZİN SİZDE · KONTROL SİZDE</p>
+        <h2>Bulunduğunuz yere uyum sağlar</h2>
+      </div>
+      <div class="capability-grid">
+        <article><b>01</b><h3>Canlı konum</h3><p>İzninizle yaklaşık veya kesin konumunuzu alır; şehir ve saat dilimini otomatik belirler.</p></article>
+        <article><b>02</b><h3>Yerel hava</h3><p>Hava durumu kartı konumunuza göre yenilenir ve hareket ettiğinizde güncel kalır.</p></article>
+        <article><b>03</b><h3>Ses ve kamera</h3><p>Mikrofon ve kamera yalnızca siz izin verdiğinizde açılır; izinler cihaz ayarlarından kapatılabilir.</p></article>
+        <article><b>04</b><h3>Cihaz uyumu</h3><p>Safari, Android, Windows ve macOS üzerinde platformun izin verdiği özellikleri kullanır.</p></article>
+      </div>
+      <p class="privacy-note">NexaLine konumunuzu kendi sunucusunda saklamaz. Hava, şehir ve saat dilimini hesaplamak için koordinatlar Open-Meteo ve BigDataCloud servislerine gönderilir; izin cihaz ayarlarından her zaman kapatılabilir.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>NEXALINE</span>
+    <p>İçindeki yapay zekâ: ASİSTAN</p>
+    <a href="app/">Web uygulamasını aç</a>
+  </footer>
+  <script src="site.js" defer></script>
+</body>
+</html>
