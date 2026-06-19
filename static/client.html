@@ -623,7 +623,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-19-web-shell-fix-v2";
+        const NEXALINE_CLIENT_BUILD = "2026-06-19-auth-shell-fix-v4";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -2203,8 +2203,13 @@
             if (!state.me) return;
             state.offlineMode = true;
             state.startupShellRevealed = true;
-            render();
-            hideScreenTransition();
+            try {
+                render();
+            } catch (error) {
+                console.warn("Başlangıç kabuğu çizilemedi", error);
+            } finally {
+                hideScreenTransition();
+            }
             if (message) {
                 showToast(message);
             }
@@ -2227,8 +2232,14 @@
             state.offlineMode = true;
             state.startupShellRevealed = true;
             clearStartupGuard();
-            render();
-            hideScreenTransition();
+            try {
+                render();
+            } catch (error) {
+                console.warn("Offline başlangıç verisi çizilemedi", error);
+                return false;
+            } finally {
+                hideScreenTransition();
+            }
             if (!silent) {
                 showToast("Cevrimdisi mod: son kaydedilen veriler gosteriliyor.");
             }
@@ -5778,6 +5789,7 @@
             startAiPlanReminderEngine();
             checkPermission().catch(() => {});
             clearStartupGuard();
+            state.bootstrapLoading = false;
             state.startupShellRevealed = false;
             showScreenTransition("Nidar açılıyor", 0);
             $("authScreen").classList.add("hidden");
@@ -5821,44 +5833,42 @@
                     headers: { "X-Nexa-Device": deviceId() }
                 });
                 data = await response.json();
+                if (data.ok) {
+                    cacheBootstrapState(data);
+                    state.offlineMode = false;
+                    const currentChatId = state.activeChatId;
+                    state.me = data.user;
+                    loadAiSettings();
+                    startAiPlanReminderEngine();
+                    state.users = data.users;
+                    state.chats = data.chats;
+                    state.stories = data.stories || [];
+                    state.callLogs = data.callLogs || [];
+                    state.scheduledMessages = data.scheduledMessages || [];
+                    hydrateRealtimeState(data);
+                    applyPushDeepLink(currentChatId);
+                    state.bootReady = true;
+                    state.startupShellRevealed = true;
+                    clearStartupGuard();
+                    render();
+                    hideScreenTransition();
+                    openPendingAiTaskCall();
+                } else if (response.status === 401 || response.status === 404) {
+                    resetToAuth(data.message || "Oturum bulunamadı. Yeniden giriş yap.");
+                } else if (!state.bootReady) {
+                    revealStartupShell(data.message || "Başlangıç verileri alınamadı.");
+                }
             } catch (error) {
+                console.warn("Başlangıç verileri yüklenemedi", error);
                 if (!state.bootReady && restoreOfflineBootstrap({ silent: false })) {
-                    state.bootstrapLoading = false;
                     return;
                 }
                 if (!state.bootReady) {
-                    revealStartupShell("Sunucuya bağlanılamadı. Bağlantı gelince yeniden denenecek.");
+                    revealStartupShell("Başlangıç tamamlanamadı; son kullanılabilir ekran açıldı.");
                 }
+            } finally {
                 state.bootstrapLoading = false;
-                return;
             }
-
-            if (data.ok) {
-                cacheBootstrapState(data);
-                state.offlineMode = false;
-                const currentChatId = state.activeChatId;
-                state.me = data.user;
-                loadAiSettings();
-                startAiPlanReminderEngine();
-                state.users = data.users;
-                state.chats = data.chats;
-                state.stories = data.stories || [];
-                state.callLogs = data.callLogs || [];
-                state.scheduledMessages = data.scheduledMessages || [];
-                hydrateRealtimeState(data);
-                applyPushDeepLink(currentChatId);
-                state.bootReady = true;
-                state.startupShellRevealed = true;
-                clearStartupGuard();
-                render();
-                hideScreenTransition();
-                openPendingAiTaskCall();
-            } else if (response.status === 401 || response.status === 404) {
-                resetToAuth(data.message || "Oturum bulunamadı. Yeniden giriş yap.");
-            } else if (!state.bootReady) {
-                revealStartupShell(data.message || "Başlangıç verileri alınamadı.");
-            }
-            state.bootstrapLoading = false;
         }
 
         function render() {
