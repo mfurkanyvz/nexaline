@@ -7431,7 +7431,7 @@ button {
     --radius-pill: 999px;
     --bottom-nav-height: 70px;
     --bottom-nav-width: calc(100vw - 32px);
-    --bottom-nav-bottom: calc(12px + var(--safe-bottom));
+    --bottom-nav-bottom: clamp(12px, var(--safe-bottom), 18px);
     --bg-main: #080A0F;
     --bg-page: #0B0D14;
     --bg-card: #111827;
