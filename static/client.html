@@ -1114,6 +1114,7 @@
             voiceJoinAnimationRoomId: "",
             aiTasks: [],
             nearbyUsers: [],
+            nearbyRadiusKm: Math.max(10, Math.min(100, Number(localStorage.getItem("nidarNearbyRadiusKm") || 25))),
             deferredInstallPrompt: null,
             notificationReady: false,
             offlineMode: !navigator.onLine,
@@ -2833,6 +2834,7 @@
             $("modalTitle").textContent = title;
             const closeButton = $("modalCloseButton");
             const isAppPage = String(variant || "").split(/\s+/).includes("app-page-panel");
+            closeButton.onclick = closeModal;
             closeButton.textContent = isAppPage ? "←" : "×";
             closeButton.title = isAppPage ? "Geri" : "Kapat";
             closeButton.setAttribute("aria-label", isAppPage ? "Geri" : "Kapat");
@@ -8417,88 +8419,206 @@
             render();
         }
 
-        function openNearbyPanel() {
-            openModal("Yakındaki Kullanıcılar", body => {
-                body.innerHTML = `
-                    <p>Yakındaki kişiler özelliği varsayılan olarak kapalı. Açarsan yalnızca yaklaşık mesafe kullanılır.</p>
-                    <div class="nearby-status ${state.me?.nearbyEnabled ? "active" : ""}">
-                        <span class="nearby-status-dot"></span>
-                        <span>${state.me?.nearbyEnabled ? "Konum paylaşımı açık" : "Konum paylaşımı kapalı"}</span>
-                    </div>
-                    <div id="nearbyRows" class="list"></div>
-                `;
-                renderNearbyRows();
-            }, [
-                { label: state.me?.nearbyEnabled ? "Konumu Kapat" : "Konumla Aç", primary: true, onClick: toggleNearbyUsers }
-            ], "app-page-panel nearby-panel");
+        function nearbyRadiusValue() {
+            return Math.max(10, Math.min(100, Math.round(Number(state.nearbyRadiusKm) || 25)));
         }
 
-        function renderNearbyRows() {
-            const list = $("nearbyRows");
-            if (!list) return;
-            const rows = state.nearbyUsers || [];
-            list.innerHTML = rows.length ? rows.map(user => `
-                <button class="contact-item" type="button" data-nearby-user="${escapeHtml(user.username)}">
-                    <span class="avatar">${escapeHtml(initials(user.displayName))}</span>
-                    <span><strong class="chat-title">${escapeHtml(user.displayName)}</strong><span class="last-message">${escapeHtml(user.distanceKm || "?")} km uzakta</span></span>
-                    <span class="chat-time">Profil</span>
-                </button>
-            `).join("") : `<div class="vault-card"><strong>Yakında kimse yok</strong><small>Özelliği açan kullanıcılar 50 km içinde görünür.</small></div>`;
-            list.querySelectorAll("[data-nearby-user]").forEach(button => {
-                button.onclick = () => {
-                    const user = state.nearbyUsers.find(item => item.username === button.dataset.nearbyUser);
-                    closeModal();
-                    openUserProfilePane(user);
-                };
+        function nearbyDistanceLabel(value) {
+            const distance = Number(value);
+            if (!Number.isFinite(distance)) return "Yaklaşık mesafe";
+            return distance < 1 ? `${Math.max(1, Math.round(distance * 1000))} m` : `${distance.toFixed(1)} km`;
+        }
+
+        function nearbyPositionFor(user, index) {
+            const seed = Array.from(String(user.username || index)).reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 17);
+            const angle = ((seed % 360) - 90) * (Math.PI / 180);
+            const distanceRatio = Math.max(0.24, Math.min(0.84, Number(user.distanceKm || 0) / nearbyRadiusValue()));
+            const radius = 15 + (distanceRatio * 31) + ((index % 3) * 2);
+            return {
+                x: 50 + (Math.cos(angle) * radius),
+                y: 50 + (Math.sin(angle) * radius)
+            };
+        }
+
+        function openNearbyPanel() {
+            openModal("Yakındakiler", body => {
+                body.innerHTML = `<section id="nearbyExperience" class="nearby-experience"></section>`;
+                renderNearbyExperience();
+            }, [], "app-page-panel nearby-panel");
+            if (state.me?.nearbyEnabled) fetchNearbyUsers();
+        }
+
+        function renderNearbyExperience() {
+            const root = $("nearbyExperience");
+            if (!root) return;
+            const enabled = Boolean(state.me?.nearbyEnabled);
+            const radius = nearbyRadiusValue();
+            root.innerHTML = `
+                <div class="nearby-location-card glass-card">
+                    <span><strong>Konumum ${enabled ? "açık" : "kapalı"}</strong><small>${enabled ? "Yaklaşık mesafen görünür" : "Konum bilgisi alınmıyor"}</small></span>
+                    <button class="nearby-switch ${enabled ? "active" : ""}" type="button" data-nearby-toggle aria-pressed="${enabled}" aria-label="Konumu ${enabled ? "kapat" : "aç"}"><i></i></button>
+                </div>
+                ${enabled ? `
+                    <div class="nearby-radar-shell">
+                        <div class="nearby-radar" aria-label="Yakındaki kullanıcı radarı">
+                            <span class="nearby-ring ring-one"></span><span class="nearby-ring ring-two"></span><span class="nearby-ring ring-three"></span><span class="nearby-ring ring-four"></span>
+                            <span class="nearby-axis axis-x"></span><span class="nearby-axis axis-y"></span>
+                            <span class="nearby-sweep"></span>
+                            <span class="nearby-radar-center">${svgIcon("location")}</span>
+                            <div id="nearbyRadarUsers"></div>
+                        </div>
+                        <p id="nearbyRadarSummary"></p>
+                    </div>
+                    <div class="nearby-range-card glass-card">
+                        <div><strong>Yakınlık aralığı</strong><b id="nearbyRadiusLabel">${radius} km</b></div>
+                        <input id="nearbyRadiusInput" type="range" min="10" max="100" step="1" value="${radius}" aria-label="Yakınlık aralığı">
+                        <div class="nearby-range-limits"><span>10 km</span><span>100 km</span></div>
+                        <p id="nearbyRadiusHint">Sadece ${radius} km içindekiler seni görebilir.</p>
+                    </div>
+                    <button class="nearby-refresh-button" type="button" data-nearby-refresh>${svgIcon("refresh")}<span>Yenile</span></button>
+                ` : `
+                    <div class="nearby-off-state">
+                        <span class="nearby-off-icon">${svgIcon("location")}</span>
+                        <strong>Konumunuz kapalı</strong>
+                        <p>Yakınındaki kullanıcıları görmek için konumunu aç.</p>
+                        <button class="nearby-enable-button" type="button" data-nearby-toggle>Konumumu Aç</button>
+                    </div>
+                `}
+            `;
+            root.querySelectorAll("[data-nearby-toggle]").forEach(button => button.onclick = toggleNearbyUsers);
+            if (!enabled) return;
+            renderNearbyRadarUsers();
+            const slider = $("nearbyRadiusInput");
+            slider.oninput = () => {
+                state.nearbyRadiusKm = Number(slider.value);
+                localStorage.setItem("nidarNearbyRadiusKm", String(state.nearbyRadiusKm));
+                $("nearbyRadiusLabel").textContent = `${state.nearbyRadiusKm} km`;
+                $("nearbyRadiusHint").textContent = `Sadece ${state.nearbyRadiusKm} km içindekiler seni görebilir.`;
+            };
+            slider.onchange = () => fetchNearbyUsers();
+            root.querySelector("[data-nearby-refresh]").onclick = () => fetchNearbyUsers({ refreshLocation: true });
+        }
+
+        function renderNearbyRadarUsers() {
+            const layer = $("nearbyRadarUsers");
+            const summary = $("nearbyRadarSummary");
+            if (!layer || !summary) return;
+            const users = (state.nearbyUsers || []).filter(user => Number(user.distanceKm) <= nearbyRadiusValue()).slice(0, 12);
+            layer.innerHTML = "";
+            users.forEach((user, index) => {
+                const position = nearbyPositionFor(user, index);
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "nearby-radar-user";
+                button.style.setProperty("--nearby-x", `${position.x}%`);
+                button.style.setProperty("--nearby-y", `${position.y}%`);
+                button.setAttribute("aria-label", `${user.displayName}, ${nearbyDistanceLabel(user.distanceKm)} uzakta`);
+                const avatar = document.createElement("span");
+                avatar.className = `avatar${user.online ? " online" : ""}`;
+                setAvatar(avatar, user, user.displayName);
+                const distance = document.createElement("small");
+                distance.textContent = nearbyDistanceLabel(user.distanceKm);
+                button.append(avatar, distance);
+                button.onclick = () => openNearbyProfile(user);
+                layer.appendChild(button);
+            });
+            summary.textContent = users.length
+                ? `${nearbyRadiusValue()} km içinde ${users.length} kişi bulundu`
+                : `${nearbyRadiusValue()} km içinde görünür kullanıcı bulunamadı`;
+        }
+
+        async function persistNearbyState(payload) {
+            const response = await fetch(`/nearby/${encodeURIComponent(state.me.username)}`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({ ...payload, radius: nearbyRadiusValue() })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(data.message || "Konum ayarı kaydedilemedi.");
+            state.me.nearbyEnabled = data.enabled;
+            state.nearbyUsers = data.users || [];
+            return data;
+        }
+
+        function readDeviceLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error("Bu cihaz konum desteği vermiyor."));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 12000, maximumAge: 120000 });
             });
         }
 
-        async function toggleNearbyUsers() {
-            const persistNearbyState = async payload => {
-                try {
-                    const response = await fetch(`/nearby/${encodeURIComponent(state.me.username)}`, {
-                        method: "POST",
-                        headers: authHeaders(),
-                        body: JSON.stringify(payload)
-                    });
-                    const data = await response.json();
-                    if (!data.ok) {
-                        showToast(data.message || "Konum ayarı kaydedilemedi.");
-                        return;
-                    }
-                    state.me.nearbyEnabled = data.enabled;
+        async function fetchNearbyUsers({ refreshLocation = false } = {}) {
+            if (!state.me?.nearbyEnabled) return;
+            const refreshButton = document.querySelector("[data-nearby-refresh]");
+            refreshButton?.classList.add("loading");
+            try {
+                let data;
+                if (refreshLocation) {
+                    const position = await readDeviceLocation();
+                    data = await persistNearbyState({ enabled: true, lat: position.coords.latitude, lng: position.coords.longitude });
+                } else {
+                    const response = await fetch(`/nearby/${encodeURIComponent(state.me.username)}?radius=${nearbyRadiusValue()}`, { headers: authHeaders() });
+                    data = await response.json();
+                    if (!response.ok || !data.ok) throw new Error(data.message || "Yakındakiler yenilenemedi.");
                     state.nearbyUsers = data.users || [];
-                    renderExplore();
-                    closeModal();
-                    openNearbyPanel();
-                    showToast(data.enabled ? "Yakındaki kullanıcılar açıldı." : "Konum paylaşımı durduruldu.");
-                } catch (_error) {
-                    showToast("Yakındaki kullanıcılar ayarı güncellenemedi.");
                 }
-            };
+                renderNearbyRadarUsers();
+            } catch (error) {
+                showToast(error?.code === 1 ? "Konum izni verilmedi. Cihaz ayarlarından izin verebilirsin." : (error.message || "Konum şu an okunamadı."));
+            } finally {
+                refreshButton?.classList.remove("loading");
+            }
+        }
 
-            if (state.me?.nearbyEnabled) {
-                await persistNearbyState({ enabled: false });
-                return;
+        async function toggleNearbyUsers() {
+            try {
+                if (state.me?.nearbyEnabled) {
+                    await persistNearbyState({ enabled: false });
+                } else {
+                    const position = await readDeviceLocation();
+                    await persistNearbyState({ enabled: true, lat: position.coords.latitude, lng: position.coords.longitude });
+                }
+                renderExplore();
+                renderNearbyExperience();
+            } catch (error) {
+                showToast(error?.code === 1 ? "Konum izni verilmedi. Cihaz ayarlarından izin verebilirsin." : (error.message || "Konum şu an okunamadı."));
             }
-            if (!navigator.geolocation) {
-                showToast("Bu cihaz konum desteği vermiyor.");
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(
-                position => persistNearbyState({
-                    enabled: true,
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                }),
-                error => {
-                    const message = error?.code === 1
-                        ? "Konum izni verilmedi. Tarayıcı ayarlarından izin verebilirsin."
-                        : "Konum şu an okunamadı. Biraz sonra tekrar dene.";
-                    showToast(message);
-                },
-                { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
-            );
+        }
+
+        function openNearbyProfile(user) {
+            if (!user) return;
+            const status = contactStatus(user.username);
+            openModal("Kullanıcı Profili", body => {
+                const page = document.createElement("section");
+                page.className = "nearby-profile-detail";
+                const avatar = document.createElement("div");
+                avatar.className = `nearby-profile-avatar avatar${user.online ? " online" : ""}`;
+                setAvatar(avatar, user, user.displayName);
+                page.innerHTML = `<div class="nearby-profile-avatar-slot"></div>
+                    <h2>${escapeHtml(user.displayName || user.username)}</h2>
+                    <p class="nearby-profile-username">@${escapeHtml(user.username)}</p>
+                    <strong class="nearby-profile-distance">${escapeHtml(nearbyDistanceLabel(user.distanceKm))} uzakta</strong>
+                    <div class="nearby-interest-row"><span>İlgi alanları</span><span>Yakında eklenecek</span></div>
+                    <div class="nearby-about-card glass-card"><span>Kendini tanıtma</span><p>${escapeHtml(user.about || "Kendini tanıtma bilgisi henüz eklenmedi.")}</p></div>
+                    <div class="nearby-points-card glass-card"><span>★ Nidar Puanı</span><strong>${Number(user.points || 0).toLocaleString("tr-TR")}</strong></div>
+                    <button class="nearby-request-button" type="button" data-nearby-request></button>`;
+                page.querySelector(".nearby-profile-avatar-slot").appendChild(avatar);
+                const requestButton = page.querySelector("[data-nearby-request]");
+                const labels = { accepted: "Sohbeti Aç", incoming: "İsteği Görüntüle", outgoing: "İsteği Geri Çek", blocked: "Engellendi", none: "Arkadaşlık İsteği Gönder" };
+                requestButton.textContent = labels[status] || labels.none;
+                requestButton.disabled = status === "blocked";
+                requestButton.onclick = () => {
+                    if (status === "accepted") { closeModal(); startChatWithUser(user); }
+                    else if (status === "incoming") openNewRequestsPanel();
+                    else if (status === "outgoing") { cancelOutgoingContactRequest(user); openNearbyPanel(); }
+                    else if (status === "none") { socket.emit("chat:create", { target: user.username }); requestButton.textContent = "İstek Gönderildi"; requestButton.disabled = true; }
+                };
+                body.appendChild(page);
+            }, [], "app-page-panel nearby-profile-panel");
+            $("modalCloseButton").onclick = openNearbyPanel;
         }
 
         function openVaultPanel() {

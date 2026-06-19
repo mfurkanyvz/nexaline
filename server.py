@@ -924,10 +924,19 @@ def distance_km(lat1, lng1, lat2, lng2):
     return radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def nearby_users_for(username, limit=30):
+def normalized_nearby_radius(value, default=25):
+    try:
+        radius = int(round(float(value)))
+    except (TypeError, ValueError):
+        radius = default
+    return max(10, min(100, radius))
+
+
+def nearby_users_for(username, limit=30, radius_km=25):
     user = db.session.get(User, username)
     if not user or not user.nearby_enabled or user.last_lat is None or user.last_lng is None:
         return []
+    radius_km = normalized_nearby_radius(radius_km)
     rows = User.query.filter(
         User.username != username,
         User.nearby_enabled.is_(True),
@@ -939,7 +948,7 @@ def nearby_users_for(username, limit=30):
         if is_blocked_between(username, row.username):
             continue
         km = distance_km(float(user.last_lat), float(user.last_lng), float(row.last_lat), float(row.last_lng))
-        if km <= 50:
+        if km <= radius_km:
             item = public_user(row.username, username)
             item["distanceKm"] = round(km, 1)
             result.append(item)
@@ -7249,8 +7258,10 @@ def nearby_state(username):
     user = db.session.get(User, username)
     if not user:
         return jsonify({"ok": False, "message": "Kullanıcı bulunamadı."}), 404
+    radius_km = normalized_nearby_radius(request.args.get("radius"))
     if request.method == "POST":
         data = request.get_json() or {}
+        radius_km = normalized_nearby_radius(data.get("radius"))
         user.nearby_enabled = bool(data.get("enabled"))
         if user.nearby_enabled:
             try:
@@ -7262,7 +7273,12 @@ def nearby_state(username):
             user.last_lat = None
             user.last_lng = None
         db.session.commit()
-    return jsonify({"ok": True, "enabled": bool(user.nearby_enabled), "users": nearby_users_for(username)})
+    return jsonify({
+        "ok": True,
+        "enabled": bool(user.nearby_enabled),
+        "radiusKm": radius_km,
+        "users": nearby_users_for(username, radius_km=radius_km),
+    })
 
 
 def vault_items_for(username):
