@@ -259,11 +259,8 @@
             <button id="aiCloseButton" class="icon-btn" type="button">×</button>
         </div>
         <div id="aiMessages" class="ai-messages"></div>
-        <div class="ai-composer">
-            <button id="aiCommandButton" class="icon-btn" type="button" title="Komutlar">＋</button>
-            <button id="aiAttachButton" class="icon-btn" type="button" title="Dosya veya konum">⌖</button>
+        <div class="ai-composer ai-composer-text-only">
             <textarea id="aiInput" placeholder="Asistan'a yaz..."></textarea>
-            <button id="aiVoiceLiveButton" class="icon-btn" type="button" title="Sesli asistan">🎙</button>
             <button id="aiSendButton" class="send-btn" type="button">➤</button>
             <input id="aiFileInput" class="hidden" type="file" accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip">
         </div>
@@ -626,7 +623,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-19-ai-media-sync-v2";
+        const NEXALINE_CLIENT_BUILD = "2026-06-19-fullscreen-tools-v1";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -1161,6 +1158,7 @@
             vaultItems: [],
             vaultPin: "",
             vaultPinDraft: "",
+            vaultAutoLockTimer: null,
             pendingVaultMessage: null,
             vaultSenderFilter: "",
             activeVoiceRoomId: "",
@@ -2784,6 +2782,7 @@
             messageMenuAnchor?.classList.remove("message-menu-anchor", "message-pressing");
             messageMenuAnchor = null;
             const panel = $("modalPanel");
+            if (state.vaultUnlocked) lockVaultSession();
             panel.classList.add("hidden");
             panel.className = "modal-panel hidden";
             panel.style.removeProperty("--message-menu-left");
@@ -2796,6 +2795,12 @@
 
         function closeModal() {
             const panel = $("modalPanel");
+            if (panel.classList.contains("app-page-panel") && !panel.classList.contains("app-page-panel-closing")) {
+                panel.classList.add("app-page-panel-closing");
+                modalCloseTimer = setTimeout(finalizeModalClose, 260);
+                return;
+            }
+            if (panel.classList.contains("app-page-panel-closing")) return;
             if (panel.classList.contains("points-panel") && !panel.classList.contains("points-panel-closing")) {
                 panel.classList.add("points-panel-closing");
                 modalCloseTimer = setTimeout(finalizeModalClose, 280);
@@ -2826,6 +2831,11 @@
             messageMenuAnchor?.classList.remove("message-menu-anchor", "message-pressing");
             messageMenuAnchor = null;
             $("modalTitle").textContent = title;
+            const closeButton = $("modalCloseButton");
+            const isAppPage = String(variant || "").split(/\s+/).includes("app-page-panel");
+            closeButton.textContent = isAppPage ? "←" : "×";
+            closeButton.title = isAppPage ? "Geri" : "Kapat";
+            closeButton.setAttribute("aria-label", isAppPage ? "Geri" : "Kapat");
             const body = $("modalBody");
             const actionBar = $("modalActions");
             body.innerHTML = "";
@@ -8419,9 +8429,8 @@
                 `;
                 renderNearbyRows();
             }, [
-                { label: state.me?.nearbyEnabled ? "Konumu Kapat" : "Konumla Aç", primary: true, onClick: toggleNearbyUsers },
-                { label: "Kapat", onClick: closeModal }
-            ]);
+                { label: state.me?.nearbyEnabled ? "Konumu Kapat" : "Konumla Aç", primary: true, onClick: toggleNearbyUsers }
+            ], "app-page-panel nearby-panel");
         }
 
         function renderNearbyRows() {
@@ -8517,10 +8526,32 @@
                     <div id="vaultContent" class="vault-list ${state.vaultUnlocked ? "" : "hidden"}"></div>
                 `;
                 bindVaultKeypad(ready);
-                if (state.vaultUnlocked) renderVaultItems();
-            }, [
-                { label: "Kapat", onClick: closeVaultPanel }
-            ], "sheet");
+                if (state.vaultUnlocked) {
+                    renderVaultItems();
+                    body.onpointerdown = armVaultAutoLock;
+                    body.onkeydown = armVaultAutoLock;
+                }
+            }, [], "app-page-panel vault-panel");
+        }
+
+        function lockVaultSession() {
+            if (state.vaultAutoLockTimer) {
+                clearTimeout(state.vaultAutoLockTimer);
+                state.vaultAutoLockTimer = null;
+            }
+            state.vaultUnlocked = false;
+            state.vaultPin = "";
+            state.vaultPinDraft = "";
+            state.vaultSenderFilter = "";
+        }
+
+        function armVaultAutoLock() {
+            if (state.vaultAutoLockTimer) clearTimeout(state.vaultAutoLockTimer);
+            state.vaultAutoLockTimer = setTimeout(() => {
+                const vaultVisible = $("modalPanel")?.classList.contains("vault-panel");
+                lockVaultSession();
+                if (vaultVisible) openVaultPanel();
+            }, 60000);
         }
 
         function openSettingsVaultPanel() {
@@ -8720,6 +8751,7 @@
                 state.vaultPin = pin;
                 state.vaultPinDraft = "";
                 state.vaultUnlocked = true;
+                armVaultAutoLock();
                 if (state.pendingVaultMessage) {
                     await saveMessageToVault();
                 } else {
@@ -8746,6 +8778,7 @@
             state.vaultPin = pin;
             state.vaultPinDraft = "";
             state.vaultUnlocked = true;
+            armVaultAutoLock();
             state.vaultItems = data.items || [];
             state.me = data.user || state.me;
             if (state.pendingVaultMessage) {
@@ -8807,6 +8840,11 @@
         function renderVaultItems() {
             const content = $("vaultContent");
             if (!content) return;
+            const modalBody = content.closest(".modal-body");
+            if (modalBody) {
+                modalBody.onpointerdown = armVaultAutoLock;
+                modalBody.onkeydown = armVaultAutoLock;
+            }
             document.querySelector(".vault-unlock-card")?.classList.add("hidden");
             content.classList.remove("hidden");
             content.innerHTML = `
@@ -8818,9 +8856,7 @@
             `;
             $("vaultAddNoteButton").onclick = addVaultNote;
             $("vaultLockButton").onclick = () => {
-                state.vaultUnlocked = false;
-                state.vaultPin = "";
-                state.vaultSenderFilter = "";
+                lockVaultSession();
                 openVaultPanel();
             };
 
@@ -9355,7 +9391,7 @@
                     wrap.appendChild(card);
                 });
                 body.appendChild(wrap);
-            }, [{ label: "Kapat", onClick: closeModal }], "new-requests-modal");
+            }, [], "app-page-panel new-requests-panel-page");
         }
 
         function openUserDetail(user) {
@@ -14327,15 +14363,18 @@
         if ($("aiAssistantButton")) $("aiAssistantButton").onclick = toggleAiPanel;
         $("aiCloseButton").onclick = closeAiPanel;
         $("aiSendButton").onclick = () => sendAiPrompt();
-        $("aiCommandButton").onclick = openAiCommandCenter;
-        $("aiAttachButton").onclick = openAiAttachmentMenu;
-        $("aiVoiceLiveButton").onclick = openAiVoiceAssistant;
         $("aiFileInput").onchange = handleAiFile;
         $("aiInput").addEventListener("keydown", event => {
             if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 sendAiPrompt();
             }
+        });
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden && state.vaultUnlocked) lockVaultSession();
+        });
+        window.addEventListener("pagehide", () => {
+            if (state.vaultUnlocked) lockVaultSession();
         });
         $("messageInput").addEventListener("input", () => {
             const chat = activeChat();

@@ -374,6 +374,130 @@ video {
     font-size: clamp(26px, 6vw, 42px);
 }
 
+@keyframes app-page-slide-in {
+    from { opacity: 0.72; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes app-page-slide-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0.72; transform: translateX(100%); }
+}
+
+@media (max-width: 860px) {
+    .modal-panel.app-page-panel {
+        inset: auto;
+        top: var(--viewport-top);
+        left: var(--viewport-left);
+        width: var(--viewport-width);
+        height: var(--app-height);
+        max-width: var(--viewport-width);
+        max-height: var(--app-height);
+        display: block;
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background: var(--bg-main);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        animation: app-page-slide-in 260ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+    }
+
+    .modal-panel.app-page-panel .modal-box {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        border-radius: 0;
+        background:
+            radial-gradient(circle at 92% 2%, rgba(99, 102, 241, 0.12), transparent 30%),
+            linear-gradient(180deg, var(--bg-main), var(--bg-page));
+        box-shadow: none;
+        animation: none;
+    }
+
+    .modal-panel.app-page-panel .modal-head {
+        min-height: calc(62px + var(--safe-top));
+        justify-content: flex-start;
+        gap: 12px;
+        margin: 0;
+        padding:
+            calc(10px + var(--safe-top))
+            calc(16px + var(--safe-right))
+            10px
+            calc(12px + var(--safe-left));
+        border-bottom: 1px solid var(--border-soft);
+        background: rgba(8, 10, 15, 0.88);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    .modal-panel.app-page-panel .modal-head > strong {
+        font-size: 19px;
+        font-weight: 820;
+    }
+
+    .modal-panel.app-page-panel #modalCloseButton {
+        order: -1;
+        width: 42px;
+        height: 42px;
+        min-height: 42px;
+        padding: 0;
+        border: 1px solid var(--border-soft);
+        border-radius: 50%;
+        background: var(--bg-card-soft);
+        color: #fff;
+        font-size: 24px;
+        line-height: 1;
+    }
+
+    .modal-panel.app-page-panel .modal-body {
+        min-height: 0;
+        align-content: start;
+        padding:
+            16px
+            calc(16px + var(--safe-right))
+            calc(24px + var(--safe-bottom))
+            calc(16px + var(--safe-left));
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .modal-panel.app-page-panel .modal-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        margin: 0;
+        padding:
+            10px
+            calc(16px + var(--safe-right))
+            calc(10px + var(--safe-bottom))
+            calc(16px + var(--safe-left));
+        border-top: 1px solid var(--border-soft);
+        background: rgba(8, 10, 15, 0.9);
+    }
+
+    .modal-panel.app-page-panel .modal-actions.hidden {
+        display: none;
+    }
+
+    .modal-panel.app-page-panel .modal-actions .mini-btn {
+        width: 100%;
+        min-height: 46px;
+    }
+
+    .modal-panel.app-page-panel.app-page-panel-closing {
+        pointer-events: none;
+        animation: app-page-slide-out 250ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    }
+}
+
 .nidar-wordmark {
     display: inline-flex;
     align-items: baseline;
@@ -5199,6 +5323,10 @@ button {
     -webkit-backdrop-filter: blur(24px);
 }
 
+.ai-composer.ai-composer-text-only {
+    grid-template-columns: minmax(0, 1fr) 38px;
+}
+
 .ai-composer .icon-btn,
 .ai-composer .send-btn {
     width: 38px;
@@ -5333,6 +5461,10 @@ button {
         gap: 5px;
         padding-right: calc(8px + var(--safe-right));
         padding-left: calc(8px + var(--safe-left));
+    }
+
+    .ai-composer.ai-composer-text-only {
+        grid-template-columns: minmax(0, 1fr) 36px;
     }
 
     .ai-composer .icon-btn,
