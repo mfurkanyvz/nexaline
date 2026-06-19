@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "nexaline-asistan-v3";
+const CACHE_NAME = "nexaline-asistan-v4";
 const APP_SHELL = [
   "./",
   "./index.html",

@@ -679,6 +679,65 @@ function blobToBase64(blob) {
   });
 }
 
+function writeWavText(view, offset, text) {
+  for (let index = 0; index < text.length; index += 1) {
+    view.setUint8(offset + index, text.charCodeAt(index));
+  }
+}
+
+function audioBufferToWav(audioBuffer, outputRate = 16000) {
+  const inputRate = audioBuffer.sampleRate;
+  const frameCount = Math.max(1, Math.ceil(audioBuffer.duration * outputRate));
+  const wav = new ArrayBuffer(44 + frameCount * 2);
+  const view = new DataView(wav);
+  writeWavText(view, 0, "RIFF");
+  view.setUint32(4, 36 + frameCount * 2, true);
+  writeWavText(view, 8, "WAVE");
+  writeWavText(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, outputRate, true);
+  view.setUint32(28, outputRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeWavText(view, 36, "data");
+  view.setUint32(40, frameCount * 2, true);
+
+  const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, channel) =>
+    audioBuffer.getChannelData(channel)
+  );
+  for (let index = 0; index < frameCount; index += 1) {
+    const position = index * inputRate / outputRate;
+    const left = Math.min(audioBuffer.length - 1, Math.floor(position));
+    const right = Math.min(audioBuffer.length - 1, left + 1);
+    const fraction = position - left;
+    let sample = 0;
+    for (const channel of channels) {
+      sample += channel[left] + (channel[right] - channel[left]) * fraction;
+    }
+    sample = Math.max(-1, Math.min(1, sample / Math.max(1, channels.length)));
+    view.setInt16(44 + index * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+  return new Blob([wav], { type: "audio/wav" });
+}
+
+async function normalizeAudioForGemini(blob) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) throw new Error("Chrome ses kaydını dönüştüremiyor.");
+  const context = new AudioContextClass();
+  try {
+    const encoded = await blob.arrayBuffer();
+    const decoded = await context.decodeAudioData(encoded.slice(0));
+    if (!decoded.length || decoded.duration < 0.15) throw new Error("Ses kaydı çok kısa.");
+    return audioBufferToWav(decoded);
+  } catch (error) {
+    throw new Error(`Ses kaydı işlenemedi${error?.message ? `: ${error.message}` : "."}`);
+  } finally {
+    context.close().catch(() => {});
+  }
+}
+
 function releaseMicrophone() {
   clearInterval(app.microphoneMonitor);
   app.microphoneMonitor = null;
@@ -708,9 +767,10 @@ async function transcribeAudio(blob) {
     openSettings();
     throw new Error("Sesinizi çözümlemek için önce Gemini API anahtarını ayarlamalısın.");
   }
-  const data = await blobToBase64(blob);
+  const normalizedBlob = await normalizeAudioForGemini(blob);
+  const data = await blobToBase64(normalizedBlob);
   if (!data) throw new Error("Ses kaydı boş geldi.");
-  const mimeType = (blob.type || "audio/webm").split(";")[0];
+  const mimeType = "audio/wav";
   const response = await fetch(API_ENDPOINT, {
     method: "POST",
     headers: {
