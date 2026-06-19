@@ -110,6 +110,18 @@ const app = {
   pendingImage: null,
   recognition: null,
   recognizing: false,
+  mediaRecorder: null,
+  microphoneStream: null,
+  microphoneContext: null,
+  microphoneSource: null,
+  microphoneAnalyser: null,
+  microphoneMonitor: null,
+  recordingChunks: [],
+  recordingStartedAt: 0,
+  recordingLastVoiceAt: 0,
+  recordingHeardSpeech: false,
+  recordingDiscard: false,
+  transcribing: false,
   deferredInstallPrompt: null,
   speechVoices: [],
   audioUnlocked: false,
@@ -644,11 +656,224 @@ function loadVoices() {
   dom.voiceSelect.value = preferred.voiceURI;
 }
 
+function supportsAudioCapture() {
+  return Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+}
+
+function preferredAudioMimeType() {
+  if (!window.MediaRecorder?.isTypeSupported) return "";
+  return [
+    "audio/mp4",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+  ].find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = () => reject(new Error("Ses kaydı okunamadı."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function releaseMicrophone() {
+  clearInterval(app.microphoneMonitor);
+  app.microphoneMonitor = null;
+  try { app.microphoneSource?.disconnect(); } catch { /* already disconnected */ }
+  try { app.microphoneAnalyser?.disconnect(); } catch { /* already disconnected */ }
+  app.microphoneSource = null;
+  app.microphoneAnalyser = null;
+  if (app.microphoneContext) {
+    app.microphoneContext.close().catch(() => {});
+    app.microphoneContext = null;
+  }
+  app.microphoneStream?.getTracks().forEach((track) => track.stop());
+  app.microphoneStream = null;
+  app.mediaRecorder = null;
+  app.recordingChunks = [];
+  app.recordingStartedAt = 0;
+  app.recordingLastVoiceAt = 0;
+  app.recordingHeardSpeech = false;
+  app.recordingDiscard = false;
+  app.recognizing = false;
+  dom.micButton.classList.remove("active");
+  dom.orb.classList.remove("listening");
+}
+
+async function transcribeAudio(blob) {
+  if (!app.apiKey) {
+    openSettings();
+    throw new Error("Sesinizi çözümlemek için önce Gemini API anahtarını ayarlamalısın.");
+  }
+  const data = await blobToBase64(blob);
+  if (!data) throw new Error("Ses kaydı boş geldi.");
+  const mimeType = (blob.type || "audio/webm").split(";")[0];
+  const response = await fetch(API_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": app.apiKey,
+    },
+    body: JSON.stringify({
+      contents: [{
+        role: "user",
+        parts: [
+          { text: "Bu ses kaydındaki kullanıcının söylediklerini Türkçe metne çevir. Yalnızca söylenen cümleyi yaz; açıklama, tırnak veya başlık ekleme. Anlaşılır konuşma yoksa yalnızca [SESSİZ] yaz." },
+          { inlineData: { mimeType, data } },
+        ],
+      }],
+      generationConfig: { temperature: 0, maxOutputTokens: 180 },
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error?.message || `Ses çözümleme hatası (${response.status})`);
+  }
+  const transcript = (payload.candidates?.[0]?.content?.parts || [])
+    .map((part) => part.text || "")
+    .join(" ")
+    .replace(/^[\s"'“”]+|[\s"'“”]+$/g, "")
+    .trim();
+  return /^\[?sessiz\]?$/i.test(transcript) ? "" : transcript;
+}
+
+async function processRecordedAudio(blob, heardSpeech, discarded) {
+  releaseMicrophone();
+  if (discarded || app.paused) return;
+  if (!blob || blob.size < 600) {
+    showToast("Ses kaydı alınamadı. Mikrofona biraz daha yakın konuşup yeniden dene.", "error");
+    setState(app.apiKey ? "LISTENING" : "INITIALISING");
+    return;
+  }
+
+  app.transcribing = true;
+  setState("THINKING", "Sesiniz çözümleniyor");
+  try {
+    const transcript = await transcribeAudio(blob);
+    if (!transcript) {
+      showToast(heardSpeech ? "Söylediğinizi anlayamadım; yeniden deneyin." : "Ses algılanmadı; mikrofona yakın konuşun.", "error");
+      setState(app.apiKey ? "LISTENING" : "INITIALISING");
+      return;
+    }
+    dom.promptInput.value = transcript;
+    resizeTextarea();
+    await submitPrompt(transcript);
+  } catch (error) {
+    const message = escapeText(error?.message || error || "Ses çözümlenemedi.");
+    showToast(message, "error");
+    setState("ERROR", "Mikrofon hatası");
+    setTimeout(() => !app.paused && setState(app.apiKey ? "LISTENING" : "INITIALISING"), 2400);
+  } finally {
+    app.transcribing = false;
+  }
+}
+
+function stopAudioCapture({ discard = false } = {}) {
+  const recorder = app.mediaRecorder;
+  app.recordingDiscard = discard;
+  if (recorder?.state === "recording") {
+    recorder.stop();
+  } else {
+    releaseMicrophone();
+  }
+}
+
+async function startAudioCapture() {
+  if (!supportsAudioCapture() || app.transcribing || app.busy) return false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    });
+    const mimeType = preferredAudioMimeType();
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    app.microphoneStream = stream;
+    app.mediaRecorder = recorder;
+    app.recordingChunks = [];
+    app.recordingStartedAt = Date.now();
+    app.recordingLastVoiceAt = 0;
+    app.recordingHeardSpeech = false;
+    app.recordingDiscard = false;
+
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) app.recordingChunks.push(event.data);
+    });
+    recorder.addEventListener("stop", () => {
+      const blob = new Blob(app.recordingChunks, { type: recorder.mimeType || mimeType || "audio/webm" });
+      const heardSpeech = app.recordingHeardSpeech;
+      const discarded = app.recordingDiscard;
+      processRecordedAudio(blob, heardSpeech, discarded);
+    }, { once: true });
+    recorder.addEventListener("error", () => {
+      releaseMicrophone();
+      showToast("Mikrofon kaydı başlatılamadı.", "error");
+      setState(app.apiKey ? "LISTENING" : "INITIALISING");
+    }, { once: true });
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      const context = new AudioContextClass();
+      await context.resume().catch(() => {});
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.15;
+      source.connect(analyser);
+      app.microphoneContext = context;
+      app.microphoneSource = source;
+      app.microphoneAnalyser = analyser;
+      const samples = new Uint8Array(analyser.fftSize);
+      app.microphoneMonitor = setInterval(() => {
+        if (recorder.state !== "recording") return;
+        analyser.getByteTimeDomainData(samples);
+        let energy = 0;
+        for (const sample of samples) {
+          const value = (sample - 128) / 128;
+          energy += value * value;
+        }
+        const rms = Math.sqrt(energy / samples.length);
+        const now = Date.now();
+        const elapsed = now - app.recordingStartedAt;
+        if (rms > 0.012) {
+          app.recordingHeardSpeech = true;
+          app.recordingLastVoiceAt = now;
+        }
+        if (app.recordingHeardSpeech && elapsed > 900 && now - app.recordingLastVoiceAt > 1250) {
+          stopAudioCapture();
+        } else if (elapsed > 20000) {
+          stopAudioCapture();
+        }
+      }, 100);
+    } else {
+      app.microphoneMonitor = setTimeout(() => stopAudioCapture(), 20000);
+    }
+
+    app.recognizing = true;
+    dom.micButton.classList.add("active");
+    dom.orb.classList.add("listening");
+    setState("LISTENING", "Sizi dinliyorum · bitirmek için tekrar dokunun");
+    playSfx("Start", 0.2);
+    recorder.start(250);
+    return true;
+  } catch (error) {
+    releaseMicrophone();
+    const denied = error?.name === "NotAllowedError" || error?.name === "SecurityError";
+    showToast(denied ? "Mikrofon izni verilmedi. Safari site ayarlarından mikrofonu açın." : "Mikrofon açılamadı; başka bir uygulamanın kullanmadığını kontrol edin.", "error");
+    setState(app.apiKey ? "LISTENING" : "INITIALISING");
+    return false;
+  }
+}
+
 function setupRecognition() {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Recognition) {
-    dom.micButton.disabled = true;
-    dom.micButton.title = "Bu Safari sürümünde ses tanıma desteklenmiyor.";
+    dom.micButton.disabled = !supportsAudioCapture();
+    dom.micButton.title = supportsAudioCapture()
+      ? "Mikrofona dokunup konuşun; ASİSTAN sesinizi çözümler."
+      : "Bu tarayıcı mikrofon kaydını desteklemiyor.";
     return;
   }
   const recognition = new Recognition();
@@ -691,14 +916,24 @@ function setupRecognition() {
   app.recognition = recognition;
 }
 
-function toggleRecognition() {
+async function toggleRecognition() {
   unlockAudio();
-  if (!app.recognition || app.paused) return;
-  if (app.recognizing) app.recognition.stop();
-  else {
-    window.speechSynthesis?.cancel();
-    try { app.recognition.start(); } catch { /* Safari start race */ }
+  if (app.paused || app.busy || app.transcribing) return;
+  if (app.mediaRecorder?.state === "recording") {
+    stopAudioCapture();
+    return;
   }
+  if (app.recognizing && app.recognition) {
+    app.recognition.stop();
+    return;
+  }
+  window.speechSynthesis?.cancel();
+  if (supportsAudioCapture()) {
+    await startAudioCapture();
+    return;
+  }
+  if (!app.recognition) return;
+  try { app.recognition.start(); } catch { /* Safari start race */ }
 }
 
 async function openCamera() {
@@ -812,6 +1047,7 @@ function togglePause() {
   dom.pauseButton.classList.toggle("active", app.paused);
   if (app.paused) {
     app.recognition?.abort();
+    stopAudioCapture({ discard: true });
     window.speechSynthesis?.cancel();
     setState("PAUSED");
     addMessage("system", "ASİSTAN duraklatıldı.");
@@ -969,6 +1205,7 @@ function bindEvents() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       app.recognition?.abort();
+      stopAudioCapture({ discard: true });
       stopCameraStream();
     }
   });
