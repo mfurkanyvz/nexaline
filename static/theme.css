@@ -3847,7 +3847,7 @@ button {
         max-width: 72px;
         height: 38px;
         min-height: 38px;
-        margin-left: auto;
+        margin-left: 0;
         padding: 0 9px;
         display: inline-flex;
         align-items: center;
@@ -3860,6 +3860,11 @@ button {
         color: #ffe59a;
         box-shadow: 0 0 16px rgba(255, 193, 7, 0.08);
         white-space: nowrap;
+    }
+
+    .topbar #assistantShortcutButton {
+        flex: 0 0 auto;
+        margin-left: auto;
     }
 
     .topbar #pointsTopLabel {
