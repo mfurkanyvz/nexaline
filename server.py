@@ -5077,7 +5077,9 @@ def ai_chat():
     reply, provider, research = generate_ai_reply(prompt or "Bu eki incele ve yardımcı ol.", context, actions, attachment)
     if content_results:
         reply_folded = fold_tr_ascii(reply or "")
-        if any(term in reply_folded for term in ("gosteremem", "goremiyorum", "ulasamiyorum", "icerigini gosteremem", "dosya adi")):
+        if content_results and any(item.get("message", {}).get("attachment") for item in content_results):
+            reply = "İlgili içeriği aşağıya ekledim."
+        elif any(term in reply_folded for term in ("gosteremem", "goremiyorum", "ulasamiyorum", "icerigini gosteremem", "dosya adi")):
             reply = "İlgili içeriği aşağıya ekledim."
     intent = process_ai_intent(reply, context)
     if intent.get("is_intent"):
@@ -5806,7 +5808,8 @@ def ai_content_search_requested(query):
     words = set(re.findall(r"[a-z0-9_]+", folded))
     has_search_verb = any(term in folded for term in ("bul", "goster", "getir", "cikar", "ara"))
     has_chat_reference = any(term in folded for term in ("atti", "atmis", "gonderdi", "paylasti", "mesaj", "sohbet"))
-    return bool(has_search_verb and (words & AI_CONTENT_SEARCH_TERMS or has_chat_reference))
+    has_content_term = bool(words & AI_CONTENT_SEARCH_TERMS) or any(term in folded for term in AI_CONTENT_SEARCH_TERMS)
+    return bool(has_search_verb and (has_content_term or has_chat_reference))
 
 
 def ai_attachment_search_text(attachment):

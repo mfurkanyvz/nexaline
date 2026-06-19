@@ -2960,9 +2960,10 @@
                 return this.applyAiAction(action, autoApproved);
             }
 
-            async syncWithServer({ render = true } = {}) {
+            async syncWithServer({ render = true, preserveMessages = false } = {}) {
                 if (!state.me?.username) return null;
                 try {
+                    const currentMessages = state.aiMessages;
                     const response = await fetch(`/ai/sync-all?username=${encodeURIComponent(state.me.username)}`, {
                         method: "GET",
                         headers: authHeaders()
@@ -2972,7 +2973,7 @@
                         showToast(data.message || "Asistan durumu alınamadı.");
                         return data;
                     }
-                    state.aiMessages = sanitizeAiHistory(data.memory || []);
+                    state.aiMessages = preserveMessages ? currentMessages : sanitizeAiHistory(data.memory || []);
                     state.aiPlanTasks = data.tasks || [];
                     state.aiSettings = { ...defaultAiSettings(), ...(data.settings || {}) };
                     state.aiCensorEnabled = state.aiSettings.censorEnabled !== false;
@@ -3147,7 +3148,6 @@
 
             aiSearchResultCaption(result, message) {
             const sender = message.senderName || message.sender || "Kişi";
-            const when = message.createdAt ? new Date(message.createdAt).toLocaleString("tr-TR") : "";
             const kindLabels = {
                 image: "görsel",
                 video: "video",
@@ -3159,7 +3159,7 @@
                 text: "mesaj"
             };
             const kind = kindLabels[result?.kind] || "içerik";
-            return `${result.chatTitle || "Sohbet"} • ${sender}${when ? ` • ${when}` : ""} • ${kind}`;
+            return `${result.chatTitle || "Sohbet"} • ${sender} • ${kind}`;
         }
 
             addAiSearchResults(results = []) {
@@ -3167,7 +3167,8 @@
                 const message = result?.message || {};
                 const resultCaption = this.aiSearchResultCaption(result, message);
                 const body = String(message.body || "").trim();
-                addAiMessage("assistant", body ? `${resultCaption}\n${body}` : resultCaption, [], message.attachment || null, message);
+                const text = message.attachment ? resultCaption : (body ? `${resultCaption}\n${body}` : resultCaption);
+                addAiMessage("assistant", text, [], message.attachment || null, message);
             });
         }
 
@@ -4186,7 +4187,7 @@
             } finally {
                 state.aiBusy = false;
                 state.aiActivity = "";
-                await this.syncWithServer({ render: false });
+                await this.syncWithServer({ render: false, preserveMessages: true });
                 renderAiPanel();
                 if (isAiChatId(state.activeChatId)) {
                     renderActiveChat();
