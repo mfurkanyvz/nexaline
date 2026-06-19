@@ -5018,6 +5018,41 @@ button {
     margin-top: 3px;
 }
 
+.ai-attachment-preview {
+    width: min(100%, 320px);
+    margin-top: 8px;
+}
+
+.ai-attachment-preview.ai-media-card {
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+    border-radius: 18px;
+    background: var(--bg-card);
+}
+
+.ai-attachment-preview img,
+.ai-attachment-preview video {
+    display: block;
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.ai-attachment-preview.voice-card,
+.ai-attachment-preview.poll-card,
+.ai-attachment-preview .location-card,
+.ai-attachment-preview .file-pill {
+    width: 100%;
+    margin: 0;
+}
+
+.ai-attachment-preview .file-pill {
+    border-color: var(--border-soft);
+    background: var(--bg-input);
+    color: var(--text-main);
+}
+
 .ai-composer {
     flex: 0 0 auto;
     display: grid;

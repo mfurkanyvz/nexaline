@@ -4464,11 +4464,15 @@ def append_research_sources(reply, research):
         return reply
     source_lines = []
     for item in usable[:4]:
-        title = re.sub(r"\s+", " ", item.get("title") or item.get("source") or "Kaynak").strip()
-        source_lines.append(f"- [{title}]({item['url']})")
-    if not source_lines or "Kaynaklar:" in (reply or ""):
+        try:
+            source_name = urllib.parse.urlparse(item["url"]).netloc.replace("www.", "") or item.get("source") or "kaynak"
+        except Exception:
+            source_name = item.get("source") or "kaynak"
+        title = re.sub(r"\s+", " ", item.get("title") or source_name).strip()
+        source_lines.append(f"- {source_name}: {title[:90]}")
+    if not source_lines or "Kaynaklar:" in (reply or "") or "Araştırılan siteler:" in (reply or ""):
         return reply
-    return f"{(reply or '').strip()}\n\nKaynaklar:\n" + "\n".join(source_lines)
+    return f"{(reply or '').strip()}\n\nAraştırılan siteler:\n" + "\n".join(source_lines)
 
 
 def generate_ai_reply(prompt, context, actions, attachment=None):

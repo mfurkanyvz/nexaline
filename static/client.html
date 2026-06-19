@@ -2726,7 +2726,23 @@
         }
 
         function renderAiTextHtml(value) {
-            const raw = decodeHumanText(value ?? "");
+            const raw = decodeHumanText(value ?? "")
+                .replace(/\[([^\]]{1,160})\]\((https?:\/\/[^)\s]+)\)/gi, (_match, label, href) => {
+                    try {
+                        const host = new URL(href).hostname.replace(/^www\./, "");
+                        return label && !/^https?:\/\//i.test(label) ? label : host;
+                    } catch (_error) {
+                        return label || "";
+                    }
+                })
+                .replace(/https?:\/\/[^\s<)]+/gi, match => {
+                    try {
+                        return new URL(match).hostname.replace(/^www\./, "");
+                    } catch (_error) {
+                        return "";
+                    }
+                })
+                .replace(/\b(?:Kaynaklar|Sources)\s*:/gi, "Araştırılan siteler:");
             const linkPattern = /\[([^\]]{1,160})\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/gi;
             let cursor = 0;
             let html = "";
@@ -2815,8 +2831,11 @@
             body.innerHTML = "";
             body.className = "modal-body";
             actionBar.innerHTML = "";
+            actionBar.classList.remove("hidden");
             buildBody(body);
-            actions.forEach(action => {
+            actions
+                .filter(action => !/^kapat$/i.test(String(action.label || "").trim()))
+                .forEach(action => {
                 const button = document.createElement("button");
                 button.className = action.danger
                     ? "danger mini-btn"
@@ -2828,6 +2847,7 @@
                 button.onclick = () => action.onClick?.();
                 actionBar.appendChild(button);
             });
+            actionBar.classList.toggle("hidden", actionBar.children.length === 0);
             $("modalPanel").className = `modal-panel ${variant || ""}`.trim();
             $("modalPanel").classList.remove("hidden");
             pushAppHistory("modal");
@@ -3072,7 +3092,30 @@
             renderAiAttachmentHtml(attachment) {
             if (!attachment) return "";
             const name = escapeHtml(attachment.name || "Nidar eki");
-            const type = String(attachment.type || "");
+            const dataUrl = String(attachment.dataUrl || "");
+            const type = String(attachment.type || attachment.mimeType || attachment.mime || dataUrl.match(/^data:([^;,]+)/)?.[1] || "");
+            const safeUrl = escapeHtml(dataUrl);
+            if (type.startsWith("image/") && attachment.dataUrl) {
+                return `<div class="ai-attachment-preview ai-media-card"><img src="${safeUrl}" alt="Görsel"></div>`;
+            }
+            if (type.startsWith("video/") && attachment.dataUrl) {
+                return `<div class="ai-attachment-preview ai-media-card"><video src="${safeUrl}" controls playsinline preload="metadata"></video></div>`;
+            }
+            if (type.startsWith("audio/") && attachment.dataUrl) {
+                const transcript = attachment.transcript ? `<small>${escapeHtml(attachment.transcript)}</small>` : "";
+                return `<div class="ai-attachment-preview voice-card ai-voice-card"><div class="voice-card-head"><span class="voice-card-icon">${svgIcon("mic")}</span><strong>Sesli mesaj</strong></div><audio src="${safeUrl}" controls preload="metadata"></audio>${transcript}</div>`;
+            }
+            if (type === "location") {
+                const lat = Number(attachment.lat);
+                const lng = Number(attachment.lng);
+                const href = escapeHtml(attachment.url || (Number.isFinite(lat) && Number.isFinite(lng) ? `https://maps.google.com/?q=${lat},${lng}` : "#"));
+                return `<div class="ai-attachment-preview"><a class="location-card" href="${href}" target="_blank" rel="noreferrer"><span class="location-map-preview" aria-hidden="true"><i class="location-map-road road-one"></i><i class="location-map-road road-two"></i><span class="location-map-pin">${svgIcon("location")}</span></span><span class="location-card-copy"><strong>Paylaşılan konum</strong><small>Haritada görüntülemek için dokun</small></span><span class="location-card-arrow">${svgIcon("chevron")}</span></a></div>`;
+            }
+            if (type === "poll" || attachment.poll) {
+                const poll = attachment.poll || {};
+                const options = (poll.options || []).map(option => `<button class="poll-option locked" type="button" disabled>${escapeHtml(typeof option === "string" ? option : option.text || option.label || "Seçenek")}</button>`).join("");
+                return `<div class="ai-attachment-preview poll-card"><strong>${escapeHtml(poll.question || "Anket")}</strong>${options}</div>`;
+            }
             if (type.startsWith("image/") && attachment.dataUrl) {
                 return `<div class="ai-attachment-preview"><img src="${escapeHtml(attachment.dataUrl)}" alt="${name}"><small>${name}</small></div>`;
             }
@@ -9252,7 +9295,7 @@
                     wrap.appendChild(card);
                 });
                 body.appendChild(wrap);
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet new-requests-modal");
+            }, [{ label: "Kapat", onClick: closeModal }], "new-requests-modal");
         }
 
         function openUserDetail(user) {
@@ -10541,7 +10584,7 @@
             link.className = "file-pill";
             link.href = attachment.dataUrl;
             link.download = attachment.name;
-            link.textContent = `Dosya: ${attachment.name}`;
+            link.textContent = "Dosya eki";
             return link;
         }
 
