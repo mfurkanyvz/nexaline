@@ -3076,12 +3076,40 @@
             if (type.startsWith("image/") && attachment.dataUrl) {
                 return `<div class="ai-attachment-preview"><img src="${escapeHtml(attachment.dataUrl)}" alt="${name}"><small>${name}</small></div>`;
             }
+            if (type.startsWith("video/") && attachment.dataUrl) {
+                return `<div class="ai-attachment-preview"><video src="${escapeHtml(attachment.dataUrl)}" controls playsinline preload="metadata"></video><small>${name}</small></div>`;
+            }
+            if (type.startsWith("audio/") && attachment.dataUrl) {
+                const transcript = attachment.transcript ? `<small>${escapeHtml(attachment.transcript)}</small>` : "";
+                return `<div class="ai-attachment-preview"><audio src="${escapeHtml(attachment.dataUrl)}" controls preload="metadata"></audio><small>${name}</small>${transcript}</div>`;
+            }
             if (type === "location") {
                 const lat = Number(attachment.lat);
                 const lng = Number(attachment.lng);
                 return `<div class="ai-attachment-preview"><a class="file-pill" href="${escapeHtml(attachment.url || "#")}" target="_blank" rel="noreferrer">Konum: ${Number.isFinite(lat) ? lat.toFixed(5) : "?"}, ${Number.isFinite(lng) ? lng.toFixed(5) : "?"}</a></div>`;
             }
+            if (type === "poll" || attachment.poll) {
+                const poll = attachment.poll || {};
+                const options = (poll.options || []).map(option => `<li>${escapeHtml(typeof option === "string" ? option : option.text || option.label || "Seçenek")}</li>`).join("");
+                return `<div class="ai-attachment-preview"><strong>${escapeHtml(poll.question || attachment.name || "Anket")}</strong><ul>${options}</ul></div>`;
+            }
+            if (type === "bundle" && Array.isArray(attachment.items)) {
+                return attachment.items.map(item => this.renderAiAttachmentHtml(item)).join("");
+            }
+            if (attachment.dataUrl) {
+                return `<div class="ai-attachment-preview"><a class="file-pill" href="${escapeHtml(attachment.dataUrl)}" download="${name}">Dosyayı aç: ${name}</a></div>`;
+            }
             return `<div class="ai-attachment-preview"><span class="file-pill">Dosya: ${name}</span></div>`;
+        }
+
+            addAiSearchResults(results = []) {
+            results.slice(0, 8).forEach(result => {
+                const message = result?.message || {};
+                const sender = message.senderName || message.sender || "Kişi";
+                const when = message.createdAt ? new Date(message.createdAt).toLocaleString("tr-TR") : "";
+                const caption = `${result.chatTitle || "Sohbet"} • ${sender}${when ? ` • ${when}` : ""}`;
+                addAiMessage("assistant", message.body || caption, [], message.attachment || null);
+            });
         }
 
             addAiMessage(role, text, actions = [], attachment = null) {
@@ -3122,7 +3150,6 @@
                         <div class="nexal-menu">
                             <button class="nexal-menu-card" type="button" data-ai-home="chat"><span class="nexal-card-icon">✦</span><span><strong>Yeni Sohbet</strong><small>AI ile sohbet başlat</small></span><span class="nexal-chevron">›</span></button>
                             <button class="nexal-menu-card" type="button" data-ai-home="tasks"><span class="nexal-card-icon green">✓</span><span><strong>Görevler</strong><small>Hatırlatmalar ve günlük plan</small></span><span class="nexal-chevron">›</span></button>
-                            <button class="nexal-menu-card" type="button" data-ai-home="image"><span class="nexal-card-icon orange">◎</span><span><strong>Görsel Oluştur</strong><small>Prompt yaz, Nexal görsel üretsin</small></span><span class="nexal-chevron">›</span></button>
                             <button class="nexal-menu-card" type="button" data-ai-home="settings"><span class="nexal-card-icon gray">⚙</span><span><strong>AI Ayarları</strong><small>Ses, yetki, gizlilik ve geçmiş</small></span><span class="nexal-chevron">›</span></button>
                         </div>
                     </div>
@@ -3144,7 +3171,6 @@
                         setTimeout(() => $("aiInput")?.focus(), 80);
                     }
                     if (target === "tasks") openAiTasksPanel();
-                    if (target === "image") openAiImageGenerator();
                     if (target === "settings") openAiSettingsPanel();
                 };
             });
@@ -3171,7 +3197,6 @@
                 input.click();
             };
             return [
-                { id: "image", icon: "◎", color: "orange", title: "Görsel oluştur", hint: "Türkçe veya İngilizce tarifle", run: openAiImageGenerator },
                 { id: "file-upload", icon: "▧", color: "blue", title: "Dosya yükle", hint: "Dosya veya görsel analiz et", run: () => chooseAiFile("image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.zip") },
                 { id: "camera", icon: "▣", color: "green", title: "Kamera aç", hint: "Kamera ile görsel yakala", run: openCameraCapture },
                 { id: "voice-create", icon: "♪", color: "blue", title: "Ses oluştur", hint: "Metni Asistan sesiyle üret", run: () => this.openAiVoiceCreatorPanel() },
@@ -3413,46 +3438,6 @@
                     $("aiFixResult").classList.remove("hidden");
                     $("aiFixResult span:last-child").innerHTML = `<strong>Düzeltilmiş metin</strong><small>${escapeHtml(data.result || data.message || "Düzeltme alınamadı.")}</small>`;
                     if (data.ok) addAiMessage("assistant", data.result || "Yazı düzeltildi.");
-                };
-            }, [{ label: "Kapat", onClick: closeModal }], "sheet");
-        }
-
-            openAiImageGenerator() {
-            openModal("Görsel Oluştur", body => {
-                body.innerHTML = `
-                    <div class="nexal-form-grid">
-                        <textarea id="aiImagePromptInput" rows="3" lang="tr" placeholder="Türkçe yazabilirsin: Gün batımında göl kenarında modern bir ev"></textarea>
-                        <div id="aiImagePreview" class="nexal-generated-image hidden"></div>
-                        <div class="nexal-thumb-row"><span class="nexal-thumb"></span><span class="nexal-thumb"></span><span class="nexal-thumb"></span><span class="nexal-thumb"></span></div>
-                        <button id="aiImageCreateButton" class="nexal-pill-button primary" type="button">Oluştur</button>
-                        <button id="aiImageRecreateButton" class="nexal-pill-button" type="button">Baştan Oluştur</button>
-                    </div>
-                `;
-                let variant = 0;
-                const create = async () => {
-                    const prompt = $("aiImagePromptInput").value.trim();
-                    if (prompt.length < 3) return showToast("Görsel için bir şey yaz.");
-                    $("aiImageCreateButton").disabled = true;
-                    $("aiImageCreateButton").textContent = "Düşünüyor...";
-                    const response = await fetch("/ai/image", {
-                        method: "POST",
-                        headers: authHeaders(),
-                        body: JSON.stringify({ username: state.me.username, prompt, variant })
-                    });
-                    const data = await response.json();
-                    $("aiImageCreateButton").disabled = false;
-                    $("aiImageCreateButton").textContent = "Oluştur";
-                    if (!data.ok) return showToast(data.message || "Görsel oluşturulamadı.");
-                    const image = data.image;
-                    $("aiImagePreview").classList.remove("hidden");
-                    $("aiImagePreview").innerHTML = `<img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(prompt)}"><div class="last-message" style="padding:10px">${escapeHtml(data.note || "Görsel oluşturuldu.")}</div>`;
-                    addAiMessage("assistant", "Görsel oluşturuldu.", [], image);
-                    if (state.aiSettings.notifications) showToast("Asistan görseli oluşturdu.");
-                };
-                $("aiImageCreateButton").onclick = create;
-                $("aiImageRecreateButton").onclick = () => {
-                    variant += 1;
-                    create();
                 };
             }, [{ label: "Kapat", onClick: closeModal }], "sheet");
         }
@@ -4058,42 +4043,6 @@
             }
         }
 
-            imagePromptFromAiRequest(prompt) {
-            const value = String(prompt || "").trim();
-            if (!value) return "";
-            const patterns = [
-                /^(?:bana\s+)?(?:bir\s+)?(?:görsel|resim|fotoğraf|illüstrasyon)\s+(?:oluştur|üret|çiz|yap)\s*[:,-]?\s*(.+)$/i,
-                /^(?:görsel|resim|fotoğraf|illüstrasyon)\s*[:,-]\s*(.+)$/i,
-                /^(.+?)\s+(?:görselini|resmini|fotoğrafını|illüstrasyonunu)\s+(?:oluştur|üret|çiz|yap)$/i,
-                /^(?:oluştur|üret|çiz)\s*[:,-]?\s*(.+?)\s+(?:görseli|resmi|fotoğrafı)$/i
-            ];
-            for (const pattern of patterns) {
-                const candidate = value.match(pattern)?.[1]?.trim();
-                if (candidate && candidate.length >= 3) return candidate;
-            }
-            return "";
-        }
-
-            async createAiImageInChat(prompt) {
-            const response = await fetch("/ai/image", {
-                method: "POST",
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    username: state.me.username,
-                    prompt,
-                    variant: Date.now() % 100000
-                })
-            });
-            const data = await response.json();
-            if (!data.ok || !data.image?.dataUrl) {
-                addAiMessage("assistant", data.message || "Görsel oluşturulamadı.");
-                return data;
-            }
-            state.aiStatus = data.provider || state.aiStatus;
-            addAiMessage("assistant", data.note || "İstediğin görseli oluşturdum.", [], data.image);
-            return { ...data, reply: data.note || "İstediğin görseli oluşturdum." };
-        }
-
                 async sendAiPrompt(promptOverride = null, attachment = null) {
             if (promptOverride && typeof promptOverride !== "string") {
                 promptOverride = null;
@@ -4122,11 +4071,6 @@
             addAiMessage("user", prompt || "Bu eki incele.", [], attachment);
             renderAiPanel();
             try {
-                const requestedImagePrompt = !modelAttachment ? this.imagePromptFromAiRequest(prompt) : "";
-                if (requestedImagePrompt) {
-                    state.aiActivity = "Görsel oluşturuyor...";
-                    return await this.createAiImageInChat(requestedImagePrompt);
-                }
                 const promptForModel = promptTargetsAiName(prompt)
                     ? `Kullanıcı sana verdiği isim olan "${prompt}" diye seslendi. Türkçe, sıcak ve kısa karşılık ver.`
                     : prompt;
@@ -4158,6 +4102,9 @@
                 state.aiStatus = data.provider || state.aiStatus;
                 const actions = data.actions || [];
                 addAiMessage("assistant", data.reply || "Hazır.", actions);
+                if (Array.isArray(data.results) && data.results.length) {
+                    this.addAiSearchResults(data.results);
+                }
                 if (state.aiSettings.autoApprove && actions.length) {
                     actions.forEach(action => applyAiAction(action, true));
                 }
@@ -4302,6 +4249,9 @@
                 state.aiStatus = data.provider || state.aiStatus;
                 const actions = data.actions || [];
                 addAiMessage("assistant", data.reply || "Hazır.", actions);
+                if (Array.isArray(data.results) && data.results.length) {
+                    this.addAiSearchResults(data.results);
+                }
                 if (state.aiSettings.autoApprove && actions.length) {
                     actions.forEach(action => applyAiAction(action, true));
                 }
@@ -4731,7 +4681,6 @@
         function openAiSummarizerPanel(...args) { return nexaAiEngine.openAiSummarizerPanel(...args); }
         function openAiTranslatePanel(...args) { return nexaAiEngine.openAiTranslatePanel(...args); }
         function openAiWritingFixPanel(...args) { return nexaAiEngine.openAiWritingFixPanel(...args); }
-        function openAiImageGenerator(...args) { return nexaAiEngine.openAiImageGenerator(...args); }
         function openAiSettingsPanel(...args) { return nexaAiEngine.openAiSettingsPanel(...args); }
         function speakAiText(...args) { return nexaAiEngine.speakAiText(...args); }
         function aiSpeechText(...args) { return nexaAiEngine.aiSpeechText(...args); }

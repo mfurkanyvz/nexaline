@@ -18,17 +18,11 @@ Render > Environment bolumune eklenecek anahtarlarin gorev dagilimi. Anahtar deg
 
 - `GEMINI_API_KEY`
   - Default model: `GEMINI_MODEL=gemini-1.5-flash`
-  - Gorev: varsa sohbet, gorsel/dosya yorumlama ve Gemini image fallback.
-
-## Image generation
+  - Gorev: varsa sohbet, gorsel/dosya yorumlama ve analiz yedegi.
 
 - `HF_TOKEN`
-  - Default model: `HF_IMAGE_MODEL=black-forest-labs/FLUX.1-schnell`
-  - Gorev: Nexa AI gorsel olusturma.
-
-- `GEMINI_API_KEY`
-  - Default model: `GEMINI_IMAGE_MODEL=gemini-2.0-flash-preview-image-generation`
-  - Gorev: Hugging Face yanit vermezse gorsel fallback.
+  - Optional model: `HF_VISION_MODEL=Salesforce/blip-image-captioning-large`
+  - Gorev: yalnizca gorsel yorumlama yedegi. Gorsel olusturma ozelligi kaldirildi.
 
 ## Voice assistant
 
@@ -57,4 +51,4 @@ ELEVENLABS_API_KEY=...
 ASSEMBLYAI_API_KEY=...
 ```
 
-Gemini, Mistral, Cohere, Together, Replicate, Stability, Tavily ve Fireworks otomatik anahtar kopyalamayi engelledigi veya ucret/faturalama kosulu istedigi icin bu turda aktif degisken olarak baglanmadi.
+Gemini, Mistral, Cohere, Together, Replicate, Stability, Tavily ve Fireworks otomatik anahtar kopyalamayi engelledigi veya ucret/faturalama kosulu istedigi icin bu turda aktif degisken olarak baglanmadi. Gorsel olusturma saglayicilari artik kullanilmiyor.

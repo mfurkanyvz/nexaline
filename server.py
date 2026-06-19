@@ -2823,6 +2823,9 @@ Sağlayıcı değişse bile üslubunu, kullanıcının sana verdiği ismi ve ön
 Kullanıcı internetten araştırma isterse web araştırma notlarını kullan, kaynakları kısa ve okunur şekilde belirt; sonuç yoksa bunu açık söyle.
 Kullanıcı önceki konuşmasına gönderme yapıyorsa yalnızca geçmişi listeleme; geçmişteki ilgili bilgiyi mevcut soruyla birleştirip doğrudan cevap ver.
 Bir görsel veya dosya verildiyse gerçekten görebildiğin içeriği açıkla. Görsel verisi sağlayıcıya ulaşmadıysa gördüğünü iddia etme.
+contentSearchResults alanı varsa bunlar kullanıcının görme yetkisi bulunan gerçek sohbet sonuçlarıdır; sonucu sohbet, gönderen, tarih ve içerik türüyle açıkla.
+Asistan kullanıcının kişisel ve grup sohbetlerini analiz edebilir, mesaj ve medya bulabilir, web araştırması yapabilir, ayarları değiştirebilir ve arama başlatabilir.
+Asistan hiçbir koşulda kullanıcı adına mesaj göndermez, zamanlı mesaj oluşturmaz, mesaja yanıt veya tepki vermez, durum paylaşmaz ya da grup oluşturmaz.
 """
 
 def ai_get_system_tools():
@@ -2870,20 +2873,9 @@ def ai_get_system_tools():
         {"name": "set_ai_name", "description": "Asistan özel adını değiştirir.", "parameters": base_schema},
         {"name": "open_settings", "description": "Ayarlar ekranını veya bir ayar sekmesini açar.", "parameters": base_schema},
         {"name": "set_chat_preference", "description": "Sohbet sabitleme, sessize alma veya kilit ayarını değiştirir.", "parameters": base_schema},
-        {"name": "delete_chat", "description": "Sohbet silme/arşivleme aksiyonu hazırlar.", "parameters": base_schema},
         {"name": "start_call", "description": "Sesli veya görüntülü arama başlatır.", "parameters": base_schema},
         {"name": "schedule_call", "description": "Planlı arama aksiyonu hazırlar.", "parameters": base_schema},
         {"name": "end_call", "description": "Aktif aramayı kapatır.", "parameters": base_schema},
-        {"name": "send_message", "description": "Hedef sohbete mesaj gönderme aksiyonu hazırlar.", "parameters": base_schema},
-        {"name": "schedule_message", "description": "Zamanlı mesaj gönderme aksiyonu hazırlar.", "parameters": base_schema},
-        {"name": "draft_message", "description": "Hedef sohbet için mesaj taslağı hazırlar.", "parameters": base_schema},
-        {"name": "reply_message", "description": "Bir mesaja yanıt aksiyonu hazırlar.", "parameters": base_schema},
-        {"name": "react_message", "description": "Bir mesaja emoji tepkisi bırakır.", "parameters": base_schema},
-        {"name": "create_group", "description": "Yeni grup oluşturur.", "parameters": base_schema},
-        {"name": "update_group", "description": "Grup adını veya üyelerini günceller.", "parameters": base_schema},
-        {"name": "create_story", "description": "Yeni durum/güncelleme paylaşır.", "parameters": base_schema},
-        {"name": "delete_story", "description": "Son durum/güncellemeyi siler.", "parameters": base_schema},
-        {"name": "contact_request", "description": "Arkadaş veya mesajlaşma isteği gönderir.", "parameters": base_schema},
         {"name": "open_notifications", "description": "Bildirim merkezini açar.", "parameters": base_schema},
     ]
 
@@ -2994,6 +2986,16 @@ def ai_normalize_tool_action(tool_call, context=None):
         or ""
     )
     name = fold_tr_ascii(str(raw_name)).replace("-", "_").replace(" ", "_")
+    allowed_names = {
+        "update_user_profile", "update_profile", "profile_update",
+        "focus_chat", "open_chat", "set_privacy_setting", "set_privacy",
+        "set_theme", "set_censor_filter", "set_censor", "set_ai_enabled",
+        "set_ai_auto_approve", "set_ai_name", "open_settings",
+        "set_chat_preference", "set_chat_pref", "start_call", "schedule_call",
+        "end_call", "open_notifications",
+    }
+    if name not in allowed_names:
+        return None
     params = ai_action_params(
         tool_call.get("parameters")
         or tool_call.get("params")
@@ -3183,7 +3185,7 @@ def ai_provider_status():
         "openai": {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini"), "ready": bool(os.environ.get("OPENAI_API_KEY")), "task": "chat fallback"},
         "openai_tts": {"provider": "openai_tts", "model": os.environ.get("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"), "ready": bool(os.environ.get("OPENAI_API_KEY")), "task": "tts"},
         "ollama": {"provider": "ollama", "model": os.environ.get("OLLAMA_MODEL", os.environ.get("AI_MODEL", "llama3.2")), "ready": bool(os.environ.get("OLLAMA_BASE_URL")), "task": "local model"},
-        "huggingface": {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": bool(os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")), "task": "image fallback"},
+        "huggingface": {"provider": "huggingface", "model": os.environ.get("HF_VISION_MODEL", "Salesforce/blip-image-captioning-large"), "ready": bool(os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")), "task": "vision fallback"},
         "elevenlabs": {"provider": "elevenlabs", "model": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"), "ready": bool(os.environ.get("ELEVENLABS_API_KEY")), "task": "tts"},
         "assemblyai": {"provider": "assemblyai", "model": os.environ.get("ASSEMBLYAI_SPEECH_MODEL", "best"), "ready": bool(os.environ.get("ASSEMBLYAI_API_KEY")), "task": "stt fallback"},
     }
@@ -5006,7 +5008,7 @@ def push_subscribe():
 @ai_error_boundary
 def ai_status():
     status = ai_provider_status()
-    return jsonify({"ok": True, "ai": status, "moderation": True, "actions": True, "memory": True, "webResearch": True})
+    return jsonify({"ok": True, "ai": status, "moderation": True, "actions": True, "memory": True, "webResearch": True, "contentSearch": True})
 
 
 @app.route("/ai/chat", methods=["POST"])
@@ -5030,6 +5032,29 @@ def ai_chat():
         return jsonify({"ok": False, "message": "AI eki çok büyük."}), 400
 
     context = ai_context_for_user(username, chat_id, prompt, client_history)
+    content_results = ai_search_visible_content(username, prompt, chat_id, limit=8) if ai_content_search_requested(prompt) else []
+    if content_results:
+        context["contentSearchResults"] = [
+            {
+                "chatId": item["chatId"],
+                "chatTitle": item["chatTitle"],
+                "chatType": item["chatType"],
+                "kind": item["kind"],
+                "message": {
+                    "id": item["message"]["id"],
+                    "sender": item["message"]["sender"],
+                    "senderName": item["message"]["senderName"],
+                    "body": item["message"]["body"],
+                    "createdAt": item["message"]["createdAt"],
+                    "attachment": {
+                        key: value
+                        for key, value in (item["message"].get("attachment") or {}).items()
+                        if key != "dataUrl"
+                    },
+                },
+            }
+            for item in content_results
+        ]
     context["assistant"] = {"name": assistant_name}
     context["preferences"] = {
         "responseLength": str(data.get("responseLength") or "medium")[:20],
@@ -5057,7 +5082,7 @@ def ai_chat():
         prompt or "Bu eki incele.",
         meta={"hasAttachment": bool(attachment), "attachment": attachment_meta},
     )
-    store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "actions": actions})
+    store_ai_memory(username, chat_id, "assistant", reply, provider=(provider or {}).get("provider"), meta={"researchCount": len(research or []), "contentResultCount": len(content_results), "actions": actions})
     db.session.commit()
     return jsonify(
         {
@@ -5066,37 +5091,9 @@ def ai_chat():
             "actions": actions,
             "provider": provider,
             "research": research,
+            "results": content_results,
         }
     )
-
-
-def local_generated_image_data_url(prompt, variant=0):
-    seed = hashlib.sha256(f"{prompt}:{variant}".encode("utf-8")).hexdigest()
-    hue_a = int(seed[:2], 16) % 360
-    hue_b = (hue_a + 120 + int(seed[2:4], 16) % 80) % 360
-    hue_c = (hue_a + 250) % 360
-    safe_prompt = html.escape(re.sub(r"\s+", " ", prompt or "Nidar görseli").strip()[:120])
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="768" viewBox="0 0 1024 768">
-<defs>
-<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-<stop stop-color="hsl({hue_a},86%,38%)"/><stop offset=".52" stop-color="hsl({hue_b},84%,32%)"/><stop offset="1" stop-color="hsl({hue_c},88%,44%)"/>
-</linearGradient>
-<radialGradient id="glow" cx=".36" cy=".28" r=".74"><stop stop-color="rgba(255,255,255,.72)"/><stop offset=".42" stop-color="rgba(255,255,255,.08)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></radialGradient>
-<filter id="blur"><feGaussianBlur stdDeviation="34"/></filter>
-</defs>
-<rect width="1024" height="768" fill="#06101f"/>
-<rect width="1024" height="768" fill="url(#bg)" opacity=".86"/>
-<circle cx="210" cy="170" r="220" fill="#2f80ff" opacity=".28" filter="url(#blur)"/>
-<circle cx="820" cy="560" r="260" fill="#ff00b8" opacity=".24" filter="url(#blur)"/>
-<path d="M145 595 C270 370 424 330 548 398 C693 478 768 322 889 178" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="16" stroke-linecap="round"/>
-<rect x="86" y="86" width="852" height="596" rx="48" fill="rgba(4,9,20,.38)" stroke="rgba(255,255,255,.28)"/>
-<text x="112" y="160" fill="#fff" font-size="34" font-family="Inter,Arial,sans-serif" font-weight="800">Asistan görsel taslağı</text>
-<foreignObject x="112" y="202" width="800" height="210">
-<div xmlns="http://www.w3.org/1999/xhtml" style="color:#edf6ff;font-family:Inter,Arial,sans-serif;font-size:44px;font-weight:900;line-height:1.08;text-shadow:0 8px 34px rgba(0,0,0,.38);">{safe_prompt}</div>
-</foreignObject>
-<text x="112" y="642" fill="rgba(255,255,255,.72)" font-size="24" font-family="Inter,Arial,sans-serif">Ücretsiz yerel mod • Gemini varsa gerçek image model denenir</text>
-</svg>"""
-    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii")
 
 
 def data_url_to_bytes(data_url, max_chars=MAX_ATTACHMENT_DATA_URL_CHARS):
@@ -5115,64 +5112,6 @@ def data_url_to_bytes(data_url, max_chars=MAX_ATTACHMENT_DATA_URL_CHARS):
 
 def bytes_to_data_url(payload, mime_type):
     return f"data:{mime_type};base64,{base64.b64encode(payload).decode('ascii')}"
-
-
-def call_huggingface_image(prompt):
-    key = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")
-    if not key:
-        raise RuntimeError("HF_TOKEN missing")
-    model = os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell")
-    timeout_seconds = max(AI_TIMEOUT_SECONDS, 25)
-    endpoints = [
-        f"https://router.huggingface.co/hf-inference/models/{model}",
-        f"https://api-inference.huggingface.co/models/{model}",
-    ]
-    last_error = None
-    for endpoint in endpoints:
-        try:
-            response = requests.post(
-                endpoint,
-                headers={"Authorization": f"Bearer {key}", "Accept": "image/png"},
-                json={"inputs": prompt, "parameters": {"num_inference_steps": 4}},
-                timeout=timeout_seconds,
-            )
-            response.raise_for_status()
-            content_type = response.headers.get("Content-Type", "image/png").split(";")[0]
-            if content_type.startswith("image/") and response.content:
-                return bytes_to_data_url(response.content, content_type), "Hugging Face görsel modeliyle oluşturuldu."
-            data = response.json()
-            if isinstance(data, dict) and data.get("error"):
-                raise RuntimeError(data["error"])
-        except Exception as error:
-            last_error = error
-    raise RuntimeError(f"Hugging Face image failed: {last_error}")
-
-
-def call_gemini_image(prompt):
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("VITE_GEMINI_API_KEY")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY missing")
-    model = os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation")
-    response = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-        params={"key": key},
-        json={
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
-        },
-        timeout=max(AI_TIMEOUT_SECONDS, 18),
-    )
-    response.raise_for_status()
-    parts = response.json().get("candidates", [{}])[0].get("content", {}).get("parts", [])
-    note = ""
-    for part in parts:
-        if part.get("text"):
-            note = part.get("text")
-        inline = part.get("inlineData") or part.get("inline_data")
-        if inline and inline.get("data"):
-            mime_type = inline.get("mimeType") or inline.get("mime_type") or "image/png"
-            return f"data:{mime_type};base64,{inline['data']}", note
-    raise RuntimeError("Gemini image response has no image")
 
 
 def call_groq_stt(audio_bytes, mime_type):
@@ -5584,112 +5523,7 @@ class ProcessAI:
             raise RuntimeError("Google Translate returned empty text")
         return translated, provider
 
-    def generate_image(self, prompt):
-        model = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2")
-        payload = {
-            "model": model,
-            "prompt": prompt[:1000],
-            "n": 1,
-            "size": os.environ.get("OPENAI_IMAGE_SIZE", "1024x1024"),
-        }
-        if model.startswith("dall-e"):
-            payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "standard"), "response_format": "b64_json"})
-        else:
-            payload.update({"quality": os.environ.get("OPENAI_IMAGE_QUALITY", "high"), "output_format": "png"})
-        response = requests.post(
-            f"{self.openai_base_url}/images/generations",
-            headers=self._openai_headers(),
-            json=payload,
-            timeout=max(AI_TIMEOUT_SECONDS, 60),
-        )
-        response.raise_for_status()
-        image = (response.json().get("data") or [{}])[0]
-        encoded = image.get("b64_json")
-        if encoded:
-            return f"data:image/png;base64,{encoded}", "OpenAI ile görsel oluşturuldu.", {"provider": "openai-image", "model": model}
-        image_url = image.get("url")
-        if image_url:
-            image_response = requests.get(image_url, timeout=max(AI_TIMEOUT_SECONDS, 30))
-            image_response.raise_for_status()
-            mime_type = image_response.headers.get("Content-Type", "image/png").split(";")[0]
-            return bytes_to_data_url(image_response.content, mime_type), "OpenAI ile görsel oluşturuldu.", {"provider": "openai-image", "model": model}
-        raise RuntimeError("OpenAI image response has no image")
-
-
 process_ai = ProcessAI()
-
-
-TURKISH_IMAGE_PROMPT_WORDS = {
-    "acik", "adam", "aksam", "altinda", "araba", "arkaplan", "ay", "beyaz", "bir",
-    "ciz", "cizim", "cocuk", "dag", "deniz", "detayli", "dogal", "ev", "evde", "fotograf",
-    "gece", "gercekci", "gibi", "gokyuzu", "gol", "gorsel", "gun", "gunes", "icinde", "ile",
-    "insan", "kadin", "karanlik", "kedi", "kirmizi", "kiz", "kopek", "kosan", "kus",
-    "manzara", "mavi", "mor", "olan", "olsun", "onunde", "orman", "olustur",
-    "pembe", "portre", "resim", "sahilde", "sahne", "sari", "sehir", "siyah", "sokakta",
-    "tarzinda", "turuncu", "ustunde", "uzay", "uzayda", "ve", "yagmur", "yaninda", "yap",
-    "yesil",
-}
-
-
-def detect_image_prompt_language(prompt):
-    value = str(prompt or "").strip()
-    if re.search(r"[çğıöşüÇĞİÖŞÜ]", value):
-        return "tr"
-    tokens = set(re.findall(r"[a-z0-9]+", fold_tr_ascii(value)))
-    matches = tokens.intersection(TURKISH_IMAGE_PROMPT_WORDS)
-    if len(matches) >= 2 or matches.intersection({"gorsel", "olustur", "resim", "ciz", "yap"}):
-        return "tr"
-    return "en"
-
-
-def remote_image_provider_ready():
-    return any(
-        os.environ.get(name)
-        for name in (
-            "OPENAI_API_KEY",
-            "GEMINI_API_KEY",
-            "VITE_GEMINI_API_KEY",
-            "HF_TOKEN",
-            "HUGGINGFACE_API_KEY",
-        )
-    )
-
-
-def prepare_image_generation_prompt(prompt, translate_prompt=True):
-    original_prompt = re.sub(r"\s+", " ", str(prompt or "")).strip()
-    language = detect_image_prompt_language(original_prompt)
-    metadata = {
-        "promptLanguage": language,
-        "promptTranslated": False,
-    }
-    if language != "tr":
-        return original_prompt[:1000], metadata
-    if not translate_prompt:
-        metadata["translationSkipped"] = "no-remote-image-provider"
-        return original_prompt[:1000], metadata
-
-    try:
-        translated, translation_provider = process_ai.translate_text(original_prompt, "tr", "en")
-        translated = re.sub(r"\s+", " ", translated).strip()
-        if translated:
-            metadata["promptTranslated"] = True
-            metadata["translationProvider"] = (translation_provider or {}).get("provider")
-            return translated[:1000], metadata
-    except Exception as error:
-        app.logger.info("Turkish image prompt translation fallback: %s", error)
-
-    bilingual_prompt = (
-        "Create an image that follows this Turkish request exactly. "
-        "Preserve every named subject, color, number, style, and composition detail. "
-        f"Turkish request: {original_prompt}"
-    )
-    metadata["translationFallback"] = "bilingual"
-    return bilingual_prompt[:1000], metadata
-
-
-def call_openai_image(prompt):
-    data_url, note, _provider = process_ai.generate_image(prompt)
-    return data_url, note
 
 
 @app.route("/ai/stt", methods=["POST"])
@@ -5860,51 +5694,6 @@ def ai_text_tool():
     return jsonify({"ok": True, "result": reply, "provider": provider, "research": research})
 
 
-@app.route("/ai/image", methods=["POST"])
-@ai_error_boundary
-def ai_image():
-    data = request.get_json() or {}
-    username = (data.get("username") or "").strip().lower()
-    prompt = re.sub(r"\s+", " ", (data.get("prompt") or "").strip())
-    variant = int(data.get("variant") or 0)
-    if not username or not db.session.get(User, username):
-        return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
-    if len(prompt) < 3:
-        return jsonify({"ok": False, "message": "Görsel için ne istediğini yaz."}), 400
-    if len(prompt) > 800:
-        prompt = prompt[:800]
-    provider_prompt, prompt_metadata = prepare_image_generation_prompt(
-        prompt,
-        translate_prompt=remote_image_provider_ready(),
-    )
-    provider = {"provider": "local", "model": "nexaline-free-image", "ready": True, "free": True}
-    note = "Ücretsiz yerel görsel üretildi."
-    try:
-        data_url, note = call_openai_image(provider_prompt)
-        provider = {"provider": "openai-image", "model": os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-2"), "ready": True}
-    except Exception as error:
-        app.logger.info("AI image OpenAI fallback: %s", error)
-        try:
-            data_url, note = call_gemini_image(provider_prompt)
-            provider = {"provider": "gemini", "model": os.environ.get("GEMINI_IMAGE_MODEL", "gemini-2.0-flash-preview-image-generation"), "ready": True}
-        except Exception as error:
-            app.logger.info("AI image Gemini fallback: %s", error)
-            try:
-                data_url, note = call_huggingface_image(provider_prompt)
-                provider = {"provider": "huggingface", "model": os.environ.get("HF_IMAGE_MODEL", "black-forest-labs/FLUX.1-schnell"), "ready": True}
-            except Exception as error:
-                app.logger.info("AI image local fallback: %s", error)
-                data_url = local_generated_image_data_url(prompt, variant)
-    provider.update(prompt_metadata)
-    mime_match = re.match(r"data:([^;]+);", data_url)
-    mime_type = mime_match.group(1) if mime_match else "image/svg+xml"
-    extension = "png" if mime_type == "image/png" else "jpg" if mime_type == "image/jpeg" else "svg"
-    store_ai_memory(username, None, "user", f"Gorsel olustur: {prompt}", provider="image", meta={"variant": variant})
-    store_ai_memory(username, None, "assistant", note, provider=(provider or {}).get("provider"), meta={"type": "image", "mimeType": mime_type})
-    db.session.commit()
-    return jsonify({"ok": True, "image": {"dataUrl": data_url, "name": f"nexa-ai-gorsel.{extension}", "type": mime_type}, "note": note, "provider": provider})
-
-
 @app.route("/ai/moderate", methods=["POST"])
 @ai_error_boundary
 def ai_moderate():
@@ -5934,6 +5723,133 @@ def ai_chat_summary_route():
     return jsonify({"ok": True, "summary": reply or local_chat_summary(messages), "provider": provider, "research": research})
 
 
+AI_CONTENT_SEARCH_TERMS = {
+    "ara", "bul", "cikar", "goster", "getir", "atti", "atmis", "gonderdi",
+    "paylasti", "mesaj", "sohbet", "fotograf", "foto", "gorsel", "resim",
+    "video", "ses", "konum", "anket", "belge", "dokuman", "dosya", "pdf",
+}
+
+
+def ai_attachment_kind(attachment):
+    if not isinstance(attachment, dict):
+        return "text"
+    attachment_type = fold_tr_ascii(str(attachment.get("type") or attachment.get("kind") or ""))
+    if attachment_type == "bundle":
+        return "bundle"
+    if attachment_type == "location":
+        return "location"
+    if attachment_type == "poll" or isinstance(attachment.get("poll"), dict):
+        return "poll"
+    if attachment_type.startswith("image/") or attachment_type in {"image", "gif"}:
+        return "image"
+    if attachment_type.startswith("video/") or attachment_type == "video":
+        return "video"
+    if attachment_type.startswith("audio/") or attachment_type in {"audio", "voice"}:
+        return "audio"
+    return "document"
+
+
+def ai_requested_attachment_kinds(query):
+    folded = fold_tr_ascii(query or "")
+    mapping = {
+        "image": ("fotograf", "foto", "gorsel", "resim", "gif"),
+        "video": ("video",),
+        "audio": ("ses kaydi", "sesli mesaj", "audio", "ses"),
+        "location": ("konum", "lokasyon", "adres"),
+        "poll": ("anket", "oylama"),
+        "document": ("belge", "dokuman", "dosya", "pdf", "word", "excel"),
+    }
+    return {kind for kind, terms in mapping.items() if any(term in folded for term in terms)}
+
+
+def ai_search_date_window(query):
+    folded = fold_tr_ascii(query or "")
+    now = datetime.now(timezone.utc)
+    if "gecen hafta" in folded:
+        return now - timedelta(days=14), now - timedelta(days=7)
+    if any(term in folded for term in ("son bir hafta", "son hafta", "bu hafta")):
+        return now - timedelta(days=7), now
+    if "dun" in folded:
+        return now - timedelta(days=2), now
+    if "bugun" in folded:
+        return now - timedelta(days=1), now
+    return None, None
+
+
+def ai_content_search_requested(query):
+    folded = fold_tr_ascii(query or "")
+    words = set(re.findall(r"[a-z0-9_]+", folded))
+    has_search_verb = any(term in folded for term in ("bul", "goster", "getir", "cikar", "ara"))
+    has_chat_reference = any(term in folded for term in ("atti", "atmis", "gonderdi", "paylasti", "mesaj", "sohbet"))
+    return bool(has_search_verb and (words & AI_CONTENT_SEARCH_TERMS or has_chat_reference))
+
+
+def ai_attachment_search_text(attachment):
+    if not isinstance(attachment, dict):
+        return ""
+    if attachment.get("type") == "bundle":
+        return " ".join(ai_attachment_search_text(item) for item in attachment.get("items") or [])
+    poll = attachment.get("poll") if isinstance(attachment.get("poll"), dict) else {}
+    poll_text = " ".join([str(poll.get("question") or ""), *[str(item) for item in (poll.get("options") or [])]])
+    return " ".join(str(attachment.get(key) or "") for key in ("name", "type", "transcript", "address", "label")) + " " + poll_text
+
+
+def ai_search_visible_content(username, query, chat_id=None, limit=12):
+    chat_ids = [member.chat_id for member in ChatMember.query.filter_by(username=username).all()]
+    if chat_id:
+        chat_ids = [candidate for candidate in chat_ids if candidate == chat_id]
+    if not chat_ids:
+        return []
+    chats = {
+        chat.id: chat
+        for chat in Chat.query.filter(Chat.id.in_(chat_ids)).options(selectinload(Chat.members).selectinload(ChatMember.user)).all()
+        if user_can_see_chat(chat, username)
+    }
+    requested_kinds = ai_requested_attachment_kinds(query)
+    start_at, end_at = ai_search_date_window(query)
+    ignored_tokens = AI_CONTENT_SEARCH_TERMS | {"arkadas", "arkadasim", "kisi", "gecen", "hafta", "son", "bana", "icin"}
+    content_tokens = {fold_tr_ascii(token) for token in ai_prompt_tokens(query) if fold_tr_ascii(token) not in ignored_tokens}
+    prompt_folded = fold_tr_ascii(query or "")
+    matches = []
+
+    for candidate_chat_id, chat in chats.items():
+        member_labels = " ".join(f"{member.username} {member.user.display_name if member.user else ''}" for member in chat.members)
+        chat_haystack = fold_tr_ascii(f"{chat.title} {member_labels}")
+        chat_score = sum(8 for token in content_tokens if token in chat_haystack)
+        if fold_tr_ascii(chat.title or "") and fold_tr_ascii(chat.title) in prompt_folded:
+            chat_score += 40
+        for message in recent_visible_messages(candidate_chat_id, username, RECENT_MESSAGE_SCAN_LIMIT):
+            if message.deleted_at or username in (message.deleted_for or []) or is_view_once_attachment(message.attachment):
+                continue
+            attachment = message.attachment if isinstance(message.attachment, dict) else None
+            kind = ai_attachment_kind(attachment)
+            if requested_kinds and kind not in requested_kinds and kind != "bundle":
+                continue
+            created_at = message.created_at
+            if created_at and created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            if start_at and created_at and created_at < start_at:
+                continue
+            if end_at and created_at and created_at > end_at:
+                continue
+            sender_name = message.sender_user.display_name if message.sender_user else message.sender
+            haystack = fold_tr_ascii(f"{message.body or ''} {ai_attachment_search_text(attachment)} {message.sender} {sender_name} {chat.title}")
+            token_score = sum(5 for token in content_tokens if token in haystack)
+            score = chat_score + token_score + (18 if requested_kinds and attachment else (8 if attachment else 0))
+            if not requested_kinds and content_tokens and token_score == 0 and chat_score == 0:
+                continue
+            matches.append({
+                "chatId": chat.id,
+                "chatTitle": chat.title,
+                "chatType": chat.type,
+                "kind": kind,
+                "message": message_to_dict(message),
+                "score": score,
+            })
+    matches.sort(key=lambda item: (item["score"], item["message"]["createdAt"]), reverse=True)
+    return matches[:max(1, min(int(limit or 12), 20))]
+
+
 @app.route("/ai/search", methods=["POST"])
 @ai_error_boundary
 def ai_search_route():
@@ -5945,23 +5861,7 @@ def ai_search_route():
         return jsonify({"ok": False, "message": "Önce giriş yapmalısın."}), 401
     if len(query) < 2:
         return jsonify({"ok": False, "message": "Arama metni çok kısa."}), 400
-    chats = [db.session.get(Chat, chat_id)] if chat_id else [
-        Chat.query.get(member.chat_id) for member in ChatMember.query.filter_by(username=username).limit(AI_MAX_CHATS * 3).all()
-    ]
-    tokens = {token.casefold() for token in re.findall(r"[\wÃ§ÄŸÄ±Ã¶ÅŸÃ¼Ã‡ÄÄ°Ã–ÅÃœ]+", query)}
-    matches = []
-    for chat in [row for row in chats if row and user_can_see_chat(row, username)]:
-        for message in recent_visible_messages(chat.id, username, RECENT_MESSAGE_SCAN_LIMIT):
-            haystack = f"{message.body or ''} {json.dumps(message.attachment or {}, ensure_ascii=False)}".casefold()
-            score = sum(1 for token in tokens if token and token in haystack)
-            if score:
-                matches.append({
-                    "chatId": chat.id,
-                    "chatTitle": chat.title,
-                    "message": message_to_dict(message),
-                    "score": score,
-                })
-    matches.sort(key=lambda item: (item["score"], item["message"]["createdAt"]), reverse=True)
+    matches = ai_search_visible_content(username, query, chat_id, limit=20)
     summary_prompt = f"Arama sorgusu: {query}\nSonuçları kullanıcıya kısa açıkla ve en yakın 5 sonucu seç."
     context = ai_context_for_user(username, chat_id, summary_prompt)
     context["matches"] = matches[:12]
@@ -5975,19 +5875,13 @@ AI_COMMANDS = [
     {"id": "summarize", "title": "Metin özetle", "prompt": "Aşağıdaki metni kısa maddelerle özetle:"},
     {"id": "translate", "title": "Çeviri yap", "prompt": "Aşağıdaki metni istediğim dile doğal şekilde çevir:"},
     {"id": "fix_text", "title": "Yazı düzelt", "prompt": "Bu yazıyı imla ve anlatım açısından düzelt:"},
-    {"id": "image", "title": "Görsel oluştur", "prompt": "Şu tarife uygun görsel oluştur:"},
     {"id": "ai_settings", "title": "AI ayarları", "prompt": "Asistan ayarlarını aç."},
     {"id": "chat_summary", "title": "Sohbeti özetle", "prompt": "Aktif sohbeti özetle."},
     {"id": "call_person", "title": "Kişiyi ara", "prompt": "Bu kişiyi ara:"},
-    {"id": "draft_message", "title": "Mesaj taslağı oluştur", "prompt": "Bu kişiye kısa ve doğal bir mesaj taslağı oluştur:"},
-    {"id": "send_message", "title": "Mesaj gönder", "prompt": "Bu kişiye mesaj gönder: "},
-    {"id": "schedule_message", "title": "Zamanlı mesaj", "prompt": "5 dakika sonra bu kişiye mesaj gönder: "},
     {"id": "start_voice_call", "title": "Sesli arama başlat", "prompt": "Bu kişiyi sesli ara: "},
     {"id": "start_video_call", "title": "Görüntülü arama başlat", "prompt": "Bu kişiyi görüntülü ara: "},
     {"id": "open_chat", "title": "Sohbet kutusu aç", "prompt": "Bu kişiyle sohbeti aç: "},
     {"id": "delete_chat", "title": "Sohbeti sil", "prompt": "Bu sohbeti kalıcı olarak listemden kaldır."},
-    {"id": "react_message", "title": "Mesaja tepki bırak", "prompt": "Son mesaja kalp ifadesi bırak."},
-    {"id": "reply_message", "title": "Yanıtlayarak cevap ver", "prompt": "Son mesaja yanıtla: "},
     {"id": "create_group", "title": "Grup oluştur", "prompt": "Yeni grup oluştur. Grup adı: "},
     {"id": "create_story", "title": "Güncelleme paylaş", "prompt": "Durum güncellemesi paylaş: "},
     {"id": "delete_story", "title": "Son güncellemeyi sil", "prompt": "Son paylaştığım güncellemeyi sil."},
@@ -5996,6 +5890,11 @@ AI_COMMANDS = [
     {"id": "internet_search", "title": "İnternette araştır", "prompt": "İnternette araştır: "},
     {"id": "weather", "title": "Hava durumunu sor", "prompt": "İstanbul hava durumu nasıl?"},
     {"id": "time", "title": "Saat ve tarih", "prompt": "Saat kaç ve bugün tarih ne?"},
+]
+
+AI_COMMANDS = [
+    command for command in AI_COMMANDS
+    if command.get("id") not in {"delete_chat", "create_group", "create_story", "delete_story"}
 ]
 
 
@@ -6053,12 +5952,16 @@ AI_RISKY_ACTIONS = {
     "set_ai_auto_approve",
     "set_ai_name",
     "set_chat_pref",
-    "delete_chat",
     "start_call",
     "schedule_call",
     "end_call",
+}
+
+AI_FORBIDDEN_COMMUNICATION_ACTIONS = {
+    "delete_chat",
     "send_message",
     "schedule_message",
+    "draft_message",
     "reply_message",
     "react_message",
     "create_group",
@@ -6090,6 +5993,9 @@ def ai_action_chat_for_user(action, username):
 def execute_ai_server_action(user, action):
     action_type = action.get("type")
     username = user.username
+
+    if action_type in AI_FORBIDDEN_COMMUNICATION_ACTIONS:
+        return {"error": "Asistan kullanıcı adına mesaj veya paylaşım işlemi yapamaz.", "status": 403}
 
     if action_type == "update_profile":
         if action.get("displayName"):
