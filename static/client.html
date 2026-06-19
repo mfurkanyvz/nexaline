@@ -623,7 +623,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-19-auth-shell-fix-v4";
+        const NEXALINE_CLIENT_BUILD = "2026-06-19-auth-shell-fix-v5";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -968,6 +968,21 @@
                 "X-Nexa-Device": deviceId(),
                 ...extra
             };
+        }
+
+        async function fetchAuthJson(url, options = {}, timeoutMs = 15000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { ...options, cache: "no-store", signal: controller.signal });
+                const contentType = response.headers.get("content-type") || "";
+                if (!contentType.includes("application/json")) {
+                    throw new Error(`Beklenmeyen giriş yanıtı (${response.status})`);
+                }
+                return { response, data: await response.json() };
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
         function rememberedAccounts() {
@@ -5254,6 +5269,8 @@
         function setAuthBusy(busy) {
             state.authBusy = busy;
             $("authButton").disabled = busy;
+            $("authButton").setAttribute("aria-busy", String(busy));
+            $("authFields").classList.toggle("auth-busy", busy);
         }
 
         async function submitAuth() {
@@ -5273,12 +5290,12 @@
                         $("authStatus").textContent = "Gelen 6 haneli kodu yaz.";
                         return;
                     }
-                    const response = await fetch("/login/2fa", {
+                    $("authStatus").textContent = "Kod doğrulanıyor...";
+                    const { data } = await fetchAuthJson("/login/2fa", {
                         method: "POST",
                         headers: authHeaders(),
                         body: JSON.stringify({ username: state.pendingTwoFactor.username, code, deviceId: deviceId() })
                     });
-                    const data = await response.json();
                     if (!data.ok) {
                         $("authStatus").textContent = data.message;
                         return;
@@ -5288,18 +5305,18 @@
                     rememberAccount(data.user);
                     clearAccountAddReturn();
                     localStorage.setItem("nexalineUser", data.user.username);
-                    openApp();
+                    await openApp();
                     return;
                 }
 
                 const username = $("username").value.trim().toLowerCase();
                 const password = $("password").value;
-                const response = await fetch("/login", {
+                $("authStatus").textContent = "Giriş kontrol ediliyor...";
+                const { data } = await fetchAuthJson("/login", {
                     method: "POST",
                     headers: authHeaders(),
                     body: JSON.stringify({ username, password, deviceId: deviceId() })
                 });
-                const data = await response.json();
 
                 if (!data.ok) {
                     $("authStatus").textContent = data.message;
@@ -5318,9 +5335,12 @@
                 rememberAccount(data.user);
                 clearAccountAddReturn();
                 localStorage.setItem("nexalineUser", data.user.username);
-                openApp();
+                await openApp();
             } catch (error) {
-                $("authStatus").textContent = "Sunucuya bağlanılamadı. İnternetini kontrol edip tekrar dene.";
+                hideScreenTransition();
+                $("authStatus").textContent = error?.name === "AbortError"
+                    ? "Giriş isteği zaman aşımına uğradı. Tekrar dene."
+                    : "Giriş tamamlanamadı. Bağlantını kontrol edip tekrar dene.";
             } finally {
                 setAuthBusy(false);
             }
@@ -5412,10 +5432,6 @@
         }
 
         async function startQrLogin() {
-            if (isMobileView()) {
-                $("qrLoginStatus").textContent = "QR giriş bilgisayar/web ekranı içindir. Telefonda Ayarlar > Cihaz Bağla kısmını kullan.";
-                return;
-            }
             stopQrLoginPolling();
             $("qrLoginStartButton").disabled = true;
             $("qrLoginStatus").textContent = "QR kod hazırlanıyor...";
@@ -5462,7 +5478,7 @@
                     state.me = data.user;
                     localStorage.setItem("nexalineUser", data.user.username);
                     $("qrLoginStatus").textContent = "Bağlandı. Nidar açılıyor...";
-                    openApp();
+                    await openApp();
                     return;
                 }
                 if (state.qrLogin.expiresAt && Date.now() > new Date(state.qrLogin.expiresAt).getTime()) {
@@ -5784,10 +5800,6 @@
         }
 
         async function openApp() {
-            applyUserPreferences();
-            loadAiSettings();
-            startAiPlanReminderEngine();
-            checkPermission().catch(() => {});
             clearStartupGuard();
             state.bootstrapLoading = false;
             state.startupShellRevealed = false;
@@ -5795,17 +5807,43 @@
             $("authScreen").classList.add("hidden");
             $("app").classList.remove("hidden");
             document.body.classList.add("nidar-app-ready");
-            const restoredFromCache = restoreOfflineBootstrap({ silent: true });
-            if (!restoredFromCache) {
-                state.startupGuardTimer = setTimeout(() => {
-                    if (!state.startupShellRevealed) {
-                        revealStartupShell("Bağlantı yavaş; güncel veriler arka planda yükleniyor.");
-                    }
-                }, STARTUP_UI_DEADLINE_MS);
+
+            state.startupGuardTimer = setTimeout(() => {
+                if (!state.startupShellRevealed) {
+                    revealStartupShell("Bağlantı yavaş; güncel veriler arka planda yükleniyor.");
+                }
+            }, STARTUP_UI_DEADLINE_MS);
+
+            const safeStartupStep = (label, action) => {
+                try {
+                    return action();
+                } catch (error) {
+                    console.warn(`${label} başlatılamadı`, error);
+                    return null;
+                }
+            };
+
+            safeStartupStep("Görünüm tercihleri", applyUserPreferences);
+            safeStartupStep("Asistan ayarları", loadAiSettings);
+            safeStartupStep("Asistan hatırlatıcıları", startAiPlanReminderEngine);
+            Promise.resolve(safeStartupStep("Bildirim izinleri", checkPermission)).catch(() => {});
+
+            const restoredFromCache = Boolean(safeStartupStep(
+                "Çevrimdışı başlangıç verisi",
+                () => restoreOfflineBootstrap({ silent: true })
+            ));
+            if (restoredFromCache) {
+                clearStartupGuard();
             }
-            joinRealtime();
-            loadRtcConfig();
-            loadBootstrap().catch(() => {});
+
+            safeStartupStep("Gerçek zamanlı bağlantı", joinRealtime);
+            Promise.resolve(safeStartupStep("Arama ayarları", loadRtcConfig)).catch(() => {});
+            Promise.resolve(safeStartupStep("Başlangıç verileri", loadBootstrap)).catch(error => {
+                console.warn("Başlangıç verileri başlatılamadı", error);
+                if (!state.startupShellRevealed) {
+                    revealStartupShell("Başlangıç tamamlanamadı; kullanılabilir ekran açıldı.");
+                }
+            });
         }
 
         async function loadRtcConfig() {

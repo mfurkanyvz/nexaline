@@ -1,4 +1,4 @@
-const CACHE_NAME = "nidar-pwa-v86-brand-20260619";
+const CACHE_NAME = "nidar-pwa-v87-auth-20260619";
 const APP_SHELL = [
   "/manifest.webmanifest",
   "/static/vendor/socket.io.min.js",
