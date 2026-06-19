@@ -626,7 +626,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-15-video-call-60fps-v1";
+        const NEXALINE_CLIENT_BUILD = "2026-06-19-ai-media-sync-v2";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -2960,7 +2960,7 @@
                 return this.applyAiAction(action, autoApproved);
             }
 
-            async syncWithServer({ render = true, preserveMessages = false } = {}) {
+            async syncWithServer({ render = true, preserveMessages = true, notifyOnError = false } = {}) {
                 if (!state.me?.username) return null;
                 try {
                     const currentMessages = state.aiMessages;
@@ -2970,10 +2970,41 @@
                     });
                     const data = await response.json();
                     if (!data.ok) {
-                        showToast(data.message || "Asistan durumu alınamadı.");
+                        if (notifyOnError) showToast(data.message || "Asistan durumu alınamadı.");
                         return data;
                     }
-                    state.aiMessages = preserveMessages ? currentMessages : sanitizeAiHistory(data.memory || []);
+                    const serverMessages = sanitizeAiHistory(data.memory || []);
+                    if (preserveMessages) {
+                        const richMessages = currentMessages.filter(message =>
+                            message?.attachment
+                            || message?.sourceMessage
+                            || (Array.isArray(message?.actions) && message.actions.length)
+                        );
+                        const richBySignature = new Map();
+                        richMessages.forEach(message => {
+                            const signature = `${message.role || ""}\u0000${message.text || ""}`;
+                            const matches = richBySignature.get(signature) || [];
+                            matches.push(message);
+                            richBySignature.set(signature, matches);
+                        });
+                        const consumed = new Set();
+                        const merged = serverMessages.map(message => {
+                            const signature = `${message.role || ""}\u0000${message.text || ""}`;
+                            const matches = richBySignature.get(signature) || [];
+                            const richMessage = matches.find(candidate => !consumed.has(candidate.id));
+                            if (!richMessage) return message;
+                            consumed.add(richMessage.id);
+                            return richMessage;
+                        });
+                        richMessages.forEach(message => {
+                            if (!consumed.has(message.id)) merged.push(message);
+                        });
+                        state.aiMessages = merged.sort((left, right) =>
+                            new Date(left.createdAt || 0).getTime() - new Date(right.createdAt || 0).getTime()
+                        );
+                    } else {
+                        state.aiMessages = serverMessages;
+                    }
                     state.aiPlanTasks = data.tasks || [];
                     state.aiSettings = { ...defaultAiSettings(), ...(data.settings || {}) };
                     state.aiCensorEnabled = state.aiSettings.censorEnabled !== false;
@@ -2991,7 +3022,7 @@
                     }
                     return data;
                 } catch (error) {
-                    showToast("Asistan hafıza birimine erişilemedi.");
+                    if (notifyOnError) showToast("Asistan hafıza birimine erişilemedi.");
                     return { ok: false, message: "Asistan hafıza birimine erişilemedi." };
                 }
             }
