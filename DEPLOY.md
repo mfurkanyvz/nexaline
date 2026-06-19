@@ -1,4 +1,4 @@
-# NexaLine Deploy
+# NIDAR Deploy
 
 ## Render ile yayinlama
 
@@ -10,14 +10,15 @@
    - Start Command: `gunicorn -w 1 --threads 100 server:app`
 5. Deploy bitince Render sana `https://...onrender.com` seklinde gecici bir adres verir.
 
-## nexaline.xyz domainini baglama
+## NIDAR alan adini baglama
 
 Render servisinde `Settings` > `Custom Domains` bolumune gir ve sunlari ekle:
 
 - `nidar.com.tr`
 - `www.nidar.com.tr`
 
-Eski adreslerin de calismasi isteniyorsa `nexalineapp.xyz` ve `www.nexalineapp.xyz` kayitlari silinmez.
+`nexalineapp.xyz` ve `www.nexalineapp.xyz` bu servise baglanmaz. Bu alan adlari
+ayri NexaLine ASISTAN indirme ve web uygulamasi servisine aittir.
 
 Render her domain icin eklemen gereken DNS kayitlarini gosterir. Domaini aldigin panelde bu kayitlari ekle.
 

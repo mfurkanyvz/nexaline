@@ -19,7 +19,6 @@ const FALLBACK_URLS = [
   process.env.NEXALINE_URL,
   readPackagedUrl(),
   "https://nidar.com.tr",
-  "https://nexalineapp.xyz",
   "http://127.0.0.1:5055"
 ].filter(Boolean).filter((url, index, urls) => urls.indexOf(url) === index);
 
