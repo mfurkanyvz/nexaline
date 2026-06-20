@@ -644,7 +644,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-shell-v9";
+        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-auth-v10";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -5338,6 +5338,10 @@
 
                 const username = $("username").value.trim().toLowerCase();
                 const password = $("password").value;
+                if (!username || !password) {
+                    $("authStatus").textContent = "Kullanıcı adı, Gmail veya telefon ile şifreni eksiksiz yaz.";
+                    return;
+                }
                 $("authStatus").textContent = "Giriş kontrol ediliyor...";
                 const { data } = await fetchAuthJson("/login", {
                     method: "POST",

@@ -11507,3 +11507,38 @@ button {
         line-height: 1;
     }
 }
+@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
+  #authScreen.auth-screen {
+    grid-template-columns: minmax(330px, 440px) minmax(260px, 380px);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    justify-content: center;
+    gap: clamp(16px, 2.4vw, 30px);
+    padding: 24px;
+    overflow: hidden;
+  }
+
+  #authScreen > .auth-card,
+  #authScreen > .qr-login-card {
+    width: 100%;
+    max-height: calc(100dvh - 48px);
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  #authScreen > .auth-card {
+    grid-column: 1;
+  }
+
+  #authScreen > .qr-login-card {
+    grid-column: 2;
+    align-self: center;
+  }
+
+  #authScreen .qr-code-box {
+    width: min(100%, 270px);
+    max-height: min(270px, calc(100dvh - 250px));
+  }
+}

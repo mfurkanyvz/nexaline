@@ -6599,10 +6599,12 @@ def login():
     password = data.get("password") or ""
     device_id = data.get("deviceId") or request.headers.get("X-Nexa-Device")
     user = user_by_login_identifier(identifier)
+    password_verified = bool(user and check_password_hash(user.password_hash, password))
     if not user and password:
         user = user_by_username_typo(identifier, password)
+        password_verified = bool(user)
 
-    if not user or not check_password_hash(user.password_hash, password):
+    if not user or not password_verified:
         return jsonify({"ok": False, "message": "Kullanıcı adı veya şifre hatalı."}), 401
 
     if user.two_factor_enabled:
