@@ -5,12 +5,7 @@ $Sdk = Join-Path $Root "tools\android-sdk"
 $Gradle = Join-Path $Root "tools\gradle\gradle-8.10.2\bin\gradle.bat"
 $ApkSource = Join-Path $Root "android-app\app\build\outputs\apk\release\app-release.apk"
 $ApkTarget = Join-Path $Root "static\downloads\nexaline.apk"
-$Port = if ($env:PORT) { $env:PORT } else { "5055" }
-$LocalIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-    Where-Object { $_.IPAddress -notlike "127.*" -and $_.PrefixOrigin -ne "WellKnown" } |
-    Select-Object -First 1 -ExpandProperty IPAddress)
-$DefaultUrl = if ($LocalIp) { "http://$LocalIp`:$Port" } else { "https://nidar.com.tr" }
-$NexaLineUrl = if ($env:NEXALINE_URL) { $env:NEXALINE_URL } else { $DefaultUrl }
+$NexaLineUrl = if ($env:NEXALINE_URL) { $env:NEXALINE_URL.TrimEnd('/') } else { "https://nidar.com.tr" }
 
 if (-not $env:JAVA_HOME) {
     $jdk = Get-ChildItem "C:\Program Files\Eclipse Adoptium" -Directory -Filter "jdk-17*" -ErrorAction SilentlyContinue |

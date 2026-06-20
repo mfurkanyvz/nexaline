@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
     private static final String CALL_CHANNEL_ID = "nexaline_calls_v2";
     private static final String PREFS_NAME = "nexaline_app";
     private static final String WEBVIEW_RESET_KEY = "webview_reset_version";
-    private static final String WEBVIEW_RESET_VERSION = "2026-06-04-login-cache-fix";
+    private static final String WEBVIEW_RESET_VERSION = "2026-06-20-unified-live-account";
     private static final String EXTRA_CALL_ACTION = "nexaline_call_action";
     private static final String CALL_ACTION_ACCEPT = "accept";
     private static final String CALL_ACTION_REJECT = "reject";

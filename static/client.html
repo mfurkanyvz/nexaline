@@ -644,7 +644,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-auth-v11";
+        const NEXALINE_CLIENT_BUILD = "2026-06-20-unified-clients-v12";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -10100,6 +10100,12 @@
                 return;
             }
 
+            if (chatChanged && isDesktopPanelLayout()) {
+                const chatPane = document.querySelector(".chat-pane");
+                chatPane?.classList.remove("desktop-chat-enter");
+                requestAnimationFrame(() => chatPane?.classList.add("desktop-chat-enter"));
+            }
+
             document.querySelector(".chat-top").classList.remove("empty-state");
             $("emptyChat").classList.add("hidden");
             document.querySelector(".composer").classList.remove("hidden");
@@ -12425,6 +12431,7 @@
         }
 
         function registerSettingsBottomPull() {
+            if (!isMobileView()) return;
             const now = Date.now();
             if (now < settingsBottomPullLockUntil) return;
             settingsBottomPullLockUntil = now + 320;
@@ -12441,6 +12448,7 @@
         }
 
         function setupSettingsBottomPullClose() {
+            if (!isMobileView()) return;
             const panel = $("settingsPanel");
             if (panel.dataset.bottomPullReady === "true") return;
             panel.dataset.bottomPullReady = "true";

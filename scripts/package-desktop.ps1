@@ -4,12 +4,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 $Desktop = Join-Path $Root "desktop-app"
 $Unpacked = Join-Path $Desktop "dist\win-unpacked"
 $ZipTarget = Join-Path $Root "static\downloads\NexaLine-PC.zip"
-$Port = if ($env:PORT) { $env:PORT } else { "5055" }
-$LocalIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-    Where-Object { $_.IPAddress -notlike "127.*" -and $_.PrefixOrigin -ne "WellKnown" } |
-    Select-Object -First 1 -ExpandProperty IPAddress)
-$DefaultUrl = if ($LocalIp) { "http://$LocalIp`:$Port" } else { "https://nidar.com.tr" }
-$NexaLineUrl = if ($env:NEXALINE_URL) { $env:NEXALINE_URL } else { $DefaultUrl }
+$NexaLineUrl = if ($env:NEXALINE_URL) { $env:NEXALINE_URL.TrimEnd('/') } else { "https://nidar.com.tr" }
 $Assets = Join-Path $Desktop "assets"
 
 New-Item -ItemType Directory -Force -Path $Assets | Out-Null
