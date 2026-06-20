@@ -348,6 +348,400 @@ video {
     width: min(440px, calc(100vw - 30px));
 }
 
+/* PC panel controls: P1 rail actions, P2 settings menu, P3 detail surface. */
+.desktop-rail-actions,
+.desktop-account-panel {
+    display: none;
+}
+
+@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
+    .nav-tabs {
+        padding: 16px 8px 156px;
+    }
+
+    .desktop-rail-actions {
+        position: absolute;
+        right: 8px;
+        bottom: 14px;
+        left: 8px;
+        display: grid;
+        justify-items: center;
+        gap: 10px;
+    }
+
+    .desktop-rail-button,
+    .desktop-account-button {
+        width: 46px;
+        height: 46px;
+        min-height: 46px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 17px;
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--text-muted);
+        box-shadow: none;
+        transition: color 180ms ease, border-color 180ms ease, background 180ms ease, transform 180ms ease;
+    }
+
+    .desktop-rail-button:hover,
+    body.desktop-settings-open .desktop-rail-button {
+        color: #8bdcff;
+        border-color: rgba(56, 189, 248, 0.34);
+        background: rgba(56, 189, 248, 0.1);
+    }
+
+    .desktop-account-button {
+        border-radius: 50%;
+    }
+
+    .desktop-account-button .avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 12px;
+    }
+
+    .desktop-account-panel:not(.hidden) {
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        padding: 16px;
+        overflow: hidden;
+        border-radius: 27px;
+        background: radial-gradient(circle at 10% 92%, rgba(99, 102, 241, 0.18), transparent 34%), linear-gradient(180deg, rgba(17, 24, 39, 0.99), rgba(8, 10, 15, 0.99));
+        transform-origin: calc(var(--web-nav-rail-width) / 2) calc(100% - 38px);
+        animation: desktop-account-grow 300ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+    }
+
+    .desktop-account-panel.desktop-account-closing {
+        pointer-events: none;
+        animation: desktop-account-shrink 280ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    }
+
+    .desktop-account-head,
+    .desktop-account-identity {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .desktop-account-head {
+        justify-content: space-between;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--border-soft);
+    }
+
+    .desktop-account-identity > div:last-child,
+    .desktop-account-row-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+    }
+
+    .desktop-account-identity strong,
+    .desktop-account-identity small,
+    .desktop-account-row-copy strong,
+    .desktop-account-row-copy small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .desktop-account-list {
+        min-height: 0;
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        overflow: hidden auto;
+    }
+
+    .desktop-account-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--border-soft);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .desktop-account-row.account-active {
+        border-color: rgba(139, 92, 246, 0.36);
+        background: rgba(139, 92, 246, 0.1);
+    }
+
+    .desktop-account-row-avatar {
+        width: 44px;
+        height: 44px;
+    }
+
+    .desktop-account-row-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(58px, 1fr));
+        gap: 7px;
+    }
+
+    .desktop-account-row-actions .mini-btn {
+        min-width: 0;
+        min-height: 34px;
+        padding: 6px 9px;
+        font-size: 11px;
+    }
+
+    .desktop-account-footer {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border-soft);
+    }
+
+    .desktop-account-footer .mini-btn {
+        min-width: 0;
+    }
+
+    .topbar #meAvatar,
+    .topbar .identity,
+    .topbar #topSettingsButton,
+    .topbar #accountSwitcherMenu {
+        display: none;
+    }
+
+    .topbar {
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 58px;
+    }
+
+    .sidebar > .topbar {
+        display: none;
+    }
+
+    #settingsPanel {
+        position: fixed;
+        top: 12px;
+        right: var(--web-ai-panel-width);
+        bottom: 12px;
+        left: calc(12px + var(--web-nav-rail-width));
+        z-index: 1800;
+        width: auto;
+        height: auto;
+        max-width: none;
+        max-height: none;
+        display: block;
+        padding: 0;
+        overflow: visible;
+        pointer-events: none;
+        border: 0;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        transform-origin: calc(var(--web-nav-rail-width) / -2) calc(100% - 84px);
+        animation: desktop-settings-grow 300ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+    }
+
+    #settingsPanel.hidden {
+        display: none;
+    }
+
+    #settingsPanel.settings-closing {
+        animation: desktop-settings-shrink 280ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    }
+
+    #settingsPanel .settings-box {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        display: grid;
+        grid-template-columns: calc(var(--web-left-panel-width) - var(--web-nav-rail-width)) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 0 12px;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    #settingsPanel .settings-head,
+    #settingsPanel .settings-menu {
+        grid-column: 1;
+        pointer-events: auto;
+        background: rgba(13, 18, 30, 0.97);
+    }
+
+    #settingsPanel .settings-head {
+        grid-row: 1;
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--border-soft);
+        border-bottom: 0;
+        border-radius: 27px 27px 0 0;
+    }
+
+    #settingsPanel .settings-menu {
+        grid-row: 2;
+        min-height: 0;
+        display: grid;
+        align-content: start;
+        gap: 9px;
+        padding: 0 12px 14px;
+        overflow: hidden auto;
+        border: 1px solid var(--border-soft);
+        border-top: 0;
+        border-radius: 0 0 27px 27px;
+    }
+
+    #settingsPanel .settings-option {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 11px;
+        padding: 11px;
+        text-align: left;
+    }
+
+    #settingsPanel .settings-option > span:nth-child(2),
+    #settingsPanel .profile-hero-title,
+    #settingsPanel .device-card > div:first-child,
+    #settingsPanel .settings-row > div:first-child {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+    }
+
+    #settingsPanel .settings-option strong,
+    #settingsPanel .settings-option small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #settingsPanel .settings-section {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        min-width: 0;
+        min-height: 0;
+        align-content: start;
+        padding: 18px;
+        overflow: hidden auto;
+        pointer-events: auto;
+        border: 1px solid var(--border-soft);
+        border-radius: 28px;
+        background: rgba(13, 18, 30, 0.97);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+    }
+
+    #settingsPanel .settings-back {
+        display: none;
+    }
+
+    #settingsPanel .settings-box:not(.settings-detail-open) .settings-section {
+        display: none;
+    }
+
+    .modal-panel.app-page-panel,
+    body.desktop-settings-open .modal-panel:not(.hidden):not(.message-context-popover) {
+        top: 12px;
+        right: var(--web-ai-panel-width);
+        bottom: 12px;
+        left: calc(24px + var(--web-left-panel-width));
+        width: auto;
+        height: auto;
+        max-width: none;
+        max-height: none;
+        padding: 0;
+        place-items: stretch;
+        border-radius: 28px;
+        background: rgba(4, 7, 12, 0.58);
+    }
+
+    .modal-panel.app-page-panel .modal-box,
+    body.desktop-settings-open .modal-panel:not(.hidden):not(.message-context-popover) .modal-box {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        margin: 0;
+        overflow: hidden;
+        border-radius: 28px;
+    }
+
+    .modal-panel.app-page-panel .modal-body,
+    body.desktop-settings-open .modal-panel:not(.hidden):not(.message-context-popover) .modal-body {
+        min-height: 0;
+        overflow: hidden auto;
+    }
+
+    .sidebar .chat-item {
+        position: relative;
+        grid-template-columns: 48px minmax(0, 1fr);
+        padding-right: 58px;
+        padding-bottom: 18px;
+    }
+
+    .sidebar .chat-item > .chat-list-meta,
+    .sidebar .chat-item > .chat-time {
+        position: absolute;
+        right: 11px;
+        bottom: 8px;
+        width: auto;
+        min-width: 0;
+        height: auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: rgba(156, 163, 175, 0.62);
+        font-size: 9px;
+        font-weight: 480;
+        line-height: 1;
+    }
+
+    .sidebar .chat-item > .chat-list-meta .chat-time {
+        color: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+    }
+
+    .chat-item > div:not(.avatar),
+    .contact-row > div:not(.avatar),
+    .call-row > div:not(.avatar),
+    .settings-row > div:first-child,
+    .device-card > div:first-child {
+        min-width: 0;
+    }
+}
+
+@keyframes desktop-settings-grow {
+    from { opacity: 0; transform: translate(-38px, 18px) scale(0.82); }
+    to { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+@keyframes desktop-settings-shrink {
+    from { opacity: 1; transform: translate(0, 0) scale(1); }
+    to { opacity: 0; transform: translate(-38px, 18px) scale(0.82); }
+}
+
+@keyframes desktop-account-grow {
+    from { opacity: 0; clip-path: circle(25px at calc(var(--web-nav-rail-width) / 2) calc(100% - 38px)); }
+    to { opacity: 1; clip-path: circle(140% at calc(var(--web-nav-rail-width) / 2) calc(100% - 38px)); }
+}
+
+@keyframes desktop-account-shrink {
+    from { opacity: 1; clip-path: circle(140% at calc(var(--web-nav-rail-width) / 2) calc(100% - 38px)); }
+    to { opacity: 0; clip-path: circle(25px at calc(var(--web-nav-rail-width) / 2) calc(100% - 38px)); }
+}
+
 .qr-login-card {
     display: grid;
     gap: 14px;
@@ -10939,5 +11333,152 @@ button {
 
     .ai-panel #aiCloseButton {
         display: none;
+    }
+}
+
+/* Keep the P1-P4 desktop rules last so compact PC windows do not inherit mobile panels. */
+@media (min-width: 700px) and (hover: hover) and (pointer: fine) {
+    .nav-tabs {
+        padding: 16px 8px 156px;
+    }
+
+    .desktop-rail-actions {
+        display: grid;
+    }
+
+    .topbar #meAvatar,
+    .topbar .identity,
+    .topbar #topSettingsButton,
+    .topbar #accountSwitcherMenu {
+        display: none;
+    }
+
+    .topbar {
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 58px;
+    }
+
+    .sidebar > .topbar {
+        display: none;
+    }
+
+    #settingsPanel {
+        position: fixed;
+        inset: 12px var(--web-ai-panel-width) 12px calc(12px + var(--web-nav-rail-width));
+        width: auto;
+        height: auto;
+        max-width: none;
+        max-height: none;
+        display: block;
+        padding: 0;
+        overflow: visible;
+        pointer-events: none;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        transform-origin: calc(var(--web-nav-rail-width) / -2) calc(100% - 84px);
+    }
+
+    #settingsPanel.hidden {
+        display: none;
+    }
+
+    #settingsPanel:not(.hidden) {
+        animation: desktop-settings-grow 300ms cubic-bezier(0.2, 0.82, 0.24, 1) both;
+    }
+
+    #settingsPanel.settings-closing {
+        animation: desktop-settings-shrink 280ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
+    }
+
+    #settingsPanel .settings-box {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        display: grid;
+        grid-template-columns: calc(var(--web-left-panel-width) - var(--web-nav-rail-width)) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 0 12px;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    #settingsPanel .settings-head,
+    #settingsPanel .settings-menu {
+        grid-column: 1;
+        pointer-events: auto;
+    }
+
+    #settingsPanel .settings-menu {
+        display: grid;
+    }
+
+    #settingsPanel .settings-section {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden auto;
+        pointer-events: auto;
+    }
+
+    #settingsPanel .settings-back {
+        display: none;
+    }
+
+    .modal-panel.app-page-panel,
+    body.desktop-settings-open .modal-panel:not(.hidden):not(.message-context-popover) {
+        inset: 12px var(--web-ai-panel-width) 12px calc(24px + var(--web-left-panel-width));
+        width: auto;
+        height: auto;
+        max-width: none;
+        max-height: none;
+        padding: 0;
+        place-items: stretch;
+        border-radius: 28px;
+    }
+
+    .modal-panel.app-page-panel .modal-box,
+    body.desktop-settings-open .modal-panel:not(.hidden):not(.message-context-popover) .modal-box {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        margin: 0;
+        overflow: hidden;
+        border-radius: 28px;
+    }
+
+    .sidebar .chat-item {
+        position: relative;
+        grid-template-columns: 48px minmax(0, 1fr);
+        padding-right: 58px;
+        padding-bottom: 18px;
+    }
+
+    .sidebar .chat-item > .chat-list-meta,
+    .sidebar .chat-item > .chat-time {
+        position: absolute;
+        right: 11px;
+        bottom: 8px;
+        width: auto;
+        min-width: 0;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        color: rgba(156, 163, 175, 0.62);
+        font-size: 9px;
+        font-weight: 480;
+        line-height: 1;
     }
 }

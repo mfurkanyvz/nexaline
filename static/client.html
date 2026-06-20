@@ -170,13 +170,34 @@
                 <input id="searchInput" placeholder="Sohbetlerde ve kişilerde ara">
             </div>
 
-            <nav class="nav-tabs">
+            <nav class="nav-tabs" data-pc-panel="1">
                 <button class="nav-tab" id="flowButton" data-section="stories" type="button" title="Akış"><span class="nav-icon">◉</span><span class="nav-label">Akış</span></button>
                 <button class="nav-tab" data-section="calls" type="button" title="Aramalar"><span class="nav-icon">☎</span><span class="nav-label">Aramalar</span></button>
                 <button class="nav-tab" data-section="explore" type="button" title="Araçlar"><span class="nav-icon">✦</span><span class="nav-label">Araçlar</span></button>
                 <button class="nav-tab active" data-section="chats" type="button" title="Sohbetler"><span class="nav-icon">▰</span><span class="nav-label">Sohbetler</span></button>
                 <button class="nav-tab" data-section="contacts" type="button" title="Kişiler"><span class="nav-icon">◎</span><span class="nav-label">Kişiler</span></button>
+                <div class="desktop-rail-actions">
+                    <button id="desktopSettingsButton" class="desktop-rail-button" type="button" title="Ayarlar" aria-label="Ayarlar">⚙</button>
+                    <button id="desktopAccountButton" class="desktop-account-button" type="button" title="Hesaplar" aria-label="Hesapları yönet">
+                        <span id="desktopMeAvatar" class="avatar">NL</span>
+                    </button>
+                </div>
             </nav>
+
+            <section id="desktopAccountPanel" class="desktop-account-panel hidden" aria-label="Hesaplar">
+                <header class="desktop-account-head">
+                    <div class="desktop-account-identity">
+                        <div id="desktopAccountAvatar" class="avatar">NL</div>
+                        <div><strong id="desktopAccountName">Nidar</strong><small id="desktopAccountUsername" class="last-message"></small></div>
+                    </div>
+                    <button id="desktopAccountCloseButton" class="icon-btn" type="button" title="Kapat" aria-label="Hesapları kapat">×</button>
+                </header>
+                <div id="desktopAccountList" class="desktop-account-list"></div>
+                <div class="desktop-account-footer">
+                    <button id="desktopAddAccountButton" class="mini-btn" type="button">Hesap Ekle</button>
+                    <button id="desktopLogoutButton" class="mini-btn danger" type="button">Çıkış Yap</button>
+                </div>
+            </section>
 
             <div class="section-head">
                 <div id="sectionTitle" class="section-label">Sohbetler</div>
@@ -192,7 +213,7 @@
             <nav id="contactList" class="contact-list scroll-area hidden"></nav>
         </aside>
 
-        <section class="chat-pane">
+        <section class="chat-pane" data-pc-panel="3">
             <header class="chat-top">
                 <button id="backButton" class="icon-btn hidden" title="Sohbetler">←</button>
                 <div id="activeAvatar" class="avatar">NL</div>
@@ -247,7 +268,7 @@
         </section>
     </main>
 
-    <section id="aiPanel" class="ai-panel hidden">
+        <section id="aiPanel" class="ai-panel hidden" data-pc-panel="4">
         <div class="ai-head">
             <div class="ai-title-row">
                 <span class="ai-mini-orb" aria-hidden="true"></span>
@@ -623,7 +644,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-shell-v7";
+        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-shell-v8";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -1339,6 +1360,7 @@
                 assistantShortcutButton: "ai",
                 notificationButton: "bell",
                 topSettingsButton: "settings",
+                desktopSettingsButton: "settings",
                 newGroupButton: "plus",
                 installButton: "download",
                 callButton: "calls",
@@ -1360,6 +1382,7 @@
                 endCallButton: "x",
                 modalCloseButton: "x",
                 closeSettingsButton: "x",
+                desktopAccountCloseButton: "x",
                 aiCloseButton: "x",
                 closeStoryButton: "x"
             };
@@ -5017,6 +5040,10 @@
             return window.matchMedia("(max-width: 760px)").matches;
         }
 
+        function isDesktopPanelLayout() {
+            return window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)").matches;
+        }
+
         let mobileChatAnimationTimer = null;
 
         function openMobileChat() {
@@ -5931,10 +5958,15 @@
             applyUserPreferences();
             rememberAccount(state.me);
             setAvatar($("meAvatar"), state.me, state.me.displayName);
+            setAvatar($("desktopMeAvatar"), state.me, state.me.displayName);
+            setAvatar($("desktopAccountAvatar"), state.me, state.me.displayName);
             $("meAvatar").classList.add("online");
+            $("desktopMeAvatar")?.classList.add("online");
             $("meAvatar").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
             $("meName").textContent = state.me.username || state.me.displayName;
             $("meName").onclick = () => isMobileView() ? openAccountSwitcherSheet() : openProfileSettings();
+            if ($("desktopAccountName")) $("desktopAccountName").textContent = state.me.displayName || state.me.username || "Nidar";
+            if ($("desktopAccountUsername")) $("desktopAccountUsername").textContent = state.me.username ? `@${state.me.username}` : "";
             $("meStatus").textContent = "";
             $("meStatus").classList.add("hidden");
             $("pointsRailButton").title = `${Number(state.me.points || 0)} Nidar puanı`;
@@ -5945,6 +5977,7 @@
             }
             updateAiAssistantVisibility();
             updateNotificationButton();
+            if (!$('desktopAccountPanel')?.classList.contains('hidden')) renderDesktopAccountManager();
         }
 
         function openProfileSettings() {
@@ -6169,6 +6202,100 @@
                 { label: "+ Hesap Ekle", onClick: () => { closeModal(); beginAddAccount(); } },
                 { label: "Çıkış Yap", primary: true, onClick: () => { closeModal(); logout(); } }
             ], "account-switcher-panel");
+        }
+
+        let desktopAccountCloseTimer = null;
+
+        function renderDesktopAccountManager() {
+            const list = $("desktopAccountList");
+            if (!list) return;
+            const accounts = rememberedAccounts();
+            list.innerHTML = "";
+            if (!accounts.length) {
+                list.innerHTML = '<div class="desktop-account-empty last-message">Bu cihazda kayıtlı hesap yok.</div>';
+                return;
+            }
+            accounts.forEach(account => {
+                const isActiveAccount = account.username === state.me?.username;
+                const row = document.createElement("article");
+                row.className = `desktop-account-row${isActiveAccount ? " account-active" : ""}`;
+
+                const avatar = document.createElement("div");
+                avatar.className = "avatar desktop-account-row-avatar";
+                setAvatar(avatar, account, account.displayName || account.username);
+
+                const copy = document.createElement("div");
+                copy.className = "desktop-account-row-copy";
+                copy.innerHTML = `<strong>${escapeHtml(account.displayName || account.username)}</strong><small class="last-message">@${escapeHtml(account.username)}${isActiveAccount ? " • Aktif" : ""}</small>`;
+
+                const actions = document.createElement("div");
+                actions.className = "desktop-account-row-actions";
+                const switchButton = document.createElement("button");
+                switchButton.className = "mini-btn";
+                switchButton.type = "button";
+                switchButton.textContent = isActiveAccount ? "Aktif" : "Geç";
+                switchButton.disabled = isActiveAccount;
+                switchButton.onclick = () => {
+                    if (isActiveAccount) return;
+                    localStorage.setItem("nexalineUser", account.username);
+                    location.reload();
+                };
+
+                const removeButton = document.createElement("button");
+                removeButton.className = "mini-btn danger";
+                removeButton.type = "button";
+                removeButton.textContent = "Kaldır";
+                removeButton.onclick = () => {
+                    removeRememberedAccount(account.username);
+                    if (isActiveAccount) {
+                        localStorage.removeItem("nexalineUser");
+                        closeDesktopAccountManager(true);
+                        resetToAuth("Hesap bu cihazdan kaldırıldı.");
+                        return;
+                    }
+                    renderDesktopAccountManager();
+                };
+                actions.append(switchButton, removeButton);
+                row.append(avatar, copy, actions);
+                list.appendChild(row);
+            });
+        }
+
+        function openDesktopAccountManager() {
+            if (!isDesktopPanelLayout()) {
+                openAccountSwitcherSheet();
+                return;
+            }
+            if (desktopAccountCloseTimer) {
+                clearTimeout(desktopAccountCloseTimer);
+                desktopAccountCloseTimer = null;
+            }
+            closeSettings();
+            const panel = $("desktopAccountPanel");
+            const sidebar = $("sidebar");
+            renderDesktopAccountManager();
+            panel.classList.remove("hidden", "desktop-account-closing");
+            sidebar.classList.add("rail-account-open");
+            requestAnimationFrame(() => panel.classList.add("desktop-account-open"));
+        }
+
+        function closeDesktopAccountManager(immediate = false) {
+            const panel = $("desktopAccountPanel");
+            const sidebar = $("sidebar");
+            if (!panel || panel.classList.contains("hidden")) return;
+            const finish = () => {
+                panel.classList.add("hidden");
+                panel.classList.remove("desktop-account-open", "desktop-account-closing");
+                sidebar.classList.remove("rail-account-open");
+                desktopAccountCloseTimer = null;
+            };
+            if (immediate) {
+                finish();
+                return;
+            }
+            panel.classList.remove("desktop-account-open");
+            panel.classList.add("desktop-account-closing");
+            desktopAccountCloseTimer = setTimeout(finish, 280);
         }
 
         async function openPointsPanel() {
@@ -12335,6 +12462,7 @@
         function openSettings() {
             ensureSettingsExtras();
             const panel = $("settingsPanel");
+            if (isDesktopPanelLayout()) closeDesktopAccountManager(true);
             panel.classList.remove("settings-closing");
             setupSettingsBottomPullClose();
             resetSettingsBottomPull();
@@ -12374,6 +12502,7 @@
             renderDevices();
             setSettingsView("menu");
             panel.classList.remove("hidden");
+            document.body.classList.toggle("desktop-settings-open", isDesktopPanelLayout());
             panel.scrollTop = 0;
             pushAppHistory("settings");
         }
@@ -12386,6 +12515,7 @@
             setTimeout(() => {
                 panel.classList.add("hidden");
                 panel.classList.remove("settings-closing");
+                document.body.classList.remove("desktop-settings-open");
             }, 280);
         }
 
@@ -12426,8 +12556,10 @@
             const previousView = state.settingsView;
             state.settingsView = view;
             const settingsBox = $("settingsPanel").querySelector(".settings-box");
+            const desktopPanels = isDesktopPanelLayout();
             settingsBox.classList.remove("settings-view-forward", "settings-view-backward");
-            $("settingsMenu").classList.toggle("hidden", view !== "menu");
+            $("settingsMenu").classList.toggle("hidden", !desktopPanels && view !== "menu");
+            settingsBox.classList.toggle("settings-detail-open", desktopPanels && view !== "menu");
             $("settingsProfileSection").classList.toggle("hidden", view !== "profile");
             $("settingsPrivacySection").classList.toggle("hidden", view !== "privacy");
             $("settingsAppearanceSection").classList.toggle("hidden", view !== "appearance");
@@ -12447,7 +12579,12 @@
                                 : view === "device"
                                     ? "QR cihaz bağlantısı"
                                     : "Hesap işlemleri";
-            settingsBox.scrollTop = 0;
+            if (desktopPanels) {
+                const activeSection = settingsBox.querySelector(".settings-section:not(.hidden)");
+                if (activeSection) activeSection.scrollTop = 0;
+            } else {
+                settingsBox.scrollTop = 0;
+            }
             if (previousView !== view) {
                 void settingsBox.offsetWidth;
                 settingsBox.classList.add(view === "menu" ? "settings-view-backward" : "settings-view-forward");
@@ -14379,6 +14516,11 @@
         $("voiceButton").onclick = () => isAiChat(activeChat()) ? startAiSpeechInput() : toggleVoiceRecording();
         $("cancelVoiceButton").onclick = cancelVoiceRecording;
         $("topSettingsButton").onclick = openSettings;
+        $("desktopSettingsButton").onclick = openSettings;
+        $("desktopAccountButton").onclick = openDesktopAccountManager;
+        $("desktopAccountCloseButton").onclick = () => closeDesktopAccountManager();
+        $("desktopAddAccountButton").onclick = beginAddAccount;
+        $("desktopLogoutButton").onclick = logout;
         $("assistantShortcutButton").onclick = openAiPanel;
         $("accountSwitcherButton").onclick = toggleAccountSwitcher;
         $("newCallHeaderButton").onclick = openNewCallModal;
