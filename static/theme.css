@@ -11365,6 +11365,7 @@ button {
     #settingsPanel {
         position: fixed;
         inset: 12px var(--web-ai-panel-width) 12px calc(12px + var(--web-nav-rail-width));
+        margin: 0;
         width: auto;
         height: auto;
         max-width: none;
