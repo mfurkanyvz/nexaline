@@ -17,6 +17,10 @@ body {
     overflow-x: hidden;
 }
 
+html {
+    color-scheme: dark;
+}
+
 body {
     background:
         radial-gradient(circle at 18% 0%, rgba(0, 242, 255, 0.1), transparent 28%),
@@ -223,8 +227,17 @@ select {
 
 button {
     border: 0;
+    background: transparent;
     cursor: pointer;
     color: inherit;
+}
+
+audio,
+video,
+input,
+textarea,
+select {
+    color-scheme: dark;
 }
 
 input,
@@ -608,7 +621,18 @@ video {
         align-items: center;
         gap: 11px;
         padding: 11px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        background: rgba(9, 15, 24, 0.78);
+        color: var(--text-main);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
         text-align: left;
+    }
+
+    #settingsPanel .settings-option:hover,
+    #settingsPanel .settings-option:focus-visible {
+        border-color: rgba(99, 102, 241, 0.34);
+        background: rgba(20, 29, 47, 0.94);
     }
 
     #settingsPanel .settings-option > span:nth-child(2),
