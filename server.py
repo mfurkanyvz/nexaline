@@ -60,6 +60,10 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading", max_h
 
 @app.after_request
 def gzip_text_responses(response):
+    if request.path.startswith("/qr-login/"):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Nexa-Device"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     accept_encoding = request.headers.get("Accept-Encoding", "").lower()
     mime_type = (response.mimetype or "").lower()
     compressible_types = {
@@ -120,7 +124,7 @@ AI_MAX_CHATS = max(5, int(os.environ.get("AI_MAX_CHATS", "16")))
 AI_MEMORY_MAX_ITEMS = max(40, int(os.environ.get("AI_MEMORY_MAX_ITEMS", "160")))
 AI_RELEVANT_CHAT_LIMIT = max(3, int(os.environ.get("AI_RELEVANT_CHAT_LIMIT", "8")))
 AI_RELEVANT_CHAT_MESSAGES = max(8, int(os.environ.get("AI_RELEVANT_CHAT_MESSAGES", "32")))
-QR_LOGIN_TTL_SECONDS = max(60, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "60")))
+QR_LOGIN_TTL_SECONDS = max(180, int(os.environ.get("QR_LOGIN_TTL_SECONDS", "300")))
 TWO_FACTOR_RESEND_SECONDS = max(45, int(os.environ.get("TWO_FACTOR_RESEND_SECONDS", "45")))
 PUBLIC_SITE_URL = os.environ.get("PUBLIC_SITE_URL", os.environ.get("APP_PUBLIC_URL", "https://nidar.com.tr")).rstrip("/")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
@@ -156,8 +160,6 @@ POINT_MILESTONES = [
     {"id": "nexa_legend", "threshold": 150000, "title": "Nidar Efsanesi", "reward": "Efsane profil çerçevesi"},
 ]
 scheduled_delivery_lock = threading.Lock()
-qr_login_lock = threading.Lock()
-qr_login_sessions = {}
 class IPv4SMTP(smtplib.SMTP):
     def _get_socket(self, host, port, timeout):
         addresses = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
@@ -530,6 +532,15 @@ class AppSetting(db.Model):
     key = db.Column(db.String(80), primary_key=True)
     value = db.Column(db.JSON, nullable=False, default=dict)
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class QrLoginSession(db.Model):
+    id = db.Column(db.String(32), primary_key=True)
+    secret = db.Column(db.String(64), nullable=False)
+    username = db.Column(db.String(80), nullable=True, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    confirmed_at = db.Column(db.DateTime, nullable=True)
+    consumed = db.Column(db.Boolean, nullable=False, default=False, index=True)
 
 
 def ensure_vapid_keys():
@@ -2169,7 +2180,8 @@ def reset_all_user_data():
 
     connections.clear()
     typing_users.clear()
-    qr_login_sessions.clear()
+    QrLoginSession.query.delete(synchronize_session=False)
+    db.session.commit()
 
 
 def reset_user_data_once(reset_key=FULL_USER_DATA_RESET_KEY):
@@ -2279,7 +2291,13 @@ def user_by_login_identifier(identifier):
         _, email_normalized = normalize_email(value)
         if not email_normalized:
             return None
-        return User.query.filter(db.func.lower(User.email_normalized) == email_normalized.lower()).first()
+        return User.query.filter(
+            db.or_(
+                db.func.lower(User.email_normalized) == email_normalized.lower(),
+                db.func.lower(User.email_normalized) == value,
+                db.func.lower(User.email) == value,
+            )
+        ).first()
     return db.session.get(User, value)
 
 
@@ -2739,14 +2757,10 @@ def login_success_payload(user, device_id=None, message="Giriş başarılı."):
 
 def cleanup_qr_login_sessions():
     now = datetime.now(timezone.utc)
-    with qr_login_lock:
-        expired = [
-            session_id
-            for session_id, row in qr_login_sessions.items()
-            if row["expires_at"] <= now or row.get("consumed")
-        ]
-        for session_id in expired:
-            qr_login_sessions.pop(session_id, None)
+    QrLoginSession.query.filter(
+        db.or_(QrLoginSession.expires_at <= now, QrLoginSession.consumed.is_(True))
+    ).delete(synchronize_session=False)
+    db.session.commit()
 
 
 def parse_qr_login_token(value):
@@ -2761,14 +2775,14 @@ def parse_qr_login_token(value):
 
 def qr_session_error(session_id, secret):
     cleanup_qr_login_sessions()
-    with qr_login_lock:
-        row = qr_login_sessions.get(session_id)
-        if not row or row.get("secret") != secret:
-            return None, (jsonify({"ok": False, "message": "QR oturumu bulunamadı."}), 404)
-        if row["expires_at"] <= datetime.now(timezone.utc):
-            qr_login_sessions.pop(session_id, None)
-            return None, (jsonify({"ok": False, "message": "QR kodun süresi doldu."}), 410)
-        return row, None
+    row = db.session.get(QrLoginSession, session_id)
+    if not row or not secrets.compare_digest(row.secret, secret or ""):
+        return None, (jsonify({"ok": False, "message": "QR oturumu bulunamadı."}), 404)
+    if is_past(row.expires_at):
+        db.session.delete(row)
+        db.session.commit()
+        return None, (jsonify({"ok": False, "message": "QR kodun süresi doldu."}), 410)
+    return row, None
 
 
 def rtc_servers():
@@ -6334,14 +6348,8 @@ def qr_login_start():
     session_id = secrets.token_urlsafe(12)
     secret = secrets.token_urlsafe(24)
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=QR_LOGIN_TTL_SECONDS)
-    with qr_login_lock:
-        qr_login_sessions[session_id] = {
-            "secret": secret,
-            "expires_at": expires_at,
-            "username": None,
-            "confirmed_at": None,
-            "consumed": False,
-        }
+    db.session.add(QrLoginSession(id=session_id, secret=secret, expires_at=expires_at))
+    db.session.commit()
     token = f"{session_id}.{secret}"
     return jsonify(
         {
@@ -6363,16 +6371,16 @@ def qr_login_status(session_id):
     row, error = qr_session_error(session_id, secret)
     if error:
         return error
-    username = row.get("username")
+    username = row.username
     if not username:
-        return jsonify({"ok": True, "status": "pending", "expiresAt": to_iso(row["expires_at"])})
+        return jsonify({"ok": True, "status": "pending", "expiresAt": to_iso(row.expires_at)})
     user = db.session.get(User, username)
     if not user:
         return jsonify({"ok": False, "message": "Bağlanan kullanıcı bulunamadı."}), 404
     device_id = data.get("deviceId") or request.args.get("deviceId") or request.headers.get("X-Nexa-Device")
     payload = login_success_payload(user, device_id, "QR giriş başarılı.")
-    with qr_login_lock:
-        row["consumed"] = True
+    row.consumed = True
+    db.session.commit()
     return jsonify({"status": "confirmed", **payload})
 
 
@@ -6389,9 +6397,9 @@ def qr_login_confirm():
     row, error = qr_session_error(session_id, secret)
     if error:
         return error
-    with qr_login_lock:
-        row["username"] = username
-        row["confirmed_at"] = datetime.now(timezone.utc)
+    row.username = username
+    row.confirmed_at = datetime.now(timezone.utc)
+    db.session.commit()
     socketio.emit("qr:confirmed", {"ok": True, "sessionId": session_id, "user": private_user(username)}, room=f"qr:{session_id}", namespace="/")
     return jsonify({"ok": True, "message": "Web oturumu bağlandı."})
 
@@ -8232,7 +8240,7 @@ def handle_qr_watch(data):
         emit("qr:error", {"message": "QR oturumu bulunamadi veya suresi doldu."})
         return
     join_room(f"qr:{session_id}")
-    emit("qr:ready", {"sessionId": session_id, "expiresAt": to_iso(row["expires_at"])})
+    emit("qr:ready", {"sessionId": session_id, "expiresAt": to_iso(row.expires_at)})
 
 
 @socketio.on("user:join")

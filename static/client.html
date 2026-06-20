@@ -644,7 +644,7 @@
     </section>
 
     <script>
-        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-auth-v10";
+        const NEXALINE_CLIENT_BUILD = "2026-06-20-pc-auth-v11";
         const STARTUP_UI_DEADLINE_MS = 4500;
 
         async function clearLegacyAppCaches() {
@@ -5455,6 +5455,18 @@
             }
         }
 
+        function qrConfirmationEndpoint(value) {
+            const raw = (value || "").trim();
+            if (!raw) return "/qr-login/confirm";
+            try {
+                const url = new URL(raw, location.origin);
+                if (url.searchParams.has("nexaQrLogin") && /^https?:$/.test(url.protocol)) {
+                    return `${url.origin}/qr-login/confirm`;
+                }
+            } catch (_error) {}
+            return "/qr-login/confirm";
+        }
+
         function stopQrLoginPolling() {
             if (state.qrLogin.timer) {
                 clearInterval(state.qrLogin.timer);
@@ -5482,7 +5494,7 @@
                 };
                 const imageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(data.payload)}`;
                 $("qrCodeBox").innerHTML = `<img src="${imageUrl}" alt="Nidar QR giriş kodu">`;
-                $("qrLoginStatus").textContent = "Telefondan Ayarlar > Cihaz Bağla ile okut. Kod 60 saniye geçerli.";
+                $("qrLoginStatus").textContent = `Telefondan Ayarlar > Cihaz Bağla ile okut. Kod ${Math.max(3, Math.round(Number(data.ttl || 300) / 60))} dakika geçerli.`;
                 socket.emit("qr:watch", { sessionId: data.sessionId, secret: data.secret });
                 state.qrLogin.timer = setInterval(pollQrLogin, 1600);
                 pollQrLogin();
@@ -5536,7 +5548,7 @@
             if (!token || state.qrScan.busy) return;
             state.qrScan.busy = true;
             try {
-                const response = await fetch("/qr-login/confirm", {
+                const response = await fetch(qrConfirmationEndpoint(payload), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username: state.me.username, token })
@@ -14737,7 +14749,7 @@
 
         socket.on("qr:ready", data => {
             if (data?.sessionId === state.qrLogin.sessionId) {
-                $("qrLoginStatus").textContent = "QR kod canlı. Telefonda Cihaz Bağla ekranından okut; 60 saniye geçerli.";
+                $("qrLoginStatus").textContent = "QR kod canlı. Telefonda Cihaz Bağla ekranından okut; 5 dakika geçerli.";
             }
         });
 
