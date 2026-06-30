@@ -5,6 +5,7 @@ $Sdk = Join-Path $Root "tools\android-sdk"
 $Gradle = Join-Path $Root "tools\gradle\gradle-8.10.2\bin\gradle.bat"
 $ApkSource = Join-Path $Root "android-app\app\build\outputs\apk\release\app-release.apk"
 $ApkTarget = Join-Path $Root "static\downloads\nexaline.apk"
+$TabletApkTarget = Join-Path $Root "static\downloads\nexaline-tablet.apk"
 $NexaLineUrl = if ($env:NEXALINE_URL) { $env:NEXALINE_URL.TrimEnd('/') } else { "https://nidar.com.tr" }
 
 if (-not $env:JAVA_HOME) {
@@ -39,6 +40,8 @@ if ($LASTEXITCODE -ne 0) {
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ApkTarget) | Out-Null
 Copy-Item -Force $ApkSource $ApkTarget
+Copy-Item -Force $ApkSource $TabletApkTarget
 Write-Host "APK hazir: $ApkTarget"
+Write-Host "Tablet APK hazir: $TabletApkTarget"
 Write-Host "APK acilis adresi: $NexaLineUrl"
 exit 0

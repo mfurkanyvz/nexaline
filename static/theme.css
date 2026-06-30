@@ -1814,7 +1814,7 @@ textarea {
     accent-color: var(--accent-blue);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), ((pointer: coarse) and (orientation: portrait) and (min-width: 700px) and (max-width: 1180px)) {
     .profile-crop-modal {
         align-items: center;
         padding:
@@ -4267,7 +4267,7 @@ button {
     100% { transform: scale(1); }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), ((pointer: coarse) and (orientation: portrait) and (min-width: 700px) and (max-width: 1180px)) {
     .call-panel {
         padding: 0;
     }
@@ -4412,7 +4412,7 @@ button {
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), ((pointer: coarse) and (orientation: portrait) and (min-width: 700px) and (max-width: 1180px)) {
     .settings-panel {
         position: fixed;
         inset: 0;
