@@ -1175,6 +1175,7 @@
             transitionTimer: null,
             transitionHideTimer: null,
             startupGuardTimer: null,
+            startupTransitionWatchdogTimer: null,
             startupShellRevealed: false,
             paneTransitionTimer: null,
             paneTransitionHideTimer: null,
@@ -1414,7 +1415,7 @@
 
         function applyAdminDesign(design = {}, force = false) {
             window.nexalineDesign = design || {};
-            const signature = `${window.innerWidth <= 760 ? "mobile" : "desktop"}:${JSON.stringify(design || {})}`;
+            const signature = `${isMobileView() ? "mobile" : "desktop"}:${JSON.stringify(design || {})}`;
             if (!force && signature === appliedAdminDesignSignature) return;
             appliedAdminDesignSignature = signature;
             const root = document.documentElement;
@@ -1521,7 +1522,7 @@
         }
 
         function applyDesignOrder(desktopNav = [], mobileNav = [], desktopComposer = [], mobileComposer = []) {
-            const isMobile = window.matchMedia("(max-width: 760px)").matches;
+            const isMobile = isMobileView();
             const navOrder = isMobile ? STAGE_MOBILE_NAV_ORDER : desktopNav;
             (navOrder || []).forEach((section, index) => {
                 const tab = document.querySelector(`.nav-tab[data-section="${section}"]`);
@@ -2233,7 +2234,9 @@
 
         function clearStartupGuard() {
             clearTimeout(state.startupGuardTimer);
+            clearTimeout(state.startupTransitionWatchdogTimer);
             state.startupGuardTimer = null;
+            state.startupTransitionWatchdogTimer = null;
         }
 
         function revealStartupShell(message = "") {
@@ -2666,6 +2669,8 @@
             $("transitionText").textContent = label;
             clearTimeout(state.transitionTimer);
             clearTimeout(state.transitionHideTimer);
+            clearTimeout(state.startupTransitionWatchdogTimer);
+            state.startupTransitionWatchdogTimer = null;
             overlay.classList.remove("active", "hidden");
             overlay.classList.remove("hidden");
             overlay.querySelectorAll(".transition-card, .transition-mark img, .transition-lines span").forEach(item => {
@@ -2687,6 +2692,17 @@
                         }
                     }, 190);
                 }, duration);
+            } else {
+                state.startupTransitionWatchdogTimer = setTimeout(() => {
+                    const appVisible = !$("app")?.classList.contains("hidden");
+                    const overlayVisible = !overlay.classList.contains("hidden");
+                    if (!appVisible || !overlayVisible) return;
+                    if (state.me && !state.startupShellRevealed) {
+                        revealStartupShell("Acilis beklenenden uzun surdu; kullanilabilir ekran acildi.");
+                    } else {
+                        hideScreenTransition();
+                    }
+                }, STARTUP_UI_DEADLINE_MS + 1800);
             }
         }
 
@@ -2694,6 +2710,8 @@
             const overlay = $("screenTransition");
             clearTimeout(state.transitionTimer);
             clearTimeout(state.transitionHideTimer);
+            clearTimeout(state.startupTransitionWatchdogTimer);
+            state.startupTransitionWatchdogTimer = null;
             overlay.classList.remove("active");
             overlay.classList.add("hidden");
         }
@@ -5036,12 +5054,31 @@
             }
         }
 
+        function isTabletPortraitView() {
+            return window.matchMedia("(pointer: coarse) and (orientation: portrait) and (min-width: 700px) and (max-width: 1180px)").matches;
+        }
+
         function isMobileView() {
-            return window.matchMedia("(max-width: 760px)").matches;
+            return window.matchMedia("(max-width: 860px)").matches || isTabletPortraitView();
         }
 
         function isDesktopPanelLayout() {
             return window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)").matches;
+        }
+
+        function syncResponsiveLayout() {
+            const app = $("app");
+            if (!app || app.classList.contains("hidden")) return;
+            const hasDetail = Boolean(state.activeChatId || state.activeProfileUsername);
+            if (isMobileView()) {
+                app.classList.toggle("chat-open", hasDetail);
+                if (!hasDetail) {
+                    app.classList.remove("profile-open", "chat-opening", "chat-closing");
+                }
+            } else {
+                app.classList.remove("chat-opening", "chat-closing");
+            }
+            updateAiAssistantVisibility();
         }
 
         let mobileChatAnimationTimer = null;
@@ -5968,6 +6005,7 @@
             applyUiIndexMetadata();
             applyPremiumGlassClasses();
             setupSwipeNavigation();
+            syncResponsiveLayout();
         }
 
         function renderProfile() {
@@ -5988,7 +6026,7 @@
             $("pointsRailButton").title = `${Number(state.me.points || 0)} Nidar puanı`;
             if ($("pointsTopLabel")) {
                 const points = Number(state.me.points || 0);
-                $("pointsTopLabel").textContent = window.matchMedia("(max-width: 860px)").matches ? String(points) : `${points} Puan`;
+                $("pointsTopLabel").textContent = isMobileView() ? String(points) : `${points} Puan`;
                 $("pointsRailButton").setAttribute("aria-label", `${points} Nidar puanı`);
             }
             updateAiAssistantVisibility();
@@ -15152,13 +15190,17 @@
         updateAppViewportHeight();
         window.addEventListener("resize", () => {
             updateAppViewportHeight();
+            syncResponsiveLayout();
             updateNavIndicator();
             applyAdminDesign(window.nexalineDesign || {}, true);
         });
         window.visualViewport?.addEventListener("resize", updateAppViewportHeight, { passive: true });
         window.visualViewport?.addEventListener("scroll", updateAppViewportHeight, { passive: true });
         window.addEventListener("orientationchange", () => {
-            [80, 260, 520].forEach(delay => setTimeout(updateAppViewportHeight, delay));
+            [80, 260, 520].forEach(delay => setTimeout(() => {
+                updateAppViewportHeight();
+                syncResponsiveLayout();
+            }, delay));
         });
         window.addEventListener("pageshow", () => {
             requestAnimationFrame(updateAppViewportHeight);
