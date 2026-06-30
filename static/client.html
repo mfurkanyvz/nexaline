@@ -2643,7 +2643,8 @@
                 wrap.className = "install-grid";
                 wrap.innerHTML = `
                     <a class="file-pill" href="/downloads/nexaline.apk" download>Android APK indir</a>
-                    <a class="file-pill" href="/downloads/Nidar-PC.zip" download>PC uygulamasını indir</a>
+                    <a class="file-pill" href="/downloads/nexaline-tablet.apk" download>Tablet APK indir</a>
+                    <a class="file-pill" href="/downloads/NexaLine-PC.zip" download>PC uygulamasını indir</a>
                     <button id="pwaInstallAction" class="file-pill" type="button">Telefona/PC'ye kur</button>
                     <button id="notificationAction" class="file-pill" type="button">Bildirimleri aç</button>
                 `;
@@ -5058,12 +5059,16 @@
             return window.matchMedia("(pointer: coarse) and (orientation: portrait) and (min-width: 700px) and (max-width: 1180px)").matches;
         }
 
+        function isTabletLandscapeView() {
+            return window.matchMedia("(pointer: coarse) and (orientation: landscape) and (min-width: 700px) and (min-height: 560px) and (max-width: 1366px)").matches;
+        }
+
         function isMobileView() {
             return window.matchMedia("(max-width: 860px)").matches || isTabletPortraitView();
         }
 
         function isDesktopPanelLayout() {
-            return window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)").matches;
+            return window.matchMedia("(min-width: 700px) and (hover: hover) and (pointer: fine)").matches || isTabletLandscapeView();
         }
 
         function syncResponsiveLayout() {
